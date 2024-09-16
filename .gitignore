@@ -1,0 +1,17 @@
+pdfa.xmpi
+.vim
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.toc
+*.asv
+/# Excluded #
+build/
+_minted*
+*figure[0-9]*.dpth
+*figure[0-9]*.md5
+*figure[0-9]*.pdf
+*.auxlock
+
