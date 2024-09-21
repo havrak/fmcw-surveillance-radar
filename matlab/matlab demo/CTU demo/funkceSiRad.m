@@ -4,8 +4,6 @@
 %more information in Protocol_Description file (Protocol_Description_Easy_Simple_V2.4)
 %for info from SiRad, send '!I' for info,E for errors, 
 
-% clear
-
 
 
 function [SysCommand, BasebandCommand, FrontendCommand, PLLCommand]  = funkceSiRad()
@@ -69,27 +67,27 @@ systemDEFAULT='!S00032012'; %(only change is TSV mode and led)
 %     '!S',
 end
 function basebandCommand = BasebandConfig() %returns a baseband command, NESMI BYT 4 NULY NA ZACATKU
-basebandDEFAULT='!BA252C125';
-        WIN='0';%windowing before FFT
-        FIR='0';%FIR filter 0-of|1-on
-        DC='1'; %DCcancel 1-on|0-off
-        CFAR='00';%00-CA_CFAR|01-CFFAR_GO|10-CFAR_SO|11 res
-        CFARthreshold='0100'; %0-30, step 2
-        CFARsize='1010';%0000-0|1111-15| n of 
-        CFARgrd='01'; %guard cells range 0-3
-        AVERAGEn='01'; %n FFTs averaged range 0-3
-        FFTsize='100';% 000-32,64,128...,111-2048
-        DOWNsample='000';%downsampling factor 000-0,1,2,4,8..111-64
-        RAMPS='100';%ramps per measurement 
-        NofSAMPLES='100';%samples per measurement
-        ADCclkDIV='101';%sampling freq 000-2.571,2.4,2.118,1.8,1.125,0.487,0.186,0.059
+    basebandDEFAULT='!BA252C125';
+    WIN='0';%windowing before FFT
+    FIR='0';%FIR filter 0-of|1-on
+    DC='1'; %DCcancel 1-on|0-off
+    CFAR='00';%00-CA_CFAR|01-CFFAR_GO|10-CFAR_SO|11 res
+    CFARthreshold='0100'; %0-30, step 2
+    CFARsize='1010';%0000-0|1111-15| n of 
+    CFARgrd='01'; %guard cells range 0-3
+    AVERAGEn='01'; %n FFTs averaged range 0-3
+    FFTsize='100';% 000-32,64,128...,111-2048
+    DOWNsample='000';%downsampling factor 000-0,1,2,4,8..111-64
+    RAMPS='100';%ramps per measurement 
+    NofSAMPLES='100';%samples per measurement
+    ADCclkDIV='101';%sampling freq 000-2.571,2.4,2.118,1.8,1.125,0.487,0.186,0.059
     baseband=append(WIN,FIR,DC,CFAR,CFARthreshold,CFARsize,CFARgrd,AVERAGEn,FFTsize,DOWNsample,RAMPS,NofSAMPLES,ADCclkDIV);
     basebandHEX=bin2hex(baseband);
     basebandCommand=append('!B',basebandHEX);
 end
 
 function frontendCommand = FrontEndConfig()
-defaultFrontEnd='!F00075300';
+   defaultFrontEnd='!F00075300';
    %21 bit freq in lsb=250kHz
    OperatingFreq='001110101001100011000';
    FreqReserved='00000000000';
@@ -102,29 +100,29 @@ defaultFrontEnd='!F00075300';
 %    frontendCommand=append('!F',Freqstr);
 %    frontendCommand = frontendCommand(frontendCommand~=' ');
 end
+
 function pllCommand = PLLConfig()
-%max bandwidth by sending '!K'
-%16bit, MSB bit is sign 1=minus|0=plus
-%example 100...001 = -65536MHz | 1111...111= -2MHz
-bandwidth='0000100111000100'; %
-PLLreserved='0000000000000000';%1 at the start to save starting 0s
+    %max bandwidth by sending '!K'
+    %16bit, MSB bit is sign 1=minus|0=plus
+    %example 100...001 = -65536MHz | 1111...111= -2MHz
+    bandwidth='0000100111000100'; %
+    PLLreserved='0000000000000000';%1 at the start to save starting 0s
 
-pllCommand = bin2hex(append(PLLreserved, bandwidth));
-pllCommand=append('!P',pllCommand);
+    pllCommand = bin2hex(append(PLLreserved, bandwidth));
+    pllCommand=append('!P',pllCommand);
 
-% pllhex=dec2hex(bin2dec(append(PLLreserved,bandwidth)));
-% PLLhex=num2str(pllhex-'80000000');
-% pllCommand=append('!P',PLLhex);
-% pllCommand = pllCommand(pllCommand~=' ');
+    % pllhex=dec2hex(bin2dec(append(PLLreserved,bandwidth)));
+    % PLLhex=num2str(pllhex-'80000000');
+    % pllCommand=append('!P',PLLhex);
+    % pllCommand = pllCommand(pllCommand~=' ');
 end
 
 function hexCode = bin2hex(bin)
-nBin = length(bin);
-nParts = nBin/4;
-hexCode = repmat('0', 1, nParts);
-for iPart = 1:nParts
-   thisBin = bin((iPart-1)*4+1:iPart*4);
-   hexCode(iPart) = dec2hex(bin2dec(thisBin));
-end
-
+    nBin = length(bin);
+    nParts = nBin/4;
+    hexCode = repmat('0', 1, nParts);
+    for iPart = 1:nParts
+        thisBin = bin((iPart-1)*4+1:iPart*4);
+        hexCode(iPart) = dec2hex(bin2dec(thisBin));
+    end
 end

@@ -42,8 +42,9 @@ ylabel("[dB]");
 %axis([ax3 ax4],[0 600 2 10]);
 
 
-SerialName = "COM15";
+SerialName = "/dev/ttyACM0";
 SerialObj = serialport(SerialName,230400,"Timeout",5);
+% WINDOWS configureTerminator(SerialObj,"CR/LF");
 configureTerminator(SerialObj,"CR/LF");
 [SysCommand, BasebandCommand, FrontendCommand, PLLCommand] = funkceSiRad();
 
@@ -70,6 +71,7 @@ i=1;
         
 while 1
     
+    fprintf("Trying to read serial data\r\n");
     buf = char(readline(SerialObj));
     
     indStartData = strfind(buf, '1024')+5;

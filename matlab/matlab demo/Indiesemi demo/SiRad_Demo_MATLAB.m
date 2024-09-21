@@ -1,4 +1,4 @@
-% @file SiRad_Demo_MATLAB.m
+%% SiRad_Demo_MATLAB.m
 % @author Jana Krimmling
 % @version 1.0-798cfbbd6a
 % @date 2020-02-17
@@ -51,7 +51,19 @@ clc;
 %                             USER SETTINGS
 % ------------------------------------------------------------------------
 % set Serial Port (modify number after "COM")
-serialPort_string = 'COM4';
+
+
+% changes 
+if isunix
+    serialPort_string = '/dev/ttyACM0';
+elseif ispc
+    serialPort_string = 'COM4';
+else
+    disp('Platform not supported')
+end
+
+baudrate=230400;
+
 % set fixed graph size and position to ON or OFF
 fixedGraphSizeAndPosition = 1;  % or 0
 % graph size
@@ -66,9 +78,9 @@ figureY = 42; % leave space for windows 10 task bar
 % ------------------------------------------------------------------------
 % open com port
 serialPort = [];
-comPort = serialport(serialPort_string, 1000000, 'DataBits', 8, 'FlowControl', 'none', 'StopBits', 1, 'Parity', 'none', 'Timeout', 1);
+comPort = serialport(serialPort_string, baudrate, 'DataBits', 8, 'FlowControl', 'none', 'StopBits', 1, 'Parity', 'none', 'Timeout', 1);
 serialPort = comPort;
-configureTerminator(serialPort, 'CR/LF');
+configureTerminator(serialPort, 'CR');
 flush(serialPort);
 pause(0.1);
 
@@ -207,7 +219,7 @@ while (1)
         serialPort = [];
         delete(comPort);
         pause(0.1);
-        comPort = serialport(serialPort_string, 1000000, 'DataBits', 8, 'FlowControl', 'none', 'StopBits', 1, 'Parity', 'none', 'Timeout', 2);
+        comPort = serialport(serialPort_string, baudrate, 'DataBits', 8, 'FlowControl', 'none', 'StopBits', 1, 'Parity', 'none', 'Timeout', 2);
         serialPort = comPort;
         configureTerminator(serialPort, 'CR/LF');
         flush(serialPort);
@@ -291,6 +303,8 @@ while (1)
     data = typecast(uint16(hex2dec(dataStr)), "int16");
     dataI = data(1:2:end);
     dataQ = data(2:2:end);
+    disp(dataI);
+    disp(dataQ);
     
     % plot the data
     plot(ax1,dataI);
@@ -302,4 +316,4 @@ while (1)
     
     % wait a little before sending next trigger to not confuse device
     pause(0.005);
-end;
+end
