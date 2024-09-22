@@ -42,7 +42,6 @@ void OSCore::setup()
 {
 	Wire.begin();
 
-
 	// ------------------------------------------
 	// WiFi
 	// ------------------------------------------
@@ -55,26 +54,28 @@ void OSCore::setup()
 	// Time Manager
 	// ------------------------------------------
 
-
 	// ------------------------------------------
 	// Peripherals
 	// ------------------------------------------
 	ESP_LOGI(TAG, "setup | Peripherals");
+	I2CLCDDecorator* lcd = new I2CLCDDecorator(I2CPeriphery(0x27), 20, 4);
+	PeripheralsManager::getInstance()->addPeriphery(lcd);
 	PeripheralsManager::getInstance()->initializePeripherals();
 
 	// ------------------------------------------
 	// Configure Peripherals
 	// ------------------------------------------
+	lcd->getLCD()->setCursor(0, 0);
+	lcd->getLCD()->print("Test");
 
 	// ------------------------------------------
 	// Configure Peripherals
 	// ------------------------------------------
 
-
 	// ------------------------------------------
 	// OSCora Tasker calls setup
 	// ------------------------------------------
-	TaskerSingletonWrapper::getInstance()->addTask(new Task(this, TSID_OS_CORE_TEST,10'000, 0, TaskPriority::TSK_PRIORITY_MEDIUM));
+	TaskerSingletonWrapper::getInstance()->addTask(new Task(this, TSID_OS_CORE_TEST, 10'000, 0, TaskPriority::TSK_PRIORITY_MEDIUM));
 
 	// END
 	ESP_LOGI(TAG, "setup | setup finished");
@@ -83,7 +84,7 @@ void OSCore::setup()
 uint8_t OSCore::call(uint16_t id)
 {
 
-	TaskerSingletonWrapper::getInstance()->addTask(new Task(this, TSID_OS_CORE_TEST,10'000 , 0, TaskPriority::TSK_PRIORITY_MEDIUM));
+	TaskerSingletonWrapper::getInstance()->addTask(new Task(this, TSID_OS_CORE_TEST, 10'000, 0, TaskPriority::TSK_PRIORITY_MEDIUM));
 	return 0;
 }
 

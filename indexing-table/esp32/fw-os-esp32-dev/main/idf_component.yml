@@ -17,6 +17,11 @@ dependencies:
     path: "$HOME/prog/embedded/esp32-fw/fw-lib-esp32-utils"
     # path: "."
     # git: git@github.com:JoTioTech/fw-lib-esp32-utils.git
+  JoTioTech/fw-lib-esp32-protocol-jobin:
+    path: "$HOME/prog/embedded/esp32-fw/fw-lib-esp32-protocol-jobin"
+    # path: "."
+    # git: git@github.com:JoTioTech/fw-lib-esp32-protocol-jobin.git
+
   ## Required IDF version
   idf:
     version: ">=4.1.0"

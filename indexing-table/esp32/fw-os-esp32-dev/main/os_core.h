@@ -14,6 +14,8 @@
 #include <sdkconfig.h>
 #include <stdio.h>
 #include <tasker_event_observer.h>
+#include <i2c_lcd_decorator.h>
+#include <i2c_periphery.h>
 #include <wifi_manager.h>
 #include <nvs_flash.h>
 
@@ -32,6 +34,7 @@ class OSCore : CallbackInterface, TaskerEventObserver{
 	static OSCore* instance;
 
 	OSCore();
+	I2CLCDDecorator* lcd = nullptr;
 
 
 	public:
