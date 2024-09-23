@@ -1,12 +1,14 @@
 file(GLOB main_source
-	"os_core.cpp"
-	"app_main.cpp"
+	# "os_core.cpp"
+	"*.cpp"
+	# "app_main.cpp"
 	)
 
 idf_component_register(SRCS ${main_source}
 	INCLUDE_DIRS .
 	PRIV_REQUIRES
 	fw-lib-esp32-wifi-manager
+	fw-lib-esp32-mqtt
 	fw-lib-esp32-peripherals
 	fw-lib-esp32-tasker
 	esp_wifi

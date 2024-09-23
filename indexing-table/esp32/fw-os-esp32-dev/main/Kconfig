@@ -1,2 +1,68 @@
 menu "Jotio OS"
+
+config COMM_MQTT_BROKER_URL
+string "COMM_MQTT Broker URL"
+default "mqtt://broker.hivemq.com"
+help
+	URL of the broker to connect to
+
+config COMM_MQTT_PASSWORD_PROTECTED
+
+bool "COMM_MQTT Password Protected"
+default false
+help
+	Enable password protection for MQTT
+
+config COMM_MQTT_BROKER_USERNAME
+string "COMM_MQTT Username"
+default "jopka:endDevice"
+depends on COMM_MQTT_PASSWORD_PROTECTED
+help
+	Username to use for authentication
+
+config COMM_MQTT_BROKER_PASSWORD
+string "COMM_MQTT Password"
+default "55915eadad0bfed78aa90a722a04665d"
+help
+	Password to use for authentication
+
+config COMM_RS232_BUFFER_SIZE
+int "COMM RS232 communication buffer Size"
+range 128 4096
+default 1024
+help
+	Size of the buffer for RS232
+
+choice COMM_RS232_BAUDRATE
+prompt "COMM RS232 communication baudrate"
+default COMM_RS232_BAUDRATE_115200
+help
+	Baudrate for RS232
+
+config COMM_RS232_BAUDRATE_9600
+bool '9600'
+config COMM_RS232_BAUDRATE_19200
+bool '19200'
+config COMM_RS232_BAUDRATE_38400
+bool '38400'
+config COMM_RS232_BAUDRATE_57600
+bool '57600'
+config COMM_RS232_BAUDRATE_115200
+bool '115200'
+endchoice
+
+config COMM_RS232_BAUDRATE
+int
+default 115200 if COMM_RS232_BAUDRATE_115200
+default 57600 if COMM_RS232_BAUDRATE_57600
+default 38400 if COMM_RS232_BAUDRATE_38400
+default 19200 if COMM_RS232_BAUDRATE_19200
+default 9600 if COMM_RS232_BAUDRATE_9600
+
+config COMM_ENABLE_LOCKS
+bool "Enable locks"
+default true
+help
+	Enable locks to prevent concurrent access to the processing queue
+
 endmenu
