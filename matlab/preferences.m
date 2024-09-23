@@ -71,10 +71,9 @@ classdef preferences < handle
             obj.availableBaudrates = [ 9600 19200 100000 115200 230400];
             if isunix
                 path=fullfile(getenv("HOME"), ".config", "fmcw" );
-                disp(path);
             elseif ispc
-                [~,cmdout] = system('echo %APPDATA%')
-                path=fullfile(cmdout, "Local", "fmcw")
+                [~,cmdout] = system('echo %APPDATA%');
+                path=fullfile(cmdout, "Local", "fmcw");
             else
                 path="lorem impsum dolor sit ament";
                 fprintf("Storing config is not supported on this platform");
@@ -106,21 +105,31 @@ classdef preferences < handle
         function loadConfig(obj)
             if isfile(obj.configFilePath)
                 struct = ini2struct(obj.configFilePath);
-                disp(struct.radar);
+                
                 % not everything might be present in the read struct
                 sections = fieldnames(obj.configStruct);
                 for k=1:length(sections)
                     section = char(sections(k));
-                    items=fieldnames(obj.(section))
+                    items=fieldnames(obj.configStruct.(section));
+                    
+                    if ~isfield(struct,section)
+                        fprintf("Section %s not found in config\r\n", section);
+                        continue;
+                    end
                     for l=1:length(items)
                         item=char(items(l));
-                        disp(item);
+                        if ~isfield(struct.(section),item)
+                            fprintf("Item %s not found in configs section %s\r\n", item, section);
+                            continue;
+                        end
+                        % check for baudrate
+                        if numel(strfind(item, 'Baudrate')) ~=0 && ~any(obj.availableBaudrates == struct.(section).(item))
+                            uialert(obj.hFig, 'Unsupported baudrate wrong in config file', 'Config loading erro', 'icon', 'error');
+                            continue;
+                        end
+
+                        obj.configStruct.(section).(item) = struct.(section).(item);
                     end
-                end
-                if ~any(obj.availableBaudrates == struct.radar.radarBaudrate) || ...
-                   ~any(obj.availableBaudrates == struct.esp.espBaudrate)
-                     uialert(obj.hFig, 'Baudrate wrong in config file', 'Config loading erro', 'icon', 'error');
-                     return;
                 end
 
             end
