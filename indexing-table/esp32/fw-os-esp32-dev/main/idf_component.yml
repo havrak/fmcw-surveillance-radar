@@ -13,6 +13,14 @@ dependencies:
     path: "$HOME/prog/embedded/esp32-fw/fw-lib-esp32-peripherals"
     # path: "."
     # git: git@github.com:JoTioTech/fw-lib-esp32-peripherals.git
+  JoTioTech/fw-lib-esp32-hal:
+    path: "$HOME/prog/embedded/esp32-fw/fw-lib-esp32-hal"
+    # path: "."
+    # git: git@github.com:JoTioTech/fw-lib-esp32-hal.git
+  JoTioTech/fw-lib-esp32-mqtt:
+    path: "$HOME/prog/embedded/esp32-fw/fw-lib-esp32-mqtt"
+    # path: "."
+    # git: git@github.com:JoTioTech/fw-lib-esp32-utils.git
   JoTioTech/fw-lib-esp32-utils:
     path: "$HOME/prog/embedded/esp32-fw/fw-lib-esp32-utils"
     # path: "."

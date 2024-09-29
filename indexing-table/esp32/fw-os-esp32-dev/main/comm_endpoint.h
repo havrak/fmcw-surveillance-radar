@@ -13,26 +13,23 @@
 
 #include <mqtt_wrapper.h>
 #include <mqtt_singleton_wrapper.h>
-#include <time_manager.h>
 #include <esp_log.h>
 #include <string>
 #include <queue>
 #include <callback_interface.h>
 #include <tasker_singleton_wrapper.h>
-#include <jopka_tasker_ids.h>
+#include <os_core_tasker_ids.h>
 
 #define EX_UART_NUM UART_NUM_0
 #define MAX_COMMAND_LENGTH 64
 
-#define LENGTH_TO_COPY(x, y) (x+y >= CONFIG_SREND_RS232_BUFFER_SIZE ? CONFIG_SREND_RS232_BUFFER_SIZE - x : y)
+#define LENGTH_TO_COPY(x, y) (x+y >= CONFIG_COMM_RS232_BUFFER_SIZE ? CONFIG_COMM_RS232_BUFFER_SIZE - x : y)
 
 #ifdef CONFIG_COMM_ENABLE_LOCKS
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/semphr.h>
 #endif
-
-enum
 
 
 enum CommDataFormat : uint8_t {
@@ -55,19 +52,11 @@ class CommRequest{
 
 		CommRequest(CommDataOrigin origin, CommDataFormat format, const char* command, uint32_t command_len): origin(origin), format(format)
 	{
-		memset(this->data.command, 0, MAX_COMMAND_LENGTH);
-		strncpy(this->data.command, command, command_len);
+		memset(this->command, 0, MAX_COMMAND_LENGTH);
+		strncpy(this->command, command, command_len);
 	};
 
-		CommRequest(CommDataOrigin origin, cJSON* jsn): origin(origin) {
-			format = CommDataFormat::GCD;
-			this->data.jsn = jsn;
-		};
 
-		~CommRequest(){
-			if(this->format == CommDataFormat::GCD)
-				cJSON_Delete(this->data.jsn);
-		};
 
 };
 
@@ -78,12 +67,11 @@ class CommEndpoint: CallbackInterface, MQTTObserver {
 		static MQTTWrapper* mqttWrapperPtr;
 
 		std::queue<CommRequest*> requestsQueue;
-		CommDeviceMode deviceMode = CommDeviceMode::MODE_SERVICE;
 
 		constexpr static char TAG[] = "CommEndpoint";
 		static QueueHandle_t uart0_queue;
 
-		char responseBuffer[CONFIG_SREND_RESPONSE_BUFFER_SIZE];
+		char responseBuffer[CONFIG_COMM_RS232_BUFFER_SIZE];
 
 		CommEndpoint(bool mqtt, bool serial);
 		CommEndpoint(MQTTWrapper* mqttWrapperPtr, bool serial = false);
@@ -106,7 +94,6 @@ class CommEndpoint: CallbackInterface, MQTTObserver {
 		void sendResponse(const CommRequest* request, const char* response, uint16_t responseLength);
 
 		std::function<void()> jpkNVSWipeRequestCallback = NULL;
-		std::function<void(CommDeviceMode)> jpkModeChangeRequestCallback = NULL;
 
 
 

@@ -40,7 +40,7 @@ void OSCore::loop()
 
 void OSCore::setup()
 {
-	Wire.begin();
+	Wire.begin(SDA, SCL);
 
 	// ------------------------------------------
 	// WiFi
@@ -58,15 +58,21 @@ void OSCore::setup()
 	// Peripherals
 	// ------------------------------------------
 	ESP_LOGI(TAG, "setup | Peripherals");
-	I2CLCDDecorator* lcd = new I2CLCDDecorator(I2CPeriphery(0x27), 20, 4);
+	lcd = new PerI2CLCDDecorator(I2CPeriphery(0x27), 20, 4);
 	PeripheralsManager::getInstance()->addPeriphery(lcd);
+	PerStepperDriver* rotation = new PerStepperDriver(200, 32,33, 25, 26);
+	MotorControl::getInstance()->setMotors(rotation, nullptr);
+	PeripheralsManager::getInstance()->addPeriphery(rotation);
 	PeripheralsManager::getInstance()->initializePeripherals();
+	//
+	rotation->setSpeed(30);
+	rotation->step(800);
 
 	// ------------------------------------------
 	// Configure Peripherals
 	// ------------------------------------------
 	lcd->getLCD()->setCursor(0, 0);
-	lcd->getLCD()->print("Test");
+	lcd->getLCD()->print("Testo");
 
 	// ------------------------------------------
 	// Configure Peripherals
