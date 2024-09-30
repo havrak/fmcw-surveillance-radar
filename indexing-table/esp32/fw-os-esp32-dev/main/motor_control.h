@@ -40,6 +40,8 @@ class MotorControl{
 		this->tilt = tilt;
 	};
 
+	void parseGcode(const char* gcode, uint16_t length);
+
 
 
 };

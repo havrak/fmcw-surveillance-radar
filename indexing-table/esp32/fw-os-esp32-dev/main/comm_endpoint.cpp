@@ -55,7 +55,7 @@ CommEndpoint::CommEndpoint(bool mqtt, bool serial)
 		setupComm();
 }
 
-void CommEndpoint::uartEvent(void* pvParameters)
+void CommEndpoint::uartEvent(void* commEndpointInstance)
 {
 	auto startIndex = [](const char* str) { // skips first 4 characters and all spaces and tabs
 		int i = 4;
@@ -83,16 +83,17 @@ void CommEndpoint::uartEvent(void* pvParameters)
 				uart_read_bytes(EX_UART_NUM, dtmp, event.size, portMAX_DELAY);
 
 				for (j = 0, j_prev = 0; j < event.size; j++) {
-					if ((int)dtmp[j] == 13) {
+					if ((int)dtmp[j] == 13) {   // match carriage return
 						memcpy(buffer + i, dtmp + j_prev, LENGTH_TO_COPY(i, j - j_prev));
 						i += LENGTH_TO_COPY(i, j - j_prev);
 						buffer[i] = '\0';
 
+
 						pointer = buffer + startIndex(buffer);
 						if (strncmp(buffer, "#ATC", 4) == 0)
-							CommEndpoint::getInstance()->logRequestATC(pointer, strlen(pointer), CommDataOrigin::RS232);
+							((CommEndpoint*) commEndpointInstance)->logRequestATC(pointer, strlen(pointer), CommDataOrigin::RS232);
 						if (strncmp(buffer, "#GCD", 4) == 0)
-							CommEndpoint::getInstance()->logRequestGCD(pointer, strlen(pointer), CommDataOrigin::RS232);
+							((CommEndpoint*) commEndpointInstance)->logRequestGCD(pointer, strlen(pointer), CommDataOrigin::RS232);
 						i = 0;
 						j_prev = j + 1;
 					}
@@ -107,9 +108,10 @@ void CommEndpoint::uartEvent(void* pvParameters)
 	vTaskDelete(NULL);
 }
 
-void CommEndpoint::setupComm()
+bool CommEndpoint::setupComm()
 {
 	ESP_LOGI(TAG, "setupComm | Setting up serial");
+	esp_err_t err;
 	uart_config_t uart_config = {
 		.baud_rate = CONFIG_COMM_RS232_BAUDRATE,
 		// .bits = UART_DATA_8_BITS,
@@ -121,11 +123,22 @@ void CommEndpoint::setupComm()
 
 	// Install UART driver, and get the queue.
 	uart_driver_install(EX_UART_NUM, CONFIG_COMM_RS232_BUFFER_SIZE * 2, CONFIG_COMM_RS232_BUFFER_SIZE * 2, 20, &uart0_queue, 0);
-	uart_param_config(EX_UART_NUM, &uart_config);
-	uart_set_pin(EX_UART_NUM, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+	err=uart_param_config(EX_UART_NUM, &uart_config);
+	if (err != ESP_OK) {
+		ESP_LOGE(TAG, "setupComm | uart_param_config failed");
+		uart_driver_delete(EX_UART_NUM);
+		return false;
+	}
+	err=uart_set_pin(EX_UART_NUM, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+	if (err != ESP_OK) {
+		ESP_LOGE(TAG, "setupComm | uart_set_pin failed");
+		uart_driver_delete(EX_UART_NUM);
+		return false;
+	}
 
 	// Create a task to handler UART event from ISR
-	xTaskCreate(uartEvent, "uartEvent", 2048, NULL, 12, NULL);
+	xTaskCreate(uartEvent, "uartEvent", 2048, this, 12, NULL);
+	return true;
 }
 
 bool CommEndpoint::toggleMQTT(bool toggle)
@@ -200,6 +213,7 @@ bool CommEndpoint::logRequestGCD(const char* input, uint16_t inputLength, CommDa
 #endif
 
 	// NOTE: gcode command are processed immediately (usually means move commands are just scheduled and executed in rtos task)
+	MotorControl::getInstance()->parseGcode(input, inputLength);
 	// TODO: call their processing here
 	CommRequest* request = new CommRequest(origin, CommDataFormat::GCD, input, inputLength);
 	// request->error = processGCDCommand(request);

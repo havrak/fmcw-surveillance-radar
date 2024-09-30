@@ -19,6 +19,7 @@
 #include <callback_interface.h>
 #include <tasker_singleton_wrapper.h>
 #include <os_core_tasker_ids.h>
+#include <motor_control.h>
 
 #define EX_UART_NUM UART_NUM_0
 #define MAX_COMMAND_LENGTH 64
@@ -82,7 +83,7 @@ class CommEndpoint: CallbackInterface, MQTTObserver {
 #endif
 
 
-		void setupComm();
+		bool setupComm();
 		void subscribeMQTTopics();
 		void unsubscribeMQTTopics();
 

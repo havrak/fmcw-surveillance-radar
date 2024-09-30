@@ -12,3 +12,9 @@ MotorControl* MotorControl::instance = nullptr;
 MotorControl::MotorControl()
 {
 }
+
+
+void MotorControl::parseGcode(const char* gcode, uint16_t length)
+{
+	ESP_LOGE(TAG, "Gcode parsign not implemented");
+}
