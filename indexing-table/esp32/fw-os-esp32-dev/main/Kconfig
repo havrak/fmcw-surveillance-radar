@@ -65,4 +65,149 @@ default true
 help
 	Enable locks to prevent concurrent access to the processing queue
 
+
+config MOTT_H_ENABLE
+bool "Horizontal motor enabled"
+default y
+help
+	Enable motor responsibe for rotation in horizontal axis
+
+config MOTT_H_STEP_COUNT
+int "Horizontal motor rotation step count"
+range 1 1000
+default 200
+depends on MOTT_H_ENABLE
+help
+	Number of steps to rotate one revolution the motor in horizontal axis
+
+
+config MOTT_H_GEAR_RATIO
+int "Horizontal motor gear ratio (*100)"
+range 1 1000
+default 1
+depends on MOTT_H_ENABLE
+help
+	Gear ratio of the motor in horizontal axis (multiplied by 100)
+
+config MOTT_H_4WIRE_MODE
+bool "Horizontal motor 4-wire mode"
+default y
+depends on MOTT_H_ENABLE
+help
+	Enable 4-wire mode for motor horizontal (driver being connected not by two wires but by four)
+
+config MOTT_H_PIN1
+int "Horizontal motor GPIO connection for pin 1"
+range 0 100
+default 32
+depends on MOTT_H_ENABLE
+help
+	Horizontal motor GPIO connection for pin 1
+
+config MOTT_H_PIN2
+int "Horizontal motor GPIO connection for pin 2"
+range 0 100
+default 33
+depends on MOTT_H_ENABLE
+help
+	Horizontal motor GPIO connection for pin 2
+
+config MOTT_H_PIN3
+int "Horizontal motor GPIO connection for pin 3"
+range 0 100
+default 25
+depends on MOTT_H_ENABLE
+depends on MOTT_H_4WIRE_MODE
+help
+	Horizontal motor GPIO connection for pin 3
+
+config MOTT_H_PIN4
+int "Horizontal motor GPIO connection for pin 4"
+range 0 100
+default 26
+depends on MOTT_H_ENABLE
+depends on MOTT_H_4WIRE_MODE
+help
+	Horizontal motor GPIO connection for pin 4
+
+config MOTT_H_FAULT_PIN
+int "Motor horizontal fault GPIO pin"
+range -1 100
+default -1
+depends on MOTT_H_ENABLE
+help
+	GPIO pin number of fault pin of the motor in horizontal axis, -1 for no fault pin
+
+
+config MOTT_H_ENABLE
+bool "Tilt motor enabled"
+default y
+help
+	Enable motor responsibe for tilt
+
+config MOTT_T_STEP_COUNT
+int "Tilt motor rotation step count"
+range 1 1000
+default 200
+depends on MOTT_T_ENABLE
+help
+	Number of steps to rotate one revolution the motor in tilt axis
+
+config MOTT_T_GEAR_RATIO
+int "Tilt motor gear ratio (*100)"
+range 1 1000
+default 1
+depends on MOTT_T_ENABLE
+help
+	Gear ratio of the motor in tilt axis (multiplied by 100)
+
+config MOTT_T_4WIRE_MODE
+bool "Tilt motor 4-wire mode"
+default y
+depends on MOTT_T_ENABLE
+help
+	Enable 4-wire mode for motor tilt (driver being connected not by two wires but by four)
+
+config MOTT_T_PIN1
+int "Tilt motor GPIO connection for pin 1"
+range 0 100
+default 27
+depends on MOTT_T_ENABLE
+help
+	Tilt motor GPIO connection for pin 1
+
+config MOTT_T_PIN2
+int "Tilt motor GPIO connection for pin 2"
+range 0 100
+default 14
+depends on MOTT_T_ENABLE
+help
+	Tilt motor GPIO connection for pin 2
+
+config MOTT_T_PIN3
+int "Tilt motor GPIO connection for pin 3"
+range 0 100
+default 12
+depends on MOTT_T_ENABLE
+depends on MOTT_T_4WIRE_MODE
+help
+	Tilt motor GPIO connection for pin 3
+
+config MOTT_T_PIN4
+int "Tilt motor GPIO connection for pin 4"
+range 0 100
+default 13
+depends on MOTT_T_ENABLE
+depends on MOTT_T_4WIRE_MODE
+help
+	Tilt motor GPIO connection for pin 4
+
+config MOTT_T_FAULT_PIN
+int "Motor tilt fault GPIO pin"
+range -1 100
+default -1
+depends on MOTT_T_ENABLE
+help
+	GPIO pin number of fault pin of the motor in tilt axis, -1 for no fault pin
+
 endmenu

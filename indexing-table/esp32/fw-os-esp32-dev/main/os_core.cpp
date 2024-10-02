@@ -60,9 +60,19 @@ void OSCore::setup()
 	ESP_LOGI(TAG, "setup | Peripherals");
 	lcd = new PerI2CLCDDecorator(I2CPeriphery(0x27), 20, 4);
 	PeripheralsManager::getInstance()->addPeriphery(lcd);
-	PerStepperDriver* rotation = new PerStepperDriver(200, 32,33, 25, 26);
-	MotorControl::getInstance()->setMotors(rotation, nullptr);
-	PeripheralsManager::getInstance()->addPeriphery(rotation);
+
+	PerStepperDriver* horizontal = nullptr;
+	PerStepperDriver* tilt = nullptr;
+
+#ifdef CONFIG_MOTT_H_ENABLE
+	horizontal = new PerStepperDriver(CONFIG_MOTT_H_STEP_COUNT, CONFIG_MOTT_H_STEP_PIN1, CONFIG_MOTT_H_STEP_PIN2, CONFIG_MOTT_H_STEP_PIN3, CONFIG_MOTT_H_STEP_PIN4);
+#endif
+
+#ifdef CONFIG_MOTT_T_ENABLE
+	tilt = new PerStepperDriver(CONFIG_MOTT_T_STEP_COUNT, CONFIG_MOTT_T_STEP_PIN1, CONFIG_MOTT_T_STEP_PIN2, CONFIG_MOTT_T_STEP_PIN3, CONFIG_MOTT_T_STEP_PIN4);
+#endif
+
+	MotorControl::getInstance()->setMotors(horizontal, tilt);
 	PeripheralsManager::getInstance()->initializePeripherals();
 	//
 	rotation->setSpeed(30);
