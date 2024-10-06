@@ -19,23 +19,34 @@
 #define port_TICK_PERIOD_US portTICK_PERIOD_MS * 1000
 
 enum PositioningMode : uint8_t {
-	ABSOLUTE = 0,
-	RELATIVE = 1,
+	HOMING_FAST = 0,
+	HOMING_SLOW = 1,
+	ABSOLUTE = 2,
+	RELATIVE = 3,
 };
 
 enum MotorMode : uint8_t {
-	SPINDLE_CLOCKWISE = 0,
-	SPINDLE_CLOCKWISE = 0,
-	STEPPER = 1,
+	HOMING = 0,
+	STOPPED = 1,
+	SPINDLE_CLOCKWISE = 2,
+	SPINDLE_COUNTERCLOCKWISE = 3
+	STEPPER = 4,
 };
 
 typedef struct {
-	MotorMode mode = MotorMode::STEPPER; // motor mode
+	// motor configuration paramters:
+	int8_t endstop = -1; // endstop pin
 	int16_t angleMax = -1; // maximum angle
 	int16_t angleMin = -1; // minimum angle
+	uint16_t gearRatio = 1; // gear ratio (only down gearing)
+	uint8_t microstepping = 1; // microstepping
+	uint16_t stepCount = 100; // steps per revolution
+
+	// operational variables;
+	MotorMode mode = MotorMode::STEPPER; // motor mode
 	uint16_t angle; // current angle (always in absolute mode)
 	uint16_t angleStartRelative; // angle at the beginning of the relative positioning
-	uint16_t stepsToGo; // number of steps to go
+	int32_t stepsToGo; // number of steps to go
 	uint32_t pause = 1000'0000; // default sleep roughly ones pers second
 	uint64_t lastStepTime = 0; // time of the last step
 }  __attribute__((packed)) motorVariables;
@@ -45,18 +56,19 @@ class MotorControl{
 	constexpr static char TAG[] = "MotorControl";
 	static MotorControl* instance;
 
-	PerStepperDriver* horizontal = nullptr;
-	PerStepperDriver* tilt = nullptr;
 	PositioningMode positioningMode = PositioningMode::ABSOLUTE;
 
-	volatile motorVariables horizontalMotorVariables;
-	volatile motorVariables tiltMotorVariables;
+	PerStepperDriver* horzMot = nullptr;
+	PerStepperDriver* tiltMot = nullptr;
+	volatile motorVariables horzVar;
+	volatile motorVariables tiltVar;
 
 	TaskHandle_t motorMoveTaskHandle = NULL;
 
 	static void motorMoveTask(void *arg);
 
 
+	void homeRoutine(uint8_t part);
 
 
 
@@ -75,11 +87,27 @@ class MotorControl{
 		return instance;
 	};
 
-	void setMotors(PerStepperDriver* horizontal, PerStepperDriver* tilt)
+	void setMotors(PerStepperDriver* horizontal, PerStepperDriver* tilt, uint8_t horizontalStepCount = 200, uint8_t tiltStepCount = 200, uint8_t horizontalGearRatio =1 , uint8_t tiltGearRatio = 1 , uint8_t horizontalMicrostepping =1 , uint8_t tiltMicrostepping = 1)
 	{
-		this->rotation = rotation;
+		this->horizontal = horizontal;
 		this->tilt = tilt;
+		this->horzVar.stepCount = horizontalStepCount;
+		this->tiltVar.stepCount = tiltStepCount;
+		this->horzVar.gearRatio = horizontalGearRatio;
+		this->tiltVar.gearRatio = tiltGearRatio;
+		this->horzVar.microstepping = horizontalMicrostepping;
+		this->tiltVar.microstepping = tiltMicrostepping;
+		this->horzVar.endstop = horizontalEndstop;
+		this->tiltVar.endstop = tiltEndstop;
+		this->horzVar.angleMax = horizontalAngleMax;
+		this->tiltVar.angleMax = tiltAngleMax;
+		this->horzVar.angleMin = horizontalAngleMin;
+		this->tiltVar.angleMin = tiltAngleMin;
 	};
+
+	void startMotorTask();
+
+	void setEndstops(int8_t horizontal = -1, int8_t tilt = -1);
 
 	PerStepperDriver* getHorizontal()
 	{
@@ -94,6 +122,10 @@ class MotorControl{
 	void parseGcode(const char* gcode, uint16_t length);
 
 	void printLocation();
+
+	void homeHorz(){
+		homeRoutine(0);
+	}
 
 
 };

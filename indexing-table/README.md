@@ -16,9 +16,6 @@
 
 mechanické díly: turtle3d
 
-## Mechanické díly
-* řemenice:
-	* potřeba celkově 4
 	* dratek
 		* 16, 20, zubů GT2 oboje v 5mm hřídel
 		* https://dratek.cz/arduino/149622-remenice-gt2-16-zubu-pro-remen-6mm-vnitrni-prumer-5mm.html (16 zubů, 35kč)
@@ -28,18 +25,24 @@ mechanické díly: turtle3d
 		* https://www.3dfoxshop.cz/remenice-gt2-30-zubu/ (30 zubů, 98kč)
 		* https://www.3dfoxshop.cz/remenice-gt2-2-20zubu-d8/  (20 zubů, 55kč)
 		* https://www.3dfoxshop.cz/remenice-gt2-36-zubu/ (36 zubů, 98kč)
-	* turtle3d <-----
-		* široký výběr, provedení v 8mm
-		* https://www.turtle3d.cz/cz/490/26/remenice-pro-gt2-6mm-60-zub-dira-8mm (20 zubů, 35kč)
-		* https://www.turtle3d.cz/cz/489/26/remenice-pro-gt2-6mm-40-zub-dira-8mm  (40 zubů, 63kč)
-		* https://www.turtle3d.cz/cz/487/26/remenice-pro-gt2-6mm-20-zub-dira-8mm (60 zubů, 63kč)
-* ložiska
-	* 2 ložiska na zařízení nákolu, 1 jako podpora rotace v horizontální úrovni
 	* dratek
 		* - špatná nabýdka
 	* 3dfoxshop
 		* https://www.3dfoxshop.cz/lozisko-625zz/ (5mm, 16mm, 30kč)
 		* https://www.3dfoxshop.cz/lozisko-608zz/ (8mm, 22mm, 26kč)
+
+## Mechanické díly
+* řemenice:
+	* potřeba celkově 4
+	* turtle3d <-----
+		* široký výběr, provedení v 8mm
+		* https://www.turtle3d.cz/cz/490/26/remenice-pro-gt2-6mm-60-zub-dira-8mm (20 zubů, 35kč)
+		* https://www.turtle3d.cz/cz/489/26/remenice-pro-gt2-6mm-40-zub-dira-8mm  (40 zubů, 63kč)
+		* https://www.turtle3d.cz/cz/487/26/remenice-pro-gt2-6mm-20-zub-dira-8mm (60 zubů, 63kč)
+		* kombinace 20-40 dá rozlišení 0.9°, 20-60 dá 0.6°, myslím, že  20-40 bude stačit na nákolon, 20-60 se může použít na rotaci
+		* s rychlostí by neměl být problém jde jen o rozlišení
+* ložiska
+	* 2 ložiska na zařízení náklonu, 1 jako podpora rotace v horizontální úrovni
 	* turtle3d  <-----
 		* https://www.turtle3d.cz/cz/175/26/lozisko-608zz-8x22x7-  (8mm, 22mm, 15kč)
 * řemen
@@ -47,13 +50,15 @@ mechanické díly: turtle3d
 			* https://www.turtle3d.cz/cz/344/26/remen-gt2-6mm-280mm (280mm, 35kč)
 			* https://www.turtle3d.cz/cz/343/26/remen-gt2-6mm-300mm  (300mm, 40kč)
 			* https://www.turtle3d.cz/cz/342/26/remen-gt2-6mm-400mm (400mm, 45kč)
+			* musím si dopočítat ještě vzdálenosti, asi jednou 300 a jednou 400mm
+* 8mm tyčky v libovolném železářství, turtle3d něco nabízí, ale ceny jsou směšné
 
----> turtle3d jako jediný dodavatel
 
 ## Elektrické díly
-* potřeba: krokový motor, řadič pro krokový motor, mikrospínač, optická závora
-* beru ze svého: stepdown, mikrokontrolér, díly na propojení
-* potřeba eventuálně až se bude dělat deska: systém pro vypínaní napájení stepper motorů, přepěťová ochrana, sjednotit propoje na JST
+* potřeba: krokový motor, řadič pro krokový motor, mikrospínač, optická závora, svorky, JST pro krokové motory
+* beru ze svého: stepdown, mikrokontrolér, drátky na propojení, pasivní komponenty, LCD?
+* potřeba eventuálně až se bude dělat deska: systém pro vypínaní napájení stepper motorů (asi dva FETy), přepěťová ochrana, sjednotit propoje na JST, indikační LED, tlačítko na vypnutí (nebude toho řádově moc)
+* kdybychom se dohodli může být LCD na kterém se bude zobrazovat aktuální pohloha + tlačítka na home, stop, atd.
 
 * konektory
 	* https://dratek.cz/arduino/3212-svorka-na-dps-3-piny-2.54mm.html (svorka na 3 piny)
@@ -63,12 +68,18 @@ mechanické díly: turtle3d
 	* dratek
 		* https://dratek.cz/arduino/48394-krokovy-motor-nema17-47mm-42hd6021-03.html (47mm, 500mNm)
 		* https://dratek.cz/arduino/48391-krokovy-motor-nema17-33mm-42hd2037-01.html  (33mm, 280mNm)
+		* 280mNm by mělo stačit
+		* jestli máte klasické NEMA na katedře klidně můžeme použít ty
 * řadič pro krokový motor
 	* dratek
 		* https://dratek.cz/arduino/1133-motor-driver-a4988-pro-reprap-3d-tiskarny.html (A4988, umí zapojení přes dva vodiče)
+		* mají i levnější variatu bez chladiče, já už doma žádné nemám, takže jsem vybral tuto
 * mikrospínač
+	* homing náklonu, 2 protože není problém ho zničit
 	* dratek
 		* https://dratek.cz/arduino/1113-koncovy-doraz-pakovy-s-kladkou-5a-125v.html (klidně 2x)
 * optická závora
+	* homing v horizontální úrovni
 	* dratek
-		*  https://dratek.cz/arduino/1420-opticky-endstop-spinac-pro-cnc-3d-tiskarny-reprap-makerbot-prusa-mendel-ramps-1.4.html
+		* klidně bych si poradil jen se závorou samotnou ne na nějaké desce, ale tohle je jediné co měl dratek
+		*  https://dratek.cz/arduino/1420-opticky-endstop-spinac-pro-cnc-3d-tiskarny-reprap-makerbot-prusa-mendel-ramps-1.4.html (1x)
