@@ -51,6 +51,25 @@ mechanické díly: turtle3d
 			* https://www.turtle3d.cz/cz/343/26/remen-gt2-6mm-300mm  (300mm, 40kč)
 			* https://www.turtle3d.cz/cz/342/26/remen-gt2-6mm-400mm (400mm, 45kč)
 			* musím si dopočítat ještě vzdálenosti, asi jednou 300 a jednou 400mm
+* teplem zalisované matice
+	* M5: https://www.turtle3d.cz/cz/733/64/matice-na-zalisovani-za-tepla-m5  (konstrukční části)
+	* M4: https://www.turtle3d.cz/cz/732/64/matice-na-zalisovani-za-tepla-m4  (možná uchycení stacionárního stepper motoru, uchycení hřídele skrz rotační spojku)
+	* M3:
+* šroubky
+	* uchycení rotační báze na rotoru - M4
+		* celková délka: 38mm+
+	* uchycení sběrače - M5 (NOTE: opravity chybu)
+		* 4mm na sběrači + 10mm na dřáku
+	* uchycení držáku sběrače k statické bázi - M5
+		* 15mm na držáku sběrače + klidně 15mm
+	* sešroubování dvou částí rotační báze
+		* M5 šroubky
+		* 4x klidně 25mm s matkou
+		* 2x asi 20mm bez matky
+	* držení stepper motorů
+		* 8 M4 šroubků
+		* statický stepper (4mm spacer)
+		* stapper na rotoru (1cm spacer?)
 * 8mm tyčky v libovolném železářství, turtle3d něco nabízí, ale ceny jsou směšné
 
 

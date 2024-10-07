@@ -64,19 +64,13 @@ void OSCore::setup()
 	PerStepperDriver* horizontal = nullptr;
 	PerStepperDriver* tilt = nullptr;
 
-#ifdef CONFIG_MOTT_H_ENABLE
-	horizontal = new PerStepperDriver(CONFIG_MOTT_H_STEP_COUNT, CONFIG_MOTT_H_STEP_PIN1, CONFIG_MOTT_H_STEP_PIN2, CONFIG_MOTT_H_STEP_PIN3, CONFIG_MOTT_H_STEP_PIN4);
-#endif
+	horizontal = new PerStepperDriver(CONFIG_MOTR_H_STEP_COUNT, CONFIG_MOTR_H_STEP_PIN1, CONFIG_MOTR_H_STEP_PIN2, CONFIG_MOTR_H_STEP_PIN3, CONFIG_MOTR_H_STEP_PIN4);
 
-#ifdef CONFIG_MOTT_T_ENABLE
-	tilt = new PerStepperDriver(CONFIG_MOTT_T_STEP_COUNT, CONFIG_MOTT_T_STEP_PIN1, CONFIG_MOTT_T_STEP_PIN2, CONFIG_MOTT_T_STEP_PIN3, CONFIG_MOTT_T_STEP_PIN4);
-#endif
+	tilt = new PerStepperDriver(CONFIG_MOTR_T_STEP_COUNT, CONFIG_MOTR_T_STEP_PIN1, CONFIG_MOTR_T_STEP_PIN2, CONFIG_MOTR_T_STEP_PIN3, CONFIG_MOTR_T_STEP_PIN4);
 
 	MotorControl::getInstance()->setMotors(horizontal, tilt);
 	PeripheralsManager::getInstance()->initializePeripherals();
-	//
-	rotation->setSpeed(30);
-	rotation->step(800);
+
 
 	// ------------------------------------------
 	// Configure Peripherals

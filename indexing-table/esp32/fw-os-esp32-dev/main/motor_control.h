@@ -10,6 +10,10 @@
 
 #include <esp_log.h>
 #include <per_stepper_driver.h>
+#include <callback_interface.h>
+#include <os_core_tasker_ids.h>
+#include <tasker_singleton_wrapper.h>
+
 
 #define RMP_TO_PAUSE(speed, steps_per_revolution, gear_ratio) (60L * 1000L * 1000L / this->stepCount / gear_ratio / whatSpeed) // ->
 #define ANGLE_TO_STEP(angle, steps_per_revolution, gear_ratio) (angle * steps_per_revolution * gear_ratio / 360)
@@ -33,14 +37,18 @@ enum MotorMode : uint8_t {
 	STEPPER = 4,
 };
 
+
 typedef struct {
 	// motor configuration paramters:
 	int8_t endstop = -1; // endstop pin
 	int16_t angleMax = -1; // maximum angle
 	int16_t angleMin = -1; // minimum angle
 	uint16_t gearRatio = 1; // gear ratio (only down gearing)
-	uint8_t microstepping = 1; // microstepping
 	uint16_t stepCount = 100; // steps per revolution
+
+	// fault variables
+	bool fault = false; // fault flag
+	uint64_t faultTime = 0; // time of the fault
 
 	// operational variables;
 	MotorMode mode = MotorMode::STEPPER; // motor mode
@@ -51,7 +59,7 @@ typedef struct {
 	uint64_t lastStepTime = 0; // time of the last step
 }  __attribute__((packed)) motorVariables;
 
-class MotorControl{
+class MotorControl : public CallbackInterface{
 	private:
 	constexpr static char TAG[] = "MotorControl";
 	static MotorControl* instance;
@@ -66,8 +74,20 @@ class MotorControl{
 	TaskHandle_t motorMoveTaskHandle = NULL;
 
 	static void motorMoveTask(void *arg);
+	static void tiltEndstopHandler(void *arg);
+	static void horizontalEndstopHandler(void *arg);
+
+	void TiltMotorFault();
+	void HorzMotorFault();
 
 
+
+	/**
+	 * @brief Home routine
+	 * ought to not be called with other paramter than 0 by the user
+	 *
+	 * @param part 0 for starts fast homing, part 1 for backs off and home slowly, part 3 restores pre home configuration
+	 */
 	void homeRoutine(uint8_t part);
 
 
@@ -87,45 +107,32 @@ class MotorControl{
 		return instance;
 	};
 
-	void setMotors(PerStepperDriver* horizontal, PerStepperDriver* tilt, uint8_t horizontalStepCount = 200, uint8_t tiltStepCount = 200, uint8_t horizontalGearRatio =1 , uint8_t tiltGearRatio = 1 , uint8_t horizontalMicrostepping =1 , uint8_t tiltMicrostepping = 1)
-	{
-		this->horizontal = horizontal;
-		this->tilt = tilt;
-		this->horzVar.stepCount = horizontalStepCount;
-		this->tiltVar.stepCount = tiltStepCount;
-		this->horzVar.gearRatio = horizontalGearRatio;
-		this->tiltVar.gearRatio = tiltGearRatio;
-		this->horzVar.microstepping = horizontalMicrostepping;
-		this->tiltVar.microstepping = tiltMicrostepping;
-		this->horzVar.endstop = horizontalEndstop;
-		this->tiltVar.endstop = tiltEndstop;
-		this->horzVar.angleMax = horizontalAngleMax;
-		this->tiltVar.angleMax = tiltAngleMax;
-		this->horzVar.angleMin = horizontalAngleMin;
-		this->tiltVar.angleMin = tiltAngleMin;
-	};
-
-	void startMotorTask();
+	/**
+   * @brief Set the Motors object
+	 * For step count multiply the number of steps with your microstepping configuration
+	 *
+	 * @param horizontal horizontal motor pointer
+	 * @param tilt tilt motor pointer
+	 * @param horizontalStepCount steps per revolution of the horizontal motor
+	 * @param tiltStepCount steps per revolution of the tilt motor
+	 * @param horizontalGearRatio gear ratio of the horizontal motor
+	 * @param tiltGearRatio gear ratio of the tilt motor
+	 */
+	void setMotors(PerStepperDriver* horizontal, PerStepperDriver* tilt, uint8_t horizontalStepCount = 200, uint8_t tiltStepCount = 200, uint8_t horizontalGearRatio =1 , uint8_t tiltGearRatio = 1);
 
 	void setEndstops(int8_t horizontal = -1, int8_t tilt = -1);
 
-	PerStepperDriver* getHorizontal()
-	{
-		return horizontal;
-	};
+	uint8_t call(uint16_t id) override;
 
-	PerStepperDriver* getTilt()
-	{
-		return tilt;
-	};
-
-	void parseGcode(const char* gcode, uint16_t length);
+	/**
+	 * @brief parses incoming gcode and prepares its execution
+	 *
+	 * @param mode
+	 */
+	bool parseGcode(const char* gcode, uint16_t length);
 
 	void printLocation();
 
-	void homeHorz(){
-		homeRoutine(0);
-	}
 
 
 };
