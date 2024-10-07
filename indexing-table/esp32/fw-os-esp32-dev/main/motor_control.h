@@ -15,7 +15,7 @@
 #include <tasker_singleton_wrapper.h>
 
 
-#define RMP_TO_PAUSE(speed, steps_per_revolution, gear_ratio) (60L * 1000L * 1000L / this->stepCount / gear_ratio / whatSpeed) // ->
+#define RPM_TO_PAUSE(speed, steps_per_revolution, gear_ratio) (60L * 1000L * 1000L / steps_per_revolution / gear_ratio / speed) // ->
 #define ANGLE_TO_STEP(angle, steps_per_revolution, gear_ratio) (angle * steps_per_revolution * gear_ratio / 360)
 #define STEP_TO_ANGLE(step, steps_per_revolution, gear_ratio) (step * 360 / steps_per_revolution / gear_ratio)
 #define ANGLE_DISTANCE(angle1, angle2) (angle1 > angle2 ? angle1 - angle2 : angle2 - angle1)
@@ -33,7 +33,7 @@ enum MotorMode : uint8_t {
 	HOMING = 0,
 	STOPPED = 1,
 	SPINDLE_CLOCKWISE = 2,
-	SPINDLE_COUNTERCLOCKWISE = 3
+	SPINDLE_COUNTERCLOCKWISE = 3,
 	STEPPER = 4,
 };
 
@@ -53,7 +53,6 @@ typedef struct {
 	// operational variables;
 	MotorMode mode = MotorMode::STEPPER; // motor mode
 	uint16_t angle; // current angle (always in absolute mode)
-	uint16_t angleStartRelative; // angle at the beginning of the relative positioning
 	int32_t stepsToGo; // number of steps to go
 	uint32_t pause = 1000'0000; // default sleep roughly ones pers second
 	uint64_t lastStepTime = 0; // time of the last step
@@ -61,15 +60,10 @@ typedef struct {
 
 class MotorControl : public CallbackInterface{
 	private:
-	constexpr static char TAG[] = "MotorControl";
 	static MotorControl* instance;
 
 	PositioningMode positioningMode = PositioningMode::ABSOLUTE;
 
-	PerStepperDriver* horzMot = nullptr;
-	PerStepperDriver* tiltMot = nullptr;
-	volatile motorVariables horzVar;
-	volatile motorVariables tiltVar;
 
 	TaskHandle_t motorMoveTaskHandle = NULL;
 
@@ -95,6 +89,11 @@ class MotorControl : public CallbackInterface{
 	MotorControl();
 
 	public:
+	constexpr static char TAG[] = "MotorControl";
+	PerStepperDriver* horzMot = nullptr;
+	PerStepperDriver* tiltMot = nullptr;
+	volatile motorVariables horzVar;
+	volatile motorVariables tiltVar;
 
 
 
@@ -131,7 +130,12 @@ class MotorControl : public CallbackInterface{
 	 */
 	bool parseGcode(const char* gcode, uint16_t length);
 
+
 	void printLocation();
+
+	void home(){
+		homeRoutine(0);
+	};
 
 
 

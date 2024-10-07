@@ -1,4 +1,4 @@
-menu "Jotio OS"
+menu "Indexing Table Configuration"
 
 config COMM_MQTT_BROKER_URL
 string "COMM_MQTT Broker URL"
@@ -15,14 +15,15 @@ help
 
 config COMM_MQTT_BROKER_USERNAME
 string "COMM_MQTT Username"
-default "jopka:endDevice"
+default ""
 depends on COMM_MQTT_PASSWORD_PROTECTED
 help
 	Username to use for authentication
 
 config COMM_MQTT_BROKER_PASSWORD
 string "COMM_MQTT Password"
-default "55915eadad0bfed78aa90a722a04665d"
+default ""
+depends on COMM_MQTT_PASSWORD_PROTECTED
 help
 	Password to use for authentication
 
@@ -60,10 +61,16 @@ default 19200 if COMM_RS232_BAUDRATE_19200
 default 9600 if COMM_RS232_BAUDRATE_9600
 
 config COMM_ENABLE_LOCKS
-bool "Enable locks"
+bool "Enable locks for communication"
 default true
 help
 	Enable locks to prevent concurrent access to the processing queue
+
+config MOTR_DEBUG
+bool "Enable motor debug"
+default n
+help
+	Enable debug messages for motor
 
 config MOTR_DEFAULT_SPEED
 int "Default motor speed in RPM"
@@ -87,6 +94,21 @@ range 1 1000
 default 200
 help
 	Number of steps to rotate one revolution the motor in horizontal axis
+
+config MOTR_H_ENDSTOP
+int  "Horizontal motor endstop pin"
+default  -1
+range -1 100
+help
+	GPIO pin number of the endstop of the motor in horizontal axis, -1 for no endstop
+
+config MOTR_H_MICROSTEPPING
+int "Horizontal motor microstepping"
+range 1 16
+default 1
+help
+	Microstepping of the motor in horizontal axis
+
 
 
 config MOTR_H_GEAR_RATIO
@@ -146,6 +168,20 @@ range 1 1000
 default 200
 help
 	Number of steps to rotate one revolution the motor in tilt axis
+
+config MOTR_T_ENDSTOP
+int  "Tilt motor endstop pin"
+default  -1
+range -1 100
+help
+	GPIO pin number of the endstop of the motor in tilt axis, -1 for no endstop
+
+config MOTR_T_MICROSTEPPING
+int "Tilt motor microstepping"
+range 1 16
+default 1
+help
+	Microstepping of the motor in tilt axis
 
 config MOTR_T_GEAR_RATIO
 int "Tilt motor gear ratio (only downgearing is supported)"
