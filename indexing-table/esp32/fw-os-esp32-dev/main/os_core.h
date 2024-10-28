@@ -20,6 +20,9 @@
 #include <nvs_flash.h>
 #include <motor_control.h>
 #include <per_stepper_driver.h>
+#include "esp_task_wdt.h"
+
+
 
 #include <peripherals_manager.h>
 #include <os_core_tasker_ids.h>

@@ -28,16 +28,30 @@ There are two types of downlink -> AT commands and gcode used to control motion.
 	* axis descriptors: H for horizontal rotation, T for tilt
 	* M80: turn on high voltage power supply
 	* M81: turn off high voltage power supply
+	* G20: set units to degrees
+	* G21: set units to steps
 	* G90: sets absolute positioning
 	* G91: sets relative positioning
 	* G92: set current position as home
 	* G28: (without arguments) move to home from current position
-	* spin - only affect horizontal axis
-		* M03:  Start spindle spinning clockwise.
-		* M04:  Start spindle spinning anti-clockwise.
-		* M05:  Stop spindle spinning.
+	* switch between angle and steps mode
+	* stepper mode
+		* only active if spindle mode is off
+		* G0: move to/by given angle/steps
+			* S<SPEED> - fallback speed
+			* SH<SPEED> - speed for motor in horizontal plane
+			* H - angle by/to rotate in horizontal plane
+			* ST<SPEED> - speed for tilt motor in tilt axis
+			* T - angle by/to rotate in tilt axis
 		* can be followed with S<rpm> to set speed
-	* G0: move axis
+	* spindle mode
+		* M03:  Start spindle mode
+			* S<SPEED> - fallback speed
+			* SH<SPEED> - speed for motor in horizontal plane
+			* H<+/-> - start spin clockwise/anticlockwise
+			* ST<SPEED> - speed for tilt motor in tilt axis
+			* T<+/-> - start spin clockwise/anticlockwise
+		* M05:  Stop spindle spinning.
 		* can be followed with S<rpm> to set speed
 
 
@@ -48,3 +62,9 @@ There are two types of downlink -> AT commands and gcode used to control motion.
 	* relative -> angle change in relation to last issued command
 
 
+* -> enter programming mode
+	* needs to give number to programm
+	* if in programming mode G0, M03, M04 command will not be executed, but instead stashed
+	* switching relative absolute positioning is not enabled in programming mode
+	* as opposed to normal regime pauses can be programmed in
+	* programming mode is eneded with given command
