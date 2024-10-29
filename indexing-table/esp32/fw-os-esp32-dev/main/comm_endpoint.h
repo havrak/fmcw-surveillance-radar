@@ -8,13 +8,8 @@
 #ifndef COMM_ENDPOINT_H
 #define COMM_ENDPOINT_H
 
-#include <mqtt_observer.h>
-#include <driver/uart.h>
 
-#include <mqtt_wrapper.h>
-#include <mqtt_singleton_wrapper.h>
 #include <esp_log.h>
-#include <string>
 #include <queue>
 #include <callback_interface.h>
 #include <tasker_singleton_wrapper.h>
@@ -26,11 +21,13 @@
 
 #define LENGTH_TO_COPY(x, y) (x+y >= CONFIG_COMM_RS232_BUFFER_SIZE ? CONFIG_COMM_RS232_BUFFER_SIZE - x : y)
 
-#ifdef CONFIG_COMM_ENABLE_LOCKS
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
-#include <freertos/semphr.h>
-#endif
+
+#include <stdio.h>
+#include <string.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/queue.h"
+#include "driver/uart.h"
 
 
 enum CommDataFormat : uint8_t {
@@ -38,20 +35,14 @@ enum CommDataFormat : uint8_t {
 	ATC = 1, // AT command
 };
 
-enum CommDataOrigin : uint8_t {
-	MQTT = 0,
-	RS232 = 1
-};
-
 class CommRequest{
 	public:
-		CommDataOrigin origin;
 		CommDataFormat format;
 
 		char command[MAX_COMMAND_LENGTH]; // AT, gcode command
 		bool error;
 
-		CommRequest(CommDataOrigin origin, CommDataFormat format, const char* command, uint32_t command_len): origin(origin), format(format)
+		CommRequest(CommDataFormat format, const char* command, uint32_t command_len): format(format)
 	{
 		memset(this->command, 0, MAX_COMMAND_LENGTH);
 		strncpy(this->command, command, command_len);
@@ -61,22 +52,20 @@ class CommRequest{
 
 };
 
-class CommEndpoint: CallbackInterface, MQTTObserver {
+static QueueHandle_t uart0_queue; // from recent FreeRTOS version QueueHandle_t doens't work if declared as static and inside of a class
+
+class CommEndpoint: CallbackInterface{
 	private:
 
 		static CommEndpoint* instance;
-		static MQTTWrapper* mqttWrapperPtr;
 
 		std::queue<CommRequest*> requestsQueue;
 
 		constexpr static char TAG[] = "CommEndpoint";
-		static QueueHandle_t uart0_queue;
 
 		char responseBuffer[CONFIG_COMM_RS232_BUFFER_SIZE];
 
-		CommEndpoint(bool mqtt, bool serial);
-		CommEndpoint(MQTTWrapper* mqttWrapperPtr, bool serial = false);
-		CommEndpoint(bool serial = false);
+		CommEndpoint();
 
 #ifdef CONFIG_WFM_ENABLE_LOCKS
     SemaphoreHandle_t lock;
@@ -84,8 +73,6 @@ class CommEndpoint: CallbackInterface, MQTTObserver {
 
 
 		bool setupComm();
-		void subscribeMQTTopics();
-		void unsubscribeMQTTopics();
 
 		static void uartEvent(void* pvParameters);
 
@@ -94,40 +81,14 @@ class CommEndpoint: CallbackInterface, MQTTObserver {
 
 		void sendResponse(const CommRequest* request, const char* response, uint16_t responseLength);
 
-		std::function<void()> jpkNVSWipeRequestCallback = NULL;
-
-
 
 
 	public:
 
-		void setNVSWipeRequestCallback(std::function<void()> callback)
-		{
-			jpkNVSWipeRequestCallback = callback;
-		}
 
 
 
-		/**
-		 * creates CommEndpoint instance for singleton design pattern, entire MQTTWrapper is handled by CommEndpoint, thus managing it from outside could lead to seg faults etc.
-		 *
-		 * @param mqttWrapperPtr - MQTTWrapper instance, connection is handled by toggleMQTT method
-		 * @param serial - true to create serial interface
-		 */
-		static void createInstance(MQTTWrapper* mqttWrapperPtr, bool serial){
-			instance = new CommEndpoint(mqttWrapperPtr, serial);
-		};
 
-
-		/**
-		 * creates CommEndpoint instance for singleton design pattern
-		 *
-		 * @param mqtt - true to create mqtt Provider (doesn't connect), parameters are configured via KConfig macros
-		 * @param serial - true to create serial interface
-		 */
-		static void createInstance(bool mqtt, bool serial){
-			instance = new CommEndpoint(mqtt, serial);
-		};
 
 		/**
 		 * returns instance of CommEndpoint, instance needs to be created with createInstance call
@@ -135,27 +96,13 @@ class CommEndpoint: CallbackInterface, MQTTObserver {
 		 * @return CommEndpoint*, nullptr if instance wasn't created
 		 */
 		static CommEndpoint* getInstance(){
+			if(instance == nullptr)
+			{
+				instance = new CommEndpoint();
+				ESP_LOGE(TAG, "getInstance | instance not created");
+			}
 			return instance;
 		};
-
-
-		/**
-		 * toggles MQTT connection, also subscribes to topics, upon disconnecting client is destroyed
-		 *
-		 * @param toggle - true to connect, false to disconnect (destroys whole client)
-		 * @return bool - true if successful
-		 */
-		bool toggleMQTT(bool toggle);
-
-		/**
-		 * callback from MQTTObserver, should NOT be called manually
-		 */
-		void onMQTTEvent(const char* topic, ssize_t topic_len, const char* data, ssize_t data_len) override;
-
-		/**
-		 * callback from MQTTObserver, should NOT be called manually
-		 */
-		void onMQTTConnected();
 
 		/**
 		 * callback from CallbackInterface, should NOT be called manually
@@ -169,7 +116,7 @@ class CommEndpoint: CallbackInterface, MQTTObserver {
 		 * @param origin - origin of data
 		 * @return bool - true if successful (Tasker was able to schedule task)
 		 */
-		bool logRequestGCD(const char* input, uint16_t inputLength, CommDataOrigin origin);
+		bool logRequestGCD(const char* input, uint16_t inputLength);
 
 		/**
 		 * schedules processing of ATC request, data are copied
@@ -178,7 +125,7 @@ class CommEndpoint: CallbackInterface, MQTTObserver {
 		 * @param origin - origin of data
 		 * @return bool - true if successful (Tasker was able to schedule task)
 		 */
-		bool logRequestATC(const char* input, uint16_t inputLength,  CommDataOrigin origin);
+		bool logRequestATC(const char* input, uint16_t inputLength);
 
 };
 

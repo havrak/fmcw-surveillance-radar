@@ -5,10 +5,6 @@ dependencies:
     path: "$HOME/prog/embedded/esp32-fw/fw-lib-esp32-tasker"
     # path: "."
     # git: git@github.com:JoTioTech/fw-lib-esp32-tasker.git
-  JoTioTech/fw-lib-esp32-wifi-manager:
-    path: "$HOME/prog/embedded/esp32-fw/fw-lib-esp32-wifi-manager"
-    # path: "."
-    # git: git@github.com:JoTioTech/fw-lib-esp32-wifi-manager.git
   JoTioTech/fw-lib-esp32-peripherals:
     path: "$HOME/prog/embedded/esp32-fw/fw-lib-esp32-peripherals"
     # path: "."
@@ -17,19 +13,10 @@ dependencies:
     path: "$HOME/prog/embedded/esp32-fw/fw-lib-esp32-hal"
     # path: "."
     # git: git@github.com:JoTioTech/fw-lib-esp32-hal.git
-  JoTioTech/fw-lib-esp32-mqtt:
-    path: "$HOME/prog/embedded/esp32-fw/fw-lib-esp32-mqtt"
-    # path: "."
-    # git: git@github.com:JoTioTech/fw-lib-esp32-utils.git
   JoTioTech/fw-lib-esp32-utils:
     path: "$HOME/prog/embedded/esp32-fw/fw-lib-esp32-utils"
     # path: "."
     # git: git@github.com:JoTioTech/fw-lib-esp32-utils.git
-  JoTioTech/fw-lib-esp32-protocol-jobin:
-    path: "$HOME/prog/embedded/esp32-fw/fw-lib-esp32-protocol-jobin"
-    # path: "."
-    # git: git@github.com:JoTioTech/fw-lib-esp32-protocol-jobin.git
-
   ## Required IDF version
   idf:
     version: ">=4.1.0"

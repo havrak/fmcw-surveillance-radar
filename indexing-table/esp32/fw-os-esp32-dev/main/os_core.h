@@ -14,17 +14,13 @@
 #include <sdkconfig.h>
 #include <stdio.h>
 #include <tasker_event_observer.h>
-#include <per_i2c_lcd_decorator.h>
-#include <i2c_periphery.h>
-#include <wifi_manager.h>
+#include <comm_endpoint.h>
 #include <nvs_flash.h>
 #include <motor_control.h>
-#include <per_stepper_driver.h>
 #include "esp_task_wdt.h"
 
 
 
-#include <peripherals_manager.h>
 #include <os_core_tasker_ids.h>
 #include <functional>
 
@@ -39,7 +35,6 @@ class OSCore : CallbackInterface, TaskerEventObserver{
 	static OSCore* instance;
 
 	OSCore();
-	PerI2CLCDDecorator* lcd = nullptr;
 
 
 	public:

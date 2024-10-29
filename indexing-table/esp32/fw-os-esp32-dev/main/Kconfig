@@ -108,13 +108,6 @@ range -1 100
 help
 	GPIO pin number of the endstop of the motor in horizontal axis, -1 for no endstop
 
-config MOTR_H_MICROSTEPPING
-int "Horizontal motor microstepping"
-range 1 16
-default 1
-help
-	Microstepping of the motor in horizontal axis
-
 
 
 config MOTR_H_GEAR_RATIO
@@ -155,13 +148,6 @@ depends on MOTR_4WIRE_MODE
 help
 	Horizontal motor GPIO connection for pin 4
 
-config MOTR_H_FAULT_PIN
-int "Motor horizontal fault GPIO pin"
-range -1 100
-default -1
-help
-	GPIO pin number of fault pin of the motor in horizontal axis, -1 for no fault pin
-
 
 config MOTR_T_STEP_COUNT
 int "Tilt motor rotation step count"
@@ -176,13 +162,6 @@ default  -1
 range -1 100
 help
 	GPIO pin number of the endstop of the motor in tilt axis, -1 for no endstop
-
-config MOTR_T_MICROSTEPPING
-int "Tilt motor microstepping"
-range 1 16
-default 1
-help
-	Microstepping of the motor in tilt axis
 
 config MOTR_T_GEAR_RATIO
 int "Tilt motor gear ratio (only downgearing is supported)"
@@ -220,12 +199,5 @@ default 13
 depends on MOTR_4WIRE_MODE
 help
 	Tilt motor GPIO connection for pin 4
-
-config MOTR_T_FAULT_PIN
-int "Motor tilt fault GPIO pin"
-range -1 100
-default -1
-help
-	GPIO pin number of fault pin of the motor in tilt axis, -1 for no fault pin
 
 endmenu

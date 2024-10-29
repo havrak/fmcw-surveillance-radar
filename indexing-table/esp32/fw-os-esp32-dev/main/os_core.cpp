@@ -40,8 +40,8 @@ void OSCore::loop()
 
 void OSCore::setup()
 {
-	Wire.begin(SDA, SCL);
-
+	// Wire.begin(SDA, SCL);
+	//
 	// ------------------------------------------
 	// WiFi
 	// ------------------------------------------
@@ -49,6 +49,8 @@ void OSCore::setup()
 	// WiFiManager::getInstance()->setOnConnectionEstablished(std::bind(&OSCore::connectionToAPEstablished, this));
 	// WiFiManager::getInstance()->setOnConnectionLost(std::bind(&OSCore::connectionToAPLost, this));
 	// WiFiManager::getInstance()->setRegime(WiFiRegime::WIFI_REGIME_STATION);
+
+	// CommEndpoint::getInstance();
 
 	// ------------------------------------------
 	// Time Manager
@@ -59,12 +61,10 @@ void OSCore::setup()
 	// ------------------------------------------
 	ESP_LOGI(TAG, "setup | Peripherals");
 	// lcd = new PerI2CLCDDecorator(I2CPeriphery(0x27), 20, 4);
-	// PeripheralsManager::getInstance()->addPeriphery(lcd);
-	// PeripheralsManager::getInstance()->initializePeripherals();
 
 
-	MotorControl::getInstance()->horiSetSpeed(60);
-	MotorControl::getInstance()->horiStep(2<<10);
+	MotorControl::getInstance()->horiSetSpeed(60); // 60 RPM
+	MotorControl::getInstance()->horiStep(400);
 
 
 

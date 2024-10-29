@@ -20,7 +20,8 @@
 #include <esp32-hal-gpio.h>
 #include "hal/gpio_hal.h"
 #include "driver/gpio.h"
-
+#include "driver/rmt_rx.h"
+#include "driver/rmt_tx.h"
 
 #define RPM_TO_PAUSE(speed, steps_per_revolution, gear_ratio) (60L * 1000L * 1000L / steps_per_revolution / gear_ratio / speed) // ->
 #define ANGLE_TO_STEP(angle, steps_per_revolution, gear_ratio) (angle * steps_per_revolution * gear_ratio / 360)
@@ -28,6 +29,8 @@
 #define ANGLE_DISTANCE(angle1, angle2) (angle1 > angle2 ? angle1 - angle2 : angle2 - angle1)
 
 #define port_TICK_PERIOD_US portTICK_PERIOD_MS * 1000
+#define RMT_CHANNEL_HORI RMT_CHANNEL_0
+#define STEP_PULSE_WIDTH_US 10   // Duration of the step pulse in microseconds
 
 enum ProgrammingMode : uint8_t {
 	NO_PROGRAMM = 0,
@@ -67,7 +70,7 @@ typedef struct {
 	// thse variables are only accessed from the motorMoveTask
 	MotorMode mode = MotorMode::STEPPER; // motor mode
 	uint32_t pause = 1000'0000; // default sleep roughly ones pers second
-	uint64_t lastStepTime = 0; // time of the last step
+	uint64_t nextStepTime = 0; // time of the last step
 	uint8_t stepNumber = 0; // current step number (used to properly cycle pin states)
 	uint16_t angle; // current angle (always in absolute mode)
 	int16_t angleMax = -1; // maximum angle
@@ -202,6 +205,7 @@ class MotorControl : public CallbackInterface{
 		/**
 		 * @brief steps a tilt motor a number of steps
 		 * function is blocking
+		 * limited to 100 RPM (~ 3ms per step)
 		 *
 		 * @param steps - number of steps to go
 		 */
@@ -210,6 +214,7 @@ class MotorControl : public CallbackInterface{
 		/**
 		 * @brief steps a horizontal motor a number of steps
 		 * function is blocking
+		 * limited to 100 RPM (~ 3ms per step)
 		 *
 		 * @param steps - number of steps to go
 		 */
