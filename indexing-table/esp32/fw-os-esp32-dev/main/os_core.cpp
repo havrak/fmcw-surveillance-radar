@@ -58,29 +58,21 @@ void OSCore::setup()
 	// Peripherals
 	// ------------------------------------------
 	ESP_LOGI(TAG, "setup | Peripherals");
-	lcd = new PerI2CLCDDecorator(I2CPeriphery(0x27), 20, 4);
-	PeripheralsManager::getInstance()->addPeriphery(lcd);
-	PeripheralsManager::getInstance()->initializePeripherals();
+	// lcd = new PerI2CLCDDecorator(I2CPeriphery(0x27), 20, 4);
+	// PeripheralsManager::getInstance()->addPeriphery(lcd);
+	// PeripheralsManager::getInstance()->initializePeripherals();
 
 
-	tilt = new PerStepperDriver(CONFIG_MOTR_T_STEP_COUNT*CONFIG_MOTR_T_MICROSTEPPING, CONFIG_MOTR_T_PIN1, CONFIG_MOTR_T_PIN2);
-	horizontal = new PerStepperDriver(CONFIG_MOTR_H_STEP_COUNT*CONFIG_MOTR_H_MICROSTEPPING, CONFIG_MOTR_H_PIN1, CONFIG_MOTR_H_PIN2);
-
-	horizontal->setSpeed(60);
-	horizontal->step(2<10);
-
-	MotorControl::getInstance()->setMotors(horizontal, tilt, CONFIG_MOTR_H_STEP_COUNT*CONFIG_MOTR_H_MICROSTEPPING, CONFIG_MOTR_T_STEP_COUNT*CONFIG_MOTR_T_MICROSTEPPING, CONFIG_MOTR_H_GEAR_RATIO, CONFIG_MOTR_T_GEAR_RATIO);
+	MotorControl::getInstance()->horiSetSpeed(60);
+	MotorControl::getInstance()->horiStep(2<<10);
 
 
 
 	// ------------------------------------------
 	// Configure Peripherals
 	// ------------------------------------------
-	lcd->getLCD()->setCursor(0, 0);
-	lcd->getLCD()->print("Indexing Table Initialized");
-
-	MotorControl::getInstance()->setEndstops(CONFIG_MOTR_H_ENDSTOP, CONFIG_MOTR_T_ENDSTOP);
-	// MotorControl::getInstance()->home();
+	// lcd->getLCD()->setCursor(0, 0);
+	// lcd->getLCD()->print("Indexing Table Initialized");
 
 	// ------------------------------------------
 	// OSCora Tasker calls setup

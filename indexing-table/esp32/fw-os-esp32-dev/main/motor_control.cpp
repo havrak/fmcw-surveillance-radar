@@ -11,7 +11,9 @@ MotorControl* MotorControl::instance = nullptr;
 
 MotorControl::MotorControl()
 {
-
+	horiVariables.pause = RPM_TO_PAUSE(CONFIG_MOTR_DEFAULT_SPEED, CONFIG_MOTR_H_STEP_COUNT, CONFIG_MOTR_H_GEAR_RATIO);
+	tiltVariables.pause = RPM_TO_PAUSE(CONFIG_MOTR_DEFAULT_SPEED, CONFIG_MOTR_T_STEP_COUNT, CONFIG_MOTR_T_GEAR_RATIO);
+	xTaskCreate(motorMoveTask, "motorMove", 2048, this,10, &motorMoveTaskHandle);
 }
 
 uint8_t MotorControl::call(uint16_t id){
@@ -26,95 +28,84 @@ uint8_t MotorControl::call(uint16_t id){
 
 };
 
-void MotorControl::setMotors(PerStepperDriver* horizontal, PerStepperDriver* tilt, uint8_t horizontalStepCount, uint8_t tiltStepCount, uint8_t horizontalGearRatio, uint8_t tiltGearRatio){
-	this->horzMot = horizontal;
-	this->tiltMot = tilt;
-	this->horiVariables.stepCount = horizontalStepCount;
-	this->tiltVariables.stepCount = tiltStepCount;
-	this->horiVariables.gearRatio = horizontalGearRatio;
-	this->tiltVariables.gearRatio = tiltGearRatio;
-	if(horizontal != nullptr && tilt != nullptr){
-		xTaskCreate(motorMoveTask, "motorMove", 2048, this,10, &motorMoveTaskHandle);
-	}
-	this->horiVariables.pause = RPM_TO_PAUSE(CONFIG_MOTR_DEFAULT_SPEED, horizontalStepCount, horizontalGearRatio);
-	this->tiltVariables.pause = RPM_TO_PAUSE(CONFIG_MOTR_DEFAULT_SPEED, tiltStepCount, tiltGearRatio);
-}
-
 void MotorControl::motorMoveTask(void *arg){
 	static MotorControl* instance = (MotorControl*)arg;
-	static PerStepperDriver* horzMot = ((MotorControl*)arg)->horzMot;
-	static PerStepperDriver* tilt = ((MotorControl*)arg)->tiltMot;
-	static volatile motorVariables* horzVar = &(((MotorControl*)arg)->horzVar);
-	static volatile motorVariables* tiltVar = &(((MotorControl*)arg)->tiltVar);
 	uint64_t time = 0;
 
-	if(horzMot == nullptr || tilt == nullptr){
-		ESP_LOGE(instance->TAG, "motorMoveTask | Both motors are not set");
-		goto endTask;
-	}
+	// while(1){
+	// 	time=esp_timer_get_time();
 
-	while(1){
-		time=esp_timer_get_time();
-
-		if (time - horzVar->lastStepTime > horzVar->pause){
-			switch(horzVar->mode){
-				case MotorMode::STOPPED:
-					goto endHorz;
-					break;
-				case  MotorMode::HOMING:
-					horzMot->singleStep(Direction::FORWARD);
-					break;
-
-				case MotorMode::STEPPER:
-					if(horzVar->stepsToGo > 0){
-						horzMot->singleStep(Direction::FORWARD);
-						horzVar->stepsToGo=horzVar->stepsToGo-1; // NOTE -- expression isn't atomic
-					}else if(horzVar->stepsToGo < 0){
-						horzMot->singleStep(Direction::BACKWARD);
-						horzVar->stepsToGo=horzVar->stepsToGo+1;
-					}
-					break;
-					break;
-				case MotorMode::SPINDLE_CLOCKWISE:
-					horzMot->singleStep(Direction::FORWARD);
-					break;
-				case MotorMode::SPINDLE_COUNTERCLOCKWISE:
-					horzMot->singleStep(Direction::BACKWARD);
-					break;
-				default:
-					break;
-			}
-			horzVar->lastStepTime = time;
-		}
-endHorz:
-		if (time - tiltVar->lastStepTime > tiltVar->pause){
-			switch(horzVar->mode){
-				case MotorMode::STOPPED:
-					goto endTilt;
-					break;
-				case  MotorMode::HOMING:
-					horzMot->singleStep(Direction::BACKWARD);
-					break;
-				case MotorMode::STEPPER:
-					if(tiltVar->stepsToGo > 0){
-						horzMot->singleStep(Direction::FORWARD);
-						tiltVar->stepsToGo=tiltVar->stepsToGo-1;
-					}else if(tiltVar->stepsToGo < 0){
-						horzMot->singleStep(Direction::BACKWARD);
-						tiltVar->stepsToGo=tiltVar->stepsToGo+1;
-					}
-					break;
-				default:
-					break;
-			}
-
-			tiltVar->lastStepTime = time;
-		}
-
-endTilt:
-		vTaskDelay(horzVar->pause < tiltVar->pause ? horzVar->pause/port_TICK_PERIOD_US : tiltVar->pause/port_TICK_PERIOD_US);
-	}
-endTask:
+		// programmed:
+		//
+		//		goto endTilt;
+		//
+		//
+		// nonProgrammed:
+// 		if (time - instance->horiVariables.lastStepTime > instance->horiVariables.pause){
+// 			switch(instance->horiVariables.mode){
+// 				case MotorMode::STOPPED:
+// 					goto endHorz;
+// 					break;
+// 				case  MotorMode::HOMING:
+// 					instance->horiSingleStep(Direction::FORWARD);
+// 					break;
+//
+// 				case MotorMode::STEPPER:
+// 					if(instance->horiVariables.stepsToGo > 0){
+// 						instance->horiSingleStep(Direction::FORWARD);
+// 						instance->horiVariables.stepsToGo=instance->horiVariables.stepsToGo-1;
+// 					}else if(instance->horiVariables.stepsToGo < 0){
+// 						instance->horiSingleStep(Direction::BACKWARD);
+// 						instance->horiVariables.stepsToGo=instance->horiVariables.stepsToGo+1;
+// 					}
+// 					break;
+// 					break;
+// 				case MotorMode::SPINDLE_CLOCKWISE:
+// 					instance->horiSingleStep(Direction::FORWARD);
+// 					break;
+// 				case MotorMode::SPINDLE_COUNTERCLOCKWISE:
+// 					instance->horiSingleStep(Direction::BACKWARD);
+// 					break;
+// 				default:
+// 					break;
+// 			}
+// 			instance->horiVariables.lastStepTime = time;
+// 		}
+// endHorz:
+// 		if (time - instance->tiltVariables.lastStepTime > instance->tiltVariables.pause){
+// 			switch(instance->tiltVariables.mode){
+// 				case MotorMode::STOPPED:
+// 					goto endHorz;
+// 					break;
+// 				case  MotorMode::HOMING:
+// 					instance->tiltSingleStep(Direction::FORWARD);
+// 					break;
+//
+// 				case MotorMode::STEPPER:
+// 					if(instance->tiltVariables.stepsToGo > 0){
+// 						instance->tiltSingleStep(Direction::FORWARD);
+// 						instance->tiltVariables.stepsToGo=instance->tiltVariables.stepsToGo-1;
+// 					}else if(instance->tiltVariables.stepsToGo < 0){
+// 						instance->tiltSingleStep(Direction::BACKWARD);
+// 						instance->tiltVariables.stepsToGo=instance->tiltVariables.stepsToGo+1;
+// 					}
+// 					break;
+// 					break;
+// 				case MotorMode::SPINDLE_CLOCKWISE:
+// 					instance->tiltSingleStep(Direction::FORWARD);
+// 					break;
+// 				case MotorMode::SPINDLE_COUNTERCLOCKWISE:
+// 					instance->tiltSingleStep(Direction::BACKWARD);
+// 					break;
+// 				default:
+// 					break;
+// 			}
+// 			instance->tiltVariables.lastStepTime = time;
+// 		}
+// endTilt:
+// 		vTaskDelay(instance->horiVariables.pause < instance->horiVariables.pause ? instance->horiVariables.pause/port_TICK_PERIOD_US : instance->horiVariables.pause/port_TICK_PERIOD_US);
+// 	}
+// endTask:
 	vTaskDelete(NULL);
 
 }
@@ -171,8 +162,8 @@ bool MotorControl::parseGcode(const char* gcode, uint16_t length)
 
 
 	if (strncmp(gcode, "M80", 3) == 0){ // power down high voltage supply
-		horzMot->stop();
-		tiltMot->stop();
+		horiStop();
+		tiltStop();
 		// TODO
 		return false;
 	}else if (strncmp(gcode, "M81", 3) == 0){ // power up high voltage supply
@@ -207,8 +198,8 @@ bool MotorControl::parseGcode(const char* gcode, uint16_t length)
 	}else if (strncmp(gcode, "G0", 2) == 0){ // home to given position, not the most efficient parsing but we don't excpet to have that many commands to process
 		element = getElement(3, "S", 1);
 		if(element != NAN && element > 0 && element <= CONFIG_MOTR_MAX_SPEED){
-			horiVariables.pause =  RPM_TO_PAUSE(element, horiVariables.stepCount, horiVariables.gearRatio);
-			tiltVariables.pause =  RPM_TO_PAUSE(element, tiltVariables.stepCount, tiltVariables.gearRatio);
+			horiVariables.pause =  RPM_TO_PAUSE(element, CONFIG_MOTR_H_STEP_COUNT, CONFIG_MOTR_H_GEAR_RATIO);
+			tiltVariables.pause =  RPM_TO_PAUSE(element, CONFIG_MOTR_T_STEP_COUNT, CONFIG_MOTR_T_GEAR_RATIO);
 #ifdef CONFIG_MOTR_DEBUG
 			ESP_LOGI(TAG, "processRequestAT | General speed: %f", element);
 #endif
@@ -219,7 +210,7 @@ bool MotorControl::parseGcode(const char* gcode, uint16_t length)
 
 			element = getElement(3, "SH", 2);
 			if(element != NAN && element > 0 && element <= CONFIG_MOTR_MAX_SPEED){
-				horiVariables.pause =  RPM_TO_PAUSE(element, horiVariables.stepCount, horiVariables.gearRatio);
+				horiVariables.pause =  RPM_TO_PAUSE(element, CONFIG_MOTR_H_STEP_COUNT, CONFIG_MOTR_H_GEAR_RATIO);
 #ifdef CONFIG_MOTR_DEBUG
 				ESP_LOGI(TAG, "processRequestAT | HorzMot speed: %f", element);
 #endif
@@ -231,14 +222,14 @@ bool MotorControl::parseGcode(const char* gcode, uint16_t length)
 				if(positioningMode == PositioningMode::ABSOLUTE){
 					// -->
 				}else{
-					horiVariables.stepsToGo = ANGLE_TO_STEP(element, horiVariables.stepCount, horiVariables.gearRatio);
+					horiVariables.stepsToGo = ANGLE_TO_STEP(element, CONFIG_MOTR_H_STEP_COUNT, CONFIG_MOTR_H_GEAR_RATIO);
 				}
 			}
 		}
 		if(tiltVariables.mode == MotorMode::STEPPER){
 			element = getElement(3, "ST", 2);
 			if(element != NAN && element > 0 && element <= CONFIG_MOTR_MAX_SPEED){
-				tiltVariables.pause =  RPM_TO_PAUSE(element, tiltVariables.stepCount, tiltVariables.gearRatio);
+				tiltVariables.pause =  RPM_TO_PAUSE(element, CONFIG_MOTR_T_STEP_COUNT, CONFIG_MOTR_T_GEAR_RATIO);
 #ifdef CONFIG_MOTR_DEBUG
 				ESP_LOGI(TAG, "processRequestAT | TiltMot speed: %f", element);
 #endif
@@ -250,7 +241,7 @@ bool MotorControl::parseGcode(const char* gcode, uint16_t length)
 				if(positioningMode == PositioningMode::ABSOLUTE){
 					// -->
 				}else{
-					tiltVariables.stepsToGo = ANGLE_TO_STEP(element, tiltVariables.stepCount, tiltVariables.gearRatio);
+					tiltVariables.stepsToGo = ANGLE_TO_STEP(element, CONFIG_MOTR_T_STEP_COUNT, CONFIG_MOTR_T_GEAR_RATIO);
 				}
 			}
 		}
@@ -260,7 +251,7 @@ bool MotorControl::parseGcode(const char* gcode, uint16_t length)
 		horiVariables.mode = MotorMode::STOPPED;
 		horiVariables.stepsToGo = 0;
 		element = getElement(3, "S", 1);
-		if(element != NAN && element > 0 && element <= CONFIG_MOTR_MAX_SPEED) horiVariables.pause =  RPM_TO_PAUSE(element, horiVariables.stepCount, horiVariables.gearRatio);
+		if(element != NAN && element > 0 && element <= CONFIG_MOTR_MAX_SPEED) horiVariables.pause =  RPM_TO_PAUSE(element, CONFIG_MOTR_H_STEP_COUNT, CONFIG_MOTR_H_GEAR_RATIO);
 #ifdef CONFIG_MOTR_DEBUG
 		ESP_LOGI(TAG, "processRequestAT | M03 speed is: %f", element);
 #endif
@@ -272,7 +263,7 @@ bool MotorControl::parseGcode(const char* gcode, uint16_t length)
 		horiVariables.mode = MotorMode::STOPPED;
 		horiVariables.stepsToGo = 0;
 		element = getElement(3, "S", 1);
-		if(element != NAN && element > 0 && element <= CONFIG_MOTR_MAX_SPEED) horiVariables.pause =  RPM_TO_PAUSE(element, horiVariables.stepCount, horiVariables.gearRatio);
+		if(element != NAN && element > 0 && element <= CONFIG_MOTR_MAX_SPEED) horiVariables.pause =  RPM_TO_PAUSE(element, CONFIG_MOTR_H_STEP_COUNT, CONFIG_MOTR_H_GEAR_RATIO);
 #ifdef CONFIG_MOTR_DEBUG
 		ESP_LOGI(TAG, "processRequestAT | M04 speed is: %f", element);
 #endif
@@ -287,15 +278,6 @@ bool MotorControl::parseGcode(const char* gcode, uint16_t length)
 		ESP_LOGE(TAG, "processRequestAT | Unknown command: %s", gcode);
 	return false;
 
-}
-
-void MotorControl::setEndstops(int8_t horzMotEndstop, int8_t tiltEndstop){
-	if(horzMotEndstop >= 0){
-		this->horiVariables.endstop = horzMotEndstop;
-	}
-	if(tiltEndstop >= 0){
-		this->tiltVariables.endstop = tiltEndstop;
-	}
 }
 
 void MotorControl::tiltEndstopHandler(void *arg){
@@ -343,18 +325,18 @@ void MotorControl::homeRoutine(uint8_t part){
 			positioningMode = PositioningMode::HOMING_FAST;
 			// TODO: register interrupts for both endstops
 
-			tiltVariables.pause =RPM_TO_PAUSE(150, tiltVariables.stepCount, tiltVariables.gearRatio);
-			horiVariables.pause =RPM_TO_PAUSE(150, horiVariables.stepCount, horiVariables.gearRatio);
-			if(tiltVariables.endstop >= 0){
+			tiltVariables.pause =RPM_TO_PAUSE(150, CONFIG_MOTR_T_STEP_COUNT, CONFIG_MOTR_T_GEAR_RATIO);
+			horiVariables.pause =RPM_TO_PAUSE(150, CONFIG_MOTR_H_STEP_COUNT, CONFIG_MOTR_H_GEAR_RATIO);
+			if(CONFIG_MOTR_T_ENDSTOP >= 0){
 				tiltVariables.mode = MotorMode::HOMING;
-				attachInterruptArg(tiltVariables.endstop, tiltEndstopHandler, this, CHANGE);
+				attachInterruptArg(CONFIG_MOTR_T_ENDSTOP, tiltEndstopHandler, this, CHANGE);
 			}else
 				tiltVariables.mode = MotorMode::STOPPED;
 
 
-			if(horiVariables.endstop >= 0){
+			if(CONFIG_MOTR_H_ENDSTOP >= 0){
 				horiVariables.mode = MotorMode::HOMING;
-				attachInterruptArg(horiVariables.endstop, horizontalEndstopHandler, this, CHANGE);
+				attachInterruptArg(CONFIG_MOTR_H_ENDSTOP, horizontalEndstopHandler, this, CHANGE);
 			}else
 				horiVariables.mode = MotorMode::STOPPED;
 
@@ -364,19 +346,19 @@ void MotorControl::homeRoutine(uint8_t part){
 #ifdef CONFIG_MOTR_DEBUG
 			ESP_LOGI(TAG, "homeRoutine | Fast homing done, moving to slow homing");
 #endif
-			if(tiltVariables.endstop >= 0){
-				tiltVariables.pause = RPM_TO_PAUSE(10, tiltVariables.stepCount, tiltVariables.gearRatio);
-				tiltStep(ANGLE_TO_STEP(5, tiltVariables.stepCount, tiltVariables.gearRatio));
+			if(CONFIG_MOTR_T_ENDSTOP >= 0){
+				tiltVariables.pause = RPM_TO_PAUSE(10, CONFIG_MOTR_T_STEP_COUNT, CONFIG_MOTR_T_GEAR_RATIO);
+				tiltStep(ANGLE_TO_STEP(5, CONFIG_MOTR_T_STEP_COUNT, CONFIG_MOTR_T_GEAR_RATIO));
 			}
 
-			if(horiVariables.endstop >= 0){
-				horiVariables.pause = RPM_TO_PAUSE(10, horiVariables.stepCount, horiVariables.gearRatio);
-				horiStep(ANGLE_TO_STEP(5, horiVariables.stepCount, horiVariables.gearRatio));
+			if(CONFIG_MOTR_H_ENDSTOP >= 0){
+				horiVariables.pause = RPM_TO_PAUSE(10, CONFIG_MOTR_H_STEP_COUNT, CONFIG_MOTR_H_GEAR_RATIO);
+				horiStep(ANGLE_TO_STEP(5, CONFIG_MOTR_H_STEP_COUNT, CONFIG_MOTR_H_GEAR_RATIO));
 			}
 
 			// activate motor mode again
-			tiltVariables.mode = tiltVariables.endstop >=0 ? MotorMode::HOMING : MotorMode::STOPPED;  // this will automatically change behavior in the motorMoveTask
-			horiVariables.mode = horiVariables.endstop >=0 ? MotorMode::HOMING : MotorMode::STOPPED;
+			tiltVariables.mode = CONFIG_MOTR_T_ENDSTOP >=0 ? MotorMode::HOMING : MotorMode::STOPPED;  // this will automatically change behavior in the motorMoveTask
+			horiVariables.mode = CONFIG_MOTR_H_ENDSTOP >=0 ? MotorMode::HOMING : MotorMode::STOPPED;
 
 
 			break;
@@ -403,69 +385,112 @@ void MotorControl::homeRoutine(uint8_t part){
 	// part one move fast to the endstop
 }
 
-void tiltStep(int32_t steps){
+void MotorControl::tiltSingleStep(Direction dir){
+	uint16_t stepNumber = tiltVariables.stepNumber;
+	if (dir == Direction::FORWARD){
+		tiltVariables.stepNumber++;
+		if (tiltVariables.stepNumber == CONFIG_MOTR_T_STEP_COUNT)
+			tiltVariables.stepNumber = 0;
+	}
+	else{
+		if (tiltVariables.stepNumber == 0)
+			tiltVariables.stepNumber = CONFIG_MOTR_T_STEP_COUNT;
+		stepNumber--;
+	}
+	tiltSwitchOutput(tiltVariables.stepNumber & 3);
+}
+
+void MotorControl::horiSingleStep(Direction dir){
+	uint16_t stepNumber = horiVariables.stepNumber;
+	if (dir == Direction::FORWARD){
+		horiVariables.stepNumber++;
+		if (horiVariables.stepNumber == CONFIG_MOTR_H_STEP_COUNT)
+			horiVariables.stepNumber = 0;
+	}
+	else{
+		if (horiVariables.stepNumber == 0)
+			horiVariables.stepNumber = CONFIG_MOTR_H_STEP_COUNT;
+		stepNumber--;
+	}
+	horiSwitchOutput(horiVariables.stepNumber & 3);
+}
+
+void MotorControl::tiltStep(int32_t steps){
 	uint32_t stepsLeft = abs(steps);
-	uint8_t stepNumber = tiltVariables.stepNumber; // as the function is blocking and designed more for testing and such we don't need atomic operations
 	uint64_t lastStepTime  = 0;
 	uint64_t now;
-	while (steps_left > 0){
+	while (stepsLeft > 0){
 		now = esp_timer_get_time();
 		if (now - lastStepTime >= tiltVariables.pause){
 			lastStepTime = now;
 			if (steps < 0){ // XXX check whether these checks are needed or we can just rely on overflow of uint8_t
-				stepNumber++:
-					if (stepNumber == tiltConfiguration.stepCount)
-						stepNumber = 0;
+				tiltVariables.stepNumber++;
+					if (tiltVariables.stepNumber == CONFIG_MOTR_T_STEP_COUNT)
+						tiltVariables.stepNumber = 0;
 			}
 			else{
-				if (stepNumber == 0)
-					stepNumber = tiltConfiguration.stepCount;
-				stepNumber--;
+				if (tiltVariables.stepNumber == 0)
+					tiltVariables.stepNumber = CONFIG_MOTR_T_STEP_COUNT;
+				tiltVariables.stepNumber--;
 			}
-			steps_left--;
-			tiltSwitchOutput(stepNumber & 3); // & 3 is the same as % 4 but faster, since modulo requires division
-
-			printf("DIFF: %lld us\n", now-esp_timer_get_time());  // takes ridiculously long time - 22us
+			stepsLeft--;
+			tiltSwitchOutput(tiltVariables.stepNumber & 3); // & 3 is the same as % 4 but faster, since modulo requires division
+			printf("DIFF: %lld us\n", esp_timer_get_time()-now);
 		} else
 			vTaskDelay(1/portTICK_PERIOD_MS);
-
 	}
-	tiltVariables.stepNumber = stepNumber;
 }
 
-void horiStep(int32_t steps){
+void MotorControl::horiStep(int32_t steps){
 	uint32_t stepsLeft = abs(steps);
-	uint8_t stepNumber = horiVariables.stepNumber; // as the function is blocking and designed more for testing and such we don't need atomic operations
 	uint64_t lastStepTime  = 0;
 	uint64_t now;
-	while (steps_left > 0){
+	while (stepsLeft > 0){
 		now = esp_timer_get_time();
 		if (now - lastStepTime >= horiVariables.pause){
 			lastStepTime = now;
 			if (steps < 0){ // XXX check whether these checks are needed or we can just rely on overflow of uint8_t
-				stepNumber++:
-					if (stepNumber == horiConfiguration.stepCount)
-						stepNumber = 0;
+				horiVariables.stepNumber++;
+					if (horiVariables.stepNumber == CONFIG_MOTR_H_STEP_COUNT)
+						horiVariables.stepNumber = 0;
 			}
 			else{
-				if (stepNumber == 0)
-					stepNumber = horiConfiguration.stepCount;
-				stepNumber--;
+				if (horiVariables.stepNumber == 0)
+					horiVariables.stepNumber = CONFIG_MOTR_H_STEP_COUNT;
+				horiVariables.stepNumber--;
 			}
-			steps_left--;
-			horiSwitchOutput(stepNumber & 3); // & 3 is the same as % 4 but faster, since modulo requires division
-
-			printf("DIFF: %lld us\n", now-esp_timer_get_time());  // takes ridiculously long time - 22us
+			stepsLeft--;
+			horiSwitchOutput(horiVariables.stepNumber % 3); // & 3 is the same as % 4
+			printf("DIFF: %lld us\n", esp_timer_get_time()-now);
 		} else
 			vTaskDelay(1/portTICK_PERIOD_MS);
 
 	}
-	horiVariables.stepNumber = stepNumber;
 
 }
 
+void MotorControl::horiStop()
+{
+	gpio_set_level((gpio_num_t)CONFIG_MOTR_H_PIN1, LOW);
+	gpio_set_level((gpio_num_t)CONFIG_MOTR_H_PIN2, LOW);
+#ifdef CONFIG_MOTR_4WIRE_MODE
+	gpio_set_level((gpio_num_t)CONFIG_MOTR_H_PIN3, LOW);
+	gpio_set_level((gpio_num_t)CONFIG_MOTR_H_PIN4, LOW);
+#endif /* CONFIG_MOTR_4WIRE_MODE */
+}
 
-void horiSwitchOutput(uint8_t step){
+void MotorControl::tiltStop()
+{
+	gpio_set_level((gpio_num_t)CONFIG_MOTR_T_PIN1, LOW);
+	gpio_set_level((gpio_num_t)CONFIG_MOTR_T_PIN2, LOW);
+#ifdef CONFIG_MOTR_4WIRE_MODE
+	gpio_set_level((gpio_num_t)CONFIG_MOTR_T_PIN3, LOW);
+	gpio_set_level((gpio_num_t)CONFIG_MOTR_T_PIN4, LOW);
+#endif /* CONFIG_MOTR_4WIRE_MODE */
+}
+
+
+void MotorControl::horiSwitchOutput(uint8_t step){
 
 #ifdef CONFIG_MOTR_4WIRE_MODE
 	switch (step) {
@@ -517,7 +542,7 @@ void horiSwitchOutput(uint8_t step){
 #endif
 }
 
-void tiltSwitchOutput(uint8_t step){
+void MotorControl::tiltSwitchOutput(uint8_t step){
 
 #ifdef CONFIG_MOTR_4WIRE_MODE
 	switch (step) {

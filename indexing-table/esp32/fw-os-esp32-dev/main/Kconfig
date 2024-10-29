@@ -87,10 +87,10 @@ help
 	Maximum speed of the motor in RPM
 
 config MOTR_4WIRE_MODE
-bool "Tilt motor 4-wire mode"
+bool "Steppers connected with 4 wires"
 default y
 help
-	Enable 4-wire mode for motor tilt (driver being connected not by two wires but by four)
+	Enable if the steppers are connected with 4 wires
 
 
 

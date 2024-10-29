@@ -16,6 +16,10 @@
 #include <callback_interface.h>
 #include <os_core_tasker_ids.h>
 #include <tasker_singleton_wrapper.h>
+#include <atomic>
+#include <esp32-hal-gpio.h>
+#include "hal/gpio_hal.h"
+#include "driver/gpio.h"
 
 
 #define RPM_TO_PAUSE(speed, steps_per_revolution, gear_ratio) (60L * 1000L * 1000L / steps_per_revolution / gear_ratio / speed) // ->
@@ -24,6 +28,17 @@
 #define ANGLE_DISTANCE(angle1, angle2) (angle1 > angle2 ? angle1 - angle2 : angle2 - angle1)
 
 #define port_TICK_PERIOD_US portTICK_PERIOD_MS * 1000
+
+enum ProgrammingMode : uint8_t {
+	NO_PROGRAMM = 0,
+	PROGRAMMING = 1,
+	RUN_PROGRAM = 2,
+};
+
+enum Direction : uint8_t {
+	FORWARD = 0,
+	BACKWARD = 1,
+};
 
 enum PositioningMode : uint8_t {
 	HOMING_FAST = 0,
@@ -45,29 +60,19 @@ enum MotorMode : uint8_t {
 	STEPPER = 4,
 };
 
-
-// constant/not frequently changing motor configuration, doesn't need to be volatile
-// NOTE: pin numbers for stepper motors are hardcoded with Kconfig values, as opposed to the rest of the configuration there should be no need to change them ever
 typedef struct {
-	int8_t endstop = -1; // endstop pin
-	int16_t angleMax = -1; // maximum angle
-	int16_t angleMin = -1; // minimum angle
-	uint16_t gearRatio = 1; // gear ratio (only down gearing)
-	uint16_t stepCount = 100; // steps per revolution
+	// variables that can be accessed from multiple tasks
+	std::atomic<int32_t> stepsToGo; // number of steps to go
 
-	uint8_t endstop; // endstop pin
-	GPIORegime endstopRegime; // endstop regime
-}  __attribute__((packed)) motorConfiguration;
-
-// motor variables that can be accessed frequently from multiple tasks, thus atomic operations are needed
-typedef struct {
+	// thse variables are only accessed from the motorMoveTask
 	MotorMode mode = MotorMode::STEPPER; // motor mode
-	uint16_t angle; // current angle (always in absolute mode)
-	int32_t stepsToGo; // number of steps to go
 	uint32_t pause = 1000'0000; // default sleep roughly ones pers second
 	uint64_t lastStepTime = 0; // time of the last step
 	uint8_t stepNumber = 0; // current step number (used to properly cycle pin states)
-}  __attribute__((packed)) motorVariables;
+	uint16_t angle; // current angle (always in absolute mode)
+	int16_t angleMax = -1; // maximum angle
+	int16_t angleMin = -1; // minimum angle
+} motorVariables;
 
 
 /*
@@ -128,10 +133,6 @@ class MotorControl : public CallbackInterface{
 		void tiltSwitchOutput(uint8_t step);
 
 
-		void tiltStep(int32_t steps);
-
-		void horiStep(int32_t steps);
-
 
 
 		MotorControl();
@@ -139,15 +140,9 @@ class MotorControl : public CallbackInterface{
 	public:
 		constexpr static char TAG[] = "MotorControl";
 
-
-		// configuration of the motors
-		motorConfiguration horiConfiguration;
-		motorConfiguration tiltConfiguration;
-
-
-		// operational variables of the motors, std::atomic seemed to be fastest, rtos synchoronization was slower
-		std::atomic<motorVariables> horiVariables;
-		std::atomic<motorVariables> tiltVariables;
+		// operational variables of the motors, std::atomic seemed to be fastest, rtos synchronization was slower
+		motorVariables horiVariables;
+		motorVariables tiltVariables;
 
 
 
@@ -162,27 +157,6 @@ class MotorControl : public CallbackInterface{
 
 
 
-
-#ifdef CONFIG_MOTR_4WIRE_MODE
-
-#else
-
-		/**
-		 * @brief Set the Horizontal motor parametrs
-		 * For step count multiply the number of steps with your microstepping configuration
-		 *
-		 * @param stepCount steps per revolution of the horizontal motor
-		 * @param gearRatio gear ratio of the horizontal motor
-		 */
-		void setHorizontalMotor(uint8_t stepCount = 200, uint8_t dirPin, uint8_t stepPin, uint8_t gearRatio =1 );
-
-		void setTiltMotor(uint8_t stepCount = 200, uint8_t dirPin, uint8_t stepPin, uint8_t gearRatio = 1);
-#endif /* CONFIG_MOTR_4WIRE_MODE */
-
-
-
-		void setEndstops(int8_t horizontal = -1, int8_t tilt = -1);
-
 		uint8_t call(uint16_t id) override;
 
 		/**
@@ -191,6 +165,65 @@ class MotorControl : public CallbackInterface{
 		 * @param mode
 		 */
 		bool parseGcode(const char* gcode, uint16_t length);
+
+
+		/**
+		 * @brief sets speed for horizontal motor, to be used in testing
+		 *
+		 * @param speed
+		 */
+		void horiSetSpeed(uint32_t speed){
+			horiVariables.pause = RPM_TO_PAUSE(speed, CONFIG_MOTR_H_STEP_COUNT, CONFIG_MOTR_H_GEAR_RATIO);
+		};
+
+		/**
+		 * @brief sets speed for tilt motor, to be used in testing
+		 *
+		 * @param speed
+		 */
+		void tiltSetSpeed(uint32_t speed){
+			tiltVariables.pause = RPM_TO_PAUSE(speed, CONFIG_MOTR_T_STEP_COUNT, CONFIG_MOTR_T_GEAR_RATIO);
+		};
+
+		/**
+		 * @brief steps a tilt motor a single step
+		 *
+		 * @param Direction - direction of the step
+		 */
+		void tiltSingleStep(Direction dir);
+
+		/**
+		 * @brief steps a horizontal motor a single step
+		 *
+		 * @param Direction - direction of the step
+		 */
+		void horiSingleStep(Direction dir);
+
+		/**
+		 * @brief steps a tilt motor a number of steps
+		 * function is blocking
+		 *
+		 * @param steps - number of steps to go
+		 */
+		void tiltStep(int32_t steps);
+
+		/**
+		 * @brief steps a horizontal motor a number of steps
+		 * function is blocking
+		 *
+		 * @param steps - number of steps to go
+		 */
+		void horiStep(int32_t steps);
+
+		/**
+		 * @brief stops the horizontal motor, powers down all pins
+		 */
+		void horiStop();
+
+		/**
+		 * @brief stops the tilt motor, powers down all pins
+		 */
+		void tiltStop();
 
 
 		void printLocation();
