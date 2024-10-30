@@ -109,7 +109,7 @@ void stepper_mcpwm_init() {
     mcpwm_generator_set_action_on_timer_event(generator2, MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP,MCPWM_TIMER_EVENT_EMPTY, MCPWM_GEN_ACTION_TOGGLE));
 }
 
-void pcnt_init(pcnt_unit_t unit, int pulse_gpio, int16_t max_steps, EventBits_t complete_bit) { // NOTE: pcnt uses legacy library -> move to newer if possible as l_lim is int there
+void pcnt_init(pcnt_unit_t unit, int pulse_gpio, int16_t max_steps, EventBits_t complete_bit) { // NOTE: pcnt uses legacy library -> move to newer if possible as l_lim is int there, thus we aren't restricted to 16 bit
     pcnt_config_t pcnt_config = {
         .pulse_gpio_num = pulse_gpio,
         .ctrl_gpio_num = -1,   // Not used
@@ -129,6 +129,15 @@ void pcnt_init(pcnt_unit_t unit, int pulse_gpio, int16_t max_steps, EventBits_t 
     pcnt_event_enable(unit, PCNT_EVT_H_LIM);
     pcnt_isr_register([](void *arg) {
         EventBits_t *complete_bit = (EventBits_t *)arg;
+
+				if(*complete_bit == STEPPER_COMPLETE_BIT_1) { // TODO: check if stop full is correct
+					mcpwm_timer_start_stop(timer1, MCPWM_TIMER_STOP_FULL);
+					stepper1_command.complete = true;
+				} else if(*complete_bit == STEPPER_COMPLETE_BIT_2) {
+					mcpwm_timer_start_stop(timer2, MCPWM_TIMER_STOP_FULL);
+					stepper2_command.complete = true;
+				}
+
         xEventGroupSetBits(stepper_event_group, *complete_bit);
     }, &complete_bit, ESP_INTR_FLAG_IRAM, NULL);
 
@@ -139,7 +148,7 @@ void stepper_task_1(void *arg) {
     while (1) {
         if (xQueueReceive(command_queue_1, &stepper1_command, portMAX_DELAY)) {
             float pulse_frequency = (stepper1_command.rpm * 200) / 60.0;
-            uint32_t period_ticks = (uint32_t)(1000000 / pulse_frequency); // Convert to timer ticks
+            uint32_t period_ticks = (uint32_t)(1000'000 / pulse_frequency); // Convert to timer ticks
 
             stepper1_command.complete = false;
 
@@ -152,7 +161,7 @@ void stepper_task_1(void *arg) {
 
             // Start MCPWM for generating pulses
             mcpwm_timer_set_period(timer1, period_ticks);
-            mcpwm_timer_start_stop(timer1, MCPWM_TIMER_START_NO_STOP);
+            mcpwm_timer_start_stop(timer1, MCPWM_TIMER_START_NO_STOP); // won't stop until we tell it to
         }
     }
 }
@@ -162,7 +171,7 @@ void stepper_task_2(void *arg) {
     while (1) {
         if (xQueueReceive(command_queue_2, &stepper2_command, portMAX_DELAY)) {
             float pulse_frequency = (stepper2_command.rpm * 200) / 60.0;
-            uint32_t period_ticks = (uint32_t)(1000000 / pulse_frequency); // Convert to timer ticks
+            uint32_t period_ticks = (uint32_t)(1000'000 / pulse_frequency); // Convert to timer ticks
 
             stepper2_command.complete = false;
 
