@@ -13,6 +13,7 @@
 #include "driver/mcpwm_prelude.h"
 #include "driver/gpio.h"
 #include "esp_log.h"
+#include "driver/pcnt.h"
 
 #define STEPPER1_PULSE_GPIO (gpio_num_t)22
 #define STEPPER1_DIR_GPIO (gpio_num_t)23
@@ -43,8 +44,8 @@ EventGroupHandle_t stepper_event_group;
 // MCPWM opers
 mcpwm_timer_handle_t timer1 = NULL;
 mcpwm_timer_handle_t timer2 = NULL;
-mcpwm_oper_handle_t oper1 = NULL;
-mcpwm_oper_handle_t oper2 = NULL;
+mcpwm_oper_handle_t operator1 = NULL;
+mcpwm_oper_handle_t operator2 = NULL;
 mcpwm_cmpr_handle_t comparator1 = NULL;
 mcpwm_cmpr_handle_t comparator2 = NULL;
 mcpwm_gen_handle_t generator1 = NULL;
@@ -55,30 +56,6 @@ OSCore::OSCore()
 {
 }
 
-// ISR to handle pulse counting for stepper 1
-bool IRAM_ATTR pulse_count_handler_stepper1(gptimer_handle_t timer, const void *args) {
-    pulse_count_stepper1++;
-    if (pulse_count_stepper1 >= stepper1_command.steps) {
-        mcpwm_timer_stop(timer1);
-        stepper1_command.complete = true;
-        pulse_count_stepper1 = 0;
-        xEventGroupSetBits(stepper_event_group, STEPPER_COMPLETE_BIT_1);
-    }
-    return true;  // Return true to auto-clear the interrupt
-}
-
-// ISR to handle pulse counting for stepper 2
-bool IRAM_ATTR pulse_count_handler_stepper2(gptimer_handle_t timer, const void *args) {
-    pulse_count_stepper2++;
-    if (pulse_count_stepper2 >= stepper2_command.steps) {
-        mcpwm_timer_stop(timer2);
-        stepper2_command.complete = true;
-        pulse_count_stepper2 = 0;
-        xEventGroupSetBits(stepper_event_group, STEPPER_COMPLETE_BIT_2);
-    }
-    return true;
-}
-
 // Function to initialize MCPWM for each stepper
 void stepper_mcpwm_init() {
     // Configure MCPWM timer for stepper 1
@@ -86,8 +63,8 @@ void stepper_mcpwm_init() {
         .group_id = 0,
         .clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
         .resolution_hz = 1000000,  // 1 MHz resolution
-        .period_ticks = 1000,      // Will adjust for RPM
         .count_mode = MCPWM_TIMER_COUNT_MODE_UP,
+        .period_ticks = 1000,      // Will adjust for RPM
     };
     mcpwm_new_timer(&timer1_config, &timer1);
 
@@ -96,48 +73,56 @@ void stepper_mcpwm_init() {
         .group_id = 0,
         .clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
         .resolution_hz = 1000000,
-        .period_ticks = 1000,
         .count_mode = MCPWM_TIMER_COUNT_MODE_UP,
+        .period_ticks = 1000,
     };
     mcpwm_new_timer(&timer2_config, &timer2);
 
-    // Set up MCPWM oper for each stepper
-    mcpwm_oper_config_t oper_config = {.group_id = MCPWM_GROUP_0};
-    mcpwm_new_oper(&oper_config, &oper1);
-    mcpwm_new_oper(&oper_config, &oper2);
+    // Set up MCPWM operator for each stepper
+    mcpwm_operator_config_t operator_config = {
+			.group_id = 0,
+			.intr_priority = 0, // as opposed to RMT this will possibly be bothered by other interrupts
+		};
+		// operator_config.group_id =0;
+    mcpwm_new_operator(&operator_config, &operator1);
+    mcpwm_new_operator(&operator_config, &operator2);
 
-    // Connect the opers to timers
-    mcpwm_oper_connect_timer(oper1, timer1);
-    mcpwm_oper_connect_timer(oper2, timer2);
+    // Connect the operators to timers
+    mcpwm_operator_connect_timer(operator1, timer1);
+    mcpwm_operator_connect_timer(operator2, timer2);
 
     // Set up comparator and generator for each stepper
-    mcpwm_comparator_config_t comparator_config = {.flags.update_cmp_on_tez = true};
-    mcpwm_new_comparator(oper1, &comparator_config, &comparator1);
-    mcpwm_new_comparator(oper2, &comparator_config, &comparator2);
+    mcpwm_comparator_config_t comparator_config;
+		comparator_config.flags.update_cmp_on_tez = true;
+    mcpwm_new_comparator(operator1, &comparator_config, &comparator1);
+    mcpwm_new_comparator(operator2, &comparator_config, &comparator2);
 
-    mcpwm_generator_config_t generator_config_1 = {.gen_gpio_num = STEPPER1_PULSE_GPIO};
-    mcpwm_generator_config_t generator_config_2 = {.gen_gpio_num = STEPPER2_PULSE_GPIO};
-    mcpwm_new_generator(oper1, &generator_config_1, &generator1);
-    mcpwm_new_generator(oper2, &generator_config_2, &generator2);
+    mcpwm_generator_config_t generator_config;
+		generator_config.gen_gpio_num = STEPPER1_PULSE_GPIO;
+		mcpwm_new_generator(operator1, &generator_config, &generator1);
+		generator_config.gen_gpio_num = STEPPER2_PULSE_GPIO;
+		mcpwm_new_generator(operator2, &generator_config, &generator2);
+
 
     // Configure the generator actions
-    mcpwm_generator_set_action_on_timer_event(generator1, MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_EVENT_EMPTY, MCPWM_GEN_ACTION_TOGGLE));
-    mcpwm_generator_set_action_on_timer_event(generator2, MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_EVENT_EMPTY, MCPWM_GEN_ACTION_TOGGLE));
+    mcpwm_generator_set_action_on_timer_event(generator1, MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP,MCPWM_TIMER_EVENT_EMPTY, MCPWM_GEN_ACTION_TOGGLE));
+    mcpwm_generator_set_action_on_timer_event(generator2, MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP,MCPWM_TIMER_EVENT_EMPTY, MCPWM_GEN_ACTION_TOGGLE));
 }
 
-void pcnt_init(pcnt_unit_t unit, int pulse_gpio, int max_steps, EventBits_t complete_bit) {
+void pcnt_init(pcnt_unit_t unit, int pulse_gpio, int16_t max_steps, EventBits_t complete_bit) { // NOTE: pcnt uses legacy library -> move to newer if possible as l_lim is int there
     pcnt_config_t pcnt_config = {
         .pulse_gpio_num = pulse_gpio,
         .ctrl_gpio_num = -1,   // Not used
-        .channel = PCNT_CHANNEL_0,
-        .unit = unit,
-        .pos_mode = PCNT_COUNT_INC,   // Count on rising edge
-        .neg_mode = PCNT_COUNT_DIS,   // Ignore falling edge
         .lctrl_mode = PCNT_MODE_KEEP,
         .hctrl_mode = PCNT_MODE_KEEP,
-        .counter_h_lim = max_steps,
-        .counter_l_lim = 0,
+        .pos_mode = PCNT_COUNT_INC,   // Count on rising edge
+        .neg_mode = PCNT_COUNT_DIS,   // Ignore falling edge
+				.counter_h_lim = max_steps,
+				.counter_l_lim = 0,
+        .unit = unit,
+        .channel = PCNT_CHANNEL_0,
     };
+
     pcnt_unit_config(&pcnt_config);
 
     // Set up an ISR to trigger when the pulse count limit is reached
@@ -282,11 +267,27 @@ void OSCore::setup()
     stepper_event_group = xEventGroupCreate();
 
     stepper_mcpwm_init();
-    timer_init();
+    pcnt_init(PCNT_UNIT_0, STEPPER1_PULSE_GPIO, stepper1_command.steps, STEPPER_COMPLETE_BIT_1);
+    pcnt_init(PCNT_UNIT_1, STEPPER2_PULSE_GPIO, stepper2_command.steps, STEPPER_COMPLETE_BIT_2);
+
 
     xTaskCreate(stepper_task_1, "Stepper Task 1", 2048, NULL, 5, NULL);
     xTaskCreate(stepper_task_2, "Stepper Task 2", 2048, NULL, 5, NULL);
 
+
+		set_stepper1_command(5000, 120.0, true);  // Set stepper 1 to 120 RPM, 1000 steps, forward
+    set_stepper2_command(-5000, 90.0, false);  // Set stepper 2 to 90 RPM, 2000 steps, backward
+		EventBits_t result = xEventGroupWaitBits(
+        stepper_event_group,
+        STEPPER_COMPLETE_BIT_1 | STEPPER_COMPLETE_BIT_2,
+        pdTRUE,
+        pdTRUE,
+        portMAX_DELAY
+    );
+
+    if ((result & (STEPPER_COMPLETE_BIT_1 | STEPPER_COMPLETE_BIT_2)) == (STEPPER_COMPLETE_BIT_1 | STEPPER_COMPLETE_BIT_2)) {
+        ESP_LOGI("Stepper", "Both steppers completed");
+    }
 	// ------------------------------------------
 	// OSCora Tasker calls setup
 	// ------------------------------------------
