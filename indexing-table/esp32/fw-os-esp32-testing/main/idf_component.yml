@@ -1,0 +1,34 @@
+## IDF Component Manager Manifest File
+dependencies:
+  espressif/esp-modbus: "*"
+  JoTioTech/fw-lib-esp32-tasker:
+    path: "$HOME/prog/embedded/esp32-fw/fw-lib-esp32-tasker"
+    # path: "."
+    # git: git@github.com:JoTioTech/fw-lib-esp32-tasker.git
+  JoTioTech/fw-lib-esp32-wifi-manager:
+    path: "$HOME/prog/embedded/esp32-fw/fw-lib-esp32-wifi-manager"
+    # path: "."
+    # git: git@github.com:JoTioTech/fw-lib-esp32-wifi-manager.git
+  JoTioTech/fw-lib-esp32-peripherals:
+    path: "$HOME/prog/embedded/esp32-fw/fw-lib-esp32-peripherals"
+    # path: "."
+    # git: git@github.com:JoTioTech/fw-lib-esp32-peripherals.git
+  JoTioTech/fw-lib-esp32-protocol-jobin:
+    path: "$HOME/prog/embedded/esp32-fw/fw-lib-esp32-protocol-jobin"
+    # path: "."
+    # git: git@github.com:JoTioTech/fw-lib-esp32-protocol-jobin.git
+  JoTioTech/fw-lib-esp32-time:
+    path: "$HOME/prog/embedded/esp32-fw/fw-lib-esp32-time"
+    # path: "."
+    # git: git@github.com:JoTioTech/fw-lib-esp32-time.git
+  JoTioTech/fw-lib-esp32-utils:
+    path: "$HOME/prog/embedded/esp32-fw/fw-lib-esp32-utils"
+    # path: "."
+    # git: git@github.com:JoTioTech/fw-lib-esp32-utils.git
+  JoTioTech/fw-lib-esp32-modbus-wrapper:
+    path: "$HOME/prog/embedded/esp32-fw/fw-lib-esp32-modbus-wrapper"
+    # path: "."
+    # git: git@github.com:JoTioTech/fw-lib-esp32-modbus-wrapper.git
+  ## Required IDF version
+  idf:
+    version: ">=4.1.0"

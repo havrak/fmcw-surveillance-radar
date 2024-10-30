@@ -1,0 +1,11 @@
+build/
+.cache
+cli.log
+debug_custom.json
+filesystem.bin
+temp_files
+dependencies.lock
+managed_components/
+sdkconfig
+warnings.txt
+

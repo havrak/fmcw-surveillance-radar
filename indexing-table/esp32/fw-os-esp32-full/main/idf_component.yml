@@ -5,10 +5,6 @@ dependencies:
     path: "$HOME/prog/embedded/esp32-fw/fw-lib-esp32-tasker"
     # path: "."
     # git: git@github.com:JoTioTech/fw-lib-esp32-tasker.git
-  JoTioTech/fw-lib-esp32-peripherals:
-    path: "$HOME/prog/embedded/esp32-fw/fw-lib-esp32-peripherals"
-    # path: "."
-    # git: git@github.com:JoTioTech/fw-lib-esp32-peripherals.git
   JoTioTech/fw-lib-esp32-hal:
     path: "$HOME/prog/embedded/esp32-fw/fw-lib-esp32-hal"
     # path: "."

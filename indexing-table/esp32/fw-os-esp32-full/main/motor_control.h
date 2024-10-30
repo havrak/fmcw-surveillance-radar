@@ -18,10 +18,14 @@
 #include <tasker_singleton_wrapper.h>
 #include <atomic>
 #include <esp32-hal-gpio.h>
-#include "hal/gpio_hal.h"
-#include "driver/gpio.h"
-#include "driver/rmt_rx.h"
-#include "driver/rmt_tx.h"
+#include <hal/gpio_hal.h>
+#include <driver/gpio.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/queue.h>
+#include <freertos/event_groups.h>
+#include <driver/mcpwm.h>
+#include <driver/timer.h>
 
 #define RPM_TO_PAUSE(speed, steps_per_revolution, gear_ratio) (60L * 1000L * 1000L / steps_per_revolution / gear_ratio / speed) // ->
 #define ANGLE_TO_STEP(angle, steps_per_revolution, gear_ratio) (angle * steps_per_revolution * gear_ratio / 360)
@@ -29,8 +33,16 @@
 #define ANGLE_DISTANCE(angle1, angle2) (angle1 > angle2 ? angle1 - angle2 : angle2 - angle1)
 
 #define port_TICK_PERIOD_US portTICK_PERIOD_MS * 1000
-#define RMT_CHANNEL_HORI RMT_CHANNEL_0
-#define STEP_PULSE_WIDTH_US 10   // Duration of the step pulse in microseconds
+
+#define STEPPER1_MCPWM_UNIT MCPWM_UNIT_0
+#define STEPPER1_MCPWM_TIMER MCPWM_TIMER_0
+#define STEPPER2_MCPWM_UNIT MCPWM_UNIT_0
+#define STEPPER2_MCPWM_TIMER MCPWM_TIMER_1
+
+#define STEPPER_COMPLETE_BIT_1 BIT0
+#define STEPPER_COMPLETE_BIT_2 BIT1
+
+
 
 enum ProgrammingMode : uint8_t {
 	NO_PROGRAMM = 0,
@@ -69,13 +81,33 @@ typedef struct {
 
 	// thse variables are only accessed from the motorMoveTask
 	MotorMode mode = MotorMode::STEPPER; // motor mode
-	uint32_t pause = 1000'0000; // default sleep roughly ones pers second
+	uint64_t pause = 0;
+	uint32_t rpm = 0; // speed of the motor
 	uint64_t nextStepTime = 0; // time of the last step
 	uint8_t stepNumber = 0; // current step number (used to properly cycle pin states)
 	uint16_t angle; // current angle (always in absolute mode)
 	int16_t angleMax = -1; // maximum angle
 	int16_t angleMin = -1; // minimum angle
 } motorVariables;
+
+
+typedef struct {
+    int32_t steps;
+    float rpm;
+    bool direction; // true = forward, false = backward
+    bool complete;
+} stepper_command_t;
+
+
+
+// TODO move to MotorControl, volatile must be moved to atomic
+static volatile uint32_t horiPulseCount = 0;
+static volatile uint32_t tiltPulseCount = 0;
+static stepper_command_t horiCurrentCommand;
+static stepper_command_t tiltCurrentCommand;
+static QueueHandle_t horiCommandQueue;
+static QueueHandle_t tiltCommandQueue;
+static EventGroupHandle_t stepperCompleteEventGroup;
 
 
 /*
@@ -99,10 +131,18 @@ class MotorControl : public CallbackInterface{
 		static void motorMoveTask(void *arg);
 		static void tiltEndstopHandler(void *arg);
 		static void horizontalEndstopHandler(void *arg);
+		static void IRAM_ATTR timerISRHandleHori(void *arg);
+		static void IRAM_ATTR timerISRHandleTilt(void *arg);
 
-		void TiltMotorFault();
-		void HorzMotorFault();
+		static void horiTask(void *arg);
+		static void tiltTask(void *arg);
 
+		void setHoriCommand(int32_t steps, float rpm);
+		void setTiltCommand(int32_t steps, float rpm);
+
+
+		void mcpwmInit();
+		void timerInit();
 
 
 		/**
@@ -170,55 +210,6 @@ class MotorControl : public CallbackInterface{
 		bool parseGcode(const char* gcode, uint16_t length);
 
 
-		/**
-		 * @brief sets speed for horizontal motor, to be used in testing
-		 *
-		 * @param speed
-		 */
-		void horiSetSpeed(uint32_t speed){
-			horiVariables.pause = RPM_TO_PAUSE(speed, CONFIG_MOTR_H_STEP_COUNT, CONFIG_MOTR_H_GEAR_RATIO);
-		};
-
-		/**
-		 * @brief sets speed for tilt motor, to be used in testing
-		 *
-		 * @param speed
-		 */
-		void tiltSetSpeed(uint32_t speed){
-			tiltVariables.pause = RPM_TO_PAUSE(speed, CONFIG_MOTR_T_STEP_COUNT, CONFIG_MOTR_T_GEAR_RATIO);
-		};
-
-		/**
-		 * @brief steps a tilt motor a single step
-		 *
-		 * @param Direction - direction of the step
-		 */
-		void tiltSingleStep(Direction dir);
-
-		/**
-		 * @brief steps a horizontal motor a single step
-		 *
-		 * @param Direction - direction of the step
-		 */
-		void horiSingleStep(Direction dir);
-
-		/**
-		 * @brief steps a tilt motor a number of steps
-		 * function is blocking
-		 * limited to 100 RPM (~ 3ms per step)
-		 *
-		 * @param steps - number of steps to go
-		 */
-		void tiltStep(int32_t steps);
-
-		/**
-		 * @brief steps a horizontal motor a number of steps
-		 * function is blocking
-		 * limited to 100 RPM (~ 3ms per step)
-		 *
-		 * @param steps - number of steps to go
-		 */
-		void horiStep(int32_t steps);
 
 		/**
 		 * @brief stops the horizontal motor, powers down all pins
