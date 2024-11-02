@@ -209,6 +209,8 @@ void stepper_task_1(void *arg) {
 			// Start MCPWM for generating pulses
 			mcpwm_timer_set_period(timer1, period_ticks);
 			mcpwm_timer_start_stop(timer1, MCPWM_TIMER_START_NO_STOP); // won't stop until we tell it to
+
+			// TODO freeze execution until the bit is set
 		}
 	}
 }
@@ -216,7 +218,7 @@ void stepper_task_1(void *arg) {
 // Task to process commands for stepper 2
 void stepper_task_2(void *arg) {
 	while (1) {
-		if (xQueueReceive(command_queue_2, &stepper2_command, portMAX_DELAY)) {
+		if (xQueueReceive(command_queue_2, &stepper2_command, portMAX_DELAY ) {
 			ESP_LOGI("Stepper 2", "Received command for stepper 2");
 			uint32_t period_ticks = (uint32_t)(60'000'000/100/stepper2_command.rpm); // Convert to timer ticks
 			ESP_LOGI("Stepper 2", "Period ticks: %ld", period_ticks);
@@ -234,6 +236,9 @@ void stepper_task_2(void *arg) {
 			// Start MCPWM for generating pulses
 			mcpwm_timer_set_period(timer2, period_ticks);
 			mcpwm_timer_start_stop(timer2, MCPWM_TIMER_START_NO_STOP);
+
+			// TODO freeze execution until the bit is set
+
 		}
 	}
 }

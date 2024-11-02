@@ -4,12 +4,14 @@ As of now code relies on proprietary libraries that are not included in this rep
 Following codebase is written entirely for esp-idf framework. While hal layer used is mimicking arduino, there are differences and thus simple porting of the code to arduino is not possible.
 Configuration of the device is done primarily with Kconfig under esp-idf. While runtime configuration with storing to flash is possible, it is not needed for the current application and would result in unnecessary slowdowns.
 
-# Communication
+# TODO
+* reintroduce MQTT as it will not pose any slowdowns with current architecture
+* all AT commands need to be redefined as gcode, all will use the M prefix (firmware version, setting limits, system info, etc.)
 
-## Device configuration
+# Communication
+## Device configuration (TO BE SCRAPPED)
 * device is configured using AT commands, that are sent to the device over serial connection or MQTT
 * majority of configuration is hardcoded in the firmware and can be changed only by using Kconfig and recompiling the firmware
-* WARN: as motor control needs to be as efficient as possible these settings might be dropped in the future
 * motor H - rotation in horizontal plane
 	* AT+MOTH? - list configuration for motor A
 	* AT+MOTH_LIMIT? - limit information
@@ -53,12 +55,15 @@ Configuration of the device is done primarily with Kconfig under esp-idf. While 
 		* ST<SPEED> - speed for tilt motor in tilt axis
 		* T<+/-> - start spin clockwise/anticlockwise
 	* M05:  Stop spindle spinning.
+		* H - stop spindle regime on horizontal axis
+		* T - stop spindle regime on tilt axis
 	* can be followed with S<rpm> to set speed
 
-### Programming movements
-* device allows to preprogramm sequence of movements that can be executed with one command, or looped continuously
+### Programming movements (NOT FINAL)
+* device allows to preprogram sequence of movements that can be executed with one command, or looped continuously
 * programms are not stored in flash, but in ram for now. Permanent storage of movements is done in MATLAB's programm configuration file
-* P0 - stop executing programm
+* if programm requires movement on both axis it is executed in parallel and next command is executed only after both axis reach their target
+* P0 - stop executing programm (only one programm can be active at one time)
 * P1 <command_id> - run command with given id
 * P90 <command_id> - start programming mode with given id
 	* if programm already exists it will be overwritten, changing programs post creation is not possible
@@ -69,22 +74,35 @@ Configuration of the device is done primarily with Kconfig under esp-idf. While 
 		* can be used to set initial position, units, positioning mode, or home the device
 		* P98: declares looped programm, these programs will loop indefinitely until stopped
 	* upon call of P91 command programming mode will advance to next step - declaring main loop
+	* programming is ended with P99 command
+* W0: wait command
+	* only available in programming mode
+	* M<TIME> - wait period in milliseconds
+	* S<TIME> - wait period in seconds
+	* TODO: reconsider syntax
 
 
 #### Example of programming
 
-| Command | Mode               | Description                                  |
-|---------|--------------------|----------------------------------------------|
-| P1 1    | Programming-header | start programming mode with programm id of 1 |
-| G90     | Programming-header | set absolute positioning                     |
-| G20     | Programming-header | set units to degrees                         |
-| G92     | Programming-header | set current position as home                 |
-| P98     | Programming-header | declare looped programm                      |
+| Command       | Mode                   | Description                                  |
+|---------------|------------------------|----------------------------------------------|
+| P1 1          | General -> Header dec  | start programming mode with programm id of 1 |
+| G91           | Header dec             | set relative positioning                     |
+| G20           | Header dec             | set units to degrees                         |
+| G92           | Header dec             | set current position as home                 |
+| P98           | Header dec             | declare looped programm                      |
+| M03 SH120 H+  | Header dec -> Main dec | set horizontal motor to be in spindle mode   |
+| P91           | Main dec               | start declaration of main loop               |
+| G0 ST30 T100  | Main dec               | move tilt motor by 100 degrees at 30 rpm     |
+| G0 ST30 T-100 | Main dec               | move tilt motor by -100 degrees at 30 rpm    |
+| P99           | Main dec               | end programming                              |
+
+
 
 
 
 ## Position Uplink from device (NOT FINAL)
-* WARN: MQTT uplink will not be implemented, it's not needed for the current application
+* WARN: more up to date ideas are in personal notes section
 * two possible approaches - every step we transmit current position x we transmit delta in position and time between steps
 * should be transmitted in format directly usable by matlab
 * transmitting delta in position
@@ -99,9 +117,47 @@ Configuration of the device is done primarily with Kconfig under esp-idf. While 
 		* relative positioning is given in angle change in relation to last issued command
 
 
-* -> enter programming mode
-	* needs to give number to programm
-	* if in programming mode G0, M03, M04 command will not be executed, but instead stashed
-	* switching relative absolute positioning is not enabled in programming mode
-	* as opposed to normal regime pauses can be programmed in
-	* programming mode is eneded with given command
+## Personal notes
+* optimally there is standard interface to control steppers
+	* must be compatible both with Remote Controlled Transceiver approach or MCPWM+PCNT
+	* stepper control should be relayed in a form of standardized command
+	* needed functionality from HAL
+		* motors needs to be step individually or simultaneously
+		* spindle regime must be supported directly by the HAL
+		* commands can be queued, queue must be able to be dumped,
+		information about queue is available
+		* information bout current command must be available
+		* timestamp of the start of the current command must be available
+		* information about previous command must be available
+		* all information will be done stored in relative positioning.
+		* all information is stored in steps, coversion to degrees is done in the application layer
+		* pause commands must be handled here as application layer will not be synchronized with the motor control
+		* empty command must be able to be handled -> if we are issuing commands for both steppers the stepper without any command will have to wait for the second to finish
+	* application layer functionality
+	  * absolute positioning will be done in the application layer (will require some finicky calculations to be done as each command will need to be adjusted)
+		* limits on steppers are enforced and checked in the application layer (logic is similar to that of converting to absolute positioning)
+		* absolute positioning/limit enforcement
+			* we will store total number of steps done, register will overflow on number of steps times microstepping
+			* this number will be updated after a command has finished execution -- thus we will alway know the current position
+			* next command to be executed will need to be checked against end position of the previous one, after that it can either be adjusted (if we are in absolute postioning) or scrapped (if limits are reached)
+			* in absolute positioning commands will be adjusted to take the shortest path to the target
+			* TODO: consider whether crossing the endstop should always reset the position counter or whether endstops are to be active only in homing mode
+		* command parsing
+		* programming and programm execution
+			* keep in mind that moves must be preschedulde and each iteration of the command loop will need to be corrected individually
+		* conversion between steps and degrees
+		* reporting of current position -> more in uplink section
+	* XXX: limits checking and absolute positioning is not high priority
+* how to manage motor control
+	* two different needs -> continuos movement and finite positioning
+	*	just two queues
+		* we could have in each command instruction information whether to wait for both or just one
+		* depending on this information parameters of xEventGroupWaitBits would be set differently
+		* overhead of this approach probably wouldn't be that high
+		* if there are some commands present in the queue before adding simultaneous command, we would need to wait for them to finish
+	* three queues
+		* motor specific queues handle only one motor and don't care about the other
+		* third queue is used to issue commands to both motors
+		* there is no need to set specific flags in commands
+		* order of execution of commands in different queues is not guaranteed
+		* -> BAD approach
