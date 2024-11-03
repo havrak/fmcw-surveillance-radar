@@ -16,7 +16,7 @@
 #include <tasker_event_observer.h>
 #include <comm_endpoint.h>
 #include <nvs_flash.h>
-#include <motor_control.h>
+#include <stepper_control.h>
 #include "esp_task_wdt.h"
 
 

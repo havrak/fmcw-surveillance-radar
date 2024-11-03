@@ -66,34 +66,34 @@ default true
 help
 	Enable locks to prevent concurrent access to the processing queue
 
-config MOTR_DEBUG
+config STEPPER_DEBUG
 bool "Enable motor debug"
 default n
 help
 	Enable debug messages for motor
 
-config MOTR_DEFAULT_SPEED
+config STEPPER_DEFAULT_SPEED
 int "Default motor speed in RPM"
 range 1 500
 default 10
 help
 	Default speed of the motor in RPM
 
-config MOTR_MAX_SPEED
+config STEPPER_MAX_SPEED
 int "Maximum motor speed in RPM"
 range 1 300
 default 250
 help
 	Maximum speed of the motor in RPM
 
-config MOTR_H_STEP_COUNT
+config STEPPER_H_STEP_COUNT
 int "Horizontal motor rotation step count"
 range 1 1000
 default 200
 help
 	Number of steps to rotate one revolution the motor in horizontal axis
 
-config MOTR_H_PIN_ENDSTOP
+config STEPPER_H_PIN_ENDSTOP
 int  "Horizontal motor endstop pin"
 default  -1
 range -1 100
@@ -102,7 +102,7 @@ help
 
 
 
-config MOTR_H_GEAR_RATIO
+config STEPPER_H_GEAR_RATIO
 int "Horizontal motor gear ratio (only downgearing is supported)"
 range 1 1000
 default 1
@@ -110,49 +110,49 @@ help
 	Horizontal motor gear ratio (only downgearing is supported)
 
 
-config MOTR_H_PIN_DIR
+config STEPPER_H_PIN_DIR
 int "Horizontal motor GPIO connection direction pin"
 range 0 100
 default 23
 help
 	Horizontal motor GPIO connection for direction pin
 
-config MOTR_H_PIN_STEP
+config STEPPER_H_PIN_STEP
 int "Horizontal motor GPIO connection for step pin"
 range 0 100
 default 22
 help
 	Horizontal motor GPIO connection for step pin
 
-config MOTR_T_STEP_COUNT
+config STEPPER_T_STEP_COUNT
 int "Tilt motor rotation step count"
 range 1 1000
 default 200
 help
 	Number of steps to rotate one revolution the motor in tilt axis
 
-config MOTR_T_PIN_ENDSTOP
+config STEPPER_T_PIN_ENDSTOP
 int  "Tilt motor endstop pin"
 default  -1
 range -1 100
 help
 	GPIO pin number of the endstop of the motor in tilt axis, -1 for no endstop
 
-config MOTR_T_GEAR_RATIO
+config STEPPER_T_GEAR_RATIO
 int "Tilt motor gear ratio (only downgearing is supported)"
 range 1 1000
 default 1
 help
 	Tilt motor gear ratio (only downgearing is supported)
 
-config MOTR_T_PIN_DIR
+config STEPPER_T_PIN_DIR
 int "Tilt motor GPIO connection for direction pin"
 range 0 100
 default 19
 help
 	Tilt motor GPIO connection for direction pin
 
-config MOTR_T_PIN_STEP
+config STEPPER_T_PIN_STEP
 int "Tilt motor GPIO connection for step pin"
 range 0 100
 default 18

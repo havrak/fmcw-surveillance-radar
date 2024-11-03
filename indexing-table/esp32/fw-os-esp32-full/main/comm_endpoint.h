@@ -14,7 +14,7 @@
 #include <callback_interface.h>
 #include <tasker_singleton_wrapper.h>
 #include <os_core_tasker_ids.h>
-#include <motor_control.h>
+#include <stepper_control.h>
 
 #define EX_UART_NUM UART_NUM_0
 #define MAX_COMMAND_LENGTH 64
@@ -52,7 +52,6 @@ class CommRequest{
 
 };
 
-static QueueHandle_t uart0_queue; // from recent FreeRTOS version QueueHandle_t doens't work if declared as static and inside of a class
 
 class CommEndpoint: CallbackInterface{
 	private:
@@ -62,6 +61,7 @@ class CommEndpoint: CallbackInterface{
 		std::queue<CommRequest*> requestsQueue;
 
 		constexpr static char TAG[] = "CommEndpoint";
+inline static QueueHandle_t uart0_queue = NULL; // from recent FreeRTOS version QueueHandle_t doens't work if declared as static and inside of a class
 
 		char responseBuffer[CONFIG_COMM_RS232_BUFFER_SIZE];
 

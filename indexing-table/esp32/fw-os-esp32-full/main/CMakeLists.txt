@@ -1,11 +1,12 @@
 file(GLOB main_source
 	# "os_core.cpp"
 	"*.cpp"
+	"stepper_control/*.cpp"
 	# "app_main.cpp"
 	)
 
 idf_component_register(SRCS ${main_source}
-	INCLUDE_DIRS .
+	INCLUDE_DIRS . stepper_control
 	PRIV_REQUIRES
 	fw-lib-esp32-tasker
 	json

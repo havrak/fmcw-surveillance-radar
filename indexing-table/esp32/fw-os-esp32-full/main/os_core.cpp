@@ -63,11 +63,6 @@ void OSCore::setup()
 	// lcd = new PerI2CLCDDecorator(I2CPeriphery(0x27), 20, 4);
 
 
-	MotorControl::getInstance()->horiSetSpeed(60); // 60 RPM
-	MotorControl::getInstance()->horiStep(400);
-
-
-
 	// ------------------------------------------
 	// Configure Peripherals
 	// ------------------------------------------
