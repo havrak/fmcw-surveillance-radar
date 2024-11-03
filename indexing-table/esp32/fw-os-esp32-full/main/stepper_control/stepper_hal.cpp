@@ -12,13 +12,13 @@ StepperHal steppers = StepperHal();
 
 bool StepperHal::pcntOnReach(pcnt_unit_handle_t unit, const pcnt_watch_event_data_t *edata, void *user_ctx){
 	if(unit == StepperHal::pcntUnitH) {
-		ESP_ERROR_CHECK(pcnt_unit_remove_watch_point(StepperHal::pcntUnitH, StepperHal::stepperCommandH.steps));
-		xEventGroupSetBits(StepperHal::stepperEventGroup, STEPPER_COMPLETE_BIT_1);
+		ESP_ERROR_CHECK(pcnt_unit_remove_watch_point(StepperHal::pcntUnitH, StepperHal::stepperCommandH->steps));
+		xEventGroupSetBits(StepperHal::stepperEventGroup, STEPPER_COMPLETE_BIT_H);
 		mcpwm_timer_start_stop(StepperHal::timerH, MCPWM_TIMER_START_STOP_FULL); // won't stop until we tell it to
 
 	} else if(unit == StepperHal::pcntUnitT) {
-		ESP_ERROR_CHECK(pcnt_unit_remove_watch_point(StepperHal::pcntUnitT, StepperHal::stepperCommandT.steps));
-		xEventGroupSetBits(StepperHal::stepperEventGroup, STEPPER_COMPLETE_BIT_2);
+		ESP_ERROR_CHECK(pcnt_unit_remove_watch_point(StepperHal::pcntUnitT, StepperHal::stepperCommandT->steps));
+		xEventGroupSetBits(StepperHal::stepperEventGroup, STEPPER_COMPLETE_BIT_T);
 		mcpwm_timer_start_stop(StepperHal::timerT, MCPWM_TIMER_START_STOP_FULL); // won't stop until we tell it to
 	}
 	return true;
@@ -87,8 +87,8 @@ void initPCNT(){
 		.high_limit = 32767,
 		.intr_priority = 0,
 	};
-    ESP_ERROR_CHECK(pcnt_new_unit(&unitConfig, &StepperHal::pcntUnitT));
-    ESP_ERROR_CHECK(pcnt_new_unit(&unitConfig, &StepperHal::pcntUnitH));
+	ESP_ERROR_CHECK(pcnt_new_unit(&unitConfig, &StepperHal::pcntUnitT));
+	ESP_ERROR_CHECK(pcnt_new_unit(&unitConfig, &StepperHal::pcntUnitH));
 
 
 	ESP_LOGI(TAG, "set glitch filter");
@@ -128,56 +128,100 @@ void initPCNT(){
 	ESP_ERROR_CHECK(pcnt_unit_start(StepperHal::pcntUnitT));
 }
 
-void StepperHal::stepper_task_1(void *arg) {
+void StepperHal::stepperTaskH(void *arg) {
 	while (1) {
-		if (xQueueReceive(StepperHal::commandQueueH, &StepperHal::stepperCommandH, portMAX_DELAY)) {
+		if (xQueueReceive(StepperHal::commandQueueH, StepperHal::stepperCommandH, portMAX_DELAY)) {
+			// if previous command was spindle, we are running a command that will change stepper movement we need to immediately set spindle regime end time
+			if(StepperHal::stepperCommandPrevH->type == CommandType::SPINDLE && (StepperHal::stepperCommandH->type & 0x0F) < CommandType::SKIP){
+				StepperHal::stepperCommandPrevH->val.finishTime = esp_timer_get_time();
+			}
+
 			ESP_LOGI("Stepper 1", "Received command for stepper 1");
-			uint32_t period_ticks = (uint32_t)(60'000'000/100/StepperHal::stepperCommandH.rpm); // Convert to timer ticks (as we are toggling on timer event we need to double the RPM)
-			ESP_LOGI("Stepper 1", "Period ticks: %ld", period_ticks);
-
-			StepperHal::stepperCommandH.complete = false;
-
+			uint32_t period_ticks = (uint32_t)(60'000'000/100/StepperHal::stepperCommandH->rpm); // Convert to timer ticks (as we are toggling on timer event we need to double the RPM)
+			// ESP_LOGI("Stepper 1", "Period ticks: %ld", period_ticks);
 			// Set direction using GPIO
-			gpio_set_level((gpio_num_t)CONFIG_STEPPER_H_PIN_DIR, StepperHal::stepperCommandH.direction ? 1 : 0);
+			gpio_set_level((gpio_num_t)CONFIG_STEPPER_H_PIN_DIR, StepperHal::stepperCommandH->direction ? 1 : 0);
 
 			// Reset and start pulse counter
-			ESP_ERROR_CHECK(pcnt_unit_add_watch_point(StepperHal::pcntUnitH, StepperHal::stepperCommandH.steps));
-			ESP_ERROR_CHECK(pcnt_unit_clear_count(StepperHal::pcntUnitH));
+			switch(StepperHal::stepperCommandH->type){
+				case CommandType::STEPPER_INDIVIDUAL:
+				case CommandType::STEPPER_SYNCHRONIZED:
+					StepperHal::stepperCommandH->timestamp = esp_timer_get_time();
+					StepperHal::stepperCommandH->complete = false;
+					ESP_ERROR_CHECK(pcnt_unit_add_watch_point(StepperHal::pcntUnitH, StepperHal::stepperCommandH->val.steps));
+					ESP_ERROR_CHECK(pcnt_unit_clear_count(StepperHal::pcntUnitH));
+					mcpwm_timer_set_period(StepperHal::timerH, period_ticks);
+					mcpwm_timer_start_stop(StepperHal::timerH, MCPWM_TIMER_START_NO_STOP);
+					break;
+				case CommandType::SPINDLE:
+				case CommandType::SPINDLE_SYNCHRONIZED:
+					StepperHal::stepperCommandH->timestamp = esp_timer_get_time();
+					StepperHal::stepperCommandH->complete = true;
+					xEventGroupSetBits(StepperHal::stepperEventGroup, STEPPER_COMPLETE_BIT_H);
+					mcpwm_timer_set_period(StepperHal::timerH, period_ticks);
+					mcpwm_timer_start_stop(StepperHal::timerH, MCPWM_TIMER_START_NO_STOP);
+					break;
+				case CommandType::SKIP:
+					StepperHal::stepperCommandH->complete = true;
+					xEventGroupSetBits(StepperHal::stepperEventGroup, STEPPER_COMPLETE_BIT_H);
+					break;
+				case CommandType::WAIT:
+					vTaskDelay(StepperHal::stepperCommandH->val.time / portTICK_PERIOD_MS);
+					StepperHal::stepperCommandH->complete = true;
+					xEventGroupSetBits(StepperHal::stepperEventGroup, STEPPER_COMPLETE_BIT_H);
+					break;
+				case CommandType::STOP:
+					StepperHal::stepperCommandH->complete = true;
+					mcpwm_timer_start_stop(StepperHal::timerH, MCPWM_TIMER_START_STOP_FULL);
+					xEventGroupSetBits(StepperHal::stepperEventGroup, STEPPER_COMPLETE_BIT_H);
+					break;
 
-			// pcnt_set_event_value(PCNT_UNIT_0, PCNT_EVT_H_LIM, stepperCommandH.steps);
-
-			// Start MCPWM for generating pulses
-			mcpwm_timer_set_period(StepperHal::timerH, period_ticks);
-			mcpwm_timer_start_stop(StepperHal::timerH, MCPWM_TIMER_START_NO_STOP); // won't stop until we tell it to
-
+			}
 			// TODO freeze execution until the bit is set
+			EventBits_t result = xEventGroupWaitBits(
+					stepper_event_group,
+					(StepperHal::stepperCommandH->type >> 4) ? STEPPER_COMPLETE_BIT_H | STEPPER_COMPLETE_BIT_T : STEPPER_COMPLETE_BIT_H,
+					pdTRUE,
+					pdTRUE,
+					portMAX_DELAY
+					);
+
+			// --> move current command to old command
+			if((StepperHal::stepperCommandPrevH->type 0x0F) < CommandType::STOP) // only copy commands that result in movement
+				memcpy(StepperHal::stepperCommandPrevH, StepperHal::stepperCommandH, sizeof(stepper_command_t));
 		}
 	}
 }
 
 // Task to process commands for stepper 2
-void StepperHal::stepper_task_2(void *arg) {
+void StepperHal::stepperTaskT(void *arg) {
 	while (1) {
-		if (xQueueReceive(StepperHal::commandQueueT, &StepperHal::stepperCommandT, portMAX_DELAY)) {
+		if (xQueueReceive(StepperHal::commandQueueT, StepperHal::stepperCommandT, portMAX_DELAY)) {
 			ESP_LOGI("Stepper 2", "Received command for stepper 2");
-			uint32_t period_ticks = (uint32_t)(60'000'000/100/StepperHal::stepperCommandT.rpm); // Convert to timer ticks
+			uint32_t period_ticks = (uint32_t)(60'000'000/100/StepperHal::stepperCommandT->rpm); // Convert to timer ticks
 			ESP_LOGI("Stepper 2", "Period ticks: %ld", period_ticks);
 
-			StepperHal::stepperCommandT.complete = false;
+			StepperHal::stepperCommandT->complete = false;
 
 			// Set direction using GPIO
-			gpio_set_level((gpio_num_t)CONFIG_STEPPER_T_PIN_DIR, StepperHal::stepperCommandT.direction ? 1 : 0);
+			gpio_set_level((gpio_num_t)CONFIG_STEPPER_T_PIN_DIR, StepperHal::stepperCommandT->direction ? 1 : 0);
 
 			// Reset and start pulse counter
-			ESP_ERROR_CHECK(pcnt_unit_add_watch_point(StepperHal::pcntUnitT, StepperHal::stepperCommandT.steps));
+			ESP_ERROR_CHECK(pcnt_unit_add_watch_point(StepperHal::pcntUnitT, StepperHal::stepperCommandT->steps));
 			ESP_ERROR_CHECK(pcnt_unit_clear_count(StepperHal::pcntUnitT));
-			// pcnt_set_event_value(PCNT_UNIT_1, PCNT_EVT_H_LIM, stepperCommandT.steps);
+			// pcnt_set_event_value(PCNT_UNIT_1, PCNT_EVT_H_LIM, stepperCommandT->steps);
 
 			// Start MCPWM for generating pulses
 			mcpwm_timer_set_period(StepperHal::timerT, period_ticks);
 			mcpwm_timer_start_stop(StepperHal::timerT, MCPWM_TIMER_START_NO_STOP);
 
-			// TODO freeze execution until the bit is set
+			EventBits_t result = xEventGroupWaitBits(
+					stepper_event_group,
+					StepperHal::stepperCommandT->type == CommandType::SYNCHRONIZED ? STEPPER_COMPLETE_BIT_H | STEPPER_COMPLETE_BIT_T : STEPPER_COMPLETE_BIT_T,
+					pdTRUE,
+					pdTRUE,
+					portMAX_DELAY
+					);
 
 		}
 	}

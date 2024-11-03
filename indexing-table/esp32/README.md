@@ -122,17 +122,16 @@ Configuration of the device is done primarily with Kconfig under esp-idf. While 
 	* must be compatible both with Remote Controlled Transceiver approach or MCPWM+PCNT
 	* stepper control should be relayed in a form of standardized command
 	* needed functionality from HAL
-		* motors needs to be step individually or simultaneously
-		* spindle regime must be supported directly by the HAL
-		* commands can be queued, queue must be able to be dumped,
-		information about queue is available
-		* information bout current command must be available
-		* timestamp of the start of the current command must be available
-		* information about previous command must be available
-		* all information will be done stored in relative positioning.
-		* all information is stored in steps, coversion to degrees is done in the application layer
-		* pause commands must be handled here as application layer will not be synchronized with the motor control
-		* empty command must be able to be handled -> if we are issuing commands for both steppers the stepper without any command will have to wait for the second to finish
+		* [X] motors needs to be step individually or simultaneously
+		* [X] spindle regime must be supported directly by the HAL
+		* commands can be queued, queue must be able to be dumped, information about queue is available -> need to write access functions
+		* [X] information about current command must be available
+		* [X] timestamp of the start of the current command must be available, only affect commands that move the steppers (used to calculate current position)
+		* [X] information about previous command must be available
+		* [X] all information will be done stored in relative positioning.
+		* [X] all information is stored in steps, coversion to degrees is done in the application layer
+		* [X] pause commands must be handled here as application layer will not be synchronized with the motor control
+		* [X] empty command must be able to be handled -> if we are issuing commands for both steppers the stepper without any command will have to wait for the second to finish
 	* application layer functionality
 	  * absolute positioning will be done in the application layer (will require some finicky calculations to be done as each command will need to be adjusted)
 		* limits on steppers are enforced and checked in the application layer (logic is similar to that of converting to absolute positioning)
@@ -148,16 +147,3 @@ Configuration of the device is done primarily with Kconfig under esp-idf. While 
 		* conversion between steps and degrees
 		* reporting of current position -> more in uplink section
 	* XXX: limits checking and absolute positioning is not high priority
-* how to manage motor control
-	* two different needs -> continuos movement and finite positioning
-	*	just two queues
-		* we could have in each command instruction information whether to wait for both or just one
-		* depending on this information parameters of xEventGroupWaitBits would be set differently
-		* overhead of this approach probably wouldn't be that high
-		* if there are some commands present in the queue before adding simultaneous command, we would need to wait for them to finish
-	* three queues
-		* motor specific queues handle only one motor and don't care about the other
-		* third queue is used to issue commands to both motors
-		* there is no need to set specific flags in commands
-		* order of execution of commands in different queues is not guaranteed
-		* -> BAD approach

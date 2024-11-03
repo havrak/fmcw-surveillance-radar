@@ -19,20 +19,31 @@
 #ifndef STEPPER_HAL_H
 #define STEPPER_HAL_H
 
-#define STEPPER_COMPLETE_BIT_1 BIT0
-#define STEPPER_COMPLETE_BIT_2 BIT1
+#define STEPPER_COMPLETE_BIT_H BIT0
+#define STEPPER_COMPLETE_BIT_T BIT1
 
+
+// using >> 4 will easily allow us to determine whether the command is synchronized or not
+// WARN: Do not mess with the numbering of enums, they are used in the code to save some if statements
 enum CommandType : uint8_t {
-	INDIVIDUAL = 0, // will not wait for second stepper to finish
-	SYNCHRONIZED = 1, // will wait for both steppers to finish
-	SPINDLE = 3, // will spin continuously, pcnt will be turned off (no points in watchdog I think)
-	WAIT = 4, // will wait for a given time
-
+	STEPPER_INDIVIDUAL = 0x01, 		// will not wait for second stepper to finish
+	STEPPER_SYNCHRONIZED = 0x12, 	// will wait for both steppers to finish
+	SPINDLE = 0x03, 							// will spin continuously, PCNT will be turned off (no points in watchdog I think)
+	SPINDLE_SYNCHRONIZED = 0x14, 	// will spin continuously, PCNT will be turned off (no points in watchdog I think)
+	STOP = 0x05, 									// will stop the stepper
+	STOP_SYNCHRONIZED = 0x15, 		// will stop the stepper
+	SKIP = 0x06, 									// will skip the command (used to maintain synchronization between command queues)
+	WAIT = 0x07, 									// will wait for a given time
+	WAIT_SYNCHRONIZED = 0x17, 		// will wait for a given time
 };
 
 typedef struct {
-	CommandType type; // type of the command
-	uint32_t steps;			// number of steps to move to or time to wait in ms
+	CommandType type;    // type of the command
+	union {
+	uint32_t steps;			 // number of steps to move to or time to wait in ms
+	uint32_t time;       // time to wait in ms
+	uint32_t finishTime; // used in one situation: we are moving from spindle command to another command, spindle command is already stored in the previous command register but we need to know how much has the spindle traveled -- thus we store here the endtime.
+	} val;
 	float rpm;					// speed of the stepper
 	bool direction;			// true = forward, false = backward
 	bool complete;			// true upon completion of the command, used in correlation with event group
@@ -54,11 +65,19 @@ class StepperHal{
 	public:
 		static bool pcntOnReach(pcnt_unit_handle_t unit, const pcnt_watch_event_data_t *edata, void *user_ctx);
 
-		static void stepper_task_1(void *arg);
-		static void stepper_task_2(void *arg);
+		static void stepperTaskH(void *arg);
+		static void stepperTaskT(void *arg);
 
-		inline static stepper_command_t stepperCommandH;
-		inline static stepper_command_t stepperCommandT;
+		inline static stepper_command_t* stepperCommandH;
+		inline static stepper_command_t* stepperCommandT;
+
+		/**
+		 * previous command issued, used by the application layer to determine
+		 * what number of steps last command had so we can calculate the current angle
+		 * timestmap will be time of their finish
+		 */
+		inline static stepper_command_t* stepperCommandPrevH;
+		inline static stepper_command_t* stepperCommandPrevT;
 		inline static QueueHandle_t commandQueueH = NULL;
 		inline static QueueHandle_t commandQueueT = NULL;
 		inline static EventGroupHandle_t stepperEventGroup = NULL;
