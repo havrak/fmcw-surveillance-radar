@@ -49,11 +49,6 @@ enum ProgrammingMode : uint8_t {
 	RUN_PROGRAM = 2,
 };
 
-enum Direction : uint8_t {
-	FORWARD = 0,
-	BACKWARD = 1,
-};
-
 enum PositioningMode : uint8_t {
 	HOMING_FAST = 0,
 	HOMING_SLOW = 1,
@@ -64,14 +59,6 @@ enum PositioningMode : uint8_t {
 enum Unit : uint8_t {
 	DEGREES = 0,
 	STEPS = 1,
-};
-
-enum StepperMode : uint8_t {
-	HOMING = 0,
-	STOPPED = 1,
-	SPINDLE_CLOCKWISE = 2,
-	SPINDLE_COUNTERCLOCKWISE = 3,
-	STEPPER = 4,
 };
 
 typedef struct {

@@ -124,7 +124,11 @@ Configuration of the device is done primarily with Kconfig under esp-idf. While 
 	* needed functionality from HAL
 		* [X] motors needs to be step individually or simultaneously
 		* [X] spindle regime must be supported directly by the HAL
-		* commands can be queued, queue must be able to be dumped, information about queue is available -> need to write access functions
+		* [X] commands can be queued
+		* [X] queue must support
+			* [X] clearing whole queue
+			* [X] get next command
+			* [X] get size of queue
 		* [X] information about current command must be available
 		* [X] timestamp of the start of the current command must be available, only affect commands that move the steppers (used to calculate current position)
 		* [X] information about previous command must be available
@@ -132,9 +136,17 @@ Configuration of the device is done primarily with Kconfig under esp-idf. While 
 		* [X] all information is stored in steps, coversion to degrees is done in the application layer
 		* [X] pause commands must be handled here as application layer will not be synchronized with the motor control
 		* [X] empty command must be able to be handled -> if we are issuing commands for both steppers the stepper without any command will have to wait for the second to finish
+		* [ ] number of steps taken since start of the command
+		 	* [ ] check against finished to speed up calculations
+			* [ ] handle stepper and spindle mode
 	* application layer functionality
-	  * absolute positioning will be done in the application layer (will require some finicky calculations to be done as each command will need to be adjusted)
-		* limits on steppers are enforced and checked in the application layer (logic is similar to that of converting to absolute positioning)
+		* [ ] homing
+		* [ ] motor task functions
+			* [ ] check if there is finished command, if so update base position from it
+			* [ ] current position is estimated from the time of start of previous command and the speed of the motor
+		* [ ] all position calculations will be done in the application layer
+	  * [ ] absolute positioning will be done in the application layer (will require some finicky calculations to be done as each command will need to be adjusted)
+		* [ ] limits on steppers are enforced and checked in the application layer (logic is similar to that of converting to absolute positioning)
 		* absolute positioning/limit enforcement
 			* we will store total number of steps done, register will overflow on number of steps times microstepping
 			* this number will be updated after a command has finished execution -- thus we will alway know the current position

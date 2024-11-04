@@ -132,12 +132,12 @@ void StepperHal::stepperTaskH(void *arg) {
 	while (1) {
 		if (xQueueReceive(StepperHal::commandQueueH, StepperHal::stepperCommandH, portMAX_DELAY)) {
 			// if previous command was spindle, we are running a command that will change stepper movement we need to immediately set spindle regime end time
-			if(StepperHal::stepperCommandPrevH->type == CommandType::SPINDLE && (StepperHal::stepperCommandH->type & 0x0F) < CommandType::SKIP){
+			if(StepperHal::stepperCommandPrevH->type == CommandType::SPINDLE && StepperHal::stepperCommandH->type < CommandType::SKIP)
 				StepperHal::stepperCommandPrevH->val.finishTime = esp_timer_get_time();
-			}
+
 
 			ESP_LOGI("Stepper 1", "Received command for stepper 1");
-			uint32_t period_ticks = (uint32_t)(60'000'000/100/StepperHal::stepperCommandH->rpm); // Convert to timer ticks (as we are toggling on timer event we need to double the RPM)
+			uint32_t period_ticks = (uint32_t)(120'000'000/CONFIG_STEPPER_H_STEP_COUNT/CONFIG_STEPPER_H_GEAR_RATIO/StepperHal::stepperCommandH->rpm); // Convert to timer ticks (as we are toggling on timer event we need to double the RPM)
 			// ESP_LOGI("Stepper 1", "Period ticks: %ld", period_ticks);
 			// Set direction using GPIO
 			gpio_set_level((gpio_num_t)CONFIG_STEPPER_H_PIN_DIR, StepperHal::stepperCommandH->direction ? 1 : 0);
@@ -145,7 +145,6 @@ void StepperHal::stepperTaskH(void *arg) {
 			// Reset and start pulse counter
 			switch(StepperHal::stepperCommandH->type){
 				case CommandType::STEPPER_INDIVIDUAL:
-				case CommandType::STEPPER_SYNCHRONIZED:
 					StepperHal::stepperCommandH->timestamp = esp_timer_get_time();
 					StepperHal::stepperCommandH->complete = false;
 					ESP_ERROR_CHECK(pcnt_unit_add_watch_point(StepperHal::pcntUnitH, StepperHal::stepperCommandH->val.steps));
@@ -154,7 +153,6 @@ void StepperHal::stepperTaskH(void *arg) {
 					mcpwm_timer_start_stop(StepperHal::timerH, MCPWM_TIMER_START_NO_STOP);
 					break;
 				case CommandType::SPINDLE:
-				case CommandType::SPINDLE_SYNCHRONIZED:
 					StepperHal::stepperCommandH->timestamp = esp_timer_get_time();
 					StepperHal::stepperCommandH->complete = true;
 					xEventGroupSetBits(StepperHal::stepperEventGroup, STEPPER_COMPLETE_BIT_H);
@@ -180,15 +178,16 @@ void StepperHal::stepperTaskH(void *arg) {
 			// TODO freeze execution until the bit is set
 			EventBits_t result = xEventGroupWaitBits(
 					stepper_event_group,
-					(StepperHal::stepperCommandH->type >> 4) ? STEPPER_COMPLETE_BIT_H | STEPPER_COMPLETE_BIT_T : STEPPER_COMPLETE_BIT_H,
+					(StepperHal::stepperCommandH->synchronized) ? STEPPER_COMPLETE_BIT_H | STEPPER_COMPLETE_BIT_T : STEPPER_COMPLETE_BIT_H,
 					pdTRUE,
 					pdTRUE,
 					portMAX_DELAY
 					);
 
 			// --> move current command to old command
-			if((StepperHal::stepperCommandPrevH->type 0x0F) < CommandType::STOP) // only copy commands that result in movement
+			if(StepperHal::stepperCommandPrevH->type < CommandType::STOP) // only copy commands that result in movement
 				memcpy(StepperHal::stepperCommandPrevH, StepperHal::stepperCommandH, sizeof(stepper_command_t));
+				stepperCommandPrevH->synchronized = false;
 		}
 	}
 }
@@ -198,7 +197,7 @@ void StepperHal::stepperTaskT(void *arg) {
 	while (1) {
 		if (xQueueReceive(StepperHal::commandQueueT, StepperHal::stepperCommandT, portMAX_DELAY)) {
 			ESP_LOGI("Stepper 2", "Received command for stepper 2");
-			uint32_t period_ticks = (uint32_t)(60'000'000/100/StepperHal::stepperCommandT->rpm); // Convert to timer ticks
+			uint32_t period_ticks = (uint32_t)(120'000'000/CONFIG_STEPPER_H_STEP_COUNT/CONFIG_STEPPER_H_GEAR_RATIO/StepperHal::stepperCommandT->rpm); // Convert to timer ticks
 			ESP_LOGI("Stepper 2", "Period ticks: %ld", period_ticks);
 
 			StepperHal::stepperCommandT->complete = false;
@@ -227,62 +226,71 @@ void StepperHal::stepperTaskT(void *arg) {
 	}
 }
 
-bool StepperHal::setStepper1Command(int32_t steps, float rpm) {
-	if(steps > 32767 || steps < -32767) {
-		ESP_LOGE("Stepper", "Step count out of range");
-		return false;
-	}
+bool StepperHal::stepStepperH(int16_t steps, float rpm, bool synchronized) {
 	stepper_command_t command = {
-		.type = CommandType::INDIVIDUAL,
-		.steps = steps >= 0 ? (uint32_t) steps : ((uint32_t ) -steps),
+		.type = steps == 0 ? CommandType::SKIP : CommandType::STEPPER,
+		.val.steps = steps >= 0 ? (uint32_t) steps : ((uint32_t ) -steps),
 		.rpm = rpm,
 		.direction = steps >= 0,
 		.complete = false,
+		.synchronized = synchronized,
 	};
-	xQueueSend(commandQueueH, &command, portMAX_DELAY);
-	return true;
+	return xQueueSend(commandQueueH, &command, portMAX_DELAY)==  pdTRUE;
 }
 
 // Function to set a command for stepper 2
-bool StepperHal::setStepper2Command(int32_t steps, float rpm) {
+bool StepperHal::stepStepperT(int16_t steps, float rpm, bool synchronized) {
 
-	if(steps > 32767 || steps < -32767) {
-		ESP_LOGE("Stepper", "Step count out of range");
-		return false;
-	}
 	stepper_command_t command = {
-		.type = CommandType::INDIVIDUAL,
-		.steps = steps >= 0 ? (uint32_t) steps : ((uint32_t ) -steps),
+		.type = steps == 0 ? CommandType::SKIP : CommandType::STEPPER,
+		.val.steps = steps >= 0 ? (uint32_t) steps : ((uint32_t ) -steps),
 		.rpm = rpm,
 		.direction = steps >= 0,
 		.complete = false,
+		.synchronized = synchronized,
 	};
-	xQueueSend(commandQueueT, &command, portMAX_DELAY);
-	return true;
+	return xQueueSend(commandQueueT, &command, portMAX_DELAY)==  pdTRUE;
 }
 
-bool StepperHal::setSteppersCommand(int32_t steps1, float rpm1, int32_t steps2, float rpm2) {
+bool StepperHal::waitStepperH(uint32_t time, bool synchronized) {
+	stepper_command_t command = {
+		.type = CommandType::WAIT,
+		.val.time = time,
+		.complete = false,
+		.synchronized = synchronized,
+	};
+	return xQueueSend(commandQueueH, &command, portMAX_DELAY)==  pdTRUE;
+}
 
-	if(steps1 > 32767 || steps1 < -32767 || steps2 > 32767 || steps2 < -32767) {
-		ESP_LOGE("Stepper", "Step count out of range");
-		return false;
-	}
-	stepper_command_t command1 = {
-		.type = CommandType::SYNCHRONIZED,
-		.steps = steps1 >= 0 ? (uint32_t) steps1 : ((uint32_t ) -steps1),
-		.rpm = rpm1,
-		.direction = steps1 >= 0,
+bool StepperHal::waitStepperT(uint32_t time, bool synchronized) {
+	stepper_command_t command = {
+		.type = CommandType::WAIT,
+		.val.time = time,
 		.complete = false,
+		.synchronized = synchronized,
 	};
-	stepper_command_t command2 = {
-		.type = CommandType::SYNCHRONIZED,
-		.steps = steps2 >= 0 ? (uint32_t) steps2 : ((uint32_t ) -steps2),
-		.rpm = rpm2,
-		.direction = steps2 >= 0,
+	return xQueueSend(commandQueueT, &command, portMAX_DELAY)==  pdTRUE;
+}
+
+bool StepperHal::spindleStepperH(float rpm, Direction direction) {
+	stepper_command_t command = {
+		.type = CommandType::SPINDLE,
+		.rpm = rpm,
+		.direction = direction,
 		.complete = false,
+		.synchronized = false,
 	};
-	xQueueSend(commandQueueH, &command1, portMAX_DELAY);
-	xQueueSend(commandQueueT, &command2, portMAX_DELAY);
-	return true;
+	return xQueueSend(commandQueueH, &command, portMAX_DELAY)==  pdTRUE;
+}
+
+bool StepperHal::spindleStepperT(float rpm, Direction direction) {
+	stepper_command_t command = {
+		.type = CommandType::SPINDLE,
+		.rpm = rpm,
+		.direction = direction,
+		.complete = false,
+		.synchronized = false,
+	};
+	return xQueueSend(commandQueueT, &command, portMAX_DELAY)==  pdTRUE;
 }
 
