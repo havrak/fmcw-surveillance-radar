@@ -43,6 +43,8 @@
 #define STEPPER_COMPLETE_BIT_1 BIT0
 #define STEPPER_COMPLETE_BIT_2 BIT1
 
+#define COMMAND_ISSUED_H(command) command.speedH == NaN
+#define COMMAND_ISSUED_T(command) command.speedT == NaN
 
 
 enum ProgrammingMode : uint8_t {
@@ -51,6 +53,28 @@ enum ProgrammingMode : uint8_t {
 	PROGRAMMING = 2, // all programs are stashed and saved to programm schema
 	RUN_PROGRAM = 3, // we are running a program
 };
+
+enum GCodeCommand : uint8_t : {
+
+};
+
+// these structures will be stored as a programm declaration
+// needs to store
+// 	* time in case of wait ()
+typedef struct {
+	union val{
+		uint64_t time; // for wait
+		Direction direction; // for spindle mode
+		int16_t steps; // for regural steps
+	};
+	float speed;
+} gcode_command_movement;
+
+typedef struct {
+	GCodeCommand  command;
+	gcode_command_movement* movementH = nullptr; // filled in if command requires some action from steppers
+	gcode_command_movement* movementT = nullptr;
+} gcode_command;
 
 enum PositioningMode : uint8_t {
 	ABSOLUTE = 2,

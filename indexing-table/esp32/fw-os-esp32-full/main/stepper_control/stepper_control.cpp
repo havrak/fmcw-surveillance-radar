@@ -151,50 +151,40 @@ void StepperControl::stepperMoveTask(void *arg){ // TODO pin to core 0
 		// all commands should be executed in motorTask -> added to a list and thats all
 
 		if (strncmp(gcode, "M80", 3) == 0){ // power down high voltage supply
-			if(programmingMode == ProgrammingMode::NO_PROGRAMM){
-				StepperHal::clearQueueH();
-				StepperHal::clearQueueT();
-				StepperHal::stopStepperH();
-				StepperHal::stopStepperT();
-			}
-			return true;
+			// XXX this command will be executed immediately
+			return false;
 		}else if (strncmp(gcode, "M81", 3) == 0){ // power up high voltage supply
+			// XXX this command will be executed immediately
 			return false;
 
 		}else if (strncmp(gcode, "G20", 3) == 0){ // set unit to degrees
 			if(programmingMode == ProgrammingMode::NO_PROGRAMM){
-				unit=Unit::DEGREES;
+
 			}else if (programmingMode == ProgrammingMode::PROGRAMMING){
 				// TODO: stash command to programm queue
 			}
 			return true;
 		}else if (strncmp(gcode, "G20", 3) == 0){ // set unit to steps
 			if(programmingMode == ProgrammingMode::NO_PROGRAMM){
-				unit=Unit::STEPS;
 			}else if (programmingMode == ProgrammingMode::PROGRAMMING){
 				// TODO: stash command to programm queue
 			}
 			return true;
 		}else if (strncmp(gcode, "G90", 3) == 0){ // set the absolute positioning
 			if(programmingMode == ProgrammingMode::NO_PROGRAMM){
-				positioningMode = PositioningMode::ABSOLUTE;
 			}else if (programmingMode == ProgrammingMode::PROGRAMMING){
 				// TODO: stash command to programm queue
 			}
 			return true;
 		}else if (strncmp(gcode, "G91", 3) == 0){ // set the relative positioning
 			if(programmingMode == ProgrammingMode::NO_PROGRAMM){
-				positioningMode = PositioningMode::RELATIVE;
 			}else if (programmingMode == ProgrammingMode::PROGRAMMING){
 				// TODO: stash command to programm queue
 			}
 			return true;
 		}else if (strncmp(gcode, "G92", 3) == 0){ // set current position as home
-																												// TODO: zero the current position
 			return true;
-		}else if (strncmp(gcode, "G28", 3) == 0){ // home both driver
-
-			TaskerSingletonWrapper::getInstance()->addTask(new Task(this, TSID_MOTOR_HOME, 1, 100, TaskPriority::TSK_PRIORITY_CRITICAL));
+		}else if (strncmp(gcode, "G28", 3) == 0){ // home both drivers
 			return true;
 
 		}else if (strncmp(gcode, "G0", 2) == 0){ // home to given position, not the most efficient parsing but we don't excpet to have that many commands to process
