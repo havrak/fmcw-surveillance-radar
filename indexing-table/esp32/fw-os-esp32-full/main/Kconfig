@@ -159,5 +159,10 @@ default 18
 help
 	Tilt motor GPIO connection for step pin
 
-
+config STEPPER_MIN_SPINDLE_TIME
+int "Minimum spindle time in ms"
+range 1 100000
+default 100
+help
+	Minimum time to wait between two steps in ms. Will give some delay for previous command to be read as it will be cleared by spindle.
 endmenu

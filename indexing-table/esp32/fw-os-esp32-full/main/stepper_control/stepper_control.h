@@ -26,6 +26,8 @@
 #include <freertos/event_groups.h>
 #include <stepper_hal.h>
 
+#define HOMING_DONE_BIT BIT2
+
 #define RPM_TO_PAUSE(speed, steps_per_revolution, gear_ratio) (60L * 1000L * 1000L / steps_per_revolution / gear_ratio / speed) // ->
 #define ANGLE_TO_STEP(angle, steps_per_revolution, gear_ratio) (angle * steps_per_revolution * gear_ratio / 360)
 #define STEP_TO_ANGLE(step, steps_per_revolution, gear_ratio) (unit == Unit::STEPS ? step : step * 360 / steps_per_revolution / gear_ratio)
@@ -44,14 +46,13 @@
 
 
 enum ProgrammingMode : uint8_t {
-	NO_PROGRAMM = 0,
-	PROGRAMMING = 1,
-	RUN_PROGRAM = 2,
+	NO_PROGRAMM = 0, // commands are executed as they come in
+	HOMING =      1, // special mode used when device is homing, all commands will be dumped
+	PROGRAMMING = 2, // all programs are stashed and saved to programm schema
+	RUN_PROGRAM = 3, // we are running a program
 };
 
 enum PositioningMode : uint8_t {
-	HOMING_FAST = 0,
-	HOMING_SLOW = 1,
 	ABSOLUTE = 2,
 	RELATIVE = 3,
 };
@@ -84,6 +85,7 @@ class StepperControl : public CallbackInterface{
 	private:
 		static StepperControl* instance;
 
+		ProgrammingMode programmingMode = ProgrammingMode::NO_PROGRAMM;
 		PositioningMode positioningMode = PositioningMode::ABSOLUTE;
 
 		Unit unit = Unit::DEGREES;
@@ -96,8 +98,6 @@ class StepperControl : public CallbackInterface{
 		static void stepperMoveTask(void *arg);
 		static void tiltEndstopHandler(void *arg);
 		static void horizontalEndstopHandler(void *arg);
-		static void IRAM_ATTR timerISRHandleHori(void *arg);
-		static void IRAM_ATTR timerISRHandleTilt(void *arg);
 
 		static void horiTask(void *arg);
 		static void tiltTask(void *arg);
@@ -110,13 +110,6 @@ class StepperControl : public CallbackInterface{
 		void timerInit();
 
 
-		/**
-		 * @brief Home routine
-		 * ought to not be called with other paramter than 0 by the user
-		 *
-		 * @param part 0 for starts fast homing, part 1 for backs off and home slowly, part 3 restores pre home configuration
-		 */
-		void homeRoutine(uint8_t part);
 
 
 		/**
@@ -151,6 +144,7 @@ class StepperControl : public CallbackInterface{
 		// operational variables of the steppers, std::atomic seemed to be fastest, rtos synchronization was slower
 		stepperVariables horiVariables;
 		stepperVariables tiltVariables;
+		inline static EventGroupHandle_t homingEventGroup = NULL;
 
 
 
@@ -189,9 +183,6 @@ class StepperControl : public CallbackInterface{
 
 		void printLocation();
 
-		void home(){
-			homeRoutine(0);
-		};
 
 
 

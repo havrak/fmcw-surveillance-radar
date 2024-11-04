@@ -48,6 +48,7 @@ Configuration of the device is done primarily with Kconfig under esp-idf. While 
 		* T - angle by/to rotate in tilt axis
 	* can be followed with S<rpm> to set speed
 * spindle mode
+	* beware when using spindle in programming mode one can desynchronized two command queues, this "issue" will be fixed and is up to user to handle as there is no clear way to decipher user intentions in programm in order to prevent it
 	* M03:  Start spindle mode
 		* S<SPEED> - fallback speed
 		* SH<SPEED> - speed for motor in horizontal plane
@@ -57,6 +58,7 @@ Configuration of the device is done primarily with Kconfig under esp-idf. While 
 	* M05:  Stop spindle spinning.
 		* H - stop spindle regime on horizontal axis
 		* T - stop spindle regime on tilt axis
+		* NOTE: spindle mode will also automatically end if stepper receives G0 command
 	* can be followed with S<rpm> to set speed
 
 ### Programming movements (NOT FINAL)

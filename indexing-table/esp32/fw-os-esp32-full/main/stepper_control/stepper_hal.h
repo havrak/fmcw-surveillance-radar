@@ -27,10 +27,10 @@
 // WARN: Do not mess with the numbering of enums, they are used in the code to save some if statements
 enum CommandType : uint8_t {
 	STEPPER = 0x01,		// will not wait for second stepper to finish
-	SPINDLE = 0x03,								// will spin continuously, PCNT will be turned off (no points in watchdog I think)
-	STOP = 0x05,									// will stop the stepper
-	SKIP = 0x06,									// will skip the command (used to maintain synchronization between command queues)
-	WAIT = 0x07,									// will wait for a given time
+	SPINDLE = 0x02,								// will spin continuously, PCNT will be turned off (no points in watchdog I think)
+	STOP = 0x03,									// will stop the stepper
+	SKIP = 0x04,									// will skip the command (used to maintain synchronization between command queues)
+	WAIT = 0x05,									// will wait for a given time
 };
 
 enum Direction : uint8_t {
@@ -67,6 +67,9 @@ class StepperHal{
 	public:
 		static bool pcntOnReach(pcnt_unit_handle_t unit, const pcnt_watch_event_data_t *edata, void *user_ctx);
 
+		std::atomic<int64_t> positionH = 0;
+		std::atomic<int64_t> positionT = 0;
+
 		static void stepperTaskH(void *arg);
 		static void stepperTaskT(void *arg);
 
@@ -79,7 +82,7 @@ class StepperHal{
 		 * timestmap will be time of their finish
 		 */
 		inline static stepper_command_t* stepperCommandPrevH;
-		inline static stepper_command_t* stepperCommandPrevT;
+		inline static stepper_command_t* stepperCommandPGrevT;
 		inline static QueueHandle_t commandQueueH = NULL;
 		inline static QueueHandle_t commandQueueT = NULL;
 		inline static EventGroupHandle_t stepperEventGroup = NULL;
@@ -172,7 +175,7 @@ class StepperHal{
 		 * @param synchronized - if true stepper T will wait for stepper H to finish before moving to next task
 		 * @return true if command was added successfully
 		 */
-		bool stepStepperT(int32_t steps, float rpm, bool synchronized = false);
+		bool stepStepperT(int16_t steps, float rpm, bool synchronized = false);
 
 		/**
 		 *	@brief waits for a given time on stepper H
@@ -181,7 +184,7 @@ class StepperHal{
 		 * @param synchronized - if true stepper H will wait for stepper T to finish before moving to next task
 		 * @return true if command was added successfully
 		 */
-		bool waitStepperH(uint32_t time, bool synchronized = false);
+		bool waitStepperH(uint16_t time, bool synchronized = false);
 
 		/**
 		 *	@brief waits for a given time on stepper T
@@ -211,11 +214,42 @@ class StepperHal{
 		bool spindleStepperT(float rpm, Direction direction);
 
 		/**
+		 * @brief stops the stepper H
+		 *
+		 * @return true if command was added successfully
+		 */
+		bool stopStepperH();
+
+		/**
+		 * @brief stops the stepper T
+		 *
+		 * @return true if command was added successfully
+		 */
+		bool stopStepperT();
+
+		/**
+		 * @brief immediately stops the stepper H
+		 *
+		 * @return true
+		 */
+		bool stopNowStepperH();
+
+		/**
+		 * @brief immediately stops the stepper T
+		 *
+		 * @return
+		 */
+		bool stopNowStepperT();
+
+		/**
 		 * @brief clears command queue for stepper H
 		 *
 		 * @return true if queue was cleared successfully
 		 */
 		bool clearQueueH(){
+			if(stepperCommandH->type == CommandType::STEPPER){
+				pcnt_unit_remove_watch_point(pcntUnitH, stepperCommandH->val.steps);
+			}
 			return xQueueReset(commandQueueH) == pdTRUE;
 		}
 
@@ -225,8 +259,45 @@ class StepperHal{
 		 * @return true if queue was cleared successfully
 		 */
 		bool clearQueueT(){
+			if(stepperCommandT->type == CommandType::STEPPER){
+				pcnt_unit_remove_watch_point(pcntUnitT, stepperCommandT->val.steps);
+			}
 			return xQueueReset(commandQueueT) == pdTRUE;
 		}
+
+		/**
+		 * @brief return number of steps traveled by stepper H since start of the command
+		 *
+		 * @return int64_t - number of steps
+		 */
+		int64_t getStepsTraveledOfCurrentCommandH();
+
+
+		/**
+		 * @brief return number of steps traveled by stepper T since start of the command
+		 *
+		 * @return int64_t - number of steps
+		 */
+		int64_t getStepsTraveledOfCurrentCommandT();
+
+
+		/**
+		 * @brief return number of steps traveled by stepper H in previous command
+		 * if synchronized of the previous command is set true than the number of steps will be zero
+		 *
+		 * @return int64_t - number of steps
+		 */
+		int64_t getStepsTraveledOfPrevCommandH();
+
+
+		/**
+		 * @brief return number of steps traveled by stepper T in previous command
+		 * if synchronized of the previous command is set true than the number of steps will be zero
+		 *
+		 * @return int64_t - number of steps
+		 */
+		int64_t getStepsTraveledOfPrevCommandT();
+
 
 
 };
