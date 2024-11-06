@@ -12,12 +12,12 @@ StepperHal steppers = StepperHal();
 
 bool StepperHal::pcntOnReach(pcnt_unit_handle_t unit, const pcnt_watch_event_data_t *edata, void *user_ctx){
 	if(unit == StepperHal::pcntUnitH) {
-		ESP_ERROR_CHECK(pcnt_unit_remove_watch_point(StepperHal::pcntUnitH, StepperHal::stepperCommandH->steps));
+		ESP_ERROR_CHECK(pcnt_unit_remove_watch_point(StepperHal::pcntUnitH, StepperHal::stepperCommandH->val.steps));
 		xEventGroupSetBits(StepperHal::stepperEventGroup, STEPPER_COMPLETE_BIT_H);
 		mcpwm_timer_start_stop(StepperHal::timerH, MCPWM_TIMER_START_STOP_FULL); // won't stop until we tell it to
 
 	} else if(unit == StepperHal::pcntUnitT) {
-		ESP_ERROR_CHECK(pcnt_unit_remove_watch_point(StepperHal::pcntUnitT, StepperHal::stepperCommandT->steps));
+		ESP_ERROR_CHECK(pcnt_unit_remove_watch_point(StepperHal::pcntUnitT, StepperHal::stepperCommandT->val.steps));
 		xEventGroupSetBits(StepperHal::stepperEventGroup, STEPPER_COMPLETE_BIT_T);
 		mcpwm_timer_start_stop(StepperHal::timerT, MCPWM_TIMER_START_STOP_FULL); // won't stop until we tell it to
 	}
@@ -83,7 +83,7 @@ void StepperHal::initMCPWN() {
 	ESP_ERROR_CHECK(mcpwm_timer_enable(StepperHal::timerT));
 }
 
-void initPCNT(){
+void StepperHal::initPCNT(){
 	const char *TAG = "PCNT";
 	ESP_LOGI(TAG, "Initializing PCNT for pulse count on pin");
 	pcnt_unit_config_t unitConfig = {
@@ -142,13 +142,13 @@ void StepperHal::stepperTaskH(void *arg) {
 
 			ESP_LOGI("Stepper 1", "Received command for stepper 1");
 			uint32_t period_ticks = (uint32_t)(60'000'000/CONFIG_STEPPER_H_STEP_COUNT/CONFIG_STEPPER_H_GEAR_RATIO/StepperHal::stepperCommandH->rpm); // Convert to timer ticks (as we are toggling on timer event we need to double the RPM)
-																																																																										 // ESP_LOGI("Stepper 1", "Period ticks: %ld", period_ticks);
-																																																																																																																																 // Set direction using GPIO
+																																																																							 // ESP_LOGI("Stepper 1", "Period ticks: %ld", period_ticks);
+																																																																							 // Set direction using GPIO
 			gpio_set_level((gpio_num_t)CONFIG_STEPPER_H_PIN_DIR, StepperHal::stepperCommandH->direction ? 1 : 0);
 
 			// Reset and start pulse counter
 			switch(StepperHal::stepperCommandH->type){
-				case CommandType::STEPPER_INDIVIDUAL:
+				case CommandType::STEPPER:
 					StepperHal::stepperCommandH->timestamp = esp_timer_get_time();
 					StepperHal::stepperCommandH->complete = false;
 					ESP_ERROR_CHECK(pcnt_unit_add_watch_point(StepperHal::pcntUnitH, StepperHal::stepperCommandH->val.steps));
@@ -182,7 +182,7 @@ void StepperHal::stepperTaskH(void *arg) {
 			}
 			// TODO freeze execution until the bit is set
 			EventBits_t result = xEventGroupWaitBits(
-					stepper_event_group,
+					stepperEventGroup,
 					(StepperHal::stepperCommandH->synchronized) ? STEPPER_COMPLETE_BIT_H | STEPPER_COMPLETE_BIT_T : STEPPER_COMPLETE_BIT_H,
 					pdTRUE, // TODO: need to verify this, should be fine according to https://forums.freertos.org/t/eventgroup-bit-clearing-when-multiple-tasks-wait-for-bit/7599
 					pdTRUE,
@@ -192,9 +192,9 @@ void StepperHal::stepperTaskH(void *arg) {
 
 			// here we need to make sure that second task has
 			// if(StepperHal::stepperCommandH->synchronized){
-			// 	while(!StepperHal::stepperCommandT->complete){
-			// 		asm("nop");
-			// 	}
+			//	while(!StepperHal::stepperCommandT->complete){
+			//		asm("nop");
+			//	}
 			// }
 
 			if(StepperHal::stepperCommandH->type < CommandType::STOP)
@@ -218,7 +218,7 @@ void StepperHal::stepperTaskT(void *arg) {
 			gpio_set_level((gpio_num_t)CONFIG_STEPPER_T_PIN_DIR, StepperHal::stepperCommandT->direction ? 1 : 0);
 
 			// Reset and start pulse counter
-			ESP_ERROR_CHECK(pcnt_unit_add_watch_point(StepperHal::pcntUnitT, StepperHal::stepperCommandT->steps));
+			ESP_ERROR_CHECK(pcnt_unit_add_watch_point(StepperHal::pcntUnitT, StepperHal::stepperCommandT->val.steps));
 			ESP_ERROR_CHECK(pcnt_unit_clear_count(StepperHal::pcntUnitT));
 			// pcnt_set_event_value(PCNT_UNIT_1, PCNT_EVT_H_LIM, stepperCommandT->steps);
 
@@ -227,7 +227,7 @@ void StepperHal::stepperTaskT(void *arg) {
 			mcpwm_timer_start_stop(StepperHal::timerT, MCPWM_TIMER_START_NO_STOP);
 
 			EventBits_t result = xEventGroupWaitBits(
-					stepper_event_group,
+					stepperEventGroup,
 					StepperHal::stepperCommandT->synchronized ? STEPPER_COMPLETE_BIT_H | STEPPER_COMPLETE_BIT_T : STEPPER_COMPLETE_BIT_T,
 					pdTRUE, // dont't clear bits here as we need them to clear second task
 					pdTRUE,
@@ -237,9 +237,9 @@ void StepperHal::stepperTaskT(void *arg) {
 
 			// here we need to make sure that second task has
 			// if(StepperHal::stepperCommandT->synchronized){
-			// 	while(!StepperHal::stepperCommandH->complete){
-			// 		asm("nop");
-			// 	}
+			//	while(!StepperHal::stepperCommandH->complete){
+			//		asm("nop");
+			//	}
 			// }
 
 		}
@@ -249,7 +249,9 @@ void StepperHal::stepperTaskT(void *arg) {
 bool StepperHal::stepStepperH(int16_t steps, float rpm, bool synchronized) {
 	stepper_command_t command = {
 		.type = steps == 0 ? CommandType::SKIP : CommandType::STEPPER,
-		.val.steps = steps >= 0 ? (uint32_t) steps : ((uint32_t ) -steps),
+		.val = {
+			.steps = steps >= 0 ? (uint32_t) steps : ((uint32_t ) -steps),
+		},
 		.rpm = rpm,
 		.direction = steps >= 0,
 		.complete = false,
@@ -263,7 +265,9 @@ bool StepperHal::stepStepperT(int16_t steps, float rpm, bool synchronized) {
 
 	stepper_command_t command = {
 		.type = steps == 0 ? CommandType::SKIP : CommandType::STEPPER,
-		.val.steps = steps >= 0 ? (uint32_t) steps : ((uint32_t ) -steps),
+		.val = {
+			.steps = steps >= 0 ? (uint32_t) steps : ((uint32_t ) -steps),
+		},
 		.rpm = rpm,
 		.direction = steps >= 0,
 		.complete = false,
@@ -275,7 +279,7 @@ bool StepperHal::stepStepperT(int16_t steps, float rpm, bool synchronized) {
 bool StepperHal::waitStepperH(uint32_t time, bool synchronized) {
 	stepper_command_t command = {
 		.type = CommandType::WAIT,
-		.val.time = time,
+		.val = {.time = time,},
 		.complete = false,
 		.synchronized = synchronized,
 	};
@@ -285,7 +289,7 @@ bool StepperHal::waitStepperH(uint32_t time, bool synchronized) {
 bool StepperHal::waitStepperT(uint32_t time, bool synchronized) {
 	stepper_command_t command = {
 		.type = CommandType::WAIT,
-		.val.time = time,
+		.val= {.time = time,},
 		.complete = false,
 		.synchronized = synchronized,
 	};
@@ -314,7 +318,7 @@ bool StepperHal::spindleStepperT(float rpm, Direction direction) {
 	return xQueueSend(commandQueueT, &command, portMAX_DELAY)==  pdTRUE;
 }
 
-bool stopStepperH(){
+bool StepperHal::stopStepperH(){
 	stepper_command_t command = {
 		.type = CommandType::STOP,
 		.complete = false,
@@ -323,7 +327,7 @@ bool stopStepperH(){
 	return xQueueSend(commandQueueH, &command, portMAX_DELAY)==  pdTRUE;
 }
 
-bool stopStepperT(){
+bool StepperHal::stopStepperT(){
 	stepper_command_t command = {
 		.type = CommandType::STOP,
 		.complete = false,
@@ -334,36 +338,54 @@ bool stopStepperT(){
 
 int64_t StepperHal::getStepsTraveledOfCurrentCommandH(){
 	if(stepperCommandH->type == CommandType::STEPPER){
-		int16_t pulseCount = 0;
+		int pulseCount = 0;
 		pcnt_unit_get_count(pcntUnitH, &pulseCount); // NOTE: should handle complete case and be more precies than calculating from time
 		return stepperCommandH->direction ? pulseCount : -pulseCount;
 	}else if(stepperCommandH->type == CommandType::SPINDLE){
 		int64_t pulseCount = (esp_timer_get_time() - stepperCommandH->timestamp) * stepperCommandH->rpm / 60'000'000;
 		return stepperCommandT->direction ? pulseCount : -pulseCount;
 	}
+	return 0;
+}
 
-	int64_t StepperHal::getStepsTraveledOfCurrentCommandT(){
-		if(stepperCommandPrevH->synchronized)
-			return 0;
-		stepperCommandPrevH->synchronized = true;
-		if(stepperCommandT->type == CommandType::STEPPER){
-			int16_t pulseCount = 0;
-			pcnt_unit_get_count(pcntUnitT, &pulseCount);
-			return stepperCommandT->direction ? pulseCount : -pulseCount;
-		}else if(stepperCommandT->type == CommandType::SPINDLE){
-			int64_t pulseCount = (esp_timer_get_time() - stepperCommandT->timestamp) * stepperCommandT->rpm / 60'000'000;
-			return stepperCommandT->direction ? pulseCount : -pulseCount;
-		}
+int64_t StepperHal::getStepsTraveledOfCurrentCommandT(){
+	if(stepperCommandT->type == CommandType::STEPPER){
+		int pulseCount = 0;
+		pcnt_unit_get_count(pcntUnitT, &pulseCount);
+		return stepperCommandT->direction ? pulseCount : -pulseCount;
+	}else if(stepperCommandT->type == CommandType::SPINDLE){
+		int64_t pulseCount = (esp_timer_get_time() - stepperCommandT->timestamp) * stepperCommandT->rpm / 60'000'000;
+		return stepperCommandT->direction ? pulseCount : -pulseCount;
+	}
+	return 0;
+}
 
-		int64_t StepperHal::getStepsTraveledOfPrevCommandH(){
-			if(stepperCommandPrevH->synchronized)
-				return 0;
-			stepperCommandPrevH->synchronized = true;
-			if(stepperCommandPrevH->type == CommandType::STEPPER){
-				return stepperCommandPrevH->direction ? stepperCommandH->val.steps : -stepperCommandH->val.steps;
-			}else if(stepperCommandPrevH->type == CommandType::SPINDLE){
-				int64_t pulseCount = (stepperCommandPrevH->val.finishTime - stepperCommandPrevH->timestamp) * stepperCommandPrevH->rpm / 60'000'000;
-				return stepperCommandPrevH->direction ? pulseCount : -pulseCount;
-			}
-		}
+int64_t StepperHal::getStepsTraveledOfPrevCommandH(){
+	if(stepperCommandPrevH->synchronized)
+		return 0;
+	stepperCommandPrevH->synchronized = true;
+	if(stepperCommandPrevH->type == CommandType::STEPPER){
+		return stepperCommandPrevH->direction ? stepperCommandH->val.steps : -stepperCommandH->val.steps;
+	}else if(stepperCommandPrevH->type == CommandType::SPINDLE){
+		int64_t pulseCount = (stepperCommandPrevH->val.finishTime - stepperCommandPrevH->timestamp) * stepperCommandPrevH->rpm / 60'000'000;
+		return stepperCommandPrevH->direction ? pulseCount : -pulseCount;
+	}
+	return 0;
+}
+
+int64_t StepperHal::getStepsTraveledOfPrevCommandT(){
+	if(stepperCommandPrevH->synchronized)
+		return 0;
+	stepperCommandPrevH->synchronized = true;
+	if(stepperCommandT->type == CommandType::STEPPER){
+		int pulseCount = 0;
+		pcnt_unit_get_count(pcntUnitT, &pulseCount);
+		return stepperCommandT->direction ? pulseCount : -pulseCount;
+	}else if(stepperCommandT->type == CommandType::SPINDLE){
+		int64_t pulseCount = (esp_timer_get_time() - stepperCommandT->timestamp) * stepperCommandT->rpm / 60'000'000;
+		return stepperCommandT->direction ? pulseCount : -pulseCount;
+	}
+	return 0;
+}
+
 

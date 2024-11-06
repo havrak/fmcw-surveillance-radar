@@ -14,6 +14,8 @@
 #include <driver/gpio.h>
 #include <esp_log.h>
 #include <driver/pulse_cnt.h>
+#include <esp_timer.h>
+#include <string.h>
 
 
 #ifndef STEPPER_HAL_H
@@ -33,9 +35,9 @@ enum CommandType : uint8_t {
 	WAIT = 0x05,									// will wait for a given time
 };
 
-enum Direction : uint8_t {
-	FORWARD = 0,
-	BACKWARD = 1,
+enum Direction : bool {
+	FORWARD = true,
+	BACKWARD = false,
 };
 
 typedef struct {
@@ -67,8 +69,6 @@ class StepperHal{
 	public:
 		static bool pcntOnReach(pcnt_unit_handle_t unit, const pcnt_watch_event_data_t *edata, void *user_ctx);
 
-		std::atomic<int64_t> positionH = 0;
-		std::atomic<int64_t> positionT = 0;
 
 		static void stepperTaskH(void *arg);
 		static void stepperTaskT(void *arg);
@@ -148,7 +148,7 @@ class StepperHal{
 		 *
 		 * @param pointer - stepper_command_t* to which next command will be stored
 		 */
-		void peekQueueT(stepper_command_t* pointer){
+		bool peekQueueT(stepper_command_t* pointer){
 			return xQueuePeek(commandQueueT, pointer, portMAX_DELAY) == pdTRUE;
 		}
 
@@ -163,7 +163,7 @@ class StepperHal{
 		 * @param synchronized - if true stepper H will wait for stepper T to finish before moving to next task
 		 * @return true if command was added successfully
 		 */
-		bool stepStepperH(int32_t steps, float rpm, bool synchronized = false);
+		bool stepStepperH(int16_t steps, float rpm, bool synchronized = false);
 
 		/**
 		 * @brief steps stepper T a given number of steps
@@ -184,7 +184,7 @@ class StepperHal{
 		 * @param synchronized - if true stepper H will wait for stepper T to finish before moving to next task
 		 * @return true if command was added successfully
 		 */
-		bool waitStepperH(uint16_t time, bool synchronized = false);
+		bool waitStepperH(uint32_t time, bool synchronized = false);
 
 		/**
 		 *	@brief waits for a given time on stepper T

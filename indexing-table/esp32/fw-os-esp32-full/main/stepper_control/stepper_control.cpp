@@ -7,10 +7,12 @@
 
 #include "stepper_control.h"
 
-StepperControl* StepperControl::instance = nullptr;
+StepperControl stepperControl = StepperControl();
 
 
-StepperControl::StepperControl()
+StepperControl::StepperControl(){}
+
+void StepperControl::init()
 {
 
 	steppers.initMCPWN();
@@ -26,26 +28,15 @@ StepperControl::StepperControl()
 	}
 
 }
-// tiltVariables.pause = RPM_TO_PAUSE(CONFIG_STEPPER_DEFAULT_SPEED, CONFIG_STEPPER_T_STEP_COUNT, CONFIG_STEPPER_T_GEAR_RATIO);
-// xTaskCreatePinnedToCore(stepperMoveTask, "stepperMove", 2048, this,10, &stepperMoveTaskHandle, 0);
 
 
 
 
 uint8_t StepperControl::call(uint16_t id){
-	switch(id){
-		case TSID_MOTOR_HOME:
-			home();
-			break;
-	}
-
 	return 0;
-
-
 };
 
 void StepperControl::stepperMoveTask(void *arg){ // TODO pin to core 0
-	static StepperControl* instance = (StepperControl*)arg;
 	uint64_t time = 0;
 	while(1){
 		time=esp_timer_get_time();
@@ -203,10 +194,8 @@ void StepperControl::stepperMoveTask(void *arg){ // TODO pin to core 0
 	}
 
 	void StepperControl::tiltEndstopHandler(void *arg){
-		StepperControl* instance = (StepperControl*)arg;
-
-		if(instance->positioningMode == PositioningMode::HOMING_FAST || instance->positioningMode == PositioningMode::HOMING_SLOW)	){
-			StepperHal::stopStepperH();
+		if(stepperControl.programmingMode == ProgrammingMode::HOMING){
+			steppers.stopStepperH();
 			xEventGroupSetBits(StepperControl::homingEventGroup, STEPPER_COMPLETE_BIT_H);
 		}
 
@@ -214,10 +203,8 @@ void StepperControl::stepperMoveTask(void *arg){ // TODO pin to core 0
 	}
 
 	void StepperControl::horizontalEndstopHandler(void *arg){
-		StepperControl* instance = (StepperControl*)arg;
-
-		if(instance->positioningMode == PositioningMode::HOMING_FAST || instance->positioningMode == PositioningMode::HOMING_SLOW)	){
-			StepperHal::stopStepperT();
+		if(stepperControl.programmingMode == ProgrammingMode::HOMING){
+			steppers.stopStepperT();
 			xEventGroupSetBits(StepperControl::homingEventGroup, STEPPER_COMPLETE_BIT_T);
 		}
 	}
@@ -226,24 +213,24 @@ void StepperControl::stepperMoveTask(void *arg){ // TODO pin to core 0
 	void StepperControl::home(){
 		ESP_LOGI(TAG, "Home | Starting homing routine");
 		// clear	the queues
-		StepperHal::clearQueueH();
-		StepperHal::clearQueueT();
+		steppers.clearQueueH();
+		steppers.clearQueueT();
 		// stop the steppers
-		StepperHal::stopStepperH();
-		StepperHal::stopStepperT();
+		steppers.stopStepperH();
+		steppers.stopStepperT();
 		// set the positioning mode to homing
-		positioningMode = PositioningMode::HOMING_FAST;
+		programmingMode = ProgrammingMode::HOMING;
 
 		// attach interrupts
-		attachInterruptArg(CONFIG_STEPPER_H_PIN_ENDSTOP, StepperControl::horizontalEndstopHandler, this, CHANGE);
-		attachInterruptArg(CONFIG_STEPPER_T_PIN_ENDSTOP, StepperControl::tiltEndstopHandler, this, CHANGE);
+		attachInterruptArg(CONFIG_STEPPER_H_PIN_ENDSTOP, StepperControl::horizontalEndstopHandler, NULL, CHANGE);
+		attachInterruptArg(CONFIG_STEPPER_T_PIN_ENDSTOP, StepperControl::tiltEndstopHandler, NULL, CHANGE);
 
-		StepperHal::spindleStepperH(100, Direction::FORWARD);
-		StepperHal::spindleStepperT(100, Direction::FORWARD);
+		steppers.spindleStepperH(100, Direction::FORWARD);
+		steppers.spindleStepperT(100, Direction::FORWARD);
 
 		EventBits_t result = xEventGroupWaitBits(
 				homingEventGroup,
-				STEPPER_COMPLETE_BIT_H | STEPPER_COMPLETE_BIT_T : STEPPER_COMPLETE_BIT_T,
+				STEPPER_COMPLETE_BIT_H | STEPPER_COMPLETE_BIT_T,
 				pdTRUE,
 				pdTRUE,
 				portMAX_DELAY
@@ -257,15 +244,15 @@ void StepperControl::stepperMoveTask(void *arg){ // TODO pin to core 0
 		}
 
 
-		StepperHal::stepStepperH(20, -10, true); // we will trigger stop commands on endstops, this shouldn't bother us it will just schedule stops to run
-		StepperHal::stepStepperT(20, -10, true);
+		steppers.stepStepperH(20, -10, true); // we will trigger stop commands on endstops, this shouldn't bother us it will just schedule stops to run
+		steppers.stepStepperT(20, -10, true);
 
-		StepperHal::spindleStepperH(1, Direction::FORWARD);
-		StepperHal::spindleStepperT(1, Direction::FORWARD);
+		steppers.spindleStepperH(1, Direction::FORWARD);
+		steppers.spindleStepperT(1, Direction::FORWARD);
 
-		EventBits_t result = xEventGroupWaitBits(
+		result = xEventGroupWaitBits(
 				homingEventGroup,
-				STEPPER_COMPLETE_BIT_H | STEPPER_COMPLETE_BIT_T : STEPPER_COMPLETE_BIT_T,
+				STEPPER_COMPLETE_BIT_H | STEPPER_COMPLETE_BIT_T,
 				pdTRUE,
 				pdTRUE,
 				portMAX_DELAY
@@ -278,13 +265,15 @@ void StepperControl::stepperMoveTask(void *arg){ // TODO pin to core 0
 			ESP_LOGI(TAG, "Home | Tilt stepper slow homed");
 		}
 
-		positionH.store(0);
-		positionT.store(0);
+		varsH.stepNumber.store(0);
+		varsT.stepNumber.store(0);
 
 		// cleanup
 		xEventGroupClearBits(homingEventGroup, HOMING_DONE_BIT);
-		deattachInterrupt(CONFIG_STEPPER_H_PIN_ENDSTOP);
-		deattachInterrupt(CONFIG_STEPPER_T_PIN_ENDSTOP);
+		detachInterrupt(CONFIG_STEPPER_H_PIN_ENDSTOP);
+		detachInterrupt(CONFIG_STEPPER_T_PIN_ENDSTOP);
 
 	}
+
+
 

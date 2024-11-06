@@ -54,8 +54,35 @@ enum ProgrammingMode : uint8_t {
 	RUN_PROGRAM = 3, // we are running a program
 };
 
-enum GCodeCommand : uint8_t : {
+enum PositioningMode : uint8_t {
+	ABSOLUTE = 2,
+	RELATIVE = 3,
+};
 
+enum Unit : uint8_t {
+	DEGREES = 0,
+	STEPS = 1,
+};
+
+enum GCodeCommand : uint8_t {
+	M80, // turn on high voltage supply
+	M81, // turn off high voltage supply
+	G20, // set units to degrees
+	G21, // set units to steps
+	G90, // set absolute positioning
+	G91, // set relative positioning
+	G92, // set current position as home
+	G28, // move to home from current position
+	G0,  // move stepper
+	M03, // start spindle
+	M05, // stop spindle
+	P0,  // stop programm execution
+	P1,  // start programm execution
+	P90, // start program declaration (header)
+	P91, // start program declaration (main body)
+	P98, // declare infinitely looped programm
+	P99, // end programm declaration
+	W0,  // wait
 };
 
 // these structures will be stored as a programm declaration
@@ -76,27 +103,10 @@ typedef struct {
 	gcode_command_movement* movementT = nullptr;
 } gcode_command;
 
-enum PositioningMode : uint8_t {
-	ABSOLUTE = 2,
-	RELATIVE = 3,
-};
-
-enum Unit : uint8_t {
-	DEGREES = 0,
-	STEPS = 1,
-};
-
 typedef struct {
-	// variables that can be accessed from multiple tasks
-	// thse variables are only accessed from the stepperMoveTask
-	StepperMode mode = StepperMode::STEPPER; // stepper mode
-	uint64_t pause = 0;
-	uint32_t rpm = 0; // speed of the stepper
-	uint64_t nextStepTime = 0; // time of the last step
-	uint8_t stepNumber = 0; // current step number (used to properly cycle pin states)
-	uint16_t angle; // current angle (always in absolute mode)
-	int16_t angleMax = -1; // maximum angle
-	int16_t angleMin = -1; // minimum angle
+	std::atomic<int32_t> stepNumber = 0; // current step number
+	int16_t angleMax = -1; // maximum angle in steps (+ form home)
+	int16_t angleMin = -1; // minimum angle in steps (- from home)
 } stepperVariables;
 
 
@@ -107,12 +117,14 @@ typedef struct {
  */
 class StepperControl : public CallbackInterface{
 	private:
-		static StepperControl* instance;
 
 		ProgrammingMode programmingMode = ProgrammingMode::NO_PROGRAMM;
 		PositioningMode positioningMode = PositioningMode::ABSOLUTE;
 
 		Unit unit = Unit::DEGREES;
+
+		stepperVariables varsH;
+		stepperVariables varsT;
 
 
 
@@ -160,7 +172,6 @@ class StepperControl : public CallbackInterface{
 
 
 
-		StepperControl();
 
 	public:
 		constexpr static char TAG[] = "StepperControl";
@@ -170,16 +181,7 @@ class StepperControl : public CallbackInterface{
 		stepperVariables tiltVariables;
 		inline static EventGroupHandle_t homingEventGroup = NULL;
 
-
-
-		static StepperControl* getInstance()
-		{
-			if(instance == nullptr)
-			{
-				instance = new StepperControl();
-			}
-			return instance;
-		};
+		StepperControl();
 
 
 
@@ -191,6 +193,8 @@ class StepperControl : public CallbackInterface{
 		 * @param mode
 		 */
 		bool parseGcode(const char* gcode, uint16_t length);
+
+		void init();
 
 
 
@@ -207,9 +211,13 @@ class StepperControl : public CallbackInterface{
 
 		void printLocation();
 
+		void home();
+
 
 
 
 };
+
+extern StepperControl stepperControl;
 
 #endif /* !STEPPER_CONTROL_H */

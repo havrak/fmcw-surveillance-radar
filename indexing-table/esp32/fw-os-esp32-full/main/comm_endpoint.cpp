@@ -133,11 +133,10 @@ bool CommEndpoint::logRequestGCD(const char* input, uint16_t inputLength)
 	if (xSemaphoreTake(lock, (TickType_t)1000) != pdTRUE)
 		return false;
 #endif
-	static StepperControl* motorControl = StepperControl::getInstance();
 
 	// NOTE: gcode command are processed immediately (usually means move commands are just scheduled and executed in rtos task)
 	CommRequest* request = new CommRequest(CommDataFormat::GCD, input, inputLength);
-	request->error =  motorControl->parseGcode(input, inputLength);
+	request->error =  stepperControl.parseGcode(input, inputLength);
 	requestsQueue.push(request);
 
 	if (requestsQueue.size() == 1) {

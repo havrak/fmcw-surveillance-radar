@@ -61,6 +61,7 @@ void OSCore::setup()
 	// ------------------------------------------
 	ESP_LOGI(TAG, "setup | Peripherals");
 	// lcd = new PerI2CLCDDecorator(I2CPeriphery(0x27), 20, 4);
+	stepperControl.init();
 
 
 	// ------------------------------------------
