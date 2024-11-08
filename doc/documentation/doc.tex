@@ -1,72 +1,40 @@
 \documentclass[a4paper,oneside,12pt]{report}
+\setlength\textwidth{145mm}
+\setlength\textheight{247mm}
+\setlength\oddsidemargin{15mm}
+\setlength\evensidemargin{15mm}
+\setlength\topmargin{0mm}
+\setlength\headsep{0mm}
+\setlength\headheight{0mm}
+% \openright makes the following text appear on a right-hand page
+\let\openright=\clearpage
+
+%% Settings for two-sided (duplex) printing
+% \documentclass[12pt,a4paper,twoside,openright]{report}
+% \setlength\textwidth{145mm}
+% \setlength\textheight{247mm}
+% \setlength\oddsidemargin{14.2mm}
+% \setlength\evensidemargin{0mm}
+% \setlength\topmargin{0mm}
+% \setlength\headsep{0mm}
+% \setlength\headheight{0mm}
+% \let\openright=\cleardoublepage
+
+%% If the thesis has no printed version, symmetric margins look better
+% \documentclass[12pt,a4paper]{report}
+% \setlength\textwidth{145mm}
+% \setlength\textheight{247mm}
+% \setlength\oddsidemargin{10mm}
+% \setlength\evensidemargin{10mm}
+% \setlength\topmargin{0mm}
+% \setlength\headsep{0mm}
+% \setlength\headheight{0mm}
+% \let\openright=\clearpage
 
 
-\include{basic_latex_declarations.tex}
-
-
-
-\renewcommand{\baselinestretch}{1.5}
-%%% Údaje o práci
-
-\def\InstitutionName{Czech Technical University in Prague}
-% Název oboru včetně počátečního 'Obor'.
-\def\FacultyName{Faculty of Electrical Engineering}
-
-\def\DepartmentName{Department of Electromagnetic Field}
-
-\def\ThesisType{BACHELOR'S THESIS}
-
-% Název práce v jazyce práce (přesně podle zadání)
-\def\ThesisName{Surveillance FCMW radar}
-
-\def\ThesisNameShort{Surveillance FCMW radar}
-
-% Název práce v druhém jazyce
-\def\ThesisNameFL{Přehledový FMCW radar}
-
-% Jméno autora
-\def\AuthorName{Havránek Kryštof}
-
-% Rok odevzdání
-\def\SubmissionYear{2000}
-% Měsíc odevzdání
-\def\SubmissionMonth{January}
-
-% Vedoucí práce: Jméno a příjmení s~tituly
-\def\SupervisorName{Ing. Viktor Adler, Ph.D.}
-
-% Nepovinné poděkování (vedoucímu práce, konzultantovi, tomu, kdo
-% zapůjčil software, literaturu apod.)
-\def\Acknowledgements{%
-  \textbf{Acknowledgements}
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam et bibendum leo. Etiam lacinia non neque eget viverra. Maecenas tortor purus, finibus convallis commodo sit amet, fermentum efficitur nibh.
-}
-
-% Abstrakt (doporučený rozsah cca 80-200 slov; nejedná se o zadání práce)
-\def\Abstract{%
-	Abstract in English
-}
-
-\def\AbstractFL{%
-	Abstrakt v češtině
-}
-
-% 3 až 5 klíčových slov (doporučeno), každé uzavřeno ve složených závorkách
-\def\KeyWords{%
-  (Radar), (FMCW), (MATLAB), (Data processing)
-}
-\def\KeyWordsFL{%
-	(Radar), (FMCW), (MATLAB), (Zpracování dat)
-}
-
-%% Balíček hyperref, kterým jdou vyrábět klikací odkazy v PDF,
-%% ale hlavně ho používáme k uložení metadat do PDF (včetně obsahu).
-\hypersetup{unicode}
-\hypersetup{breaklinks=true}
-\hypersetup{pdfborder=0 0 0}
-
-%% Definice různých užitečných maker (viz popis uvnitř souboru)
-\include{makra}
+\include{doc_setup}
+\include{metadata}
+\include{macros}
 
 %% Titulní strana a různé povinné informační strany
 \fancypagestyle{plain}{
@@ -76,7 +44,7 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam et bibendum leo. Et
   \fancyhead[C]{}
 	\fancyhead[L]{\InstitutionName}
   \fancyhead[R]{\ThesisNameShort}
-  \fancyfoot[L]{Author: \AuthorName$\,\,$(\DepartmentName)}
+  \fancyfoot[L]{}
   \fancyfoot[C]{}
   \fancyfoot[R]{\thepage}
 }
@@ -89,47 +57,28 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam et bibendum leo. Et
 
 \tableofcontents
 
-
 \newpage
-
-\include{introduction}
 \pagenumbering{arabic}
 \setcounter{page}{1}
 
+\include{introduction}
+
 \chapter{Lorem ipsum}
 
- Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed dictum vel risus quis vestibulum. Donec id congue urna. Praesent ac dictum diam. Nam varius justo ac accumsan feugiat. Pellentesque iaculis aliquet lectus, eu convallis sem tristique at. Phasellus consequat finibus ex. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed scelerisque laoreet placerat. Cras luctus enim mauris, eget lacinia lorem imperdiet eget. Nulla leo diam, ornare at bibendum tincidunt, iaculis sagittis risus. Proin iaculis ante vel facilisis molestie. Morbi libero arcu, consequat nec ligula in, elementum malesuada lacus. Aenean sed lacus at magna volutpat ultricies quis ut eros.
-
- \section{Nunc elementum}
-
- Nunc elementum, leo ac efficitur faucibus, dui nibh eleifend enim, non tristique augue velit id arcu. Sed nisl lorem, pulvinar a vestibulum a, vehicula vel dolor. Aliquam pretium nisl ex, at aliquam neque sagittis scelerisque. Vivamus vulputate sit amet nisi condimentum commodo. Nulla vel mi ligula. Sed ac laoreet ligula. Aliquam sit amet tortor maximus, tincidunt erat ac, maximus ipsum. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas.
-
- \chapter{Full text page test}
-
-
-
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed dictum vel risus quis vestibulum. Donec id congue urna. Praesent ac dictum diam. Nam varius justo ac accumsan feugiat. Pellentesque iaculis aliquet lectus, eu convallis sem tristique at. Phasellus consequat finibus ex. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed scelerisque laoreet placerat. Cras luctus enim mauris, eget lacinia lorem imperdiet eget. Nulla leo diam, ornare at bibendum tincidunt, iaculis sagittis risus. Proin iaculis ante vel facilisis molestie. Morbi libero arcu, consequat nec ligula in, elementum malesuada lacus. Aenean sed lacus at magna volutpat ultricies quis ut eros.
-
-Nunc elementum, leo ac efficitur faucibus, dui nibh eleifend enim, non tristique augue velit id arcu. Sed nisl lorem, pulvinar a vestibulum a, vehicula vel dolor. Aliquam pretium nisl ex, at aliquam neque sagittis scelerisque. Vivamus vulputate sit amet nisi condimentum commodo. Nulla vel mi ligula. Sed ac laoreet ligula. Aliquam sit amet tortor maximus, tincidunt erat ac, maximus ipsum. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas.
-
-Nullam tempor, leo pretium placerat interdum, leo nisi tempor nisl, vitae suscipit lectus tellus eget diam. Etiam congue sem nibh, in pretium nunc lobortis vel. Aenean pellentesque sapien non enim luctus dictum. Etiam porta nisl sit amet massa semper vehicula. Sed at bibendum mi. Maecenas bibendum facilisis tellus ac elementum. Duis eu dolor ornare, condimentum diam ac, placerat quam. Phasellus nec rhoncus massa. Aenean a ligula enim. Suspendisse luctus, ipsum eget efficitur egestas, eros libero luctus velit, sed viverra felis ex a metus.
-
-Aenean sem diam, blandit id vulputate vel, ullamcorper non nunc. Vestibulum eu pharetra felis. Suspendisse eu suscipit mi. Aliquam scelerisque, dolor feugiat dictum lobortis, ligula dui laoreet tellus, sit amet tempus metus sem ut nulla. Nullam iaculis eget massa eu ultricies. Praesent risus diam, consectetur nec lacus nec, dignissim convallis arcu. Pellentesque eget nisi vel lorem ullamcorper convallis id sed ipsum.
-
-Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Fusce dapibus elit ut neque sodales sodales. Cras ac velit sed ante sollicitudin vehicula vel quis eros. Etiam tempus in nisi vel auctor. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Phasellus pellentesque, odio eget viverra scelerisque, sapien sem eleifend mauris, non sodales nibh arcu id ligula. Mauris fermentum vel ipsum ut varius. Pellentesque posuere dui ac tempor porttitor.
 
 
 
 
 
-\chapter*{} % hacky way to switch page numbering from arabic to roman
-\pagenumbering{roman}
-\setcounter{page}{5}
+
 \include{conclusion}
 
-\include{literature}
-
+\include{bibliography}
 
 \listoffigures
+
+\listoftables
+
+
 \openright
 \end{document}

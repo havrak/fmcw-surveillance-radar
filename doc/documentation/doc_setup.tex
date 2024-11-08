@@ -7,6 +7,8 @@
 \setlength\evensidemargin{05mm}
 \let\openright=\clearpage
 
+\renewcommand{\baselinestretch}{1.5}
+
 
 \usepackage[english]{babel}
 \usepackage[T1]{fontenc}
@@ -26,7 +28,7 @@
 \usepackage{enumitem}           % rozšíření způsobů indexování listu
 \usepackage{multicol}           % prostředí pro psaní textu ve sloupcích
 
-%%% Balíčky pro matematiku
+%%% Math packages
 \usepackage{pgfplots}           % grafy
 \usepackage{amsmath}						% rozšíření pro sazbu matematiky
 \usepackage{amsthm}							% sazba vět, definic apod.
@@ -41,15 +43,27 @@
 \usepackage{arcs}
 
 %%% Bibliography
-\usepackage[nottoc]{tocbibind} 	% zajistí přidání seznamu literatury,
-\usepackage{bibentry} 					% citace přes celé heslo, používáno u první citace z jednoho zdroje
-\usepackage{natbib}
+\usepackage[backend=biber,style=iso-numeric,sortlocale=cs_CZ]{biblatex}  % citace v prostředí biblatex
 
 
-%%% Základní nastavení balíčků
+%%% Basic configuration of packages
 \def\columnseprulecolor{\color{black}}
 \setlength{\columnseprule}{0.3pt}
+\babelprovide[transforms = oneletter.nobreak]{czech}
 
 \hypersetup{pdfborder=0 0 0}
-\nobibliography*
+\hypersetup{unicode}
+\hypersetup{breaklinks=true}
+
+%%% Configuration of bibliography
+\DeclareFieldFormat{labelnumberwidth}{\mkbibbrackets{#1}} % force biblatex to make brackets around numbers
+\ExecuteBibliographyOptions{maxcitenames=2} % In citation with full bibliography entry cite just two names at max, per ISO 690
+\addbibresource{bibliography.bib}
+
+\let\familynameformat=\textsc % Use caps-and-small-caps for family names in ISO 690 style.
+
+% We want to separate multiple authors in citations by commas
+% (while we use semicolons in the bibliography as per the ISO standard)
+\DeclareDelimFormat[textcite]{multinamedelim}{\addcomma\space}
+\DeclareDelimFormat[textcite]{finalnamedelim}{\space and~}
 

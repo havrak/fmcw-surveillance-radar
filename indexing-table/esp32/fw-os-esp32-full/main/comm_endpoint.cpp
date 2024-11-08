@@ -136,7 +136,7 @@ bool CommEndpoint::logRequestGCD(const char* input, uint16_t inputLength)
 
 	// NOTE: gcode command are processed immediately (usually means move commands are just scheduled and executed in rtos task)
 	CommRequest* request = new CommRequest(CommDataFormat::GCD, input, inputLength);
-	request->error =  stepperControl.parseGcode(input, inputLength);
+	request->error =  stepperControl.parseGCode(input, inputLength);
 	requestsQueue.push(request);
 
 	if (requestsQueue.size() == 1) {

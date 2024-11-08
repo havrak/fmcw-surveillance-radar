@@ -25,6 +25,7 @@
 #include <freertos/queue.h>
 #include <freertos/event_groups.h>
 #include <stepper_hal.h>
+#include <queue>
 
 #define HOMING_DONE_BIT BIT2
 
@@ -42,6 +43,9 @@
 
 #define STEPPER_COMPLETE_BIT_1 BIT0
 #define STEPPER_COMPLETE_BIT_2 BIT1
+
+#define GCODE_ELEMENT_INVALID_FLOAT NAN
+#define GCODE_ELEMENT_INVALID_INT 0xFFFFFFFFFFFFFFFF
 
 #define COMMAND_ISSUED_H(command) command.speedH == NaN
 #define COMMAND_ISSUED_T(command) command.speedT == NaN
@@ -64,50 +68,66 @@ enum Unit : uint8_t {
 	STEPS = 1,
 };
 
+enum ParsingGCodeResult: uint8_t {
+	SUCCESS = 0,              // processing was successful
+	INVALID_COMMAND = 2,       // command wasn't able to be decoded
+	INVALID_ARGUMENT = 3,
+	FAILED_TO_LOCK_QUEUE = 4, // command was processed, should be added to noProgrammQueue but we failed to get a lock
+	NO_SUPPORT = 5,           // command exists but isn't yet supported by the hardware
+	NOT_PROCESSING_COMMANDS = 6,  // we are either running homing or some programm thus new incoming commands will not be process
+};
+
 enum GCodeCommand : uint8_t {
-	M80, // turn on high voltage supply
-	M81, // turn off high voltage supply
-	G20, // set units to degrees
-	G21, // set units to steps
-	G90, // set absolute positioning
-	G91, // set relative positioning
-	G92, // set current position as home
-	G28, // move to home from current position
-	G0,  // move stepper
-	M03, // start spindle
-	M05, // stop spindle
+	M80, // turn on high voltage supply TODO
+	M81, // turn off high voltage supply TODO
+	G20, // set units to degrees DONE
+	G21, // set units to steps DONE
+	G90, // set absolute positioning DONE
+	G91, // set relative positioning DONE
+	G92, // set current position as home DONE
+	G28, // move to home from current position DONE
+	G0,  // move stepper DONE
+	M03, // start spindle DONE
+	M05, // stop spindle DONE NOTE: should be issued only when stepper is in spindle mode
 	P0,  // stop programm execution
 	P1,  // start programm execution
 	P90, // start program declaration (header)
 	P91, // start program declaration (main body)
 	P98, // declare infinitely looped programm
 	P99, // end programm declaration
-	W0,  // wait
+	W0,  // wait seconds DONE
+	W1,  // wait milliseconds DONE
 };
 
 // these structures will be stored as a programm declaration
 // needs to store
 // 	* time in case of wait ()
 typedef struct {
-	union val{
+	union{
 		uint64_t time; // for wait
 		Direction direction; // for spindle mode
 		int16_t steps; // for regural steps
-	};
-	float speed;
-} gcode_command_movement;
+	} val;
+	float rpm;
+} gcode_command_movement_t;
 
 typedef struct {
-	GCodeCommand  command;
-	gcode_command_movement* movementH = nullptr; // filled in if command requires some action from steppers
-	gcode_command_movement* movementT = nullptr;
-} gcode_command;
+	GCodeCommand  type;
+	gcode_command_movement_t* movementH = nullptr; // filled in if command requires some action from steppers
+	gcode_command_movement_t* movementT = nullptr;
+
+	// ~gcode_command(){
+	// 	delete movementH;
+	// 	delete movementT;
+	// }
+} gcode_command_t;
 
 typedef struct {
 	std::atomic<int32_t> stepNumber = 0; // current step number
 	int16_t angleMax = -1; // maximum angle in steps (+ form home)
 	int16_t angleMin = -1; // minimum angle in steps (- from home)
-} stepperVariables;
+} stepper_variables_t;
+
 
 
 /*
@@ -121,10 +141,23 @@ class StepperControl : public CallbackInterface{
 		ProgrammingMode programmingMode = ProgrammingMode::NO_PROGRAMM;
 		PositioningMode positioningMode = PositioningMode::ABSOLUTE;
 
+		// we will have
+
+		// programm queue must be synchronized as it can be accessed both from parseGcode and motorTask functions
+
+		// non programm commands will be handled in queue, unfortunately due to need to handle mutext it isn't possible to use totally same access methods anyway so having different ones isn't that big of a problem
+		SemaphoreHandle_t noProgrammQueueLock;
+		std::queue<gcode_command_t> noProgrammQueue;
+
+
+		// programms will be stored as list
+		std::list<gcode_command_t>* commandDestination = nullptr; // point to a list to save received programms in programming mode
+
+
 		Unit unit = Unit::DEGREES;
 
-		stepperVariables varsH;
-		stepperVariables varsT;
+		stepper_variables_t varsH;
+		stepper_variables_t varsT;
 
 
 
@@ -177,8 +210,6 @@ class StepperControl : public CallbackInterface{
 		constexpr static char TAG[] = "StepperControl";
 
 		// operational variables of the steppers, std::atomic seemed to be fastest, rtos synchronization was slower
-		stepperVariables horiVariables;
-		stepperVariables tiltVariables;
 		inline static EventGroupHandle_t homingEventGroup = NULL;
 
 		StepperControl();
@@ -192,7 +223,7 @@ class StepperControl : public CallbackInterface{
 		 *
 		 * @param mode
 		 */
-		bool parseGcode(const char* gcode, uint16_t length);
+		ParsingGCodeResult parseGCode(const char* gcode, uint16_t length);
 
 		void init();
 

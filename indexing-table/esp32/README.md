@@ -78,11 +78,12 @@ Configuration of the device is done primarily with Kconfig under esp-idf. While 
 	* upon call of P91 command programming mode will advance to next step - declaring main loop
 	* programming is ended with P99 command
 * TODO: add for cycle to programming
-* W0: wait command
-	* only available in programming mode
-	* M<TIME> - wait period in milliseconds
-	* S<TIME> - wait period in seconds
-	* TODO: reconsider syntax
+* W0: wait command (seconds)
+	* H<TIME> - wait on horizontal stepper
+	* T<TIME> - wait on tilt stepper
+* W1: wait command (miliseconds)
+	* H<TIME> - wait on horizontal stepper
+	* T<TIME> - wait on tilt stepper
 
 
 #### Example of programming

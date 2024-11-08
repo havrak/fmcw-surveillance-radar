@@ -27,6 +27,12 @@ void StepperControl::init()
 		pinMode(CONFIG_STEPPER_T_PIN_ENDSTOP, INPUT);
 	}
 
+	noProgrammQueueLock = xSemaphoreCreateMutex();
+	if (noProgrammQueueLock == NULL) {
+		ESP_LOGE(TAG, "JoPkaEndpoint | xSemaphoreCreateMutex failed");
+	} else {
+		ESP_LOGI(TAG, "JoPkaEndpoint | created lock");
+	}
 }
 
 
@@ -38,242 +44,420 @@ uint8_t StepperControl::call(uint16_t id){
 
 void StepperControl::stepperMoveTask(void *arg){ // TODO pin to core 0
 	uint64_t time = 0;
-	while(1){
-		time=esp_timer_get_time();
-		// if(time >= instance->horiVariables.nextStepTime){
-		//	printf("time: %llu\n", time-instance->horiVariables.nextStepTime);
-		//	instance->horiSingleStep(Direction::FORWARD);
-		//	instance->horiVariables.nextStepTime = time + instance->horiVariables.pause;
+	time=esp_timer_get_time();
+	// if(time >= instance->horiVariables.nextStepTime){
+	//	printf("time: %llu\n", time-instance->horiVariables.nextStepTime);
+	//	instance->horiSingleStep(Direction::FORWARD);
+	//	instance->horiVariables.nextStepTime = time + instance->horiVariables.pause;
 
-		// programmed:
-		//
-		//		goto endTilt;
-		//
-		//
-		// nonProgrammed:
-		//		if (time - instance->horiVariables.lastStepTime > instance->horiVariables.pause){
-		//			switch(instance->horiVariables.mode){
-		//				case StepperMode::STOPPED:
-		//					goto endHorz;
-		//					break;
-		//				case  StepperMode::HOMING:
-		//					instance->horiSingleStep(Direction::FORWARD);
-		//					break;
-		//
-		//				case StepperMode::STEPPER:
-		//					if(instance->horiVariables.stepsToGo > 0){
-		//						instance->horiSingleStep(Direction::FORWARD);
-		//						instance->horiVariables.stepsToGo=instance->horiVariables.stepsToGo-1;
-		//					}else if(instance->horiVariables.stepsToGo < 0){
-		//						instance->horiSingleStep(Direction::BACKWARD);
-		//						instance->horiVariables.stepsToGo=instance->horiVariables.stepsToGo+1;
-		//					}
-		//					break;
-		//					break;
-		//				case StepperMode::SPINDLE_CLOCKWISE:
-		//					instance->horiSingleStep(Direction::FORWARD);
-		//					break;
-		//				case StepperMode::SPINDLE_COUNTERCLOCKWISE:
-		//					instance->horiSingleStep(Direction::BACKWARD);
-		//					break;
-		//				default:
-		//					break;
-		//			}
-		//			instance->horiVariables.lastStepTime = time;
-		//		}
-		// endHorz:
-		// vTaskDelay(instance->horiVariables.pause < instance->horiVariables.pause ? instance->horiVariables.pause/port_TICK_PERIOD_US : instance->horiVariables.pause/port_TICK_PERIOD_US);
-		vTaskDelay(100000);
-	}
+	// programmed:
+	//
+	//		goto endTilt;
+	//
+	//
+	// nonProgrammed:
+	//		if (time - instance->horiVariables.lastStepTime > instance->horiVariables.pause){
+	//			switch(instance->horiVariables.mode){
+	//				case StepperMode::STOPPED:
+	//					goto endHorz;
+	//					break;
+	//				case  StepperMode::HOMING:
+	//					instance->horiSingleStep(Direction::FORWARD);
+	//					break;
+	//
+	//				case StepperMode::STEPPER:
+	//					if(instance->horiVariables.stepsToGo > 0){
+	//						instance->horiSingleStep(Direction::FORWARD);
+	//						instance->horiVariables.stepsToGo=instance->horiVariables.stepsToGo-1;
+	//					}else if(instance->horiVariables.stepsToGo < 0){
+	//						instance->horiSingleStep(Direction::BACKWARD);
+	//						instance->horiVariables.stepsToGo=instance->horiVariables.stepsToGo+1;
+	//					}
+	//					break;
+	//					break;
+	//				case StepperMode::SPINDLE_CLOCKWISE:
+	//					instance->horiSingleStep(Direction::FORWARD);
+	//					break;
+	//				case StepperMode::SPINDLE_COUNTERCLOCKWISE:
+	//					instance->horiSingleStep(Direction::BACKWARD);
+	//					break;
+	//				default:
+	//					break;
+	//			}
+	//			instance->horiVariables.lastStepTime = time;
+	//		}
+	// endHorz:
+	// vTaskDelay(instance->horiVariables.pause < instance->horiVariables.pause ? instance->horiVariables.pause/port_TICK_PERIOD_US : instance->horiVariables.pause/port_TICK_PERIOD_US);
+	vTaskDelay(100000);
 	vTaskDelete(NULL);
-
-	}
-
+}
 
 
-	bool StepperControl::parseGcode(const char* gcode, uint16_t length)
-	{
-		float element = 0;
 
+ParsingGCodeResult StepperControl::parseGCode(const char* gcode, uint16_t length)
+{
 
-		// lambda that returns number following a given string
-		// for example when gcode is "G0 X-1000 S2000" and we search for 'X' lambda returns -1000
-		// if element is not found or data following it aren't just numbers NAN is returned
-		auto getElement = [gcode, length](uint16_t index, const char* matchString, const uint16_t elementLength) -> float {
-			bool negative = false;
-			float toReturn = 0;
-			uint8_t decimal = 0;
-			for(uint16_t i = index; i < length; i++){
-				if(gcode[i] == matchString[0]){
-					if(strncmp(gcode+i, matchString, elementLength) == 0){
-						i += elementLength;
+	// lambda that returns number following a given string
+	// for example when gcode is "G0 X-1000 S2000" and we search for 'X' lambda returns -1000
+	// if element is not found or data following it aren't just numbers NAN is returned
+	auto getElementFloat = [gcode, length](uint16_t index, const char* matchString, const uint16_t elementLength) -> float {
+		bool negative = false;
+		float toReturn = 0;
+		uint8_t decimal = 0;
+		for(uint16_t i = index; i < length; i++){
+			if(gcode[i] == matchString[0]){
+				if(strncmp(gcode+i, matchString, elementLength) == 0){
+					i += elementLength;
 
-						if(gcode[i] == '-'){
-							negative = true;
-							i++;
-						}
-						while(gcode[i] != ' ' && i < length){
-							if(gcode[i] >= '0' && gcode[i] <= '9'){
-								toReturn = toReturn * 10 + (gcode[i] - '0');
-								if(decimal){
-									decimal++;
-								}
-								i++;
-								continue;
-							}else if(gcode[i] == '.' && !decimal){
-								decimal = 1;
-								i++;
-								continue;
-							}
-							return NAN;
-						}
-						toReturn /= pow(10, decimal-1);
-#ifdef CONFIG_STEPPER_DEBUG
-						ESP_LOGI(TAG, "getElement | Found element %s: %f", matchString, negative ? -toReturn : toReturn);
-#endif
-						return negative ? -toReturn : toReturn;
+					if(gcode[i] == '-'){
+						negative = true;
+						i++;
 					}
+					while(gcode[i] != ' ' && i < length){
+						if(gcode[i] >= '0' && gcode[i] <= '9'){
+							toReturn = toReturn * 10 + (gcode[i] - '0');
+							if(decimal){
+								decimal++;
+							}
+							i++;
+							continue;
+						}else if(gcode[i] == '.' && !decimal){
+							decimal = 1;
+							i++;
+							continue;
+						}
+						return GCODE_ELEMENT_INVALID_FLOAT;
+					}
+					toReturn /= pow(10, decimal-1);
+#ifdef CONFIG_STEPPER_DEBUG
+					ESP_LOGI(TAG, "getElement | Found element %s: %f", matchString, negative ? -toReturn : toReturn);
+#endif
+					return negative ? -toReturn : toReturn;
 				}
 			}
-			return NAN;
-		};
+		}
+		return GCODE_ELEMENT_INVALID_FLOAT;
+	};
 
-		// NOTE: all commands will be handled same we aren't in programm regime they will be added to to programm 0
-		// all commands should be executed in motorTask -> added to a list and thats all
-
-		if (strncmp(gcode, "M80", 3) == 0){ // power down high voltage supply
-			// XXX this command will be executed immediately
-			return false;
-		}else if (strncmp(gcode, "M81", 3) == 0){ // power up high voltage supply
-			// XXX this command will be executed immediately
-			return false;
-
-		}else if (strncmp(gcode, "G20", 3) == 0){ // set unit to degrees
-			if(programmingMode == ProgrammingMode::NO_PROGRAMM){
-
-			}else if (programmingMode == ProgrammingMode::PROGRAMMING){
-				// TODO: stash command to programm queue
+	auto getElementInt = [gcode, length](uint16_t index, const char* matchString, const uint16_t elementLength) -> int64_t {
+		bool negative = false;
+		int64_t toReturn = 0;
+		for(uint16_t i = index; i < length; i++){
+			if(gcode[i] == matchString[0]){
+				if(strncmp(gcode+i, matchString, elementLength) == 0){
+					i += elementLength;
+					if(gcode[i] == '-'){
+						negative = true;
+						i++;
+					}
+					while(gcode[i] != ' ' && i < length){
+						if(gcode[i] >= '0' && gcode[i] <= '9'){
+							toReturn = toReturn * 10 + (gcode[i] - '0');
+							i++;
+							continue;
+						}
+						return GCODE_ELEMENT_INVALID_INT;
+					}
+					return negative ? -toReturn : toReturn;
+				}
 			}
-			return true;
-		}else if (strncmp(gcode, "G20", 3) == 0){ // set unit to steps
-			if(programmingMode == ProgrammingMode::NO_PROGRAMM){
-			}else if (programmingMode == ProgrammingMode::PROGRAMMING){
-				// TODO: stash command to programm queue
-			}
-			return true;
-		}else if (strncmp(gcode, "G90", 3) == 0){ // set the absolute positioning
-			if(programmingMode == ProgrammingMode::NO_PROGRAMM){
-			}else if (programmingMode == ProgrammingMode::PROGRAMMING){
-				// TODO: stash command to programm queue
-			}
-			return true;
-		}else if (strncmp(gcode, "G91", 3) == 0){ // set the relative positioning
-			if(programmingMode == ProgrammingMode::NO_PROGRAMM){
-			}else if (programmingMode == ProgrammingMode::PROGRAMMING){
-				// TODO: stash command to programm queue
-			}
-			return true;
-		}else if (strncmp(gcode, "G92", 3) == 0){ // set current position as home
-			return true;
-		}else if (strncmp(gcode, "G28", 3) == 0){ // home both drivers
-			return true;
+		}
+		return GCODE_ELEMENT_INVALID_INT;
+	};
 
-		}else if (strncmp(gcode, "G0", 2) == 0){ // home to given position, not the most efficient parsing but we don't excpet to have that many commands to process
-			element = getElement(3, "S", 1);
-			return true;
-		}else if (strncmp(gcode, "M03", 3) == 0){ // start spinning horzMot axis clockwise
-			return true;
-		}else if (strncmp(gcode, "M04", 3) == 0){ // start spinning horzMot axis counterclockwise TODO: spindle mode should be supported on both steppers
-			return true;
-		}else if (strncmp(gcode, "M05", 3) == 0){ // stop spinning horzMot axis
-			return true;
+	auto getElementString = [gcode, length](uint16_t index, const char* matchString, const uint16_t elementLength) -> bool {
+		for(uint16_t i = index; i < length; i++){
+			if(gcode[i] == matchString[0]){
+				if(strncmp(gcode+i, matchString, elementLength) == 0){
+					return true;
+				}
+			}
+		}
+		return false;
+	};
 
+	// NOTE: all commands will be handled same we aren't in programm regime they will be added to to programm 0
+	// all commands should be executed in motorTask -> added to a list and thats all
+
+	if (strncmp(gcode, "M80", 3) == 0){ // power down high voltage supply
+																								// XXX this command will be executed immediately
+		return ParsingGCodeResult::NO_SUPPORT;
+	}else if (strncmp(gcode, "M81", 3) == 0){ // power up high voltage supply
+																											// XXX this command will be executed immediately
+		return ParsingGCodeResult::NO_SUPPORT;
+	}else if (strncmp(gcode, "P0", 2) == 0){ // stop programm execution
+		return ParsingGCodeResult::NO_SUPPORT;
+	}
+	if(programmingMode == ProgrammingMode::RUN_PROGRAM) // all following commands don't make any sense to process if we are already running a program
+		return ParsingGCodeResult::NOT_PROCESSING_COMMANDS;
+
+	int64_t elementInt = 0;
+	float elementFloat = 0;
+
+	gcode_command_t command;
+
+	if (strncmp(gcode, "G20", 3) == 0){ // set unit to degrees
+		command.type =  GCodeCommand::G20;
+	}else if (strncmp(gcode, "G21", 3) == 0){ // set unit to steps
+		command.type =  GCodeCommand::G21;
+	}else if (strncmp(gcode, "G90", 3) == 0){ // set the absolute positioning
+		command.type = GCodeCommand::G90;
+	}else if (strncmp(gcode, "G91", 3) == 0){ // set the relative positioning
+		command.type = GCodeCommand::G91;
+	}else if (strncmp(gcode, "G92", 3) == 0){ // set current position as home
+		command.type = GCodeCommand::G92;
+	}else if (strncmp(gcode, "G28", 3) == 0){ // home both drivers
+		command.type = GCodeCommand::G28;
+	}else if (strncmp(gcode, "G0", 2) == 0){ // home to given position, not the most efficient parsing but we don't excpet to have that many commands to process
+		command.type = GCodeCommand::G0;
+		elementInt = getElementInt(3, "H", 1);
+		if(elementInt != GCODE_ELEMENT_INVALID_INT){
+			command.movementH = new gcode_command_movement_t();
+			command.movementH->val.steps = elementInt;
+		}else{
+			goto endInvalidArgument;
+			// return ParsingGCodeResult::INVALID_ARGUMENT; // TODO: check if manual cleanup of pointer isn't needed
+		}
+
+		elementInt = getElementInt(3, "T", 1);
+		if(elementInt != GCODE_ELEMENT_INVALID_INT){
+			command.movementT = new gcode_command_movement_t();
+			command.movementT->val.steps = elementInt;
+		}else{
+			return ParsingGCodeResult::INVALID_ARGUMENT;
+		}
+
+
+		elementFloat = getElementFloat(3, "S", 1);
+		if(elementFloat != GCODE_ELEMENT_INVALID_FLOAT){
+			if(command.movementH != nullptr) command.movementH->rpm = elementFloat;
+			if(command.movementT != nullptr) command.movementT->rpm = elementFloat;
+		}else{
+			return ParsingGCodeResult::INVALID_ARGUMENT;
+		}
+
+		elementFloat = getElementFloat(3, "SH", 2);
+		if(elementFloat != GCODE_ELEMENT_INVALID_FLOAT){
+			if(command.movementH != nullptr) command.movementH->rpm = elementFloat;
+			else return ParsingGCodeResult::INVALID_COMMAND;
+		}else{
+			return ParsingGCodeResult::INVALID_ARGUMENT;
+		}
+
+		elementFloat = getElementFloat(3, "ST", 2);
+		if(elementFloat != GCODE_ELEMENT_INVALID_FLOAT){
+			if(command.movementT != nullptr) command.movementT->rpm = elementFloat;
+			else return ParsingGCodeResult::INVALID_COMMAND;
+		}else{
+			return ParsingGCodeResult::INVALID_ARGUMENT;
+		}
+	}else if (strncmp(gcode, "M03", 3) == 0){ // start spinning horzMot axis clockwise
+		if(getElementString(3, "H+", 1)){
+			command.movementH = new gcode_command_movement_t();
+			command.movementH->val.direction = Direction::FORWARD;
+		}else if(getElementString(3, "H-", 1)){
+			command.movementH = new gcode_command_movement_t();
+			command.movementH->val.direction = Direction::BACKWARD;
+		}
+
+		if(getElementString(3, "T+", 1)){
+			command.movementH = new gcode_command_movement_t();
+			command.movementH->val.direction = Direction::FORWARD;
+		}else		if(getElementString(3, "T-", 1)){
+			command.movementH = new gcode_command_movement_t();
+			command.movementH->val.direction = Direction::BACKWARD;
+		}
+
+
+		elementFloat = getElementFloat(3, "S", 1);
+		if(elementFloat != GCODE_ELEMENT_INVALID_FLOAT){
+			if(command.movementH != nullptr) command.movementH->rpm = elementFloat;
+			if(command.movementT != nullptr) command.movementT->rpm = elementFloat;
+		}else{
+			return ParsingGCodeResult::INVALID_ARGUMENT;
+		}
+
+		elementFloat = getElementFloat(3, "SH", 2);
+		if(elementFloat != GCODE_ELEMENT_INVALID_FLOAT){
+			if(command.movementH != nullptr) command.movementH->rpm = elementFloat;
+			else return ParsingGCodeResult::INVALID_ARGUMENT;
+		}else{
+			return ParsingGCodeResult::INVALID_ARGUMENT;
+		}
+
+		elementFloat = getElementFloat(3, "ST", 2);
+		if(elementFloat != GCODE_ELEMENT_INVALID_FLOAT){
+			if(command.movementT != nullptr) command.movementT->rpm = elementFloat;
+			else return ParsingGCodeResult::INVALID_ARGUMENT;
+		}else{
+			return ParsingGCodeResult::INVALID_ARGUMENT;
+		}
+	}else if (strncmp(gcode, "M05", 3) == 0){
+		command.type = GCodeCommand::M05;
+		if(getElementString(3, "H", 1)){
+			command.movementH = new gcode_command_movement_t(); // stepper will stop in command.movementT is not nullptr
+		}else{
+			return ParsingGCodeResult::INVALID_ARGUMENT;
+		}
+		if(getElementString(3, "T", 1)){
+			command.movementT = new gcode_command_movement_t(); // stepper will stop in command.movementT is not nullptr
+		}else{
+			return ParsingGCodeResult::INVALID_ARGUMENT;
+		}
+	}else if (strncmp(gcode, "W0", 2) == 0){
+		command.type = GCodeCommand::W1; // all W0 command futhers on will be handled as W1
+		elementInt = getElementInt(2, "H", 1);
+
+		if(elementInt != GCODE_ELEMENT_INVALID_INT || elementInt < 0){
+			command.movementH = new gcode_command_movement_t();
+			command.movementH->val.time = elementInt*1000;
+		}else{
+			return ParsingGCodeResult::INVALID_ARGUMENT;
+		}
+
+		elementInt = getElementInt(2, "T", 1);
+
+		if(elementInt != GCODE_ELEMENT_INVALID_INT || elementInt < 0){
+			command.movementT = new gcode_command_movement_t();
+			command.movementT->val.time = elementInt*1000;
+		}else{
+			return ParsingGCodeResult::INVALID_ARGUMENT;
+		}
+	}else if (strncmp(gcode, "W1",2) == 0){
+		command.type = GCodeCommand::W1;
+		elementInt = getElementInt(2, "H", 1);
+
+		if(elementInt != GCODE_ELEMENT_INVALID_INT || elementInt < 0){
+			command.movementH = new gcode_command_movement_t();
+			command.movementH->val.time = elementInt;
+		}else{
+			return ParsingGCodeResult::INVALID_ARGUMENT;
+		}
+
+		elementInt = getElementInt(2, "T", 1);
+
+		if(elementInt != GCODE_ELEMENT_INVALID_INT || elementInt < 0){
+			command.movementT = new gcode_command_movement_t();
+			command.movementT->val.time = elementInt;
+		}else{
+			return ParsingGCodeResult::INVALID_ARGUMENT;
+		}
+	}else
+		return ParsingGCodeResult::INVALID_COMMAND;
+
+
+	if(programmingMode == ProgrammingMode::NO_PROGRAMM){
+		if (xSemaphoreTake(noProgrammQueueLock, (TickType_t)1000) != pdTRUE){
+			noProgrammQueue.push(command);
+			xSemaphoreGive(noProgrammQueueLock);
+			return ParsingGCodeResult::SUCCESS;
 		}else
-			return false;
-
+			goto endFailedToLockQueue;
+	}else{
+		commandDestination->push_back(command);
+		return ParsingGCodeResult::SUCCESS;
 	}
 
-	void StepperControl::tiltEndstopHandler(void *arg){
-		if(stepperControl.programmingMode == ProgrammingMode::HOMING){
-			steppers.stopStepperH();
-			xEventGroupSetBits(StepperControl::homingEventGroup, STEPPER_COMPLETE_BIT_H);
-		}
+endFailedToLockQueue:
+	if(command.movementH != nullptr)
+		delete command.movementH;
+	if(command.movementT != nullptr)
+		delete command.movementT;
 
+	return ParsingGCodeResult::FAILED_TO_LOCK_QUEUE;
 
+endInvalidArgument:
+	if(command.movementH != nullptr){
+		delete command.movementH;
 	}
-
-	void StepperControl::horizontalEndstopHandler(void *arg){
-		if(stepperControl.programmingMode == ProgrammingMode::HOMING){
-			steppers.stopStepperT();
-			xEventGroupSetBits(StepperControl::homingEventGroup, STEPPER_COMPLETE_BIT_T);
-		}
-	}
+	if(command.movementT != nullptr)
+		delete command.movementT;
+	return ParsingGCodeResult::INVALID_ARGUMENT;
 
 
-	void StepperControl::home(){
-		ESP_LOGI(TAG, "Home | Starting homing routine");
-		// clear	the queues
-		steppers.clearQueueH();
-		steppers.clearQueueT();
-		// stop the steppers
+}
+
+void StepperControl::tiltEndstopHandler(void *arg){
+	if(stepperControl.programmingMode == ProgrammingMode::HOMING){
 		steppers.stopStepperH();
-		steppers.stopStepperT();
-		// set the positioning mode to homing
-		programmingMode = ProgrammingMode::HOMING;
-
-		// attach interrupts
-		attachInterruptArg(CONFIG_STEPPER_H_PIN_ENDSTOP, StepperControl::horizontalEndstopHandler, NULL, CHANGE);
-		attachInterruptArg(CONFIG_STEPPER_T_PIN_ENDSTOP, StepperControl::tiltEndstopHandler, NULL, CHANGE);
-
-		steppers.spindleStepperH(100, Direction::FORWARD);
-		steppers.spindleStepperT(100, Direction::FORWARD);
-
-		EventBits_t result = xEventGroupWaitBits(
-				homingEventGroup,
-				STEPPER_COMPLETE_BIT_H | STEPPER_COMPLETE_BIT_T,
-				pdTRUE,
-				pdTRUE,
-				portMAX_DELAY
-				);
-
-		if(result & STEPPER_COMPLETE_BIT_H){
-			ESP_LOGI(TAG, "Home | Horizontal stepper fast homed");
-		}
-		if(result & STEPPER_COMPLETE_BIT_T){
-			ESP_LOGI(TAG, "Home | Tilt stepper fast homed");
-		}
-
-
-		steppers.stepStepperH(20, -10, true); // we will trigger stop commands on endstops, this shouldn't bother us it will just schedule stops to run
-		steppers.stepStepperT(20, -10, true);
-
-		steppers.spindleStepperH(1, Direction::FORWARD);
-		steppers.spindleStepperT(1, Direction::FORWARD);
-
-		result = xEventGroupWaitBits(
-				homingEventGroup,
-				STEPPER_COMPLETE_BIT_H | STEPPER_COMPLETE_BIT_T,
-				pdTRUE,
-				pdTRUE,
-				portMAX_DELAY
-				);
-
-		if(result & STEPPER_COMPLETE_BIT_H){
-			ESP_LOGI(TAG, "Home | Horizontal stepper slow homed");
-		}
-		if(result & STEPPER_COMPLETE_BIT_T){
-			ESP_LOGI(TAG, "Home | Tilt stepper slow homed");
-		}
-
-		varsH.stepNumber.store(0);
-		varsT.stepNumber.store(0);
-
-		// cleanup
-		xEventGroupClearBits(homingEventGroup, HOMING_DONE_BIT);
-		detachInterrupt(CONFIG_STEPPER_H_PIN_ENDSTOP);
-		detachInterrupt(CONFIG_STEPPER_T_PIN_ENDSTOP);
-
+		xEventGroupSetBits(StepperControl::homingEventGroup, STEPPER_COMPLETE_BIT_H);
 	}
+
+
+}
+
+void StepperControl::horizontalEndstopHandler(void *arg){
+	if(stepperControl.programmingMode == ProgrammingMode::HOMING){
+		steppers.stopStepperT();
+		xEventGroupSetBits(StepperControl::homingEventGroup, STEPPER_COMPLETE_BIT_T);
+	}
+}
+
+
+void StepperControl::home(){
+	ESP_LOGI(TAG, "Home | Starting homing routine");
+	// clear	the queues
+	steppers.clearQueueH();
+	steppers.clearQueueT();
+	// stop the steppers
+	steppers.stopStepperH();
+	steppers.stopStepperT();
+	// set the positioning mode to homing
+	programmingMode = ProgrammingMode::HOMING;
+
+	// attach interrupts
+	attachInterruptArg(CONFIG_STEPPER_H_PIN_ENDSTOP, StepperControl::horizontalEndstopHandler, NULL, CHANGE);
+	attachInterruptArg(CONFIG_STEPPER_T_PIN_ENDSTOP, StepperControl::tiltEndstopHandler, NULL, CHANGE);
+
+	steppers.spindleStepperH(100, Direction::FORWARD);
+	steppers.spindleStepperT(100, Direction::FORWARD);
+
+	EventBits_t result = xEventGroupWaitBits(
+			homingEventGroup,
+			STEPPER_COMPLETE_BIT_H | STEPPER_COMPLETE_BIT_T,
+			pdTRUE,
+			pdTRUE,
+			portMAX_DELAY
+			);
+
+	if(result & STEPPER_COMPLETE_BIT_H){
+		ESP_LOGI(TAG, "Home | Horizontal stepper fast homed");
+	}
+	if(result & STEPPER_COMPLETE_BIT_T){
+		ESP_LOGI(TAG, "Home | Tilt stepper fast homed");
+	}
+
+
+	steppers.stepStepperH(20, -10, true); // we will trigger stop commands on endstops, this shouldn't bother us it will just schedule stops to run
+	steppers.stepStepperT(20, -10, true);
+
+	steppers.spindleStepperH(1, Direction::FORWARD);
+	steppers.spindleStepperT(1, Direction::FORWARD);
+
+	result = xEventGroupWaitBits(
+			homingEventGroup,
+			STEPPER_COMPLETE_BIT_H | STEPPER_COMPLETE_BIT_T,
+			pdTRUE,
+			pdTRUE,
+			portMAX_DELAY
+			);
+
+	if(result & STEPPER_COMPLETE_BIT_H){
+		ESP_LOGI(TAG, "Home | Horizontal stepper slow homed");
+	}
+	if(result & STEPPER_COMPLETE_BIT_T){
+		ESP_LOGI(TAG, "Home | Tilt stepper slow homed");
+	}
+
+	varsH.stepNumber.store(0);
+	varsT.stepNumber.store(0);
+
+	// cleanup
+	xEventGroupClearBits(homingEventGroup, HOMING_DONE_BIT);
+	detachInterrupt(CONFIG_STEPPER_H_PIN_ENDSTOP);
+	detachInterrupt(CONFIG_STEPPER_T_PIN_ENDSTOP);
+
+}
 
 
 

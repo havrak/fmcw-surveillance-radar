@@ -64,6 +64,10 @@ void OSCore::setup()
 	stepperControl.init();
 
 
+	char* testComamnd = "G0 HX";
+	stepperControl.parseGCode(testComamnd, strlen(testComamnd));
+
+
 	// ------------------------------------------
 	// Configure Peripherals
 	// ------------------------------------------

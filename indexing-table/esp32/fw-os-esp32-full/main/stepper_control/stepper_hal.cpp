@@ -63,8 +63,12 @@ void StepperHal::initMCPWN() {
 	ESP_ERROR_CHECK(mcpwm_operator_connect_timer(StepperHal::operatorT, StepperHal::timerT));
 
 	// Set up comparator and generator for each stepper
-	mcpwm_comparator_config_t comparator_config;
-	comparator_config.flags.update_cmp_on_tez = true;
+	mcpwm_comparator_config_t comparator_config = {
+		.intr_priority = 0,
+		.flags = {
+			.update_cmp_on_tez = true,
+		},
+	};
 	ESP_ERROR_CHECK(mcpwm_new_comparator(StepperHal::operatorH, &comparator_config, &StepperHal::comparatorH));
 	ESP_ERROR_CHECK(mcpwm_new_comparator(StepperHal::operatorT, &comparator_config, &StepperHal::comparatorT));
 
@@ -85,7 +89,7 @@ void StepperHal::initMCPWN() {
 
 void StepperHal::initPCNT(){
 	const char *TAG = "PCNT";
-	ESP_LOGI(TAG, "Initializing PCNT for pulse count on pin");
+	ESP_LOGI(TAG, "Initializing PCNT for pulse counters");
 	pcnt_unit_config_t unitConfig = {
 		.low_limit = -1,
 		.high_limit = 32767,
