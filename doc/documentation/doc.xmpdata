@@ -1,7 +1,6 @@
-% Metadata k uložení do PDF, podrobnější popis viz dokumentace balíčku pdfx.
-
-\Author{Kryštof Havránek}
-\Title{FMCW Surveillance Radar}
-\Keywords{FCMW \sep ESP32 \sep MATLAB}
-\Subject{}
+% Generated automatically from metadata.tex
+\Author{Havránek Kryštof}
+\Title{Thesis title}
+\Keywords{keyword\sep key phrase }
+\Subject{Use the most precise, shortest sentences that state what problem the thesis addresses, how it is approached, pinpoint the exact result achieved, and describe the applications and significance of the results. Highlight anything novel that was discovered or improved by the thesis. Maximum length is 200 words, but try to fit into 120. Abstracts are often used for deciding if a reviewer will be suitable for the thesis; a well-written abstract thus increases the probability of getting a reviewer who will like the thesis. }
 \Publisher{Czech Technical University in Prague}

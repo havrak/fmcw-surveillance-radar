@@ -1,59 +1,21 @@
-\documentclass[a4paper,oneside,12pt]{report}
-\setlength\textwidth{145mm}
-\setlength\textheight{247mm}
-\setlength\oddsidemargin{15mm}
-\setlength\evensidemargin{15mm}
-\setlength\topmargin{0mm}
-\setlength\headsep{0mm}
-\setlength\headheight{0mm}
-% \openright makes the following text appear on a right-hand page
-\let\openright=\clearpage
 
-%% Settings for two-sided (duplex) printing
-% \documentclass[12pt,a4paper,twoside,openright]{report}
-% \setlength\textwidth{145mm}
-% \setlength\textheight{247mm}
-% \setlength\oddsidemargin{14.2mm}
-% \setlength\evensidemargin{0mm}
-% \setlength\topmargin{0mm}
-% \setlength\headsep{0mm}
-% \setlength\headheight{0mm}
-% \let\openright=\cleardoublepage
+\def\PageLayout{single-no-print}
+\def\DocLanguage{en}
+\def\PackagesIncludeBib{yes}
 
-%% If the thesis has no printed version, symmetric margins look better
-% \documentclass[12pt,a4paper]{report}
-% \setlength\textwidth{145mm}
-% \setlength\textheight{247mm}
-% \setlength\oddsidemargin{10mm}
-% \setlength\evensidemargin{10mm}
-% \setlength\topmargin{0mm}
-% \setlength\headsep{0mm}
-% \setlength\headheight{0mm}
-% \let\openright=\clearpage
-
-
-\include{doc_setup}
-\include{metadata}
-\include{macros}
-
-%% Titulní strana a různé povinné informační strany
-\fancypagestyle{plain}{
-  \fancyhf{}
-  \renewcommand{\headrulewidth}{0.4pt}
-  \renewcommand{\footrulewidth}{0.4pt}
-  \fancyhead[C]{}
-	\fancyhead[L]{\InstitutionName}
-  \fancyhead[R]{\ThesisNameShort}
-  \fancyfoot[L]{}
-  \fancyfoot[C]{}
-  \fancyfoot[R]{\thepage}
-}
+\input{dimensions_paper}
+\input{packages}
+\input{metadata}
+\input{macros}
+\input{xmp}
+\input{doc_paper}
+\usepackage{lipsum}  % For generating dummy text (optional)
 
 
 
 \begin{document}
 
-\include{title_page}
+\include{doc_paper_title_page_en}
 
 \tableofcontents
 
@@ -62,9 +24,35 @@
 \setcounter{page}{1}
 
 \include{introduction}
+\pagestyle{fancy}
 
-\chapter{Lorem ipsum}
 
+\chapter{Chapter 1.}
+
+\lipsum[1-3]  % Dummy text for the introduction
+
+wau balíček \cite{Iizuka2002}
+\chapter{Chapter 2.}
+
+\lipsum[1-3]  % Dummy text for the introduction
+
+\section{Section 2.1}
+\lipsum[1-3]  % Dummy text for the introduction
+
+\section{Section 2.2}
+\lipsum[1-3]  % Dummy text for the introduction
+
+\section{Section 3.1}
+
+\lipsum[1-6]
+
+\chapter{Chapter 3.}
+
+\lipsum[1-5]
+
+\section{Section 3.1}
+
+\lipsum[2-4]
 
 
 
@@ -79,6 +67,6 @@
 
 \listoftables
 
-
+\clearpage
 \openright
 \end{document}

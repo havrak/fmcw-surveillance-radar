@@ -16,4 +16,4 @@ notes/Silicon radar SiRad Easy
 *figure[0-9]*.md5
 *figure[0-9]*.pdf
 *.auxlock
-
+*.xmpdata

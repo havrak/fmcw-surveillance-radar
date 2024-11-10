@@ -47,8 +47,6 @@
 #define GCODE_ELEMENT_INVALID_FLOAT NAN
 #define GCODE_ELEMENT_INVALID_INT 0xFFFFFFFFFFFFFFFF
 
-#define COMMAND_ISSUED_H(command) command.speedH == NaN
-#define COMMAND_ISSUED_T(command) command.speedT == NaN
 
 
 enum ProgrammingMode : uint8_t {
@@ -69,12 +67,14 @@ enum Unit : uint8_t {
 };
 
 enum ParsingGCodeResult: uint8_t {
-	SUCCESS = 0,              // processing was successful
-	INVALID_COMMAND = 2,       // command wasn't able to be decoded
-	INVALID_ARGUMENT = 3,
-	FAILED_TO_LOCK_QUEUE = 4, // command was processed, should be added to noProgrammQueue but we failed to get a lock
-	NO_SUPPORT = 5,           // command exists but isn't yet supported by the hardware
+	SUCCESS = 0,              		// processing was successful
+	INVALID_COMMAND = 2,       		// command wasn't able to be decoded
+	INVALID_ARGUMENT = 3,					// command code is valid but it's arguments aren't
+	FAILED_TO_LOCK_QUEUE = 4, 		// command was processed, should be added to noProgrammQueue but we failed to get a lock
+	NO_SUPPORT = 5,           		// command exists but isn't yet supported by the hardware
 	NOT_PROCESSING_COMMANDS = 6,  // we are either running homing or some programm thus new incoming commands will not be process
+	CODE_FAILURE = 7, 						// command might be fine but code runned into unexpected occurrence
+	NON_CLOSED_LOOP = 8, 					// specific error that can arise only when we are ending programming, indicated that program has unclosed for loop, it is recommended to delete whole program and start again
 };
 
 enum GCodeCommand : uint8_t {
@@ -89,12 +89,15 @@ enum GCodeCommand : uint8_t {
 	G0,  // move stepper DONE
 	M03, // start spindle DONE
 	M05, // stop spindle DONE NOTE: should be issued only when stepper is in spindle mode
-	P0,  // stop programm execution
+	P0,  // stop programm execution DONE
 	P1,  // start programm execution
-	P90, // start program declaration (header)
-	P91, // start program declaration (main body)
-	P98, // declare infinitely looped programm
-	P99, // end programm declaration
+	P2,  // delete program from memory
+	P90, // start program declaration (header) DONE
+	P91, // start program declaration (main body) DONE
+	P92, // end programm declaration DONE
+	P21, // declare for loop start DONE
+	P22, // declare for loop end DONE
+	P29, // declare infinitely looped programm DONE
 	W0,  // wait seconds DONE
 	W1,  // wait milliseconds DONE
 };
@@ -111,16 +114,55 @@ typedef struct {
 	float rpm;
 } gcode_command_movement_t;
 
-typedef struct {
+typedef struct gcode_command_t{
 	GCodeCommand  type;
 	gcode_command_movement_t* movementH = nullptr; // filled in if command requires some action from steppers
 	gcode_command_movement_t* movementT = nullptr;
 
-	// ~gcode_command(){
-	// 	delete movementH;
-	// 	delete movementT;
-	// }
+	~gcode_command_t(){
+		delete movementH;
+		delete movementT;
+	}
 } gcode_command_t;
+
+
+typedef struct gcode_programm_t{
+		char name[20];
+
+		std::list<gcode_command_t>* header = nullptr; // point to a list to save received programms in programming mode
+		// iterator to currect header command
+		std::list<gcode_command_t>::iterator headerIterator;
+		std::list<gcode_command_t>* main = nullptr; // point to a list to save received programms in programming mode
+		// iterator to currect main command
+		std::list<gcode_command_t>::iterator mainIterator;
+
+
+		// single for loop cycle
+		std::list<gcode_command_t>::iterator forLoop; // point to a start of for loop cycle
+		int16_t forLoopCounter = 0; 	// will decrement on each for loop end, if 0 we wont jump back to for loop start on receiving P93
+																	// NOTE: remember to reset if we are repeating indefinitely
+
+		bool repeatIndefinitely = false; // main body will be repeated indefinitely
+
+		gcode_programm_t(){
+			header = new std::list<gcode_command_t>();
+			main = new std::list<gcode_command_t>();
+		}
+
+		void clean(){
+			header->clear();
+			main->clear();
+			repeatIndefinitely = false;
+			forLoopCounter = 0;
+		}
+
+		void reset(){
+			headerIterator = header->begin();
+			mainIterator = main->begin();
+			forLoopCounter = 0;
+		}
+} gcode_programm_t;
+
 
 typedef struct {
 	std::atomic<int32_t> stepNumber = 0; // current step number
@@ -138,26 +180,24 @@ typedef struct {
 class StepperControl : public CallbackInterface{
 	private:
 
-		ProgrammingMode programmingMode = ProgrammingMode::NO_PROGRAMM;
-		PositioningMode positioningMode = PositioningMode::ABSOLUTE;
 
-		// we will have
 
+		// we will let used create as many programms as they want
 		// programm queue must be synchronized as it can be accessed both from parseGcode and motorTask functions
+		gcode_programm_t programm;
 
 		// non programm commands will be handled in queue, unfortunately due to need to handle mutext it isn't possible to use totally same access methods anyway so having different ones isn't that big of a problem
-		SemaphoreHandle_t noProgrammQueueLock;
-		std::queue<gcode_command_t> noProgrammQueue;
 
 
-		// programms will be stored as list
+		// programms will be stored as list, only used during creation of programms
 		std::list<gcode_command_t>* commandDestination = nullptr; // point to a list to save received programms in programming mode
 
+		SemaphoreHandle_t noProgrammQueueLock;
+		std::queue<gcode_command_t> noProgrammQueue; // TODO -> static
+		gcode_programm_t* activeProgram = nullptr;   // TODO -> static
+		std::list<gcode_programm_t> programms;
 
-		Unit unit = Unit::DEGREES;
 
-		stepper_variables_t varsH;
-		stepper_variables_t varsT;
 
 
 
@@ -211,6 +251,14 @@ class StepperControl : public CallbackInterface{
 
 		// operational variables of the steppers, std::atomic seemed to be fastest, rtos synchronization was slower
 		inline static EventGroupHandle_t homingEventGroup = NULL;
+		inline static ProgrammingMode programmingMode = ProgrammingMode::NO_PROGRAMM;
+		inline static PositioningMode positioningMode = PositioningMode::ABSOLUTE;
+
+		inline static Unit unit = Unit::DEGREES;
+
+		inline static stepper_variables_t varsH;
+		inline static stepper_variables_t varsT;
+
 
 		StepperControl();
 
