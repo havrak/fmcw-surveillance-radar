@@ -71,6 +71,7 @@ Configuration of the device is done primarily with Kconfig under esp-idf. While 
 	* HH<ANGLE>: high limit on horizontal Stepper
 	* LT<ANGLE>: low limit on tilt stepper
 	* HT<ANGLE>: high limit on tilt stepper
+	* ANGLE is given in degrees if unit is set to degrees, otherwise in steps
 	* NOTE: keep in mind that if limits are imposed and current postion is not within them, you will have to get the device within limits in one G0 command
 
 ### Programming movements (NOT FINAL)

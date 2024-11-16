@@ -30,10 +30,15 @@
 
 #define HOMING_DONE_BIT BIT2
 
-#define RPM_TO_PAUSE(speed, steps_per_revolution) (60L * 1000L * 1000L / steps_per_revolution / speed) // ->
 #define ANGLE_TO_STEPS(angle, steps_per_revolution) (angle * steps_per_revolution / 360)
-#define STEPS_TO_ANGLE(step, steps_per_revolution) (unit == Unit::STEPS ? step : step * 360 / steps_per_revolution)
-#define ANGLE_DISTANCE(angle1, angle2) (angle1 > angle2 ? angle1 - angle2 : angle2 - angle1)
+#define STEPS_TO_ANGLE(step, steps_per_revolution) (step * 360. / steps_per_revolution)
+#define ANGLE_DISTANCE(from, to, angleMax) ( \
+    (((to) - (from) + (angleMax)) % (angleMax) > (angleMax) / 2) ? \
+    ((to) - (from) + (angleMax)) % (angleMax) - (angleMax) : \
+    ((to) - (from) + (angleMax)) % (angleMax) \
+		) // only applies when no limits are set
+#define NORMALIZE_ANGLE(angle, angleMax) ((angle) < 0 ? ((angle) % (angleMax) + (angleMax)) % (angleMax) : (angle) % (angleMax))
+#define SYNCHRONIZED  (command->movementH != nullptr && command->movementT != nullptr)
 
 #define port_TICK_PERIOD_US portTICK_PERIOD_MS * 1000
 
@@ -190,6 +195,7 @@ typedef struct {
 	int32_t stepsMin = GCODE_ELEMENT_INVALID_INT32;							 // minimum number of steps from home, we can allow multiple rotations possibly
 	int32_t stepsMax = GCODE_ELEMENT_INVALID_INT32;							 // maximum number of steps from home
 	int32_t position = 0;
+	int32_t positionLastScheduled = 0;
 	PositioningMode positioningMode = PositioningMode::RELATIVE;
 } stepper_variables_t;
 

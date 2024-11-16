@@ -12,8 +12,7 @@ StepperControl stepperControl = StepperControl();
 StepperControl::StepperControl() { }
 
 std::queue<gcode_command_t*> StepperControl::noProgrammQueue = std::queue<gcode_command_t*>();
-SemaphoreHandle_t StepperControl::noProgrammQueueLock =  xSemaphoreCreateBinary();
-
+SemaphoreHandle_t StepperControl::noProgrammQueueLock = xSemaphoreCreateBinary();
 
 void StepperControl::init()
 {
@@ -46,22 +45,30 @@ void StepperControl::stepperMoveTask(void* arg)
 { // TODO pin to core 0
 	uint64_t time = 0;
 	time = esp_timer_get_time();
-	int32_t positionOfLastScheduledCommandH = 0; // commands are prescheduled in queue, we need to know where we will be when tha last currently scheduled command will end
-	int32_t positionOfLastScheduledCommandT = 0;
-	int32_t postitionH = 0; // current position of the Stepper
-	int32_t postitionT = 0;
 
 	stepper_variables_t varsH; // NOTE: will be written to only from motorTask
 	stepper_variables_t varsT; // NOTE: will be written to only from motorTask
+	int32_t positionTempH = 0;
+	int32_t positionTempT = 0;
 
 	Unit unit = Unit::DEGREES; // only used in motorTask
 
 	while (true) {
+		varsH.position+= steppers.getStepsTraveledOfPrevCommandH();
+		varsT.position+= steppers.getStepsTraveledOfPrevCommandT();
+
+		positionTempH = varsH.position+ steppers.getStepsTraveledOfCurrentCommandH();
+		positionTempT = varsT.position+ steppers.getStepsTraveledOfCurrentCommandT();
+
+		printf("[%f, %f]\n", STEPS_TO_ANGLE(NORMALIZE_ANGLE(positionTempH, CONFIG_STEPPER_H_STEP_COUNT),CONFIG_STEPPER_H_STEP_COUNT), STEPS_TO_ANGLE(NORMALIZE_ANGLE(positionTempT, CONFIG_STEPPER_H_STEP_COUNT),CONFIG_STEPPER_H_STEP_COUNT));
+
+
+
 		// TODO: gather information about current postion ->
 		// 		stored values is incremented by previous command steps
 		// 		than the value is incremented by the steps of the current command
 
-		gcode_command_t* command = (gcode_command_t*) 0x1; // NOTE: this is just hack so I don't have tu turn off -Werror=maybe-uninitialized
+		gcode_command_t* command = (gcode_command_t*)0x1; // NOTE: this is just hack so I don't have tu turn off -Werror=maybe-uninitialized
 		if (programmingMode == ProgrammingMode::NO_PROGRAMM) {
 			if (xSemaphoreTake(noProgrammQueueLock, (TickType_t)1000) == pdTRUE) {
 				if (noProgrammQueue.size() > 0) {
@@ -113,10 +120,10 @@ void StepperControl::stepperMoveTask(void* arg)
 				steppers.getStepsTraveledOfPrevCommandH(); // clear previous command steps
 				steppers.getStepsTraveledOfPrevCommandT();
 
-				postitionH = 0;
-				postitionT = 0;
-				positionOfLastScheduledCommandH = 0;
-				positionOfLastScheduledCommandT = 0;
+				varsH.position = 0;
+				varsT.position = 0;
+				varsH.positionLastScheduled = 0;
+				varsT.positionLastScheduled = 0;
 			}
 			break;
 		case GCodeCommand::G28:
@@ -143,18 +150,29 @@ void StepperControl::stepperMoveTask(void* arg)
 			break;
 		case GCodeCommand::M05:
 			if (command->movementH != nullptr)
-				steppers.stopStepperH();
+				steppers.stopStepperH(SYNCHRONIZED);
 			if (command->movementT != nullptr)
-				steppers.stopStepperT();
+				steppers.stopStepperT(SYNCHRONIZED);
 			break;
 		case GCodeCommand::M201:
-			if (command->movementH != nullptr) {
-				varsH.stepsMin = command->movementH->val.limits.min;
-				varsH.stepsMax = command->movementH->val.limits.max;
-			}
-			if (command->movementT != nullptr) {
-				varsT.stepsMin = command->movementT->val.limits.min;
-				varsT.stepsMax = command->movementT->val.limits.max;
+			if (unit == Unit::STEPS) {
+				if (command->movementH != nullptr) {
+					varsH.stepsMin = command->movementH->val.limits.min;
+					varsH.stepsMax = command->movementH->val.limits.max;
+				}
+				if (command->movementT != nullptr) {
+					varsT.stepsMin = command->movementT->val.limits.min;
+					varsT.stepsMax = command->movementT->val.limits.max;
+				}
+			} else {
+				if (command->movementH != nullptr) {
+				varsH.stepsMin = ANGLE_TO_STEPS(command->movementH->val.limits.min, CONFIG_STEPPER_H_PIN_ENDSTOP);
+				varsH.stepsMax = ANGLE_TO_STEPS(command->movementH->val.limits.max, CONFIG_STEPPER_H_PIN_ENDSTOP);
+				}
+				if (command->movementT != nullptr) {
+				varsT.stepsMin = ANGLE_TO_STEPS(command->movementT->val.limits.min, CONFIG_STEPPER_T_PIN_ENDSTOP);
+				varsT.stepsMax = ANGLE_TO_STEPS(command->movementT->val.limits.max, CONFIG_STEPPER_T_PIN_ENDSTOP);
+				}
 			}
 			break;
 		case GCodeCommand::P21:
@@ -174,7 +192,13 @@ void StepperControl::stepperMoveTask(void* arg)
 					activeProgram->indexMain = activeProgram->indexForLoop;
 			}
 			break;
-		case GCodeCommand::W1: // TODO
+		case GCodeCommand::W1:
+			if (command->movementH != nullptr) {
+				steppers.waitStepperH(command->movementH->val.time, SYNCHRONIZED);
+			}
+			if (command->movementT != nullptr) {
+				steppers.waitStepperT(command->movementT->val.time, SYNCHRONIZED);
+			}
 			break;
 		default:
 			break;
@@ -289,10 +313,8 @@ ParsingGCodeResult StepperControl::parseGCode(const char* gcode, uint16_t length
 		xSemaphoreTake(noProgrammQueueLock, (TickType_t)1000);
 		noProgrammQueue = {};
 		xSemaphoreGive(noProgrammQueueLock);
-		steppers.clearQueueH();
-		steppers.clearQueueT();
-		steppers.stopStepperH();
-		steppers.stopStepperT();
+		steppers.stopNowStepperH();
+		steppers.stopNowStepperT();
 
 		return ParsingGCodeResult::NO_SUPPORT;
 	} else if (strncmp(gcode, "M81", 3) == 0) { // power up high voltage supply
@@ -467,7 +489,7 @@ parsingGCodeCommandsM:
 		elementFloat = getElementFloat(4, "LH", 2);
 		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT || elementFloat < 0) {
 			command->movementH = new gcode_command_movement_t(); // stepper will stop in command->movementT is not nullptr
-			command->movementH->val.limits.min = (int32_t)ANGLE_TO_STEPS(elementFloat, CONFIG_STEPPER_H_STEP_COUNT);
+			command->movementH->val.limits.min = elementFloat;
 		} else
 			goto endInvalidArgument;
 
@@ -475,14 +497,14 @@ parsingGCodeCommandsM:
 		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT || elementFloat < 0) {
 			if (command->movementH == nullptr)
 				command->movementH = new gcode_command_movement_t();
-			command->movementH->val.limits.max = (int32_t)ANGLE_TO_STEPS(elementFloat, CONFIG_STEPPER_H_STEP_COUNT);
+			command->movementH->val.limits.max = elementFloat;
 		} else
 			goto endInvalidArgument;
 
 		elementFloat = getElementFloat(4, "LT", 2);
 		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT || elementFloat < 0) {
 			command->movementT = new gcode_command_movement_t(); // stepper will stop in command->movementT is not nullptr
-			command->movementT->val.limits.min = (int32_t)ANGLE_TO_STEPS(elementFloat, CONFIG_STEPPER_T_STEP_COUNT);
+			command->movementT->val.limits.min = elementFloat;
 		} else
 			goto endInvalidArgument;
 
@@ -490,7 +512,7 @@ parsingGCodeCommandsM:
 		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT || elementFloat < 0) {
 			if (command->movementT == nullptr)
 				command->movementT = new gcode_command_movement_t();
-			command->movementT->val.limits.max = (int32_t)ANGLE_TO_STEPS(elementFloat, CONFIG_STEPPER_T_STEP_COUNT);
+			command->movementT->val.limits.max = elementFloat;
 		} else
 			goto endInvalidArgument;
 	} else
@@ -588,10 +610,8 @@ parsingGCodeCommandsP:
 			xSemaphoreTake(noProgrammQueueLock, (TickType_t)1000);
 			noProgrammQueue = {};
 			xSemaphoreGive(noProgrammQueueLock);
-			steppers.clearQueueH();
-			steppers.clearQueueT();
-			steppers.stopStepperH();
-			steppers.stopStepperT();
+			steppers.stopNowStepperH();
+			steppers.stopNowStepperT();
 
 			return ParsingGCodeResult::SUCCESS;
 		} else
@@ -722,12 +742,9 @@ void StepperControl::horizontalEndstopHandler(void* arg)
 void StepperControl::home()
 {
 	ESP_LOGI(TAG, "Home | Starting homing routine");
-	// clear	the queues
-	steppers.clearQueueH();
-	steppers.clearQueueT();
 	// stop the steppers
-	steppers.stopStepperH();
-	steppers.stopStepperT();
+	steppers.stopNowStepperH();
+	steppers.stopNowStepperT();
 	// set the positioning mode to homing
 	programmingMode.store(ProgrammingMode::HOMING);
 

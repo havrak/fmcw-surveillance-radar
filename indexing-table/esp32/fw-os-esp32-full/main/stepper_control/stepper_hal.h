@@ -52,12 +52,9 @@ typedef struct {
 	bool complete;			// true upon completion of the command, used in correlation with event group
 	bool synchronized;	// true if the command is synchronized, if command is stored in prev pointer than used to indicate whether command has been proccessed by the application layer
 	uint64_t timestamp; // time of start of the execution
-} stepper_command_t;
+} stepper_hal_command_t;
 
 // these declaration unfortunately have to be here as esp compiler has problems with them being in a class
-
-// MCPWM variables
-
 
 
 /**
@@ -73,16 +70,16 @@ class StepperHal{
 		static void stepperTaskH(void *arg);
 		static void stepperTaskT(void *arg);
 
-		inline static stepper_command_t* stepperCommandH;
-		inline static stepper_command_t* stepperCommandT;
+		inline static stepper_hal_command_t* stepperCommandH;
+		inline static stepper_hal_command_t* stepperCommandT;
 
 		/**
 		 * previous command issued, used by the application layer to determine
 		 * what number of steps last command had so we can calculate the current angle
 		 * timestmap will be time of their finish
 		 */
-		inline static stepper_command_t* stepperCommandPrevH;
-		inline static stepper_command_t* stepperCommandPGrevT;
+		inline static stepper_hal_command_t* stepperCommandPrevH;
+		inline static stepper_hal_command_t* stepperCommandPrevT;
 		inline static QueueHandle_t commandQueueH = NULL;
 		inline static QueueHandle_t commandQueueT = NULL;
 		inline static EventGroupHandle_t stepperEventGroup = NULL;
@@ -137,18 +134,18 @@ class StepperHal{
 		/**
 		 * @brief peek at next command in queue for stepper H
 		 *
-		 * @param pointer - stepper_command_t* to which next command will be stored
+		 * @param pointer - stepper_hal_command_t* to which next command will be stored
 		 */
-		bool peekQueueH(stepper_command_t* pointer){
+		bool peekQueueH(stepper_hal_command_t* pointer){
 			return xQueuePeek(commandQueueH, pointer, portMAX_DELAY) == pdTRUE;
 		}
 
 		/**
 		 * @brief peek at next command in queue for stepper T
 		 *
-		 * @param pointer - stepper_command_t* to which next command will be stored
+		 * @param pointer - stepper_hal_command_t* to which next command will be stored
 		 */
-		bool peekQueueT(stepper_command_t* pointer){
+		bool peekQueueT(stepper_hal_command_t* pointer){
 			return xQueuePeek(commandQueueT, pointer, portMAX_DELAY) == pdTRUE;
 		}
 
@@ -218,28 +215,24 @@ class StepperHal{
 		 *
 		 * @return true if command was added successfully
 		 */
-		bool stopStepperH();
+		bool stopStepperH(bool synchronized = false);
 
 		/**
 		 * @brief stops the stepper T
 		 *
 		 * @return true if command was added successfully
 		 */
-		bool stopStepperT();
+		bool stopStepperT(bool synchronized = false);
 
 		/**
-		 * @brief immediately stops the stepper H
-		 *
-		 * @return true
+		 * @brief immediately stops the stepper H, clears the queue
 		 */
-		bool stopNowStepperH();
+		void stopNowStepperH();
 
 		/**
-		 * @brief immediately stops the stepper T
-		 *
-		 * @return
+		 * @brief immediately stops the stepper T, clears the queue
 		 */
-		bool stopNowStepperT();
+		void stopNowStepperT();
 
 		/**
 		 * @brief clears command queue for stepper H
