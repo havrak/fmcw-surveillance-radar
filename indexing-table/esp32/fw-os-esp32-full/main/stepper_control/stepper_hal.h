@@ -56,6 +56,26 @@ typedef struct {
 
 // these declaration unfortunately have to be here as esp compiler has problems with them being in a class
 
+typedef struct {
+		stepper_hal_command_t* stepperCommand;
+		stepper_hal_command_t* stepperCommandPrev;
+		QueueHandle_t commandQueue = NULL;
+
+		mcpwm_timer_handle_t timer = NULL;
+
+		mcpwm_oper_handle_t oper = NULL;
+		mcpwm_cmpr_handle_t comparator = NULL;
+		mcpwm_gen_handle_t generator = NULL;
+
+		// PCNT variables
+		pcnt_unit_handle_t pcntUnit = NULL;
+		pcnt_channel_handle_t pcntChan = NULL;
+		QueueHandle_t pcntQueue;
+		uint8_t stepperCompleteBit = 0;
+
+
+} stepper_hal_variables_t;
+
 
 /**
  * @brief class that handles the stepper control
@@ -67,41 +87,42 @@ class StepperHal{
 		static bool pcntOnReach(pcnt_unit_handle_t unit, const pcnt_watch_event_data_t *edata, void *user_ctx);
 
 
-		static void stepperTaskH(void *arg);
-		static void stepperTaskT(void *arg);
+		static void stepperTask(void *arg);
 
-		inline static stepper_hal_command_t* stepperCommandH;
-		inline static stepper_hal_command_t* stepperCommandT;
+		static stepper_hal_variables_t varsHalH;
+		static stepper_hal_variables_t varsHalT;
 
 		/**
 		 * previous command issued, used by the application layer to determine
 		 * what number of steps last command had so we can calculate the current angle
 		 * timestmap will be time of their finish
 		 */
-		inline static stepper_hal_command_t* stepperCommandPrevH;
-		inline static stepper_hal_command_t* stepperCommandPrevT;
-		inline static QueueHandle_t commandQueueH = NULL;
-		inline static QueueHandle_t commandQueueT = NULL;
+		// inline static stepper_hal_command_t* varsHalH.stepperCommand;
+		// inline static stepper_hal_command_t* varsHalT.stepperCommand;
+		// inline static stepper_hal_command_t* stepperCommandPrevH;
+		// inline static stepper_hal_command_t* stepperCommandPrevT;
+		// inline static QueueHandle_t varsHalH.commandQueue = NULL;
+		// inline static QueueHandle_t varsHalT.commandQueue = NULL;
 		inline static EventGroupHandle_t stepperEventGroup = NULL;
-
-		inline static mcpwm_timer_handle_t timerH = NULL;
-		inline static mcpwm_timer_handle_t timerT = NULL;
-
-		inline static mcpwm_oper_handle_t operatorH = NULL;
-		inline static mcpwm_oper_handle_t operatorT = NULL;
-		inline static mcpwm_cmpr_handle_t comparatorH = NULL;
-		inline static mcpwm_cmpr_handle_t comparatorT = NULL;
-		inline static mcpwm_gen_handle_t generatorH = NULL;
-		inline static mcpwm_gen_handle_t generatorT = NULL;
-
-		// PCNT variables
-		inline static pcnt_unit_handle_t pcntUnitH = NULL;
-		inline static pcnt_unit_handle_t pcntUnitT = NULL;
-		inline static pcnt_channel_handle_t pcntChanH = NULL;
-		inline static pcnt_channel_handle_t pcntChanT = NULL;
-		inline static QueueHandle_t pcntQueueH;
-		inline static QueueHandle_t pcntQueueT;
-
+		//
+		// inline static mcpwm_timer_handle_t timerH = NULL;
+		// inline static mcpwm_timer_handle_t timerT = NULL;
+		//
+		// inline static mcpwm_oper_handle_t operatorH = NULL;
+		// inline static mcpwm_oper_handle_t operatorT = NULL;
+		// inline static mcpwm_cmpr_handle_t comparatorH = NULL;
+		// inline static mcpwm_cmpr_handle_t comparatorT = NULL;
+		// inline static mcpwm_gen_handle_t generatorH = NULL;
+		// inline static mcpwm_gen_handle_t generatorT = NULL;
+		//
+		// // PCNT variables
+		// inline static pcnt_unit_handle_t varsHalH.pcntUnit = NULL;
+		// inline static pcnt_unit_handle_t varsHalT.pcntUnit = NULL;
+		// inline static pcnt_channel_handle_t pcntChanH = NULL;
+		// inline static pcnt_channel_handle_t pcntChanT = NULL;
+		// inline static QueueHandle_t pcntQueueH;
+		// inline static QueueHandle_t pcntQueueT;
+		//
 
 		/**
 		 * @brief initializes the PWM generator
@@ -113,13 +134,19 @@ class StepperHal{
 		 */
 		void initPCNT();
 
+
+		/**
+		 * @brief initializes the tasks that will handle the steppers
+		 */
+		void initStepperTasks();
+
 		/**
 		 * @brief get number of commands queued for stepper H
 		 *
 		 * @param uint8_t - number of commands in queue
 		 */
 		uint8_t getQueueLengthH(){
-			return uxQueueMessagesWaiting(commandQueueH);
+			return uxQueueMessagesWaiting(varsHalH.commandQueue);
 		}
 
 		/**
@@ -128,7 +155,7 @@ class StepperHal{
 		 * @param uint8_t - number of commands in queue
 		 */
 		uint8_t getQueueLengthT(){
-			return uxQueueMessagesWaiting(commandQueueT);
+			return uxQueueMessagesWaiting(varsHalT.commandQueue);
 		}
 
 		/**
@@ -137,7 +164,7 @@ class StepperHal{
 		 * @param pointer - stepper_hal_command_t* to which next command will be stored
 		 */
 		bool peekQueueH(stepper_hal_command_t* pointer){
-			return xQueuePeek(commandQueueH, pointer, portMAX_DELAY) == pdTRUE;
+			return xQueuePeek(varsHalH.commandQueue, pointer, portMAX_DELAY) == pdTRUE;
 		}
 
 		/**
@@ -146,7 +173,7 @@ class StepperHal{
 		 * @param pointer - stepper_hal_command_t* to which next command will be stored
 		 */
 		bool peekQueueT(stepper_hal_command_t* pointer){
-			return xQueuePeek(commandQueueT, pointer, portMAX_DELAY) == pdTRUE;
+			return xQueuePeek(varsHalT.commandQueue, pointer, portMAX_DELAY) == pdTRUE;
 		}
 
 
@@ -240,10 +267,10 @@ class StepperHal{
 		 * @return true if queue was cleared successfully
 		 */
 		bool clearQueueH(){
-			if(stepperCommandH->type == CommandType::STEPPER){
-				pcnt_unit_remove_watch_point(pcntUnitH, stepperCommandH->val.steps);
+			if(varsHalH.stepperCommand->type == CommandType::STEPPER){
+				pcnt_unit_remove_watch_point(varsHalH.pcntUnit, varsHalH.stepperCommand->val.steps);
 			}
-			return xQueueReset(commandQueueH) == pdTRUE;
+			return xQueueReset(varsHalH.commandQueue) == pdTRUE;
 		}
 
 		/**
@@ -252,10 +279,10 @@ class StepperHal{
 		 * @return true if queue was cleared successfully
 		 */
 		bool clearQueueT(){
-			if(stepperCommandT->type == CommandType::STEPPER){
-				pcnt_unit_remove_watch_point(pcntUnitT, stepperCommandT->val.steps);
+			if(varsHalT.stepperCommand->type == CommandType::STEPPER){
+				pcnt_unit_remove_watch_point(varsHalT.pcntUnit, varsHalT.stepperCommand->val.steps);
 			}
-			return xQueueReset(commandQueueT) == pdTRUE;
+			return xQueueReset(varsHalT.commandQueue) == pdTRUE;
 		}
 
 		/**

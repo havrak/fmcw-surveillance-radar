@@ -19,6 +19,7 @@ void StepperControl::init()
 
 	steppers.initMCPWN();
 	steppers.initPCNT();
+	steppers.initStepperTasks();
 	StepperControl::homingEventGroup = xEventGroupCreate();
 
 	if (CONFIG_STEPPER_H_PIN_ENDSTOP >= 0) {
