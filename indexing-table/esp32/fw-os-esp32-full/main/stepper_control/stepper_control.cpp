@@ -11,6 +11,10 @@ StepperControl stepperControl = StepperControl();
 
 StepperControl::StepperControl() { }
 
+std::queue<gcode_command_t*> StepperControl::noProgrammQueue = std::queue<gcode_command_t*>();
+SemaphoreHandle_t StepperControl::noProgrammQueueLock =  xSemaphoreCreateBinary();
+
+
 void StepperControl::init()
 {
 
@@ -42,22 +46,142 @@ void StepperControl::stepperMoveTask(void* arg)
 { // TODO pin to core 0
 	uint64_t time = 0;
 	time = esp_timer_get_time();
-	while(true){
-		if(programmingMode == ProgrammingMode::NO_PROGRAMM){
-			if(xSemaphoreTake(noProgrammQueueLock, (TickType_t)1000) == pdTRUE){
-				if(noProgrammQueue.size() > 0){
-					gcode_command_t command = noProgrammQueue.front();
-					noProgrammQueue.pop();
-					xSemaphoreGive(noProgrammQueueLock);
-				}else{
-					xSemaphoreGive(noProgrammQueueLock);
-				}
-			}
+	int32_t positionOfLastScheduledCommandH = 0; // commands are prescheduled in queue, we need to know where we will be when tha last currently scheduled command will end
+	int32_t positionOfLastScheduledCommandT = 0;
+	int32_t postitionH = 0; // current position of the Stepper
+	int32_t postitionT = 0;
 
-			// non steppers commands are executed immediately
-			// stepper commands are added to the queue, if queue is full we sleep the whole task
+	stepper_variables_t varsH; // NOTE: will be written to only from motorTask
+	stepper_variables_t varsT; // NOTE: will be written to only from motorTask
+
+	Unit unit = Unit::DEGREES; // only used in motorTask
+
+	while (true) {
+		// TODO: gather information about current postion ->
+		// 		stored values is incremented by previous command steps
+		// 		than the value is incremented by the steps of the current command
+
+		gcode_command_t* command = (gcode_command_t*) 0x1; // NOTE: this is just hack so I don't have tu turn off -Werror=maybe-uninitialized
+		if (programmingMode == ProgrammingMode::NO_PROGRAMM) {
+			if (xSemaphoreTake(noProgrammQueueLock, (TickType_t)1000) == pdTRUE) {
+				if (noProgrammQueue.size() > 0) {
+					command = noProgrammQueue.front();
+					noProgrammQueue.pop();
+				}
+				xSemaphoreGive(noProgrammQueueLock);
+			}
+		} else if (programmingMode == ProgrammingMode::RUN_PROGRAM) {
+			if (activeProgram->indexHeader != activeProgram->header->size()) {
+				command = activeProgram->header->at(activeProgram->indexHeader);
+				activeProgram->indexHeader++;
+			} else if (activeProgram->indexMain == activeProgram->main->size()) {
+				command = activeProgram->main->at(activeProgram->indexMain);
+				activeProgram->indexMain++;
+			} else if (activeProgram->repeatIndefinitely) {
+				activeProgram->indexMain = 0;
+			} else {
+				programmingMode.store(ProgrammingMode::NO_PROGRAMM);
+				continue;
+			}
+		} else {
+			vTaskDelay(20 / portTICK_PERIOD_MS); // there are no commands to process, we can wait and will only refresh the position
+			continue;
+		}
+
+		// reporting will be always is always in absolute position
+		switch (command->type) {
+		case GCodeCommand::G20:
+			unit = Unit::DEGREES;
+			break;
+		case GCodeCommand::G21:
+			unit = Unit::STEPS;
+			break;
+		case GCodeCommand::G90:
+			if (command->movementH != nullptr)
+				varsH.positioningMode = PositioningMode::ABSOLUTE;
+			if (command->movementT != nullptr)
+				varsT.positioningMode = PositioningMode::ABSOLUTE;
+			break;
+		case GCodeCommand::G91:
+			if (command->movementH != nullptr)
+				varsH.positioningMode = PositioningMode::RELATIVE;
+			if (command->movementT != nullptr)
+				varsT.positioningMode = PositioningMode::RELATIVE;
+			break;
+		case GCodeCommand::G92:
+			if (steppers.getQueueLengthH() == 0 && steppers.getQueueLengthT() == 0) {
+				steppers.getStepsTraveledOfPrevCommandH(); // clear previous command steps
+				steppers.getStepsTraveledOfPrevCommandT();
+
+				postitionH = 0;
+				postitionT = 0;
+				positionOfLastScheduledCommandH = 0;
+				positionOfLastScheduledCommandT = 0;
+			}
+			break;
+		case GCodeCommand::G28:
+			stepperControl.home();
+			break;
+		case GCodeCommand::G0:
+			// TODO;
+			break;
+		case GCodeCommand::M03:
+			if (command->movementH != nullptr) {
+				if (varsH.positioningMode != PositioningMode::RELATIVE) {
+					ESP_LOGE(TAG, "ERR: command with absolute positioning is not supported, will switch to relative");
+					varsH.positioningMode = PositioningMode::RELATIVE;
+				}
+				steppers.spindleStepperH(command->movementH->rpm, command->movementH->val.direction);
+			}
+			if (command->movementT != nullptr) {
+				if (varsT.positioningMode != PositioningMode::RELATIVE) {
+					ESP_LOGE(TAG, "ERR: command with absolute positioning is not supported, will switch to relative");
+					varsT.positioningMode = PositioningMode::RELATIVE;
+				}
+				steppers.spindleStepperT(command->movementT->rpm, command->movementT->val.direction);
+			}
+			break;
+		case GCodeCommand::M05:
+			if (command->movementH != nullptr)
+				steppers.stopStepperH();
+			if (command->movementT != nullptr)
+				steppers.stopStepperT();
+			break;
+		case GCodeCommand::M201:
+			if (command->movementH != nullptr) {
+				varsH.stepsMin = command->movementH->val.limits.min;
+				varsH.stepsMax = command->movementH->val.limits.max;
+			}
+			if (command->movementT != nullptr) {
+				varsT.stepsMin = command->movementT->val.limits.min;
+				varsT.stepsMax = command->movementT->val.limits.max;
+			}
+			break;
+		case GCodeCommand::P21:
+			activeProgram->forLoopCounter = command->movementH->val.iterations;
+			if (activeProgram->indexHeader != activeProgram->header->size())
+				activeProgram->indexForLoop = activeProgram->indexHeader + 1;
+			else
+				activeProgram->indexForLoop = activeProgram->indexMain + 1;
+
+			break;
+		case GCodeCommand::P22:
+			if (activeProgram->forLoopCounter > 0) {
+				activeProgram->forLoopCounter--;
+				if (activeProgram->indexHeader != activeProgram->header->size())
+					activeProgram->indexHeader = activeProgram->indexForLoop;
+				else
+					activeProgram->indexMain = activeProgram->indexForLoop;
+			}
+			break;
+		case GCodeCommand::W1: // TODO
+			break;
+		default:
+			break;
+		}
+		if (programmingMode == ProgrammingMode::NO_PROGRAMM) // WARN: if we ever device that it is possible to switch programm mode in motorTask this check will be invalid
+			delete command;
 	}
-	vTaskDelay(100000);
 	vTaskDelete(NULL);
 }
 
@@ -96,9 +220,9 @@ ParsingGCodeResult StepperControl::parseGCode(const char* gcode, uint16_t length
 						return GCODE_ELEMENT_INVALID_FLOAT;
 					}
 					toReturn /= pow(10, decimal - 1);
-#ifdef CONFIG_STEPPER_DEBUG
-					ESP_LOGI(TAG, "getElement | Found element %s: %f", matchString, negative ? -toReturn : toReturn);
-#endif
+					// #ifdef CONFIG_STEPPER_DEBUG
+					// 					ESP_LOGI(TAG, "getElement | Found element %s: %f", matchString, negative ? -toReturn : toReturn);
+					// #endif
 					return negative ? -toReturn : toReturn;
 				}
 			}
@@ -143,13 +267,13 @@ ParsingGCodeResult StepperControl::parseGCode(const char* gcode, uint16_t length
 		return false;
 	};
 
-	auto getString = [gcode, length](uint16_t index, char* str, int16_t* stringLength) -> bool {
+	auto getString = [gcode, length](uint16_t index, char* str, uint16_t* stringLength) -> bool {
 		for (uint16_t i = index; i < length; i++) {
-			if (gcode[i] == ' ' || i == length-1)
+			if (gcode[i] == ' ' || i == length - 1)
 				return true;
 
 			str[*stringLength] = gcode[i];
-			*stringLength++;
+			(*stringLength)++;
 		}
 		return false;
 	};
@@ -159,6 +283,17 @@ ParsingGCodeResult StepperControl::parseGCode(const char* gcode, uint16_t length
 
 	if (strncmp(gcode, "M80", 3) == 0) { // power down high voltage supply
 																			 // XXX this command will be executed immediately
+
+		activeProgram = nullptr;
+		programmingMode.store(ProgrammingMode::NO_PROGRAMM);
+		xSemaphoreTake(noProgrammQueueLock, (TickType_t)1000);
+		noProgrammQueue = {};
+		xSemaphoreGive(noProgrammQueueLock);
+		steppers.clearQueueH();
+		steppers.clearQueueT();
+		steppers.stopStepperH();
+		steppers.stopStepperT();
+
 		return ParsingGCodeResult::NO_SUPPORT;
 	} else if (strncmp(gcode, "M81", 3) == 0) { // power up high voltage supply
 																							// XXX this command will be executed immediately
@@ -172,15 +307,24 @@ ParsingGCodeResult StepperControl::parseGCode(const char* gcode, uint16_t length
 			activeProgram->reset();
 			activeProgram = nullptr;
 		}
-		programmingMode = ProgrammingMode::NO_PROGRAMM;
+		programmingMode.store(ProgrammingMode::NO_PROGRAMM);
 	}
+
 	if (programmingMode == ProgrammingMode::RUN_PROGRAM) // all following commands don't make any sense to process if we are already running a program
 		return ParsingGCodeResult::NOT_PROCESSING_COMMANDS;
 
 	int64_t elementInt = 0;
 	float elementFloat = 0;
 
-	gcode_command_t command;
+	gcode_command_t* command = new gcode_command_t();
+	auto deleteCommand = [command]() {
+		if (command->movementH != nullptr)
+			delete command->movementH;
+		if (command->movementT != nullptr)
+			delete command->movementT;
+		if (command != nullptr)
+			delete command;
+	};
 
 	switch (gcode[0]) {
 	case 'G':
@@ -195,23 +339,31 @@ ParsingGCodeResult StepperControl::parseGCode(const char* gcode, uint16_t length
 
 parsingGCodeCommandsG:
 	if (strncmp(gcode, "G20", 3) == 0) { // set unit to degrees
-		command.type = GCodeCommand::G20;
+		command->type = GCodeCommand::G20;
 	} else if (strncmp(gcode, "G21", 3) == 0) { // set unit to steps
-		command.type = GCodeCommand::G21;
+		command->type = GCodeCommand::G21;
 	} else if (strncmp(gcode, "G90", 3) == 0) { // set the absolute positioning
-		command.type = GCodeCommand::G90;
+		command->type = GCodeCommand::G90;
+		if (getElementString(3, "H", 1))
+			command->movementH = new gcode_command_movement_t();
+		if (getElementString(3, "T", 1))
+			command->movementT = new gcode_command_movement_t();
 	} else if (strncmp(gcode, "G91", 3) == 0) { // set the relative positioning
-		command.type = GCodeCommand::G91;
+		command->type = GCodeCommand::G91;
+		if (getElementString(3, "H", 1))
+			command->movementH = new gcode_command_movement_t();
+		if (getElementString(3, "T", 1))
+			command->movementT = new gcode_command_movement_t();
 	} else if (strncmp(gcode, "G92", 3) == 0) { // set current position as home
-		command.type = GCodeCommand::G92;
+		command->type = GCodeCommand::G92;
 	} else if (strncmp(gcode, "G28", 3) == 0) { // home both drivers
-		command.type = GCodeCommand::G28;
+		command->type = GCodeCommand::G28;
 	} else if (strncmp(gcode, "G0", 2) == 0) { // home to given position, not the most efficient parsing but we don't excpet to have that many commands to process
-		command.type = GCodeCommand::G0;
+		command->type = GCodeCommand::G0;
 		elementInt = getElementInt(3, "H", 1);
 		if (elementInt != GCODE_ELEMENT_INVALID_INT) {
-			command.movementH = new gcode_command_movement_t();
-			command.movementH->val.steps = elementInt;
+			command->movementH = new gcode_command_movement_t();
+			command->movementH->val.steps = elementInt;
 		} else {
 			goto endInvalidArgument;
 			// return ParsingGCodeResult::INVALID_ARGUMENT; // TODO: check if manual cleanup of pointer isn't needed
@@ -219,78 +371,71 @@ parsingGCodeCommandsG:
 
 		elementInt = getElementInt(3, "T", 1);
 		if (elementInt != GCODE_ELEMENT_INVALID_INT) {
-			command.movementT = new gcode_command_movement_t();
-			command.movementT->val.steps = elementInt;
+			command->movementT = new gcode_command_movement_t();
+			command->movementT->val.steps = elementInt;
 		} else {
 			goto endInvalidArgument;
 		}
 
 		elementFloat = getElementFloat(3, "S", 1);
 		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT) {
-			if (command.movementH != nullptr)
-				command.movementH->rpm = elementFloat;
-			if (command.movementT != nullptr)
-				command.movementT->rpm = elementFloat;
+			if (command->movementH != nullptr)
+				command->movementH->rpm = elementFloat;
+			if (command->movementT != nullptr)
+				command->movementT->rpm = elementFloat;
 		} else {
 			goto endInvalidArgument;
 		}
 
 		elementFloat = getElementFloat(3, "SH", 2);
-		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT) {
-			if (command.movementH != nullptr)
-				command.movementH->rpm = elementFloat;
-			else
-				goto endInvalidArgument;
-		} else {
+		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT && command->movementH != nullptr)
+			command->movementH->rpm = elementFloat;
+		else
 			goto endInvalidArgument;
-		}
 
 		elementFloat = getElementFloat(3, "ST", 2);
-		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT) {
-			if (command.movementT != nullptr)
-				command.movementT->rpm = elementFloat;
-			else
-				return ParsingGCodeResult::INVALID_COMMAND;
-		} else {
+		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT && command->movementT != nullptr)
+			command->movementT->rpm = elementFloat;
+		else
 			goto endInvalidArgument;
-		}
+
 	} else
-		return ParsingGCodeResult::INVALID_COMMAND;
+		goto endInvalidCommand;
 
 	goto endSuccess;
 
 parsingGCodeCommandsM:
 	if (strncmp(gcode, "M03", 3) == 0) { // start spinning horzMot axis clockwise
 		if (getElementString(3, "H+", 1)) {
-			command.movementH = new gcode_command_movement_t();
-			command.movementH->val.direction = Direction::FORWARD;
+			command->movementH = new gcode_command_movement_t();
+			command->movementH->val.direction = Direction::FORWARD;
 		} else if (getElementString(3, "H-", 1)) {
-			command.movementH = new gcode_command_movement_t();
-			command.movementH->val.direction = Direction::BACKWARD;
+			command->movementH = new gcode_command_movement_t();
+			command->movementH->val.direction = Direction::BACKWARD;
 		}
 
 		if (getElementString(3, "T+", 1)) {
-			command.movementH = new gcode_command_movement_t();
-			command.movementH->val.direction = Direction::FORWARD;
+			command->movementH = new gcode_command_movement_t();
+			command->movementH->val.direction = Direction::FORWARD;
 		} else if (getElementString(3, "T-", 1)) {
-			command.movementH = new gcode_command_movement_t();
-			command.movementH->val.direction = Direction::BACKWARD;
+			command->movementH = new gcode_command_movement_t();
+			command->movementH->val.direction = Direction::BACKWARD;
 		}
 
 		elementFloat = getElementFloat(3, "S", 1);
 		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT) {
-			if (command.movementH != nullptr)
-				command.movementH->rpm = elementFloat;
-			if (command.movementT != nullptr)
-				command.movementT->rpm = elementFloat;
+			if (command->movementH != nullptr)
+				command->movementH->rpm = elementFloat;
+			if (command->movementT != nullptr)
+				command->movementT->rpm = elementFloat;
 		} else {
 			goto endInvalidArgument;
 		}
 
 		elementFloat = getElementFloat(3, "SH", 2);
 		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT) {
-			if (command.movementH != nullptr)
-				command.movementH->rpm = elementFloat;
+			if (command->movementH != nullptr)
+				command->movementH->rpm = elementFloat;
 			else
 				goto endInvalidArgument;
 
@@ -300,104 +445,169 @@ parsingGCodeCommandsM:
 
 		elementFloat = getElementFloat(3, "ST", 2);
 		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT) {
-			if (command.movementT != nullptr)
-				command.movementT->rpm = elementFloat;
+			if (command->movementT != nullptr)
+				command->movementT->rpm = elementFloat;
 			else
 				goto endInvalidArgument;
 		} else {
 			goto endInvalidArgument;
 		}
 	} else if (strncmp(gcode, "M05", 3) == 0) {
-		command.type = GCodeCommand::M05;
+		command->type = GCodeCommand::M05;
 		if (getElementString(3, "H", 1)) {
-			command.movementH = new gcode_command_movement_t(); // stepper will stop in command.movementT is not nullptr
+			command->movementH = new gcode_command_movement_t(); // stepper will stop in command->movementT is not nullptr
 		} else
 			goto endInvalidArgument;
 
 		if (getElementString(3, "T", 1)) {
-			command.movementT = new gcode_command_movement_t(); // stepper will stop in command.movementT is not nullptr
+			command->movementT = new gcode_command_movement_t(); // stepper will stop in command->movementT is not nullptr
+		} else
+			goto endInvalidArgument;
+	} else if (strncmp(gcode, "M201", 4) == 0) {
+		elementFloat = getElementFloat(4, "LH", 2);
+		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT || elementFloat < 0) {
+			command->movementH = new gcode_command_movement_t(); // stepper will stop in command->movementT is not nullptr
+			command->movementH->val.limits.min = (int32_t)ANGLE_TO_STEPS(elementFloat, CONFIG_STEPPER_H_STEP_COUNT);
 		} else
 			goto endInvalidArgument;
 
+		elementFloat = getElementFloat(4, "HH", 2);
+		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT || elementFloat < 0) {
+			if (command->movementH == nullptr)
+				command->movementH = new gcode_command_movement_t();
+			command->movementH->val.limits.max = (int32_t)ANGLE_TO_STEPS(elementFloat, CONFIG_STEPPER_H_STEP_COUNT);
+		} else
+			goto endInvalidArgument;
+
+		elementFloat = getElementFloat(4, "LT", 2);
+		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT || elementFloat < 0) {
+			command->movementT = new gcode_command_movement_t(); // stepper will stop in command->movementT is not nullptr
+			command->movementT->val.limits.min = (int32_t)ANGLE_TO_STEPS(elementFloat, CONFIG_STEPPER_T_STEP_COUNT);
+		} else
+			goto endInvalidArgument;
+
+		elementFloat = getElementFloat(4, "HT", 2);
+		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT || elementFloat < 0) {
+			if (command->movementT == nullptr)
+				command->movementT = new gcode_command_movement_t();
+			command->movementT->val.limits.max = (int32_t)ANGLE_TO_STEPS(elementFloat, CONFIG_STEPPER_T_STEP_COUNT);
+		} else
+			goto endInvalidArgument;
 	} else
-		return ParsingGCodeResult::INVALID_COMMAND;
+		goto endInvalidCommand;
 
 	goto endSuccess;
 
 parsingGCodeCommandsW:
 	if (strncmp(gcode, "W0", 2) == 0) {
-		command.type = GCodeCommand::W1; // all W0 command futhers on will be handled as W1
+		command->type = GCodeCommand::W1; // all W0 command futhers on will be handled as W1
 		elementInt = getElementInt(2, "H", 1);
 
 		if (elementInt != GCODE_ELEMENT_INVALID_INT || elementInt < 0) {
-			command.movementH = new gcode_command_movement_t();
-			command.movementH->val.time = elementInt * 1000;
+			command->movementH = new gcode_command_movement_t();
+			command->movementH->val.time = elementInt * 1000;
 		} else
 			goto endInvalidArgument;
 
 		elementInt = getElementInt(2, "T", 1);
 
 		if (elementInt != GCODE_ELEMENT_INVALID_INT || elementInt < 0) {
-			command.movementT = new gcode_command_movement_t();
-			command.movementT->val.time = elementInt * 1000;
+			command->movementT = new gcode_command_movement_t();
+			command->movementT->val.time = elementInt * 1000;
 		} else
 			goto endInvalidArgument;
-
 	} else if (strncmp(gcode, "W1", 2) == 0) {
-		command.type = GCodeCommand::W1;
+		command->type = GCodeCommand::W1;
 		elementInt = getElementInt(2, "H", 1);
 
 		if (elementInt != GCODE_ELEMENT_INVALID_INT || elementInt < 0) {
-			command.movementH = new gcode_command_movement_t();
-			command.movementH->val.time = elementInt;
+			command->movementH = new gcode_command_movement_t();
+			command->movementH->val.time = elementInt;
 		} else
 			goto endInvalidArgument;
 
 		elementInt = getElementInt(2, "T", 1);
 
 		if (elementInt != GCODE_ELEMENT_INVALID_INT || elementInt < 0) {
-			command.movementT = new gcode_command_movement_t();
-			command.movementT->val.time = elementInt;
+			command->movementT = new gcode_command_movement_t();
+			command->movementT->val.time = elementInt;
 		} else
 			goto endInvalidArgument;
-
 	} else
-		return ParsingGCodeResult::INVALID_COMMAND;
+		goto endInvalidCommand;
 
 	goto endSuccess;
 parsingGCodeCommandsP:
-	if(strncmp(gcode, "P1", 2)){
+	if (strncmp(gcode, "P21", 3)) {
+		if (programmingMode != ProgrammingMode::PROGRAMMING)
+			goto endBadContext;
+		command->type = GCodeCommand::P21;
+		if (activeProgram->forLoopCounter != 0) {
+			deleteCommand();
+			return ParsingGCodeResult::NON_CLOSED_LOOP;
+		}
+		activeProgram->forLoopCounter++;
+
+		elementInt = getElementInt(3, "I", 1);
+		if (elementInt != GCODE_ELEMENT_INVALID_INT || elementInt < 0) {
+			command->movementH = new gcode_command_movement_t();
+			command->movementH->val.iterations = elementInt;
+		} else
+			goto endInvalidArgument;
+		goto endSuccess;
+	} else if (strncmp(gcode, "P22", 3)) {
+		if (programmingMode != ProgrammingMode::PROGRAMMING)
+			goto endBadContext;
+		command->type = GCodeCommand::P22;
+		activeProgram->forLoopCounter--;
+		goto endSuccess;
+	}
+
+	delete command; // all commands futher on are processed here and we don't need to store them
+
+	if (strncmp(gcode, "P1", 2)) {
 		if (programmingMode != ProgrammingMode::NO_PROGRAMM || activeProgram != nullptr)
 			return ParsingGCodeResult::NOT_PROCESSING_COMMANDS; // TODO: make sure this never arises
 
 		char name[20];
 		uint16_t nameLength = 0;
 		bool out = getString(3, name, &nameLength);
-		if(!out) return ParsingGCodeResult::INVALID_ARGUMENT;
+		if (!out)
+			return ParsingGCodeResult::INVALID_ARGUMENT;
 
-		//switch programmingMode, switch activeProgram
-		for (auto it = programms.begin(); it != programms.end(); it++)
+		// switch programmingMode, switch activeProgram
+		auto it = programms.begin();
+		for (; it != programms.end(); it++)
 			if (strncmp(it->name, name, 20) == 0)
 				break;
 
-		if (it != programms.end()){
+		if (it != programms.end()) {
 			activeProgram = &(*it);
 			activeProgram->reset(); // we never do cleanup on program end
-			programmingMode = ProgrammingMode::RUN_PROGRAM;
-			return ParsingGCodeResult::SUCCESS;
-		}else
-			return ParsingGCodeResult::INVALID_ARGUMENT;
+			programmingMode.store(ProgrammingMode::RUN_PROGRAM);
+			xSemaphoreTake(noProgrammQueueLock, (TickType_t)1000);
+			noProgrammQueue = {};
+			xSemaphoreGive(noProgrammQueueLock);
+			steppers.clearQueueH();
+			steppers.clearQueueT();
+			steppers.stopStepperH();
+			steppers.stopStepperT();
 
-	}else if(strncmp(gcode, "P2", 2)){
+			return ParsingGCodeResult::SUCCESS;
+		} else
+			return ParsingGCodeResult::INVALID_ARGUMENT;
+	} else if (strncmp(gcode, "P2", 2)) {
 		if (programmingMode != ProgrammingMode::NO_PROGRAMM || activeProgram != nullptr)
 			return ParsingGCodeResult::NOT_PROCESSING_COMMANDS; // TODO: make sure this never arises
 
 		char name[20];
 		uint16_t nameLength = 0;
 		bool out = getString(3, name, &nameLength);
-		if(!out) return ParsingGCodeResult::INVALID_ARGUMENT;
+		if (!out)
+			return ParsingGCodeResult::INVALID_ARGUMENT;
 
-		for (auto it = programms.begin(); it != programms.end(); it++)
+		auto it = programms.begin();
+		for (; it != programms.end(); it++)
 			if (strncmp(it->name, name, 20) == 0)
 				break;
 
@@ -405,18 +615,17 @@ parsingGCodeCommandsP:
 			programms.erase(it);
 
 		return ParsingGCodeResult::SUCCESS;
-
-
-	}else if (strncmp(gcode, "P90", 3)) {
+	} else if (strncmp(gcode, "P90", 3)) {
 		if (programmingMode != ProgrammingMode::NO_PROGRAMM || activeProgram != nullptr)
 			return ParsingGCodeResult::CODE_FAILURE; // TODO: make sure this never arises
 
 		char name[20];
 		uint16_t nameLength = 0;
 		bool out = getString(4, name, &nameLength);
-		if(!out) return ParsingGCodeResult::INVALID_ARGUMENT;
-
-		for (auto it = programms.begin(); it != programms.end(); it++)
+		if (!out)
+			return ParsingGCodeResult::INVALID_ARGUMENT;
+		auto it = programms.begin();
+		for (; it != programms.end(); it++)
 			if (strncmp(it->name, name, 20) == 0)
 				break;
 		if (it != programms.end()) { // programm with the same name exists so we will overwrite it
@@ -431,31 +640,24 @@ parsingGCodeCommandsP:
 			activeProgram = &(programms.back());
 			commandDestination = activeProgram->header;
 		}
-		programmingMode = ProgrammingMode::PROGRAMMING;
+		programmingMode.store(ProgrammingMode::PROGRAMMING);
 		return ParsingGCodeResult::SUCCESS;
-	}
-	if (programmingMode != ProgrammingMode::PROGRAMMING)
-		return ParsingGCodeResult::INVALID_COMMAND;
-
-	if (strncmp(gcode, "P91", 3)) {
-
-		if (commandDestination != activeProgram->header)
-			return ParsingGCodeResult::INVALID_COMMAND;
+	} else if (strncmp(gcode, "P91", 3)) {
+		if (commandDestination != activeProgram->header || programmingMode != ProgrammingMode::PROGRAMMING)
+			return ParsingGCodeResult::COMMAND_BAD_CONTEXT;
+		if (activeProgram->header->size() == 0)
+			return ParsingGCodeResult::NON_CLOSED_LOOP;
 
 		commandDestination = activeProgram->main;
 		return ParsingGCodeResult::SUCCESS;
-	} else if (strncmp(gcode, "P21", 3)) {
-		command.type = GCodeCommand::P21;
-		activeProgram->forLoopCounter++;
-	} else if (strncmp(gcode, "P22", 3)) {
-		command.type = GCodeCommand::P22;
-		activeProgram->forLoopCounter--;
 	} else if (strncmp(gcode, "P29", 3)) {
-		if (commandDestination != activeProgram->header) // we can only declare looped command in the header
-			return ParsingGCodeResult::INVALID_COMMAND;
+		if (commandDestination != activeProgram->header || programmingMode != ProgrammingMode::PROGRAMMING) // we can only declare looped command in the header
+			return ParsingGCodeResult::COMMAND_BAD_CONTEXT;
 		activeProgram->repeatIndefinitely = true;
 		return ParsingGCodeResult::SUCCESS;
 	} else if (strncmp(gcode, "P92", 3)) {
+		if (programmingMode != ProgrammingMode::PROGRAMMING)
+			return ParsingGCodeResult::COMMAND_BAD_CONTEXT;
 		if (activeProgram->forLoopCounter != 0) {
 			return ParsingGCodeResult::NON_CLOSED_LOOP;
 		} else {
@@ -463,7 +665,7 @@ parsingGCodeCommandsP:
 			activeProgram = nullptr;
 		}
 
-		programmingMode = ProgrammingMode::NO_PROGRAMM;
+		programmingMode.store(ProgrammingMode::NO_PROGRAMM);
 
 		return ParsingGCodeResult::SUCCESS;
 	} else
@@ -480,35 +682,25 @@ endSuccess:
 		} else
 			goto endFailedToLockQueue;
 	} else {
-		if(commandDestination == activeProgram->main && !(command.type & 0b1000'0000))
-			goto endCommandNotAllowed;
 		commandDestination->push_back(command);
 		return ParsingGCodeResult::SUCCESS;
 	}
 
-endFailedToLockQueue:
-	if (command.movementH != nullptr)
-		delete command.movementH;
-	if (command.movementT != nullptr)
-		delete command.movementT;
+endInvalidCommand:
+	deleteCommand();
+	return ParsingGCodeResult::INVALID_COMMAND;
 
+endFailedToLockQueue:
+	deleteCommand();
 	return ParsingGCodeResult::FAILED_TO_LOCK_QUEUE;
 
 endInvalidArgument:
-	if (command.movementH != nullptr) {
-		delete command.movementH;
-	}
-	if (command.movementT != nullptr)
-		delete command.movementT;
+	deleteCommand();
 	return ParsingGCodeResult::INVALID_ARGUMENT;
 
-endCommandNotAllowed:
-	if (command.movementH != nullptr) {
-		delete command.movementH;
-	}
-	if (command.movementT != nullptr)
-		delete command.movementT;
-	return ParsingGCodeResult::COMMAND_NOT_ALLOWED;
+endBadContext:
+	deleteCommand();
+	return ParsingGCodeResult::COMMAND_BAD_CONTEXT;
 }
 
 void StepperControl::tiltEndstopHandler(void* arg)
@@ -537,7 +729,7 @@ void StepperControl::home()
 	steppers.stopStepperH();
 	steppers.stopStepperT();
 	// set the positioning mode to homing
-	programmingMode = ProgrammingMode::HOMING;
+	programmingMode.store(ProgrammingMode::HOMING);
 
 	// attach interrupts
 	attachInterruptArg(CONFIG_STEPPER_H_PIN_ENDSTOP, StepperControl::horizontalEndstopHandler, NULL, CHANGE);
@@ -580,8 +772,8 @@ void StepperControl::home()
 		ESP_LOGI(TAG, "Home | Tilt stepper slow homed");
 	}
 
-	varsH.stepNumber.store(0);
-	varsT.stepNumber.store(0);
+	// varsH.stepNumber.store(0); TODO
+	// varsT.stepNumber.store(0);
 
 	// cleanup
 	xEventGroupClearBits(homingEventGroup, HOMING_DONE_BIT);

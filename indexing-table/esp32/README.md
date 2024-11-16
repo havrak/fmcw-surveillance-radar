@@ -34,9 +34,15 @@ Configuration of the device is done primarily with Kconfig under esp-idf. While 
 * M81: turn off high voltage power supply TODO
 * G20: set units to degrees
 * G21: set units to steps
-* G90: sets absolute positioning
+* G90: absolute positioning
+	* H - set absolute positioning on horizontal axis
+	* T - set absolute positioning on tilt axis
+	* NOTE: absolute positioning is not available in spindle mode, if you issue a M03 command to stepper in absolute positioning mode, it will be automatically switched to relative positioning and throw an error
 * G91: sets relative positioning
+	* H - set relative positioning on horizontal axis
+	* T - set relative positioning on tilt axis
 * G92: set current position as home
+	* NOTE: executes only when no other commands are queued in stepper queues
 * G28: move to home from current position
 * stepper mode
 	* only active if spindle mode is off
@@ -60,6 +66,12 @@ Configuration of the device is done primarily with Kconfig under esp-idf. While 
 		* T - stop spindle regime on tilt axis
 		* NOTE: spindle mode will also automatically end if stepper receives G0 command
 	* can be followed with S<rpm> to set speed
+* M201: set limits on steppers
+	* LH<ANGLE>: low limit on horizontal stepper
+	* HH<ANGLE>: high limit on horizontal Stepper
+	* LT<ANGLE>: low limit on tilt stepper
+	* HT<ANGLE>: high limit on tilt stepper
+	* NOTE: keep in mind that if limits are imposed and current postion is not within them, you will have to get the device within limits in one G0 command
 
 ### Programming movements (NOT FINAL)
 * device allows to preprogram sequence of movements that can be executed with one command, or looped continuously
@@ -74,10 +86,13 @@ Configuration of the device is done primarily with Kconfig under esp-idf. While 
 		* commands declared in header are executed before any other commands
 		* if programm is looped, header will be executed only once
 		* can be used to set initial position, units, positioning mode, or home the device
-		* P98: declares looped programm, these programs will loop indefinitely until stopped
-	* upon call of P91 command programming mode will advance to next step - declaring main loop
-	* programming is ended with P99 command
-* TODO: add for cycle to programming
+		* P29: declares looped programm, these programs will loop indefinitely until stopped
+* P91: called within programming context, advances programming from header declaration to main body
+* P92: ends programming of the main body - code is saved in the memory if all loops are closed
+* P21: for loop declaration
+	* I<ITERATIONS> - number of iterations for loop will take
+* P22 - end of loop
+	* if iterations are not exhausted, programm will jump back to P21
 * W0: wait command (seconds)
 	* H<TIME> - wait on horizontal stepper
 	* T<TIME> - wait on tilt stepper

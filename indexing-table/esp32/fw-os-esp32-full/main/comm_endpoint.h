@@ -30,19 +30,13 @@
 #include "driver/uart.h"
 
 
-enum CommDataFormat : uint8_t {
-	GCD = 0, // gcode
-	ATC = 1, // AT command
-};
-
 class CommRequest{
 	public:
-		CommDataFormat format;
 
-		char command[MAX_COMMAND_LENGTH]; // AT, gcode command
+		char command[MAX_COMMAND_LENGTH];
 		bool error;
 
-		CommRequest(CommDataFormat format, const char* command, uint32_t command_len): format(format)
+		CommRequest(const char* command, uint32_t command_len)
 	{
 		memset(this->command, 0, MAX_COMMAND_LENGTH);
 		strncpy(this->command, command, command_len);
@@ -77,7 +71,6 @@ inline static QueueHandle_t uart0_queue = NULL; // from recent FreeRTOS version 
 		static void uartEvent(void* pvParameters);
 
 		void processRequestGCD(const CommRequest* request);
-		void processRequestATC(const CommRequest* request);
 
 		void sendResponse(const CommRequest* request, const char* response, uint16_t responseLength);
 
@@ -117,15 +110,6 @@ inline static QueueHandle_t uart0_queue = NULL; // from recent FreeRTOS version 
 		 * @return bool - true if successful (Tasker was able to schedule task)
 		 */
 		bool logRequestGCD(const char* input, uint16_t inputLength);
-
-		/**
-		 * schedules processing of ATC request, data are copied
-		 *
-		 * @param input - input string
-		 * @param origin - origin of data
-		 * @return bool - true if successful (Tasker was able to schedule task)
-		 */
-		bool logRequestATC(const char* input, uint16_t inputLength);
 
 };
 

@@ -58,10 +58,7 @@ void CommEndpoint::uartEvent(void* commEndpointInstance) // TODO pin to core 0
 
 
 						pointer = buffer + startIndex(buffer);
-						if (strncmp(buffer, "#ATC", 4) == 0)
-							((CommEndpoint*) commEndpointInstance)->logRequestATC(pointer, strlen(pointer));
-						if (strncmp(buffer, "#GCD", 4) == 0)
-							((CommEndpoint*) commEndpointInstance)->logRequestGCD(pointer, strlen(pointer));
+						((CommEndpoint*) commEndpointInstance)->logRequestGCD(pointer, strlen(pointer));
 						i = 0;
 						j_prev = j + 1;
 					}
@@ -110,23 +107,6 @@ bool CommEndpoint::setupComm()
 	return true;
 }
 
-bool CommEndpoint::logRequestATC(const char* input, uint16_t inputLength)
-{
-#ifdef CONFIG_COMM_ENABLE_LOCKS
-	if (xSemaphoreTake(lock, (TickType_t)1000) != pdTRUE)
-		return false;
-#endif
-
-	requestsQueue.push(new CommRequest(CommDataFormat::ATC, input, inputLength));
-	if (requestsQueue.size() == 1)
-		return TaskerSingletonWrapper::getInstance()->addTask(new Task(this, TSID_PROCESS_COMM_REQUEST, (uint64_t)0, 0, TaskPriority::TSK_PRIORITY_HIGH));
-
-#ifdef CONFIG_COMM_ENABLE_LOCKS
-	xSemaphoreGive(lock);
-#endif
-	return true;
-}
-
 bool CommEndpoint::logRequestGCD(const char* input, uint16_t inputLength)
 {
 #ifdef CONFIG_COMM_ENABLE_LOCKS
@@ -135,7 +115,7 @@ bool CommEndpoint::logRequestGCD(const char* input, uint16_t inputLength)
 #endif
 
 	// NOTE: gcode command are processed immediately (usually means move commands are just scheduled and executed in rtos task)
-	CommRequest* request = new CommRequest(CommDataFormat::GCD, input, inputLength);
+	CommRequest* request = new CommRequest(input, inputLength);
 	request->error =  stepperControl.parseGCode(input, inputLength);
 	requestsQueue.push(request);
 
@@ -151,67 +131,8 @@ bool CommEndpoint::logRequestGCD(const char* input, uint16_t inputLength)
 
 void CommEndpoint::sendResponse(const CommRequest* request, const char* response, uint16_t responseLength)
 {
-	switch (request->format) {
-		case CommDataFormat::ATC:
-			uart_write_bytes(UART_NUM_0, "#ATC\n", 5);
-			break;
-		case CommDataFormat::GCD:
-			uart_write_bytes(UART_NUM_0, "#GCD\n", 5);
-			break;
-	}
 	uart_write_bytes(UART_NUM_0, response, responseLength);
 }
-
-void CommEndpoint::processRequestGCD(const CommRequest* request)
-{
-	static const char* strOK = "[0K]\n";
-	static const char* strERR = "[ERR]\n";
-	static char responseBuffer[CONFIG_COMM_RS232_BUFFER_SIZE+6];
-	memcpy(responseBuffer, request->command, strlen(request->command));
-	memcpy(responseBuffer + strlen(request->command)+1, request->error ? strERR : strOK, request->error ? 5 : 4);
-	sendResponse(request, responseBuffer, strlen(request->command) + (request->error ? 6 : 5));
-}
-
-void CommEndpoint::processRequestATC(const CommRequest* request)
-{
-	static const char* strOK = "0K\n";
-	static const char* strERR = "ERR\n";
-
-	auto routineGetInfo = [request, this]() { // return device info
-		uint64_t uptime = esp_timer_get_time() / 1000;
-		memset(responseBuffer, 0, 64);
-		sprintf(responseBuffer, "OK\n%llu\n", uptime);
-		sendResponse(request, responseBuffer, strlen(responseBuffer));
-		// -> call to os
-	};
-
-	auto routineGetFirmwareVersion = [request, this]() { // return firmware version
-		ESP_LOGE(TAG, "processRequestAT | AT+GMR, Not implemented");
-		// call to os
-	};
-
-
-	auto routineReset = [request, this]() { // reset device, reboots
-		sendResponse(request, strOK, 4);
-		vTaskDelay(1);
-		esp_restart();
-	};
-
-
-
-	// Determine which command was sent
-	if (strncmp(request->command, "AT+INF", 6) == 0) // return device info
-		routineGetInfo();
-	else if (strncmp(request->command, "AT+GMR", 6) == 0) // return firmware version
-		routineGetFirmwareVersion();
-	else if (strncmp(request->command, "AT+RST", 6) == 0) // reset device, reboots
-		routineReset();
-	else { // unknown command
-		sendResponse(request, strERR, 5);
-		ESP_LOGE(TAG, "processRequestAT | Unknown command: %s", request->command);
-	}
-}
-
 
 uint8_t CommEndpoint::call(uint16_t id)
 {
@@ -230,14 +151,13 @@ uint8_t CommEndpoint::call(uint16_t id)
 	xSemaphoreGive(lock);
 #endif
 
-	switch (request->format) {
-		case CommDataFormat::GCD:
-			processRequestGCD(request);
-			break;
-		case CommDataFormat::ATC:
-			processRequestATC(request);
-			break;
-	}
+	processRequestGCD(request);
+	static const char* strOK = "[0K]\n";
+	static const char* strERR = "[ERR]\n";
+	static char responseBuffer[CONFIG_COMM_RS232_BUFFER_SIZE+6];
+	memcpy(responseBuffer, request->command, strlen(request->command));
+	memcpy(responseBuffer + strlen(request->command)+1, request->error ? strERR : strOK, request->error ? 5 : 4);
+	sendResponse(request, responseBuffer, strlen(request->command) + (request->error ? 6 : 5));
 	delete request;
 
 	return 0;

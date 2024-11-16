@@ -145,7 +145,7 @@ void StepperHal::stepperTaskH(void *arg) {
 
 
 			ESP_LOGI("Stepper 1", "Received command for stepper 1");
-			uint32_t period_ticks = (uint32_t)(60'000'000/CONFIG_STEPPER_H_STEP_COUNT/CONFIG_STEPPER_H_GEAR_RATIO/StepperHal::stepperCommandH->rpm); // Convert to timer ticks (as we are toggling on timer event we need to double the RPM)
+			uint32_t period_ticks = (uint32_t)(60'000'000/CONFIG_STEPPER_H_STEP_COUNT/StepperHal::stepperCommandH->rpm); // Convert to timer ticks (as we are toggling on timer event we need to double the RPM)
 																																																																							 // ESP_LOGI("Stepper 1", "Period ticks: %ld", period_ticks);
 																																																																							 // Set direction using GPIO
 			gpio_set_level((gpio_num_t)CONFIG_STEPPER_H_PIN_DIR, StepperHal::stepperCommandH->direction ? 1 : 0);
@@ -213,7 +213,7 @@ void StepperHal::stepperTaskT(void *arg) {
 	while (1) {
 		if (xQueueReceive(StepperHal::commandQueueT, StepperHal::stepperCommandT, portMAX_DELAY)) {
 			ESP_LOGI("Stepper 2", "Received command for stepper 2");
-			uint32_t period_ticks = (uint32_t)(60'000'000/CONFIG_STEPPER_H_STEP_COUNT/CONFIG_STEPPER_H_GEAR_RATIO/StepperHal::stepperCommandT->rpm); // Convert to timer ticks
+			uint32_t period_ticks = (uint32_t)(60'000'000/CONFIG_STEPPER_H_STEP_COUNT/StepperHal::stepperCommandT->rpm); // Convert to timer ticks
 			ESP_LOGI("Stepper 2", "Period ticks: %ld", period_ticks);
 
 			StepperHal::stepperCommandT->complete = false;
@@ -376,6 +376,8 @@ int64_t StepperHal::getStepsTraveledOfPrevCommandH(){
 	}
 	return 0;
 }
+
+
 
 int64_t StepperHal::getStepsTraveledOfPrevCommandT(){
 	if(stepperCommandPrevH->synchronized)
