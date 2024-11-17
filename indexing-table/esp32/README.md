@@ -6,32 +6,76 @@ Configuration of the device is done primarily with Kconfig under esp-idf. While 
 
 # TODO
 * reintroduce MQTT as it will not pose any slowdowns with current architecture
-* all AT commands need to be redefined as gcode, all will use the M prefix (firmware version, setting limits, system info, etc.)
+
+# Constants
+* these parameters are defined in Kconfig and will require recompilation of the firmware to change
+* STEPPER_H_STEP_COUNT, STEPPER_T_STEP_COUNT - number of steps in a single rotation on horizontal and tilt axis
+	* number includes any microstepping and down/up gearing
+* STEPPER_H_PIN_DIR, STEPPER_H_PIN_STEP, STEPPER_T_PIN_DIR, STEPPER_T_PIN_STEP - pins used for direction and step signals
+* STEPPER_H_PIN_ENDSTOP, STEPPER_T_PIN_ENDSTOP - pins used for endstop signals
+* STEPPER_MAX_SPEED - maximum speed in rpm
+* STEPPER_DEFAULT_SPEED - default speed in rpm
+* STEPPER_MIN_SPINDLE_TIME - minimum time in ms between two steps in spindle Mode
+	* needed to maintain valid information about current position
+	* never set bellow ~30 ms
+
+
+# Features
+* two different units: degrees and steps
+* two different positioning modes: absolute and relative
+* common commands like simple movement, homing, setting speed and such, turning on/off are supported
+* non standard GCode commands
+	* imposing limits on movement - allowed positions of the steppers can be restricted
+	* spindle mode - steppers can freely transitions between acting as steppers and as spindles (continuos motion)
+	* programming - user can program in sequence of movements that can be executed with one command
+		* these can be looped indefinitely or use simple one layer deep for loop
+	* maintaining synchronization between two steppers
+		* if both steppers are moving, next command is executed only after both steppers reach their target
+
+## Behavior of limits
+* user can impose limits on movement of both steppers this can be done via M201 command
+* if user wishes to disable limits, they can do so with M202 Command
+* movement must be restricted from two sides, restricting only one side doesn't make any sense as we are spinning in a circle
+* limits are within single rotation of stepper, it is impossible to allow limited number of full rotations
+* there are two possible basic setting for angles
+	* low < high - we are restricted to range [low, high]
+	* low > high - we are restricted to range [low, 360] U [0, high]
+
+### Absolute positioning
+* all angles are automatically normalized to [0, 360] range, or [0, STEP_COUNT] if we are in steps mode
+* no limits
+	* stepper will take shortest path to the target
+* range: [low, high]
+	* if target is outside of the range, it will be adjusted to the closest limit
+	* than movement is rather straightforward as we can move only in one direction
+* range: [low, 360] U [0, high]
+	* if target is outside of the range, it will be adjusted to the closest limit
+	* we firstly calculate average of the two limits than:
+		* anything in [0, avg] is adjusted to high
+		* anything in [avg, 360] is adjusted to low
+	* again only one direction of movement is possible
+
+
+### Relative postioning
+* number of steps in single command is limited to +-32767, this is hardware/esp-idf private API limitation and cannot be changed
+* no limits
+	* stepper will do as many steps as are requested (limited to +-32767)
+* range: [low, high]
+	* if target is outside of the range, it will be adjusted to the closest limit
+* range: [low, 360] U [0, high]
+	* if target is outside of the range, it will be adjusted to the closest limit
+	* if we are decrementing the angle we can only go to high limit
+	* if we are incrementing the angle we can only go to low limit
 
 # Communication
-## Device configuration (TO BE SCRAPPED)
-* device is configured using AT commands, that are sent to the device over serial connection or MQTT
-* majority of configuration is hardcoded in the firmware and can be changed only by using Kconfig and recompiling the firmware
-* motor H - rotation in horizontal plane
-	* AT+MOTH? - list configuration for motor A
-	* AT+MOTH_LIMIT? - limit information
-	* AT+MOTH_LIMIT=y - toggle on limits, by default off
-	* AT+MOTH_LIMITMIN=<int> - minimal angle
-	* AT+MOTH_LIMITMAX=<int> - maximal angle
-* motor T - tilt of the radar
-	* AT+MOTT? - list configuration for motor A
-	* AT+MOTT_LIMIT? - limit information
-	* AT+MOTT_LIMIT=y - toggle on limits, by default off
-	* AT+MOTT_LIMITMIN=<int> - minimal angle
-	* AT+MOTT_LIMITMAX=<int> - maximal angle
 
 ## Motor control
-* uses custom command strcuture based on gcode
-* in plain gcode its difficult to support both continuos motion and finite positioning with gcode
+* uses custom command strcuture based on G-code
+* in plain G-code its difficult to support both continuos motion and finite positioning with G-code
 * move to absolute position, move to relative position, spin
 * axis descriptors: H for horizontal rotation, T for tilt
-* M80: turn on high voltage power supply TODO
-* M81: turn off high voltage power supply TODO
+* M80: turn on high voltage power supply
+* M81: turn off high voltage power supply
 * G20: set units to degrees
 * G21: set units to steps
 * G90: absolute positioning
@@ -65,7 +109,6 @@ Configuration of the device is done primarily with Kconfig under esp-idf. While 
 		* H - stop spindle regime on horizontal axis
 		* T - stop spindle regime on tilt axis
 		* NOTE: spindle mode will also automatically end if stepper receives G0 command
-	* can be followed with S<rpm> to set speed
 * M201: set limits on steppers
 	* LH<ANGLE>: low limit on horizontal stepper
 	* HH<ANGLE>: high limit on horizontal Stepper
@@ -78,10 +121,20 @@ Configuration of the device is done primarily with Kconfig under esp-idf. While 
 	* H - disable limits on horizontal stepper
 	* L - disable limits on tilt stepper
 
-### Programming movements (NOT FINAL)
+
+
+### Programming movements
 * device allows to preprogram sequence of movements that can be executed with one command, or looped continuously
 * programms are not stored in flash, but in ram for now. Permanent storage of movements is done in MATLAB's programm configuration file
 * if programm requires movement on both axis it is executed in parallel and next command is executed only after both axis reach their target
+* program structures
+	* header declaration
+		* executed only once
+		* used to set initial position, units, positioning mode, or home the device
+	* main body
+		* used for actual movement
+		* if command P29 is issued it will be executed in a loop indefinitely loop
+		* can be left empty
 * P0 - stop executing programm (only one programm can be active at one time)
 * P1 <command_id> - run command with given id
 * P90 <command_id> - start programming mode with given id
@@ -91,17 +144,19 @@ Configuration of the device is done primarily with Kconfig under esp-idf. While 
 		* commands declared in header are executed before any other commands
 		* if programm is looped, header will be executed only once
 		* can be used to set initial position, units, positioning mode, or home the device
-		* P29: declares looped programm, these programs will loop indefinitely until stopped
 * P91: called within programming context, advances programming from header declaration to main body
-* P92: ends programming of the main body - code is saved in the memory if all loops are closed
+* P92: ends programming of the main body
+	* NOTE: if loops are not closed, programm will not be saved and P92 command is disregarded
 * P21: for loop declaration
 	* I<ITERATIONS> - number of iterations for loop will take
-* P22 - end of loop
-	* if iterations are not exhausted, programm will jump back to P21
+* P22: end of loop
+	* if iterations are not exhausted, programm will jump back to P21 (respectively command right after it)
+* P29: declares looped programm, these programs will loop indefinitely until stopped
+	* NOTE: only applicable in header declaration
 * W0: wait command (seconds)
 	* H<TIME> - wait on horizontal stepper
 	* T<TIME> - wait on tilt stepper
-* W1: wait command (miliseconds)
+* W1: wait command (milliseconds)
 	* H<TIME> - wait on horizontal stepper
 	* T<TIME> - wait on tilt stepper
 
@@ -125,61 +180,23 @@ Configuration of the device is done primarily with Kconfig under esp-idf. While 
 
 
 
-## Position Uplink from device (NOT FINAL)
-* WARN: more up to date ideas are in personal notes section
-* two possible approaches - every step we transmit current position x we transmit delta in position and time between steps
-* should be transmitted in format directly usable by matlab
-* transmitting delta in position
-	* gives values more related to speed vector that is actually used on the processing side of the device
-	* not useful for any applications that don't use continuos motion, but only finite positioning
-* transmission of current position
-	* sends current position in angle or steps (depends on current unit)
-	* values require more postprocessing on the receiving side
-	* in message two values are present for every axis
-	* absolute and relative positioning needs to be distinguished
-		* absolute positioning is always given in absolute angle from home position
-		* relative positioning is given in angle change in relation to last issued command
+# Uplink from the device
+* roughly every 20 ms device sends its current postion up with serial line
+	* [TIMESTAMP, HORIZONTAL_ANGLE, TILT_ANGLE]
+	* all further adjustments are done on the host side
+* upon receiving command from the host, device will send back an acknowledgement
+	* if error code is 0 command was processed successfully
+	* possible error codes are listed in a table below
 
+| Error code | Description                                                                                                                                                                |
+|------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 0          | processing was successful                                                                                                                                                  |
+| 1          | command wasn't able to be decoded                                                                                                                                          |
+| 2          | command code is valid but it's arguments aren't                                                                                                                            |
+| 3          | command was processed, should be added to noProgrammQueue but we failed to get a lock                                                                                      |
+| 4          | command exists but isn't yet supported by the hardware                                                                                                                     |
+| 5          | we are either running homing or some programm thus new incoming commands will not be process                                                                               |
+| 6          | command might be fine but code runned into unexpected occurrence                                                                                                           |
+| 7          | specific error that can arise only when we are ending programming, indicated that program has unclosed for loop, it is recommended to delete whole program and start again |
+| 8          | command is not valid in current context                                                                                                                                    |
 
-## Personal notes
-* optimally there is standard interface to control steppers
-	* must be compatible both with Remote Controlled Transceiver approach or MCPWM+PCNT
-	* stepper control should be relayed in a form of standardized command
-	* needed functionality from HAL
-		* [X] motors needs to be step individually or simultaneously
-		* [X] spindle regime must be supported directly by the HAL
-		* [X] commands can be queued
-		* [X] queue must support
-			* [X] clearing whole queue
-			* [X] get next command
-			* [X] get size of queue
-		* [X] information about current command must be available
-		* [X] timestamp of the start of the current command must be available, only affect commands that move the steppers (used to calculate current position)
-		* [X] information about previous command must be available
-		* [X] all information will be done stored in relative positioning.
-		* [X] all information is stored in steps, coversion to degrees is done in the application layer
-		* [X] pause commands must be handled here as application layer will not be synchronized with the motor control
-		* [X] empty command must be able to be handled -> if we are issuing commands for both steppers the stepper without any command will have to wait for the second to finish
-		* [ ] number of steps taken since start of the command
-		 	* [ ] check against finished to speed up calculations
-			* [ ] handle stepper and spindle mode
-	* application layer functionality
-		* [ ] homing
-		* [ ] motor task functions
-			* [ ] check if there is finished command, if so update base position from it
-			* [ ] current position is estimated from the time of start of previous command and the speed of the motor
-		* [ ] all position calculations will be done in the application layer
-	  * [ ] absolute positioning will be done in the application layer (will require some finicky calculations to be done as each command will need to be adjusted)
-		* [ ] limits on steppers are enforced and checked in the application layer (logic is similar to that of converting to absolute positioning)
-		* absolute positioning/limit enforcement
-			* we will store total number of steps done, register will overflow on number of steps times microstepping
-			* this number will be updated after a command has finished execution -- thus we will alway know the current position
-			* next command to be executed will need to be checked against end position of the previous one, after that it can either be adjusted (if we are in absolute postioning) or scrapped (if limits are reached)
-			* in absolute positioning commands will be adjusted to take the shortest path to the target
-			* TODO: consider whether crossing the endstop should always reset the position counter or whether endstops are to be active only in homing mode
-		* command parsing
-		* programming and programm execution
-			* keep in mind that moves must be preschedulde and each iteration of the command loop will need to be corrected individually
-		* conversion between steps and degrees
-		* reporting of current position -> more in uplink section
-	* XXX: limits checking and absolute positioning is not high priority

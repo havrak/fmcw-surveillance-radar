@@ -262,6 +262,16 @@ class StepperHal{
 		void stopNowStepperT();
 
 		/**
+		 * @brief skip command, used to maintain synchronization between command queues
+		 */
+		bool skipStepperH(bool synchronized = true);
+
+		/**
+		 * @brief skip command, used to maintain synchronization between command queues
+		 */
+		bool skipStepperT(bool synchronized = true);
+
+		/**
 		 * @brief clears command queue for stepper H
 		 *
 		 * @return true if queue was cleared successfully

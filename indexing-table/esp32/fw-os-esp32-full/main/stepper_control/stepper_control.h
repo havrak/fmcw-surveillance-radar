@@ -13,7 +13,6 @@
 #define STEPPER_CONTROL_H
 
 #include <atomic>
-#include <callback_interface.h>
 #include <driver/gpio.h>
 #include <esp32-hal-gpio.h>
 #include <esp_log.h>
@@ -77,14 +76,14 @@ enum Unit : uint8_t {
 
 enum ParsingGCodeResult : uint8_t {
 	SUCCESS = 0,								 // processing was successful
-	INVALID_COMMAND = 2,				 // command wasn't able to be decoded
-	INVALID_ARGUMENT = 3,				 // command code is valid but it's arguments aren't
-	FAILED_TO_LOCK_QUEUE = 4,		 // command was processed, should be added to noProgrammQueue but we failed to get a lock
-	NO_SUPPORT = 5,							 // command exists but isn't yet supported by the hardware
-	NOT_PROCESSING_COMMANDS = 6, // we are either running homing or some programm thus new incoming commands will not be process
-	CODE_FAILURE = 7,						 // command might be fine but code runned into unexpected occurrence
-	NON_CLOSED_LOOP = 8,				 // specific error that can arise only when we are ending programming, indicated that program has unclosed for loop, it is recommended to delete whole program and start again
-	COMMAND_BAD_CONTEXT = 9, 		 // command is not valid in current context
+	INVALID_COMMAND = 1,				 // command wasn't able to be decoded
+	INVALID_ARGUMENT = 2,				 // command code is valid but it's arguments aren't
+	FAILED_TO_LOCK_QUEUE = 3,		 // command was processed, should be added to noProgrammQueue but we failed to get a lock
+	NO_SUPPORT = 4,							 // command exists but isn't yet supported by the hardware
+	NOT_PROCESSING_COMMANDS = 5, // we are either running homing or some programm thus new incoming commands will not be process
+	CODE_FAILURE = 6,						 // command might be fine but code runned into unexpected occurrence
+	NON_CLOSED_LOOP = 7,				 // specific error that can arise only when we are ending programming, indicated that program has unclosed for loop, it is recommended to delete whole program and start again
+	COMMAND_BAD_CONTEXT = 8, 		 // command is not valid in current context
 };
 
 // 1st status: 	DONE - commnad is parsed rom string
@@ -141,7 +140,7 @@ typedef struct gcode_command_movement_t{
 
 	gcode_command_movement_t(){
 		val.time = GCODE_ELEMENT_INVALID_INT;
-		rpm = GCODE_ELEMENT_INVALID_FLOAT;
+		rpm = CONFIG_STEPPER_DEFAULT_SPEED;
 	};
 } gcode_command_movement_t;
 
@@ -199,7 +198,7 @@ typedef struct gcode_programm_t {
 typedef struct {
 	int32_t stepsMin = GCODE_ELEMENT_INVALID_INT32;							 // minimum number of steps from home, we can allow multiple rotations possibly
 	int32_t stepsMax = GCODE_ELEMENT_INVALID_INT32;							 // maximum number of steps from home
-	int32_t position = 0;
+	int64_t position = 0;
 	int32_t positionLastScheduled = 0;
 	PositioningMode positioningMode = PositioningMode::RELATIVE;
 } stepper_variables_t;
@@ -209,7 +208,7 @@ typedef struct {
  *
  *
  */
-class StepperControl : public CallbackInterface {
+class StepperControl{
 	private:
 	// we will let used create as many programms as they want
 	// programm queue must be synchronized as it can be accessed both from parseGcode and motorTask functions
@@ -225,37 +224,9 @@ class StepperControl : public CallbackInterface {
 	TaskHandle_t stepperMoveTaskHandle = NULL;
 
 	static void stepperMoveTask(void* arg);
-	static void tiltEndstopHandler(void* arg);
-	static void horizontalEndstopHandler(void* arg);
+	static void endstopHHandler(void* arg);
+	static void endstopTHandler(void* arg);
 
-	static void horiTask(void* arg);
-	static void tiltTask(void* arg);
-
-	void setHoriCommand(int32_t steps, float rpm);
-	void setTiltCommand(int32_t steps, float rpm);
-
-	void mcpwmInit();
-	void timerInit();
-
-	/**
-	 * @brief cycles trough GPIO states to move the stepper
-	 * not to be used outside functions handeling stepping
-	 *
-	 * NOTE: copy of tiltSwitchOutput functions just macros resolve to different pins
-	 *
-	 * @param step
-	 */
-	void horiSwitchOutput(uint8_t step);
-
-	/**
-	 * @brief cycles trough GPIO states to move the stepper
-	 * not to be used outside functions handeling stepping
-	 *
-	 * NOTE: copy of horiSwitchOutput functions just macros resolve to different pins
-	 *
-	 * @param step
-	 */
-	void tiltSwitchOutput(uint8_t step);
 
 	public:
 	constexpr static char TAG[] = "StepperControl";
@@ -271,8 +242,6 @@ class StepperControl : public CallbackInterface {
 
 	StepperControl();
 
-	uint8_t call(uint16_t id) override;
-
 	/**
 	 * @brief parses incoming gcode and prepares its execution
 	 *
@@ -281,16 +250,6 @@ class StepperControl : public CallbackInterface {
 	ParsingGCodeResult parseGCode(const char* gcode, uint16_t length);
 
 	void init();
-
-	/**
-	 * @brief stops the horizontal stepper, powers down all pins
-	 */
-	void horiStop();
-
-	/**
-	 * @brief stops the tilt stepper, powers down all pins
-	 */
-	void tiltStop();
 
 	void printLocation();
 

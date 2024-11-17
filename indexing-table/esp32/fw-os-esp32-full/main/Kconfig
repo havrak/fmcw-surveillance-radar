@@ -66,6 +66,13 @@ default true
 help
 	Enable locks to prevent concurrent access to the processing queue
 
+config STEPPER_HAL_QUEUE_SIZE
+int "Queue size for stepper HAL"
+range 1 100
+default 10
+help
+	Queue size for stepper HAL
+
 config STEPPER_DEBUG
 bool "Enable motor debug"
 default n
@@ -81,8 +88,8 @@ help
 
 config STEPPER_MAX_SPEED
 int "Maximum motor speed in RPM"
-range 1 300
-default 250
+range 1 3000
+default 1000
 help
 	Maximum speed of the motor in RPM
 

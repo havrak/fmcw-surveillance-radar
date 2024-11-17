@@ -30,8 +30,8 @@ bool StepperHal::pcntOnReach(pcnt_unit_handle_t unit, const pcnt_watch_event_dat
 void StepperHal::initStepperTasks(){
 	varsHalH.stepperCompleteBit = STEPPER_COMPLETE_BIT_H;
 	varsHalT.stepperCompleteBit = STEPPER_COMPLETE_BIT_T;
-	varsHalH.commandQueue = xQueueCreate(10, sizeof(stepper_hal_command_t));
-	varsHalT.commandQueue = xQueueCreate(10, sizeof(stepper_hal_command_t));
+	varsHalH.commandQueue = xQueueCreate(CONFIG_STEPPER_HAL_QUEUE_SIZE, sizeof(stepper_hal_command_t));
+	varsHalT.commandQueue = xQueueCreate(CONFIG_STEPPER_HAL_QUEUE_SIZE, sizeof(stepper_hal_command_t));
 	xTaskCreate(stepperTask, "Stepper Task T", 2048, &varsHalH, 5, NULL);
 	xTaskCreate(stepperTask, "Stepper Task H", 2048, &varsHalT, 5, NULL);
 
@@ -285,6 +285,25 @@ bool StepperHal::spindleStepperT(float rpm, Direction direction) {
 	};
 	return xQueueSend(varsHalT.commandQueue, &command, portMAX_DELAY)==  pdTRUE;
 }
+
+bool StepperHal::skipStepperH(bool synchronized){
+	stepper_hal_command_t command = {
+		.type = CommandType::SKIP,
+		.complete = false,
+		.synchronized = synchronized,
+	};
+	return xQueueSend(varsHalH.commandQueue, &command, portMAX_DELAY)==  pdTRUE;
+}
+
+bool StepperHal::skipStepperT(bool synchronized){
+	stepper_hal_command_t command = {
+		.type = CommandType::SKIP,
+		.complete = false,
+		.synchronized = synchronized,
+	};
+	return xQueueSend(varsHalT.commandQueue, &command, portMAX_DELAY)==  pdTRUE;
+}
+
 
 bool StepperHal::stopStepperH(bool synchronized){
 	stepper_hal_command_t command = {

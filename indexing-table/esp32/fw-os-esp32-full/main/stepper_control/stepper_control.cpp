@@ -37,11 +37,6 @@ void StepperControl::init()
 	}
 }
 
-uint8_t StepperControl::call(uint16_t id)
-{
-	return 0;
-};
-
 void StepperControl::stepperMoveTask(void* arg)
 { // TODO pin to core 0
 	uint64_t time = 0;
@@ -57,7 +52,7 @@ void StepperControl::stepperMoveTask(void* arg)
 	// checks order of from and dest when in union of intervals <0, min> U <max, stepCount>
 	// true if from comes before dest -> we need to move clockwise
 
-	auto moveStepperAbsolute = [command, &steppers](bool (StepperHal::*stepFunction)(int16_t, float, bool), uint16_t stepCount, const gcode_command_movement_t* movement, const stepper_variables_t* vars, int32_t dest) -> int32_t {
+	auto moveStepperAbsolute = [command](bool (StepperHal::*stepFunction)(int16_t, float, bool), uint16_t stepCount, const gcode_command_movement_t* movement, const stepper_variables_t* vars, int32_t dest) -> int32_t {
 		if (vars->stepsMax == GCODE_ELEMENT_INVALID_INT32 && vars->stepsMin == GCODE_ELEMENT_INVALID_INT32)
 			(steppers.*stepFunction)(ANGLE_DISTANCE(vars->positionLastScheduled, dest, stepCount), movement->rpm, SYNCHRONIZED);
 		else if (vars->stepsMax >= vars->stepsMin) { // moving in interval <min, max>
@@ -103,6 +98,33 @@ void StepperControl::stepperMoveTask(void* arg)
 		return dest;
 	};
 
+	auto moveStepperRelative = [command](bool (StepperHal::*stepFunction)(int16_t, float, bool), uint16_t stepCount, const gcode_command_movement_t* movement, const stepper_variables_t* vars, int32_t steps) -> int32_t {
+		if (vars->stepsMax == GCODE_ELEMENT_INVALID_INT32 && vars->stepsMin == GCODE_ELEMENT_INVALID_INT32) {
+			(steppers.*stepFunction)(steps, movement->rpm, SYNCHRONIZED);
+		} else if (vars->stepsMax >= vars->stepsMin) { // moving in interval <min, max>
+			if (vars->positionLastScheduled + steps >= vars->stepsMax)
+				steps = vars->stepsMax - vars->positionLastScheduled;
+			else if (vars->positionLastScheduled + steps <= vars->stepsMin)
+				steps = vars->stepsMin - vars->positionLastScheduled;
+
+			(steppers.*stepFunction)(steps, movement->rpm, SYNCHRONIZED);
+		} else { // moving in interval <0, max> U <min, stepCount>
+
+				int16_t maxStepsCCW = (vars->positionLastScheduled >= vars->stepsMin) ? -(vars->positionLastScheduled - vars->stepsMin) : -(vars->positionLastScheduled + stepCount - vars->stepsMin);
+				// Calculate vars->stepsMaximum allowable steps clockwise (positive)
+				int16_t maxStepsCW = (vars->positionLastScheduled <= vars->stepsMax) ? (vars->stepsMax - vars->positionLastScheduled) : (stepCount - vars->positionLastScheduled + vars->stepsMax);
+				if (steps < maxStepsCCW)
+						steps = maxStepsCCW;
+				else if (steps > maxStepsCW)
+						steps = maxStepsCW;
+
+
+
+			(steppers.*stepFunction)(steps, movement->rpm, SYNCHRONIZED);
+		}
+		return NORMALIZE_ANGLE(vars->positionLastScheduled + steps, stepCount);
+	};
+
 	Unit unit = Unit::DEGREES; // only used in motorTask
 
 	while (true) {
@@ -110,6 +132,12 @@ void StepperControl::stepperMoveTask(void* arg)
 		varsT.position += steppers.getStepsTraveledOfPrevCommandT();
 
 		printf("[%lld, %f, %f]\n", esp_timer_get_time(), STEPS_TO_ANGLE(NORMALIZE_ANGLE(varsH.position + steppers.getStepsTraveledOfCurrentCommandH(), CONFIG_STEPPER_H_STEP_COUNT), CONFIG_STEPPER_H_STEP_COUNT), STEPS_TO_ANGLE(NORMALIZE_ANGLE(varsT.position + steppers.getStepsTraveledOfCurrentCommandT(), CONFIG_STEPPER_H_STEP_COUNT), CONFIG_STEPPER_H_STEP_COUNT));
+
+		// if queues are filled we will wait
+		if(steppers.getQueueLengthH() ==  CONFIG_STEPPER_HAL_QUEUE_SIZE || steppers.getQueueLengthT() ==  CONFIG_STEPPER_HAL_QUEUE_SIZE){
+			vTaskDelay(20 / portTICK_PERIOD_MS);
+			continue;
+		}
 
 		if (programmingMode == ProgrammingMode::NO_PROGRAMM) {
 			if (xSemaphoreTake(noProgrammQueueLock, (TickType_t)1000) == pdTRUE) {
@@ -173,12 +201,25 @@ void StepperControl::stepperMoveTask(void* arg)
 			break;
 		case GCodeCommand::G0:
 			if (command->movementH != nullptr) {
+				if(command->movementH->val.steps == 0)
+					steppers.skipStepperH(SYNCHRONIZED);
 				stepsTemp = unit == Unit::DEGREES ? ANGLE_TO_STEPS(command->movementH->val.steps, CONFIG_STEPPER_H_STEP_COUNT) : command->movementH->val.steps;
 				if (varsH.positioningMode == PositioningMode::ABSOLUTE) {
 					stepsTemp = NORMALIZE_ANGLE(stepsTemp, CONFIG_STEPPER_H_STEP_COUNT);
 					varsH.positionLastScheduled = moveStepperAbsolute(&StepperHal::stepStepperH, CONFIG_STEPPER_H_STEP_COUNT, command->movementH, &varsH, stepsTemp);
 				} else {
-					// -> relative
+					varsH.positionLastScheduled = moveStepperRelative(&StepperHal::stepStepperH, CONFIG_STEPPER_H_STEP_COUNT, command->movementH, &varsH, stepsTemp);
+				}
+			}
+			if (command->movementT != nullptr) {
+				if(command->movementT->val.steps == 0)
+					steppers.skipStepperT(SYNCHRONIZED);
+				stepsTemp = unit == Unit::DEGREES ? ANGLE_TO_STEPS(command->movementT->val.steps, CONFIG_STEPPER_T_STEP_COUNT) : command->movementT->val.steps;
+				if (varsT.positioningMode == PositioningMode::ABSOLUTE) {
+					stepsTemp = NORMALIZE_ANGLE(stepsTemp, CONFIG_STEPPER_T_STEP_COUNT);
+					varsT.positionLastScheduled = moveStepperAbsolute(&StepperHal::stepStepperT, CONFIG_STEPPER_T_STEP_COUNT, command->movementT, &varsT, stepsTemp);
+				} else {
+					varsT.positionLastScheduled = moveStepperRelative(&StepperHal::stepStepperT, CONFIG_STEPPER_T_STEP_COUNT, command->movementT, &varsT, stepsTemp);
 				}
 			}
 			break;
@@ -463,22 +504,22 @@ parsingGCodeCommandsG:
 		elementFloat = getElementFloat(3, "S", 1);
 		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT) {
 			if (command->movementH != nullptr)
-				command->movementH->rpm = elementFloat;
+				command->movementH->rpm = elementFloat < CONFIG_STEPPER_MAX_SPEED ? elementFloat : CONFIG_STEPPER_MAX_SPEED;
 			if (command->movementT != nullptr)
-				command->movementT->rpm = elementFloat;
+				command->movementT->rpm = elementFloat < CONFIG_STEPPER_MAX_SPEED ? elementFloat : CONFIG_STEPPER_MAX_SPEED;
 		} else {
 			goto endInvalidArgument;
 		}
 
 		elementFloat = getElementFloat(3, "SH", 2);
 		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT && command->movementH != nullptr)
-			command->movementH->rpm = elementFloat;
+			command->movementH->rpm = elementFloat < CONFIG_STEPPER_MAX_SPEED ? elementFloat : CONFIG_STEPPER_MAX_SPEED;
 		else
 			goto endInvalidArgument;
 
 		elementFloat = getElementFloat(3, "ST", 2);
 		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT && command->movementT != nullptr)
-			command->movementT->rpm = elementFloat;
+			command->movementT->rpm = elementFloat < CONFIG_STEPPER_MAX_SPEED ? elementFloat : CONFIG_STEPPER_MAX_SPEED;
 		else
 			goto endInvalidArgument;
 
@@ -508,9 +549,9 @@ parsingGCodeCommandsM:
 		elementFloat = getElementFloat(3, "S", 1);
 		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT) {
 			if (command->movementH != nullptr)
-				command->movementH->rpm = elementFloat;
+				command->movementH->rpm = elementFloat < CONFIG_STEPPER_MAX_SPEED ? elementFloat : CONFIG_STEPPER_MAX_SPEED;
 			if (command->movementT != nullptr)
-				command->movementT->rpm = elementFloat;
+				command->movementT->rpm = elementFloat < CONFIG_STEPPER_MAX_SPEED ? elementFloat : CONFIG_STEPPER_MAX_SPEED;
 		} else {
 			goto endInvalidArgument;
 		}
@@ -518,7 +559,7 @@ parsingGCodeCommandsM:
 		elementFloat = getElementFloat(3, "SH", 2);
 		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT) {
 			if (command->movementH != nullptr)
-				command->movementH->rpm = elementFloat;
+				command->movementH->rpm = elementFloat < CONFIG_STEPPER_MAX_SPEED ? elementFloat : CONFIG_STEPPER_MAX_SPEED;
 			else
 				goto endInvalidArgument;
 
@@ -529,7 +570,7 @@ parsingGCodeCommandsM:
 		elementFloat = getElementFloat(3, "ST", 2);
 		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT) {
 			if (command->movementT != nullptr)
-				command->movementT->rpm = elementFloat;
+				command->movementT->rpm = elementFloat < CONFIG_STEPPER_MAX_SPEED ? elementFloat : CONFIG_STEPPER_MAX_SPEED;
 			else
 				goto endInvalidArgument;
 		} else {
@@ -791,7 +832,7 @@ endBadContext:
 	return ParsingGCodeResult::COMMAND_BAD_CONTEXT;
 }
 
-void StepperControl::tiltEndstopHandler(void* arg)
+void StepperControl::endstopHHandler(void* arg)
 {
 	if (stepperControl.programmingMode == ProgrammingMode::HOMING) {
 		steppers.stopStepperH();
@@ -799,7 +840,7 @@ void StepperControl::tiltEndstopHandler(void* arg)
 	}
 }
 
-void StepperControl::horizontalEndstopHandler(void* arg)
+void StepperControl::endstopTHandler(void* arg)
 {
 	if (stepperControl.programmingMode == ProgrammingMode::HOMING) {
 		steppers.stopStepperT();
@@ -817,8 +858,8 @@ void StepperControl::home()
 	programmingMode.store(ProgrammingMode::HOMING);
 
 	// attach interrupts
-	attachInterruptArg(CONFIG_STEPPER_H_PIN_ENDSTOP, StepperControl::horizontalEndstopHandler, NULL, CHANGE);
-	attachInterruptArg(CONFIG_STEPPER_T_PIN_ENDSTOP, StepperControl::tiltEndstopHandler, NULL, CHANGE);
+	attachInterruptArg(CONFIG_STEPPER_H_PIN_ENDSTOP, StepperControl::endstopTHandler, NULL, CHANGE);
+	attachInterruptArg(CONFIG_STEPPER_T_PIN_ENDSTOP, StepperControl::endstopHHandler, NULL, CHANGE);
 
 	steppers.spindleStepperH(100, Direction::FORWARD);
 	steppers.spindleStepperT(100, Direction::FORWARD);
