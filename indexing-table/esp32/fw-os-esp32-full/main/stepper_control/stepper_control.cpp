@@ -47,29 +47,70 @@ void StepperControl::stepperMoveTask(void* arg)
 	uint64_t time = 0;
 	time = esp_timer_get_time();
 
-	stepper_variables_t varsH; // NOTE: will be written to only from motorTask
-	stepper_variables_t varsT; // NOTE: will be written to only from motorTask
+	stepper_variables_t varsH;
+	stepper_variables_t varsT;
 	int32_t positionTempH = 0;
 	int32_t positionTempT = 0;
+	int32_t stepsTemp = 0;
+	gcode_command_t* command = (gcode_command_t*)0x1; // NOTE: this is just hack so I don't have tu turn off -Werror=maybe-uninitialized
+
+	// checks order of from and dest when in union of intervals <0, min> U <max, stepCount>
+	// true if from comes before dest -> we need to move clockwise
+
+	auto moveStepperAbsolute = [command, &steppers](bool (StepperHal::*stepFunction)(int16_t, float, bool), uint16_t stepCount, const gcode_command_movement_t* movement, const stepper_variables_t* vars, int32_t dest) -> int32_t {
+		if (vars->stepsMax == GCODE_ELEMENT_INVALID_INT32 && vars->stepsMin == GCODE_ELEMENT_INVALID_INT32)
+			(steppers.*stepFunction)(ANGLE_DISTANCE(vars->positionLastScheduled, dest, stepCount), movement->rpm, SYNCHRONIZED);
+		else if (vars->stepsMax >= vars->stepsMin) { // moving in interval <min, max>
+			if (dest > vars->stepsMax)
+				dest = vars->stepsMax;
+			else if (dest < vars->stepsMin)
+				dest = vars->stepsMin;
+
+			// now we need to pick from clockwise or counterclockwise rotation, where one can possible go outside of the limits
+			if (vars->positionLastScheduled < dest)
+				(steppers.*stepFunction)(ANGLE_DISTANCE_CLOCKWISE(vars->positionLastScheduled, dest, stepCount), movement->rpm, SYNCHRONIZED);
+			else
+				(steppers.*stepFunction)(ANGLE_DISTANCE_COUNTERCLOCKWISE(vars->positionLastScheduled, dest, stepCount), movement->rpm, SYNCHRONIZED);
+		} else { // moving in interval <0, max> U <min, stepCount>
+			uint32_t avg = (vars->stepsMax + vars->stepsMin) / 2;
+			if (dest >= avg && dest < vars->stepsMin)
+				dest = vars->stepsMin;
+			else if (dest < avg && dest > vars->stepsMax)
+				dest = vars->stepsMax;
+
+			bool fromInInterval1 = (vars->positionLastScheduled >= 0 && vars->positionLastScheduled <= vars->stepsMax);
+			bool fromInInterval2 = (vars->positionLastScheduled >= vars->stepsMin && vars->positionLastScheduled <= stepCount);
+			bool destInInterval1 = (dest >= 0 && dest <= vars->stepsMax);
+			bool destInInterval2 = (dest >= vars->stepsMin && dest <= stepCount);
+
+			bool order = false;
+
+			if (fromInInterval1 && destInInterval1)
+				order = vars->positionLastScheduled < dest;
+			else if (fromInInterval2 && destInInterval2)
+				order = vars->positionLastScheduled < dest;
+			else if (fromInInterval1 && destInInterval2)
+				order = true;
+			else if (fromInInterval2 && destInInterval1)
+				order = true;
+
+			// we need to calculete in which order steps and positionLastScheduled are
+			if (order)
+				(steppers.*stepFunction)(ANGLE_DISTANCE_CLOCKWISE(vars->positionLastScheduled, dest, stepCount), movement->rpm, SYNCHRONIZED);
+			else
+				(steppers.*stepFunction)(ANGLE_DISTANCE_CLOCKWISE(vars->positionLastScheduled, dest, stepCount), movement->rpm, SYNCHRONIZED);
+		}
+		return dest;
+	};
 
 	Unit unit = Unit::DEGREES; // only used in motorTask
 
 	while (true) {
-		varsH.position+= steppers.getStepsTraveledOfPrevCommandH();
-		varsT.position+= steppers.getStepsTraveledOfPrevCommandT();
+		varsH.position += steppers.getStepsTraveledOfPrevCommandH();
+		varsT.position += steppers.getStepsTraveledOfPrevCommandT();
 
-		positionTempH = varsH.position+ steppers.getStepsTraveledOfCurrentCommandH();
-		positionTempT = varsT.position+ steppers.getStepsTraveledOfCurrentCommandT();
+		printf("[%lld, %f, %f]\n", esp_timer_get_time(), STEPS_TO_ANGLE(NORMALIZE_ANGLE(varsH.position + steppers.getStepsTraveledOfCurrentCommandH(), CONFIG_STEPPER_H_STEP_COUNT), CONFIG_STEPPER_H_STEP_COUNT), STEPS_TO_ANGLE(NORMALIZE_ANGLE(varsT.position + steppers.getStepsTraveledOfCurrentCommandT(), CONFIG_STEPPER_H_STEP_COUNT), CONFIG_STEPPER_H_STEP_COUNT));
 
-		printf("[%f, %f]\n", STEPS_TO_ANGLE(NORMALIZE_ANGLE(positionTempH, CONFIG_STEPPER_H_STEP_COUNT),CONFIG_STEPPER_H_STEP_COUNT), STEPS_TO_ANGLE(NORMALIZE_ANGLE(positionTempT, CONFIG_STEPPER_H_STEP_COUNT),CONFIG_STEPPER_H_STEP_COUNT));
-
-
-
-		// TODO: gather information about current postion ->
-		// 		stored values is incremented by previous command steps
-		// 		than the value is incremented by the steps of the current command
-
-		gcode_command_t* command = (gcode_command_t*)0x1; // NOTE: this is just hack so I don't have tu turn off -Werror=maybe-uninitialized
 		if (programmingMode == ProgrammingMode::NO_PROGRAMM) {
 			if (xSemaphoreTake(noProgrammQueueLock, (TickType_t)1000) == pdTRUE) {
 				if (noProgrammQueue.size() > 0) {
@@ -131,7 +172,15 @@ void StepperControl::stepperMoveTask(void* arg)
 			stepperControl.home();
 			break;
 		case GCodeCommand::G0:
-			// TODO;
+			if (command->movementH != nullptr) {
+				stepsTemp = unit == Unit::DEGREES ? ANGLE_TO_STEPS(command->movementH->val.steps, CONFIG_STEPPER_H_STEP_COUNT) : command->movementH->val.steps;
+				if (varsH.positioningMode == PositioningMode::ABSOLUTE) {
+					stepsTemp = NORMALIZE_ANGLE(stepsTemp, CONFIG_STEPPER_H_STEP_COUNT);
+					varsH.positionLastScheduled = moveStepperAbsolute(&StepperHal::stepStepperH, CONFIG_STEPPER_H_STEP_COUNT, command->movementH, &varsH, stepsTemp);
+				} else {
+					// -> relative
+				}
+			}
 			break;
 		case GCodeCommand::M03:
 			if (command->movementH != nullptr) {
@@ -158,22 +207,33 @@ void StepperControl::stepperMoveTask(void* arg)
 		case GCodeCommand::M201:
 			if (unit == Unit::STEPS) {
 				if (command->movementH != nullptr) {
-					varsH.stepsMin = command->movementH->val.limits.min;
-					varsH.stepsMax = command->movementH->val.limits.max;
+					varsH.stepsMin = command->movementH->val.limits.min <= CONFIG_STEPPER_H_STEP_COUNT ? command->movementH->val.limits.min : CONFIG_STEPPER_H_STEP_COUNT;
+					varsH.stepsMax = command->movementH->val.limits.max <= CONFIG_STEPPER_H_STEP_COUNT ? command->movementH->val.limits.max : CONFIG_STEPPER_H_STEP_COUNT;
 				}
 				if (command->movementT != nullptr) {
-					varsT.stepsMin = command->movementT->val.limits.min;
-					varsT.stepsMax = command->movementT->val.limits.max;
+					varsT.stepsMin = command->movementT->val.limits.min <= CONFIG_STEPPER_T_STEP_COUNT ? command->movementT->val.limits.min : CONFIG_STEPPER_T_STEP_COUNT;
+					varsT.stepsMax = command->movementT->val.limits.max <= CONFIG_STEPPER_T_STEP_COUNT ? command->movementT->val.limits.max : CONFIG_STEPPER_T_STEP_COUNT;
 				}
 			} else {
 				if (command->movementH != nullptr) {
-				varsH.stepsMin = ANGLE_TO_STEPS(command->movementH->val.limits.min, CONFIG_STEPPER_H_PIN_ENDSTOP);
-				varsH.stepsMax = ANGLE_TO_STEPS(command->movementH->val.limits.max, CONFIG_STEPPER_H_PIN_ENDSTOP);
+					varsH.stepsMin = ANGLE_TO_STEPS(command->movementH->val.limits.min, CONFIG_STEPPER_H_PIN_ENDSTOP) <= CONFIG_STEPPER_H_STEP_COUNT ? ANGLE_TO_STEPS(command->movementH->val.limits.min, CONFIG_STEPPER_H_PIN_ENDSTOP) : 360;
+					varsH.stepsMax = ANGLE_TO_STEPS(command->movementH->val.limits.max, CONFIG_STEPPER_H_PIN_ENDSTOP) <= CONFIG_STEPPER_H_STEP_COUNT ? ANGLE_TO_STEPS(command->movementH->val.limits.max, CONFIG_STEPPER_H_PIN_ENDSTOP) : 360;
 				}
 				if (command->movementT != nullptr) {
-				varsT.stepsMin = ANGLE_TO_STEPS(command->movementT->val.limits.min, CONFIG_STEPPER_T_PIN_ENDSTOP);
-				varsT.stepsMax = ANGLE_TO_STEPS(command->movementT->val.limits.max, CONFIG_STEPPER_T_PIN_ENDSTOP);
+					varsT.stepsMin = ANGLE_TO_STEPS(command->movementT->val.limits.min, CONFIG_STEPPER_T_PIN_ENDSTOP) <= CONFIG_STEPPER_T_STEP_COUNT ? ANGLE_TO_STEPS(command->movementT->val.limits.min, CONFIG_STEPPER_T_PIN_ENDSTOP) : 360;
+					varsT.stepsMax = ANGLE_TO_STEPS(command->movementT->val.limits.max, CONFIG_STEPPER_T_PIN_ENDSTOP) <= CONFIG_STEPPER_T_STEP_COUNT ? ANGLE_TO_STEPS(command->movementT->val.limits.max, CONFIG_STEPPER_T_PIN_ENDSTOP) : 360;
 				}
+			}
+			break;
+
+		case GCodeCommand::M202:
+			if (command->movementH != nullptr) {
+				varsH.stepsMin = GCODE_ELEMENT_INVALID_INT32;
+				varsH.stepsMax = GCODE_ELEMENT_INVALID_INT32;
+			}
+			if (command->movementT != nullptr) {
+				varsT.stepsMin = GCODE_ELEMENT_INVALID_INT32;
+				varsT.stepsMax = GCODE_ELEMENT_INVALID_INT32;
 			}
 			break;
 		case GCodeCommand::P21:
@@ -487,35 +547,42 @@ parsingGCodeCommandsM:
 		} else
 			goto endInvalidArgument;
 	} else if (strncmp(gcode, "M201", 4) == 0) {
-		elementFloat = getElementFloat(4, "LH", 2);
-		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT || elementFloat < 0) {
+		elementFloat = getElementFloat(5, "LH", 2);
+		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT && elementFloat >= 0) {
 			command->movementH = new gcode_command_movement_t(); // stepper will stop in command->movementT is not nullptr
 			command->movementH->val.limits.min = elementFloat;
 		} else
 			goto endInvalidArgument;
 
-		elementFloat = getElementFloat(4, "HH", 2);
-		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT || elementFloat < 0) {
+		elementFloat = getElementFloat(5, "HH", 2);
+		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT && elementFloat >= 0) {
 			if (command->movementH == nullptr)
 				command->movementH = new gcode_command_movement_t();
 			command->movementH->val.limits.max = elementFloat;
 		} else
 			goto endInvalidArgument;
 
-		elementFloat = getElementFloat(4, "LT", 2);
-		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT || elementFloat < 0) {
+		elementFloat = getElementFloat(5, "LT", 2);
+		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT && elementFloat >= 0) {
 			command->movementT = new gcode_command_movement_t(); // stepper will stop in command->movementT is not nullptr
 			command->movementT->val.limits.min = elementFloat;
 		} else
 			goto endInvalidArgument;
 
-		elementFloat = getElementFloat(4, "HT", 2);
-		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT || elementFloat < 0) {
+		elementFloat = getElementFloat(5, "HT", 2);
+		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT && elementFloat >= 0) {
 			if (command->movementT == nullptr)
 				command->movementT = new gcode_command_movement_t();
 			command->movementT->val.limits.max = elementFloat;
 		} else
 			goto endInvalidArgument;
+	} else if (strncmp(gcode, "M201", 4) == 0) {
+		if (getElementString(5, "H", 1)) {
+			command->movementH = new gcode_command_movement_t();
+		}
+		if (getElementString(5, "T", 1)) {
+			command->movementT = new gcode_command_movement_t();
+		}
 	} else
 		goto endInvalidCommand;
 

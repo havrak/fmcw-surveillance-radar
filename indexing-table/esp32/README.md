@@ -71,8 +71,12 @@ Configuration of the device is done primarily with Kconfig under esp-idf. While 
 	* HH<ANGLE>: high limit on horizontal Stepper
 	* LT<ANGLE>: low limit on tilt stepper
 	* HT<ANGLE>: high limit on tilt stepper
-	* ANGLE is given in degrees if unit is set to degrees, otherwise in steps
+	* ANGLE is given in degrees if unit is set to degrees (0-360), otherwise in steps (0-STEP_COUNT)
+	* either no limits are placed on axis or both limits are placed, imposing just one limit doesn't make sense when we are limited only to one full rotation
 	* NOTE: keep in mind that if limits are imposed and current postion is not within them, you will have to get the device within limits in one G0 command
+* M202: disable limits
+	* H - disable limits on horizontal stepper
+	* L - disable limits on tilt stepper
 
 ### Programming movements (NOT FINAL)
 * device allows to preprogram sequence of movements that can be executed with one command, or looped continuously

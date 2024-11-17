@@ -27,6 +27,7 @@
 #include <vector>
 #include <stepper_hal.h>
 #include <tasker_singleton_wrapper.h>
+#include <functional>
 
 #define HOMING_DONE_BIT BIT2
 
@@ -37,6 +38,9 @@
     ((to) - (from) + (angleMax)) % (angleMax) - (angleMax) : \
     ((to) - (from) + (angleMax)) % (angleMax) \
 		) // only applies when no limits are set
+#define ANGLE_DISTANCE_COUNTERCLOCKWISE(from, to, angleMax) ((to) - (from) + (angleMax)) % (angleMax) - (angleMax)
+#define ANGLE_DISTANCE_CLOCKWISE(from, to, angleMax) ((to) - (from) + (angleMax)) % (angleMax)
+
 #define NORMALIZE_ANGLE(angle, angleMax) ((angle) < 0 ? ((angle) % (angleMax) + (angleMax)) % (angleMax) : (angle) % (angleMax))
 #define SYNCHRONIZED  (command->movementH != nullptr && command->movementT != nullptr)
 
@@ -102,6 +106,7 @@ enum GCodeCommand : uint8_t {
 	M03, // start spindle DONE DONE
 	M05, // stop spindle DONE DONE
 	M201, // set limits DONE DONE
+	M202, // disable limits DONE DONE
 	P0,	 // stop programm execution DONE XXX
 	P1,	 // start programm execution DONE XXX?????
 	P2,	 // delete program from memory DONE XXX????? - could be runned in motorTask
