@@ -118,9 +118,9 @@ void StepperHal::initPCNT(){
 	ESP_ERROR_CHECK(pcnt_unit_set_glitch_filter(varsHalT.pcntUnit, &filterConfig));
 
 	pcnt_chan_config_t channelConfig;
-	channelConfig.edge_gpio_num = (gpio_num_t) CONFIG_STEPPER_H_PIN_STEP;
+	channelConfig.edge_gpio_num = (gpio_num_t) CONFIG_STEPPER_H_PIN_SENSE;
 	ESP_ERROR_CHECK(pcnt_new_channel(varsHalH.pcntUnit, &channelConfig, &varsHalH.pcntChan));
-	channelConfig.edge_gpio_num = (gpio_num_t) CONFIG_STEPPER_T_PIN_STEP;
+	channelConfig.edge_gpio_num = (gpio_num_t) CONFIG_STEPPER_T_PIN_SENSE;
 	ESP_ERROR_CHECK(pcnt_new_channel(varsHalT.pcntUnit, &channelConfig, &varsHalT.pcntChan));
 
 

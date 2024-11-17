@@ -124,6 +124,13 @@ default 22
 help
 	Horizontal motor GPIO connection for step pin
 
+config STEPPER_H_PIN_SENSE
+int "Horizontal motor GPIO connection for sense pin"
+range 0 100
+default 21
+help
+	Horizontal motor GPIO connection for sense pin
+
 config STEPPER_T_STEP_COUNT
 int "Tilt motor rotation step count"
 range 1 1000
@@ -141,16 +148,23 @@ help
 config STEPPER_T_PIN_DIR
 int "Tilt motor GPIO connection for direction pin"
 range 0 100
-default 19
+default 20
 help
 	Tilt motor GPIO connection for direction pin
 
 config STEPPER_T_PIN_STEP
 int "Tilt motor GPIO connection for step pin"
 range 0 100
-default 18
+default 19
 help
 	Tilt motor GPIO connection for step pin
+
+config STEPPER_T_PIN_SENSE
+int "Tilt motor GPIO connection for sense pin"
+range 0 100
+default 18
+help
+	Tilt motor GPIO connection for sense pin
 
 config STEPPER_MIN_SPINDLE_TIME
 int "Minimum spindle time in ms"
