@@ -418,7 +418,7 @@ ParsingGCodeResult StepperControl::parseGCode(const char* gcode, uint16_t length
 		steppers.stopNowStepperH();
 		steppers.stopNowStepperT();
 
-		return ParsingGCodeResult::NO_SUPPORT;
+		return ParsingGCodeResult::SUCCESS;
 	} else if (strncmp(gcode, "M81", 3) == 0) { // power up high voltage supply
 																							// XXX this command will be executed immediately
 		return ParsingGCodeResult::NO_SUPPORT;
@@ -432,6 +432,7 @@ ParsingGCodeResult StepperControl::parseGCode(const char* gcode, uint16_t length
 			activeProgram = nullptr;
 		}
 		programmingMode.store(ProgrammingMode::NO_PROGRAMM);
+		return ParsingGCodeResult::SUCCESS;
 	}
 
 	if (programmingMode == ProgrammingMode::RUN_PROGRAM) // all following commands don't make any sense to process if we are already running a program

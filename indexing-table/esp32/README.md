@@ -137,6 +137,7 @@ Configuration of the device is done primarily with Kconfig under esp-idf. While 
 		* can be left empty
 * P0 - stop executing programm (only one programm can be active at one time)
 * P1 <command_id> - run command with given id
+* P2 <command_id - delete command with given id
 * P90 <command_id> - start programming mode with given id
 	* if programm already exists it will be overwritten, changing programs post creation is not possible
 	* upon entering programming mode all commands are stashed and not executed
