@@ -10,9 +10,10 @@
 \input{macros}
 \input{xmp}
 \input{doc_paper}
-\usepackage{lipsum}  % For generating dummy text (optional)
 
-\newcommand{\sidar}{SiRad Easy\textsuperscript{\copyright} r4}
+\newcommand{\sidar}{SiRad Easy\textsuperscript{\copyright}}
+
+\addbibresource{bibliography.bib}
 
 \begin{document}
 
@@ -30,34 +31,48 @@
 
 \chapter{Design parameters}
 
-First of all it is necessary to outline basic requirements we have for the platform. We need to Accommodate \sidar from Radar company and provide control over its tilt and rotation in horizontal plane. Transmission of the data from the radar ought not to be impeded and platform itself must provide sufficient data about its movement. As the radar data processing will be handled in MATLAB the platform needs to provide interface that is accessible from MATLAB, serial line comes up as the most straightforward option.
+First of all it is necessary to outline basic requirements we have for the platform. We need to Accommodate \sidar from Radar company and provide control over its tilt and rotation in horizontal plane.
+
+Transmission of the data from the radar ought not to be impeded and platform itself must provide sufficient data about its movement. As the radar data processing will be handled in MATLAB the platform needs to provide interface that is accessible from MATLAB, serial line comes up as the most straightforward option.
 
 \section{Physical capabilities}
 
-%% Some equation calculating necessary RPM from radar polling rate
+Main design limitations on physical design stem from radiation pattern of radar used as we want to prevent strong reflections from the structure.
+According to 122 GHz Transceiver datasheet angular width (-3dB) is roughly $\pm30\text{°}$\cite{sidarTRX} both in E plane and H plane.
+With addition of radar dome this values comes down to $\pm4\text{°}$ \cite{sidarMAN}.
+The radiation pattern of for 24GHz micropatch antenna was not listed by the manufacturer but we can assume it is similar to other products.
+Conservative estimate of $\pm15\text{°}$ based on designed \cite{patch1} and \cite{patch2} is used.
+According to these values we can set rather forgiving limits -- $\pm45\text{°}$ of clearance in front of the radar.
 
-Main design limitations on physical patter stem from radiation pattern of radar used as we want to prevent reflection from the structure.
+
+Due to relatively low polling rate of radar system (1Mbit/s) highspeed movement is not necessary.
+Advertised maximal polling rate with rather crude FFT setting in 50Hz (new update every 20ms) from following equation
+%
+\begin{equation}
+	t_{\mathrm{angle}} = \frac{60}{360\cdot N_{\mathrm{RMP}}} \cdot  \alpha,
+	\label{eq:poll}
+\end{equation}
+%
+where $t_{\mathrm{angle}}$ is time between spend on traveling angle of $\alpha $ in seconds and $N_{\mathrm{RMP}}$ is number of rotations per minute, we can get that even for low RPM of 60 the angle of 8° (angular width of main lobe for 122 GHz radar) is traveled in 10ms.
+Thus the information from radar at such speed will be heavily distorted.
+
+
+
+
+
 
 % cite manual of the radar board for radiation pattern, maybe look up some existing solutions
 
 \section{Software requirements}
 
-NOTE: only basic functionality we want -- programming, spindle, limits and such, point out solution needs to be rather generic
+Since G-code is widely used industry standard for controlling most multi-axis machines it is natural choice for our platform.
+Aside from basic functionality found in many G-code interpreters we need to provide some additional capabilities to not overburden the user with manual control.
+These include ability to set limits on movement or being able to preprogram movements which the platform will then execute on its own.
 
-TODO -> move to realization
-Main problem on software side is to provide smooth excitation of steppers motors so that the motion is continuos and with predictable speed.
-Given simple equation
-%
-\begin{equation}
-	t_{\mathrm{delay}}(s) = \frac{60}{N_{\mathrm{steps}} \cdot s},
-	\label{eq:delay}
-\end{equation}
-%
-where  $s$ is speed in RMP, $N_{\mathrm{steps}}$ number of steps of the stepper and  $t_{\mathrm{delay}}$ time between steps the time we can calculate that even for relatively low speed of 60 RPM delay between steps is only $5\mathrm{ms}$, take into account we need to switch state two times we get $2500\upmu\mathrm{s}$ between changes. This makes software generation of control signal hard to do.
+In terms of uplink user needs to know current position of the platform and have information about its current speed in order to make mathematical correction to the data gathered by radar.
+Since the platform is not concerned with what antenna is currently used calculating speed of the radar itself is not possible as different antennas wile have different angular speeds on the tilt axis.
+Thus the platform needs to provide information about its current position in relatively frequent intervals in order to enable an accurate calculation of speed in MATLAB.
 
-
-In order to provide reliable and timely control over platform's movement executing commands in real time as they come wouldn't suffice.
-Thus it is needed to queue general commands and for more complex movement have a way to preprogramm them into the platform and let it do the execution itself.
 
 
 
@@ -65,94 +80,111 @@ Thus it is needed to queue general commands and for more complex movement have a
 
 
 %% Picture of the construction both real and cad
+As we need to facilitate continuos rotating motion use of slipring was absolutely necessary.
+Due to relatively low transmission speeds of radar system (At max 1Mbit/s)
+
+
+\begin{figure}[h!]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{../img/whole_assembly_2.png} % Replace with your image path
+        \caption{3D render}
+    \end{subfigure}
+    \hspace{0.05\textwidth} % Adjust spacing
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=0.75\textwidth]{../img/assembly_photo.jpg} % Replace with your image path
+        \caption{Photo}
+    \end{subfigure}
+    \caption{Form of the final assembly}
+    \label{fig:side_by_side}
+\end{figure}
+
+
 
 \chapter{Software realization}
 
-In order to achieve maximal efficiency in processing commands and  most importantly maintain accurate driving of stepper motors workflow of the program is split into three diactinic layers, as showed on diagram \ref{fig:code_diag}.
-With increasing layer the amount of abstraction in command decreases and processing gets easier.
-There are two main benefits of this approach:
-\begin{itemize}
-	\item HAL layer function can be made really simple and thus fast.
-	\item Synchronization with queues enables the precompute many commands ahead -- thus executing next move is as fast as possible.
-\end{itemize}
-
-TODO: point out while two layer architecture wasn't possible here - wouldn't support programming interface, would require super long buffer for serial communication
+In order to achieve maximal efficiency in processing commands and  maintain accurate driving of stepper motors workflow of the program is split into three distinct layers, as showed on diagram \ref{fig:code_diag}.
+Using standard two component architecture with one part handling the parsing of commands and second managing their execution wasn't for this usecase - pre programming movements wouldn't be possible and precomputing multiple movements ahead unnecessary hard.
+Now with increasing layer the amount of abstraction in command decreases and processing gets easier.
+This enables the final stage to be really efficient thus moving form one command to another is more restricted by inertia of stepper motors.
 
 \begin{figure}[h!]
-	\centering
+  \centering
 
 
-\begin{tikzpicture}[scale=0.9, node distance=1.5cm]
+  \begin{tikzpicture}[scale=0.9, node distance=1.5cm]
 
-% Layer headers
-\node (comm_layer) [layerheader] at (0, 0) {Communication Layer};
-\node (app_layer) [layerheader] at (6, 0) {Application Layer};
-\node (hal_layer) [layerheader] at (12, 0) {HAL Layer};
+    % Layer headers
+    \node (comm_layer) [layerheader] at (0, 0) {Communication Layer};
+    \node (app_layer) [layerheader] at (6, 0) {Application Layer};
+    \node (hal_layer) [layerheader] at (12, 0) {HAL Layer};
 
-% Communication Layer
-\node (comm_start) [startstop, below of=comm_layer, yshift=-0.3cm] {Start};
-\node (wait_serial) [process, below of=comm_start] {Wait for serial data};
-\node (parse_gcode) [process, below of=wait_serial] {Parse G-code};
-\node (parse_success) [decision, below of=parse_gcode, align=center, yshift=-1.3cm] {Parsing\\ Successful?};
-\node (store_command) [process, below of=parse_success, align=center, yshift=-1.8cm] {Store command\\ queue ? program};
-\node (send_response) [process, below of=store_command,yshift=-0.25cm] {Send response};
+    % Communication Layer
+    \node (comm_start) [startstop, below of=comm_layer, yshift=-0.3cm] {Start};
+    \node (wait_serial) [process, below of=comm_start] {Wait for serial data};
+    \node (parse_gcode) [process, below of=wait_serial] {Parse G-code};
+    \node (parse_success) [decision, below of=parse_gcode, align=center, yshift=-1.3cm] {Parsing\\ Successful?};
+    \node (store_command) [process, below of=parse_success, align=center, yshift=-1.8cm] {Store command\\ queue ? program};
+    \node (send_response) [process, below of=store_command,yshift=-0.25cm] {Send response};
 
-% Arrows in Communication Layer
-\draw [arrow] (comm_start) -- (wait_serial);
-\draw [arrow] (wait_serial) -- (parse_gcode);
-\draw [arrow] (parse_gcode) -- (parse_success);
-\draw [arrow] (parse_success.east) -- ++(1, 0) |- (send_response.east) node[midway, left, yshift=+0.25cm] {No};
-\draw [arrow] (parse_success.south) -- ++(0, -0.5) -| (store_command.north) node[midway, right, yshift=+0.05cm] {Yes};
-\draw [arrow] (store_command) -- (send_response);
-\draw [arrow] (send_response.west) -- ++(-0.5, 0) |- (wait_serial.west);
+    % Arrows in Communication Layer
+    \draw [arrow] (comm_start) -- (wait_serial);
+    \draw [arrow] (wait_serial) -- (parse_gcode);
+    \draw [arrow] (parse_gcode) -- (parse_success);
+    \draw [arrow] (parse_success.east) -- ++(1, 0) |- (send_response.east) node[midway, left, yshift=+0.25cm] {No};
+    \draw [arrow] (parse_success.south) -- ++(0, -0.5) -| (store_command.north) node[midway, right, yshift=+0.05cm] {Yes};
+    \draw [arrow] (store_command) -- (send_response);
+    \draw [arrow] (send_response.west) -- ++(-0.5, 0) |- (wait_serial.west);
 
-% Application Layer
-\node (app_start) [startstop, below of=app_layer, yshift=-0.3cm] {Start};
-\node (update_position) [process, below of=app_start] {Update position};
-\node (check_queues) [decision, below of=update_position, yshift=-1.3cm] {Queues full?};
-\node (load) [process, below of=check_queues, align=center, yshift=-1.5cm] {Load command \\ queue ? program};
-\node (process_command) [process, below of=load,yshift=-0.25cm] {Process command};
-\node (store_command) [process, align=center, below of=process_command] {Add command \\ to stepper queue};
+    % Application Layer
+    \node (app_start) [startstop, below of=app_layer, yshift=-0.3cm] {Start};
+    \node (update_position) [process, below of=app_start] {Update position};
+    \node (check_queues) [decision, below of=update_position, yshift=-1.3cm] {Queues full?};
+    \node (load) [process, below of=check_queues, align=center, yshift=-1.5cm] {Load command \\ queue ? program};
+    \node (process_command) [process, below of=load,yshift=-0.25cm] {Process command};
+    \node (store_command) [process, align=center, below of=process_command] {Add command \\ to stepper queue};
 
-% Arrows in Application Layer
-\draw [arrow] (app_start) -- (update_position);
-\draw [arrow] (update_position) -- (check_queues);
-\draw [arrow] (check_queues.east) -- ++(1, 0) |- (update_position.east) node[midway, left, xshift=0.2cm, yshift=+0.25cm,xshift=0.2cm] {Yes};
-\draw [arrow] (check_queues.south) -- ++(0, -0.5) -| (load.north) node[midway, right, yshift=+0.1cm] {No};
-\draw [arrow] (load.south) -- ++(0, -0.5) -- (process_command.north);
-\draw [arrow] (process_command) -- (store_command);
-\draw [arrow] (store_command.west) -- ++(-0.5, 0) |- (update_position.west);
+    % Arrows in Application Layer
+    \draw [arrow] (app_start) -- (update_position);
+    \draw [arrow] (update_position) -- (check_queues);
+    \draw [arrow] (check_queues.east) -- ++(1, 0) |- (update_position.east) node[midway, left, xshift=0.2cm, yshift=+0.25cm,xshift=0.2cm] {Yes};
+    \draw [arrow] (check_queues.south) -- ++(0, -0.5) -| (load.north) node[midway, right, yshift=+0.1cm] {No};
+    \draw [arrow] (load.south) -- ++(0, -0.5) -- (process_command.north);
+    \draw [arrow] (process_command) -- (store_command);
+    \draw [arrow] (store_command.west) -- ++(-0.5, 0) |- (update_position.west);
 
 
-\node (hal_start) [startstop, below of=hal_layer, yshift=-0.3cm] {Start};
-\node (wait_queue) [process, below of=hal_start] {Wait on queue};
-\node (execute_command) [process, below of=wait_queue] {Execute command};
-\node (wait_command) [process, below of=execute_command] {Wait on command};
-\node (update_info) [process, align=center, below of=wait_command] {Update last \\command};
+    \node (hal_start) [startstop, below of=hal_layer, yshift=-0.3cm] {Start};
+    \node (wait_queue) [process, below of=hal_start] {Wait on queue};
+    \node (execute_command) [process, below of=wait_queue] {Execute command};
+    \node (wait_command) [process, below of=execute_command] {Wait on command};
+    \node (update_info) [process, align=center, below of=wait_command] {Update last \\command};
 
-% Arrows in HAL Layer
-\draw [arrow] (hal_start) -- (wait_queue);
-\draw [arrow] (wait_queue) -- (execute_command);
-\draw [arrow] (execute_command) -- (wait_command);
-\draw [arrow] (wait_command) -- (update_info);
-\draw [arrow] (update_info.west) -- ++(-0.5, 0) |- (wait_queue.west);
+    % Arrows in HAL Layer
+    \draw [arrow] (hal_start) -- (wait_queue);
+    \draw [arrow] (wait_queue) -- (execute_command);
+    \draw [arrow] (execute_command) -- (wait_command);
+    \draw [arrow] (wait_command) -- (update_info);
+    \draw [arrow] (update_info.west) -- ++(-0.5, 0) |- (wait_queue.west);
 
-\end{tikzpicture}
+  \end{tikzpicture}
 
-	\caption[Programm diagram]{Programm diagram}
-	\label{fig:code_diag}
+  \caption[Programm diagram]{Programm diagram}
+  \label{fig:code_diag}
 \end{figure}
 
 \section{Communication layer}
 
 Communication layer handles incoming data on serial line, reading from which is realized efficiently with the aid of RTOS queues.
 Upon receiving data the text string is parsed and either push to queue (if we are declaring a programm) or added to programm declaration.
-Immediately after data are processed response is send to a user as Communication Layer doesn't check whole pipeline of commands receiving SUCCESS response doesn't mean command will be valid in context it was sent.
+Immediately after data are processed a response is sent to the user however as Communication Layer doesn't check whole pipeline of commands response SUCCESS doesn't mean command will be valid in context it was sent.
 
 \section{Application layer}
 
 Application layers does two main things - keeps track of current device position and schedules commands to be sent to steppers.
-As part of scheduling layer calculates end positions of future commands this enables it to enforce user define limits on movement.
+Tracking of current position and end position of last scheduled command also enables layer to do calculations needed for absolute positioning and limits enforcement.
 
 \section{HAL Layer}
 
@@ -160,13 +192,25 @@ Final layer handles basic driving of steppers and provides Application layer wit
 In its loop we simply wait on next command in queue than setup its execution after which we wait for stepper or both steppers to finish moving.
 
 Main problem arises with generation of accurate PWM signal and having ability to stop generation upon given number of steps wer taken.
+From simple equation
+%
+\begin{equation}
+  t_{\mathrm{delay}}(s) = \frac{60}{N_{\mathrm{steps}} \cdot s},
+  \label{eq:delay}
+\end{equation}
+%
+where  $s$ is speed in RMP, $N_{\mathrm{steps}}$ number of steps of the stepper and  $t_{\mathrm{delay}}$ time between steps the time we can calculate that even for relatively low speed of 120 RPM delay between steps is only $2.5\mathrm{ms}$.
+Given the fact we need to change state two times within 2.5ms window and both steppers can operate on different RPM software/timer based driving is almost impossible.
 
+
+ESP32 platform offers two solutions for this task - using Remote Controlled Transceiver (RMT) or Motor Control Pulse Width Modulation (MCPWM) combined with PCNT.
 %% Table how fast are command processed
 %% Table with how reliable is timing (with different rpm)
 
 \include{conclusion}
 
 \include{bibliography}
+% \printbibliography
 
 \listoffigures
 
