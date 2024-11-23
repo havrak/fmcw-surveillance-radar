@@ -2,3 +2,15 @@
 \chapter*{Introduction}
 \addcontentsline{toc}{chapter}{Introduction}
 
+While two axis rotary platforms are fairly common in  machining they are often costly and their operational parmaters are rarely suitable for radar applications.
+Aside form laborary indexing tables, which are rather slow, most platforms aren't designed with communication interface that would facilitate such usecase.
+Timely execution of movements is not guaranteed and most solutions don't support frequent uplink about current position.
+
+Following thesis is focused on designing and building a two axis rotary platform with such usecase in mind.
+This mainly entails very timely and deterministic movement of the steppers in order for the radar processing to be able to correctly counteract movement in post processing.
+However other functionality is also needed in order to limit the burder on the user.
+
+
+First chapter of the thesiss outlines basic design requirements for the plaform accoding to radar paramters.
+Follow on focuses on Hardware side of the project be it electronic parts used or mechanical design.
+Last chapter is dedicated to the software handling control of the platform.
