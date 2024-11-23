@@ -1,4 +1,3 @@
-
 \def\PageLayout{single-no-print}
 \def\DocLanguage{en}
 \def\PackagesIncludeTikz{yes}
@@ -31,30 +30,28 @@
 
 \chapter{Design parameters}
 
-First of all it is necessary to outline basic requirements we have for the platform. We need to Accommodate \sidar from Radar company and provide control over its tilt and rotation in horizontal plane.
-
-Transmission of the data from the radar ought not to be impeded and platform itself must provide sufficient data about its movement. As the radar data processing will be handled in MATLAB the platform needs to provide interface that is accessible from MATLAB, serial line comes up as the most straightforward option.
+First of all it is necessary to outline basic requirements we have for the platform.
 
 \section{Physical capabilities}
 
-Main design limitations on physical design stem from radiation pattern of radar used as we want to prevent strong reflections from the structure.
+Main design limitations on physical design stem from radiation pattern of radar (24 and 122 GHz header) used as we want to prevent strong reflections from the structure.
 According to 122 GHz Transceiver datasheet angular width (-3dB) is roughly $\pm30\text{°}$\cite{sidarTRX} both in E plane and H plane.
 With addition of radar dome this values comes down to $\pm4\text{°}$ \cite{sidarMAN}.
 The radiation pattern of for 24GHz micropatch antenna was not listed by the manufacturer but we can assume it is similar to other products.
-Conservative estimate of $\pm15\text{°}$ based on designed \cite{patch1} and \cite{patch2} is used.
+Conservative estimate of $\pm15\text{°}$ based on designs \cite{patch1} and \cite{patch2} is used.
 According to these values we can set rather forgiving limits -- $\pm45\text{°}$ of clearance in front of the radar.
 
 
 Due to relatively low polling rate of radar system (1Mbit/s) highspeed movement is not necessary.
-Advertised maximal polling rate with rather crude FFT setting in 50Hz (new update every 20ms) from following equation
+Advertised maximal update frequency from manufacturer is  50Hz (new update every 20ms) \cite{sidarMAN}.
+From following equation
 %
 \begin{equation}
-	t_{\mathrm{angle}} = \frac{60}{360\cdot N_{\mathrm{RMP}}} \cdot  \alpha,
-	\label{eq:poll}
+  t_{\mathrm{angle}} = \frac{60}{360\cdot N_{\mathrm{RMP}}} \cdot  \alpha,
+  \label{eq:poll}
 \end{equation}
 %
-where $t_{\mathrm{angle}}$ is time between spend on traveling angle of $\alpha $ in seconds and $N_{\mathrm{RMP}}$ is number of rotations per minute, we can get that even for low RPM of 60 the angle of 8° (angular width of main lobe for 122 GHz radar) is traveled in 10ms.
-Thus the information from radar at such speed will be heavily distorted.
+where $t_{\mathrm{angle}}$ is time between spend on traveling angle of $\alpha $ in seconds and $N_{\mathrm{RMP}}$ is number of rotations per minute, we can calculate that even for low RPM of 60 the angle of 8° (angular width of main lobe for 122 GHz radar) is traveled in 10ms - two times faster then we are receiving data.
 
 
 
@@ -69,6 +66,7 @@ Since G-code is widely used industry standard for controlling most multi-axis ma
 Aside from basic functionality found in many G-code interpreters we need to provide some additional capabilities to not overburden the user with manual control.
 These include ability to set limits on movement or being able to preprogram movements which the platform will then execute on its own.
 
+
 In terms of uplink user needs to know current position of the platform and have information about its current speed in order to make mathematical correction to the data gathered by radar.
 Since the platform is not concerned with what antenna is currently used calculating speed of the radar itself is not possible as different antennas wile have different angular speeds on the tilt axis.
 Thus the platform needs to provide information about its current position in relatively frequent intervals in order to enable an accurate calculation of speed in MATLAB.
@@ -78,29 +76,39 @@ Thus the platform needs to provide information about its current position in rel
 
 \chapter{Hardware construction}
 
-
-%% Picture of the construction both real and cad
 As we need to facilitate continuos rotating motion use of slipring was absolutely necessary.
-Due to relatively low transmission speeds of radar system (At max 1Mbit/s)
-
+Due to relatively low transmission speeds of radar system (At max 1Mbit/s) standard contact slipring is sufficient.
+Rest of the structure can be 3D printed from PLA as the mechanical stress on the structure is relatively low.
 
 \begin{figure}[h!]
+  \centering
+  \begin{subfigure}[b]{0.45\textwidth}
     \centering
-    \begin{subfigure}[b]{0.45\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{../img/whole_assembly_2.png} % Replace with your image path
-        \caption{3D render}
-    \end{subfigure}
-    \hspace{0.05\textwidth} % Adjust spacing
-    \begin{subfigure}[b]{0.45\textwidth}
-        \centering
-        \includegraphics[width=0.75\textwidth]{../img/assembly_photo.jpg} % Replace with your image path
-        \caption{Photo}
-    \end{subfigure}
-    \caption{Form of the final assembly}
-    \label{fig:side_by_side}
+    \includegraphics[width=\textwidth]{../img/whole_assembly_2.png} % Replace with your image path
+    \caption{3D render}
+  \end{subfigure}
+  \hspace{0.05\textwidth} % Adjust spacing
+  \begin{subfigure}[b]{0.45\textwidth}
+    \centering
+    \includegraphics[width=0.75\textwidth]{../img/assembly_photo.jpg} % Replace with your image path
+    \caption{Photo}
+  \end{subfigure}
+  \caption{Form of the final assembly}
+  \label{fig:side_by_side}
 \end{figure}
 
+\section{Electronics}
+
+Electronic side of the project is rather simple as we only need to control two stepper motors and have way to home them.
+Whole system is controlled by ESP32 microcontroller since project doesn't require any special capabilities basic series of ESP32 microcontrollers is sufficient.
+
+As the load on stepper motors is relatively low and whole platform will not be able to accumulate large amount of momentum simple stepper driver without feedback control is sufficient.
+For this project A4988 stepper driver was chosen as it is cheap, easy to use and offers basic current control to smooth out stepper movement\cite{a4988}.
+
+For homing  there were two prospective solutions -- Hall effect sensors, optical gates.
+While Hall effect would offer sensing of any angle and thus be able to combat any drift in position during operation its integration would be rather complex.
+As if orthogonal Hall effect sensors isn't placed exactly in axis of rotation calibration of the system is required\cite{hall}.
+Thus for simplicity and ease of integration optical gates were chosen.
 
 
 \chapter{Software realization}
@@ -179,31 +187,86 @@ This enables the final stage to be really efficient thus moving form one command
 
 Communication layer handles incoming data on serial line, reading from which is realized efficiently with the aid of RTOS queues.
 Upon receiving data the text string is parsed and either push to queue (if we are declaring a programm) or added to programm declaration.
-Immediately after data are processed a response is sent to the user however as Communication Layer doesn't check whole pipeline of commands response SUCCESS doesn't mean command will be valid in context it was sent.
 
 \section{Application layer}
 
 Application layers does two main things - keeps track of current device position and schedules commands to be sent to steppers.
-Tracking of current position and end position of last scheduled command also enables layer to do calculations needed for absolute positioning and limits enforcement.
+Tracking of current position and end position of last scheduled command also enables the application layer to do calculations needed for absolute positioning and limits enforcement.
+
+One large change from normal G-code interpreters is the fact that if move command is issued only for a single axis second one is free to read next one and start executing it.
+If this behavior is undesirable user needs to issue command to both axis - in relative positioning mode zero will result in no motion, in absolute positioning mode current position must be used.
+
+
 
 \section{HAL Layer}
 
 Final layer handles basic driving of steppers and provides Application layer with all necessary for position calculation.
-In its loop we simply wait on next command in queue than setup its execution after which we wait for stepper or both steppers to finish moving.
+In its loop we simply wait for a next command in the stepper queue.
+If a command command is received programs set ups its execution and wait for the stepper or both steppers to finish moving after which its moves onto next command.
+As all calculations regarding limits, positioning have been done beforehand in the application layer HAL layer can be really performant and efficient.
 
-Main problem arises with generation of accurate PWM signal and having ability to stop generation upon given number of steps wer taken.
-From simple equation
+Main problem arises with generation of accurate PWM signal and having the ability to stop the generation upon given number of steps were taken.
+From equation
 %
 \begin{equation}
-  t_{\mathrm{delay}}(s) = \frac{60}{N_{\mathrm{steps}} \cdot s},
+  t_{\mathrm{delay}}(s) = \frac{60}{2\cdot N_{\mathrm{steps}} \cdot s},
   \label{eq:delay}
 \end{equation}
 %
-where  $s$ is speed in RMP, $N_{\mathrm{steps}}$ number of steps of the stepper and  $t_{\mathrm{delay}}$ time between steps the time we can calculate that even for relatively low speed of 120 RPM delay between steps is only $2.5\mathrm{ms}$.
-Given the fact we need to change state two times within 2.5ms window and both steppers can operate on different RPM software/timer based driving is almost impossible.
+where  $s$ is speed in RMP, $N_{\mathrm{steps}}$ number of steps of the stepper and  $t_{\mathrm{delay}}$ time between steps the time we can calculate that even for RPM of 30 delay between changes on output is 5ms on single stepper.
+Take small microstepping of 2:1 into account and the thread would need to execute change every 2.5ms -- to fast to not arise problems with hardware watchdog.
+Thus generating signal with purpose designed microcontroller peripherals is necessary.
 
 
 ESP32 platform offers two solutions for this task - using Remote Controlled Transceiver (RMT) or Motor Control Pulse Width Modulation (MCPWM) combined with PCNT.
+While RMT offers special capabilities like smoothly increasing PWM frequency it also brings many disadvantages: generating N number of pulses is available only only on the lastest version of ESP32 microcontrollers \cite{gitRMT}, synchronization can be only done cleanly with rather restrictive RMT specific API, there isn't a easy way to get information how far are we into move \cite{espRMT}.
+
+For these reasons approach of combining MCPWM for pulse generation and PCNT for counting steps was chosen.
+This allows for easy synchronization, realization of continous rotation and PCNT provides helpful API for counting steps\cite{espPCNT}.
+Only disadvantage is strict limit of 15 bit counter making the maximal number of steps per move 32767.
+
+\subsection{Performance of HAL Layer}
+
+
+Table \ref{tab:performancepwm} shows stability of the PWM generation of the MCPWM module on different speeds.
+Measurements were taken using Saleae Logic Pro 16 logic analyzer without any microstepping enabled.
+We can clearly see that deviation in frequency is quite low thought the error increases with frequency and speed is consistently slightly faster than desired.
+Still if we were to take 24000 steps with RPM of 120 relative error in time taken would be only $\epsilon = -0.004\%$
+
+
+\begin{table}[h!]
+  \centering
+  \caption[Stability of PWM generation]{Stability of PWM generation}
+  \begin{tabular}{| m{2cm} || m{2.5cm} | m{2.5cm} | m{2.5cm} | m{2.5cm} |}
+    \hline
+    RPM & $f_{\mathrm{desired}}$ (Hz) & $f_{\mathrm{low}}$ (Hz) & $f_{\mathrm{high}}$ (Hz) & $f_\mathrm{avg}$ (Hz) \\
+    \hline
+    10  & 33.334                      & 33.334                  & 33.334                   & 33.334                \\
+    30  & 100                         & 100                     & 100.003                  & 100.002               \\
+    60  & 200                         & 200                     & 200.01                   & 200.004               \\
+    120 & 400                         & 400                     & 400.02                   & 400.007               \\
+    \hline
+  \end{tabular}
+  \label{tab:performancepwm}
+\end{table}
+
+Attempt to measure how fast is switching between commands was done however as one can see from pictures
+\ref{fig:switching}  the delay between commands isn't perceivable.
+At least not on any reasonable RPM.
+While the pictures is taken with transmission from step commands at 120 RPM to step command at 60 RPM measurements were also taken for different combinations of commands with similar results.
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=0.7\textwidth]{../img/120rpm_to60_1.jpg}
+	\includegraphics[width=0.7\textwidth]{../img/120rpm_to60_2.jpg}
+	\caption[Moment of change between commands with 120RPM and 60RPM]{Moment of change between commands (120RPM $\Rightarrow$  60RPM)}
+	\label{fig:switching}
+\end{figure}
+
+% RPM & desired  & low interval & high interval & deviation
+
+% speed how fast follow on command gets executed
+
 %% Table how fast are command processed
 %% Table with how reliable is timing (with different rpm)
 

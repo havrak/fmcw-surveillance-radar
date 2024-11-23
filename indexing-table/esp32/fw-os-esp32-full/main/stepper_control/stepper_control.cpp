@@ -35,6 +35,14 @@ void StepperControl::init()
 	} else {
 		ESP_LOGI(TAG, "JoPkaEndpoint | created lock");
 	}
+	// on first step there are some initializations taking place that make it much longer than the rest
+	steppers.stepStepperH(1, 30);
+	steppers.stepStepperH(-1, 30);
+	steppers.stepStepperT(1, 30);
+	steppers.stepStepperT(-1, 30);
+	steppers.waitStepperH(10, false);
+	steppers.waitStepperT(10, false);
+
 }
 
 void StepperControl::stepperMoveTask(void* arg)

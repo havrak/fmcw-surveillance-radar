@@ -32,8 +32,15 @@ void StepperHal::initStepperTasks(){
 	varsHalT.stepperCompleteBit = STEPPER_COMPLETE_BIT_T;
 	varsHalH.commandQueue = xQueueCreate(CONFIG_STEPPER_HAL_QUEUE_SIZE, sizeof(stepper_hal_command_t));
 	varsHalT.commandQueue = xQueueCreate(CONFIG_STEPPER_HAL_QUEUE_SIZE, sizeof(stepper_hal_command_t));
-	xTaskCreate(stepperTask, "Stepper Task T", 2048, &varsHalH, 5, NULL);
-	xTaskCreate(stepperTask, "Stepper Task H", 2048, &varsHalT, 5, NULL);
+	varsHalH.stepperCommand = new stepper_hal_command_t(); // Don't really know why we need it, but
+	varsHalT.stepperCommand = new stepper_hal_command_t();
+	varsHalH.stepperCommandPrev = new stepper_hal_command_t();
+	varsHalT.stepperCommandPrev = new stepper_hal_command_t();
+
+
+	xTaskCreate(stepperTask, "Stepper Task H", 2048, &varsHalH, 5, NULL);
+	xTaskCreate(stepperTask, "Stepper Task T", 2048, &varsHalT, 5, NULL);
+	ESP_LOGI(TAG, "Stepper tasks initialized");
 
 }
 
@@ -96,10 +103,11 @@ void StepperHal::initMCPWN() {
 
 	ESP_ERROR_CHECK(mcpwm_timer_enable(varsHalH.timer));
 	ESP_ERROR_CHECK(mcpwm_timer_enable(varsHalT.timer));
+
+	ESP_LOGI(TAG, "MCPWM initialized");
 }
 
 void StepperHal::initPCNT(){
-	const char *TAG = "PCNT";
 	ESP_LOGI(TAG, "Initializing PCNT for pulse counters");
 	pcnt_unit_config_t unitConfig = {
 		.low_limit = -1,
@@ -145,12 +153,16 @@ void StepperHal::initPCNT(){
 	ESP_LOGI(TAG, "start pcnt unit");
 	ESP_ERROR_CHECK(pcnt_unit_start(varsHalH.pcntUnit));
 	ESP_ERROR_CHECK(pcnt_unit_start(varsHalT.pcntUnit));
+
+	ESP_LOGI(TAG, "MCPWM initialized");
 }
 
 // NOTE: it would be possible to have two static structs, that would contain all the necessary information for the stepper
 // that way a pointer to be passed to a task and we could have only one task for both steppers
 void StepperHal::stepperTask(void *arg) {
 	stepper_hal_variables_t* varsHal = (stepper_hal_variables_t*) arg;
+
+	ESP_LOGI("Stepper 1", "Starting stepper task %d", uxQueueMessagesWaiting(varsHal->commandQueue));
 
 	while (1) {
 		if (xQueueReceive(varsHal->commandQueue, varsHal->stepperCommand, portMAX_DELAY)) {
@@ -159,8 +171,7 @@ void StepperHal::stepperTask(void *arg) {
 				varsHal->stepperCommandPrev->val.finishTime = esp_timer_get_time();
 
 
-			ESP_LOGI("Stepper 1", "Received command for stepper 1");
-			uint32_t period_ticks = (uint32_t)(60'000'000/CONFIG_STEPPER_H_STEP_COUNT/varsHal->stepperCommand->rpm); // Convert to timer ticks (as we are toggling on timer event we need to double the RPM)
+			uint32_t period_ticks = (uint32_t)(30'000'000/CONFIG_STEPPER_H_STEP_COUNT/varsHal->stepperCommand->rpm); // Convert to timer ticks (as we are toggling on timer event we need to double the RPM)
 			gpio_set_level((gpio_num_t)CONFIG_STEPPER_H_PIN_DIR, varsHal->stepperCommand->direction ? 1 : 0);
 
 			// Reset and start pulse counter

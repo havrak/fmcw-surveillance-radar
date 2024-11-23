@@ -86,6 +86,8 @@ class StepperHal{
 	public:
 		static bool pcntOnReach(pcnt_unit_handle_t unit, const pcnt_watch_event_data_t *edata, void *user_ctx);
 
+		constexpr static  char TAG[] = "StepperHal";
+
 
 		static void stepperTask(void *arg);
 

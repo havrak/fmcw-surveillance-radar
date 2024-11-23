@@ -22,6 +22,8 @@
 
 
 #include <os_core_tasker_ids.h>
+
+#include <stepper_hal.h>
 #include <functional>
 
 #include <callback_interface.h>

@@ -64,8 +64,15 @@ void OSCore::setup()
 	stepperControl.init();
 
 
-	char* testComamnd = "G0 HX";
-	stepperControl.parseGCode(testComamnd, strlen(testComamnd));
+	// stepepr ()
+	// on first step there is some kind of initialization taking place making it much slower
+	steppers.stepStepperH(24000, 120); // one rotation -> 6 seconds
+
+	// steppers.stepStepperH(200, 60); // one rotation -> 6 seconds
+
+	// spi
+	// char* testComamnd = "G0 HX";
+	// stepperControl.parseGCode(testComamnd, strlen(testComamnd));
 
 
 	// ------------------------------------------
