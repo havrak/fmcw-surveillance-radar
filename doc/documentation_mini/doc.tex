@@ -39,6 +39,10 @@ The primary constraints on the physical design arise from the radar's radiation 
 
 The radiation pattern for the 24 GHz microstrip patch antenna is not explicitly provided by the manufacturer. However, based on similar designs, a conservative estimate of $\pm15\text{°}$ is adopted, informed by \cite{patch1} and \cite{patch2}. Considering these values, we set a reasonably forgiving clearance limit of $\pm45\text{°}$ in front of the radar.
 
+%% NOTE
+One can also see that significant cost cutting can be done in the area of precision of the platform.
+As the radar system has relatively low angular resolution the sub degree precision of commercial solutions is not needed.
+
 Due to the radar system's relatively low polling rate (1 Mbit/s), high-speed movement is unnecessary. The manufacturer specifies a maximum update frequency of 50 Hz, equating to a new update every 20 ms \cite{sidarMAN}.
 Using the following equation:
 %
@@ -62,7 +66,6 @@ For uplink communication, the platform must provide real-time information about 
 
 To enable continuous rotational motion, the use of a slip ring is indispensable. Given the radar system's relatively low transmission speed (maximum 1 Mbit/s), a standard contact slip ring suffices -- a model with a USB 2.0 interface and eight additional lines was selected to meet the system's needs. The rest of the structure is 3D printed from PLA, since mechanical stresses on the platform are minimal.
 
-%% Insert similar solutions here
 
 \begin{figure}[h!]
   \centering
@@ -80,6 +83,10 @@ To enable continuous rotational motion, the use of a slip ring is indispensable.
   \caption{Form of the final assembly}
   \label{fig:side_by_side}
 \end{figure}
+
+In stark departure from commercial solutions \cite{carl,standa} due to need to accommodate large slipring first axis controls rotation and second one tilt.
+This arrangement also leads to simple simpler calculation of speed vector, needed for radar processing, by reducing the interdependence of movements between each axis.
+
 
 \section{Electronics}
 
@@ -192,7 +199,7 @@ If a move command targets only one axis, the other axis remains free to read the
 If this behavior is undesirable, the user must issue commands for both axes.
 In relative positioning mode, a zero value will result in no motion; in absolute positioning mode, the command must specify the current position for no movement to occur.
 
-A key departure from standard G-code interpreters is how the platform handles single-axis move commands.
+A key departure from standard G-code interpreters, like \cite{duet}, is how the platform handles single-axis move commands.
 When a move command targets only one axis, the other axis remains free to read the next command and begin execution.
 If this behavior is undesirable, the user must issue commands for both axes.
 In relative positioning mode, a zero value results in no motion; in absolute positioning mode, the command must specify the current position to prevent movement.

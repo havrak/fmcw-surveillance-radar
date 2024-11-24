@@ -2,14 +2,20 @@
 \chapter*{Introduction}
 \addcontentsline{toc}{chapter}{Introduction}
 
-While two axis rotary platforms are fairly common in  machining they are often costly and their operational parmaters are rarely suitable for radar applications.
-Aside form laborary indexing tables, which are rather slow, most platforms aren't designed with communication interface that would facilitate such usecase.
-Timely execution of movements is not guaranteed and most solutions don't support frequent uplink about current position.
+While two axis rotary platforms are fairly common in the world of machining they are often prohibitively costly and their operational parmaters are offten unnecessarly precise \cite{carl} for an applicaiton use as a radar plaform, where angluar width of the main lobe can span multiple degrees \cite{sidarMAN}.
+In additional most driving boards, usualy in a form G-code/M-code interpreters, aren't built to provide frequent uplink about their current position \cite{duet}.
 
-Following thesis is focused on designing and building a two axis rotary platform with such usecase in mind.
+
+We could define two basic categories of such platforms -- either they operate fully autonomously and provide only basic infrequent diagnostics or they require constant downlink from the computer.
+In the first case we lack the information necceasry for the radar processing to be able to counteract the movement of the platform in post processing.
+In the second case operation is ofnet not timely enough and even though we know what command gets executed we can't be sure that it gets executed in time.
+
+Following thesis is focused on designing and building a two axis rotary platform without such rescrictions.
 This mainly entails very timely and deterministic movement of the steppers in order for the radar processing to be able to correctly counteract movement in post processing.
-However other functionality is also needed in order to limit the burder on the user.
+However other functionality is also needed in order to limit the burder of the platform control on the user.
 
+A three layer command processing architecture is proposed and implemented to achive this goal.
+This allows almost seemles transition between commands and platform can be entirely preprogrammed to execute a series of commands without any user interaction.
 
 First chapter of the thesiss outlines basic design requirements for the plaform accoding to radar paramters.
 Follow on focuses on Hardware side of the project be it electronic parts used or mechanical design.
