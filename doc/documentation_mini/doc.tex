@@ -39,11 +39,11 @@ The primary constraints on the physical design arise from the radar's radiation 
 
 The radiation pattern for the 24 GHz microstrip patch antenna is not explicitly provided by the manufacturer. However, based on similar designs, a conservative estimate of $\pm15\text{°}$ is adopted, informed by \cite{patch1} and \cite{patch2}. Considering these values, we set a reasonably forgiving clearance limit of $\pm45\text{°}$ in front of the radar.
 
-%% NOTE
 One can also see that significant cost cutting can be done in the area of precision of the platform.
-As the radar system has relatively low angular resolution the sub degree precision of commercial solutions is not needed.
+As the radar system has relatively low angular resolution the sub degree control of commercial solutions is not needed.
+This allows basic 200 steps NEMA17 stepper motors be used with optional microstepping to increase smoothness of movement.
 
-Due to the radar system's relatively low polling rate (1 Mbit/s), high-speed movement is unnecessary. The manufacturer specifies a maximum update frequency of 50 Hz, equating to a new update every 20 ms \cite{sidarMAN}.
+In terms of speed due to the radar system's relatively low polling rate (1 Mbit/s), high-speed movement is unnecessary. The manufacturer specifies a maximum update frequency of 50 Hz, equating to a new update every 20 ms \cite{sidarMAN}.
 Using the following equation:
 %
 \begin{equation}
@@ -51,7 +51,7 @@ Using the following equation:
   \label{eq:poll}
 \end{equation}
 %
-where $t_{\mathrm{angle}}$ is time between spend on traveling angle of $\alpha $ in seconds and $N_{\mathrm{RMP}}$ is number of rotations per minute, we can calculate that even for low RPM of 60 an angle of 8 degrees platforma traveles (angular width of main lobe for 122 GHz radar) in 10ms.
+where $t_{\mathrm{angle}}$ is time between spend on traveling angle of $\alpha $ in seconds and $N_{\mathrm{RMP}}$ is number of rotations per minute, we can calculate that even for low RPM of 60 an angle of 8 degrees the platform travels (angular width of main lobe for 122 GHz radar) in 10ms.
 
 \section{Software requirements}
 
@@ -85,7 +85,7 @@ To enable continuous rotational motion, the use of a slip ring is indispensable.
 \end{figure}
 
 In stark departure from commercial solutions \cite{carl,standa} due to need to accommodate large slipring first axis controls rotation and second one tilt.
-This arrangement also leads to simple simpler calculation of speed vector, needed for radar processing, by reducing the interdependence of movements between each axis.
+This arrangement also leads to simpler calculation of speed vector, needed for radar processing, by reducing the interdependence of movements between each axis.
 
 
 \section{Electronics}
@@ -94,7 +94,7 @@ Electronic side of the project is rather simple given that only control of two s
 The system is managed by an ESP32 microcontroller. Since the project does not demand advanced capabilities, a basic ESP32 model is sufficient.
 
 Given the low load on the stepper motors and the platform's inability to accumulate significant momentum, a simple stepper driver without feedback control is adequate.
-For this purpose, the A4988 stepper driver given its low cost, microstepping capabilities and basic current control\cite{a4988} was selected..
+For this purpose, the A4988 stepper driver given its low cost, microstepping capabilities and basic current control\cite{a4988} was selected.
 
 To implement homing, two potential solutions were considered: Hall effect sensors and optical gates.
 While Hall effect sensors offer the advantage of angle sensing, allowing correction of any positional drift during operation, they require precise alignment.
@@ -226,7 +226,7 @@ Using the equation:
   \label{eq:delay}
 \end{equation}
 %
-where $s$ is speed in RPM, $N_{\mathrm{steps}}$ is the number of steps, and $t_{\mathrm{delay}}$ is the time between steps, we calculate that even at 30 RPM, the delay between output changes is 5 ms per step.
+where $s$ is speed in RPM, $N_{\mathrm{steps}}$ is the number of steps (Anywhere from 200 to 1600 depending on microstepping.), and $t_{\mathrm{delay}}$ is the time between steps, we calculate that even at 30 RPM, the delay between output changes is 5 ms per step.
 With microstepping at a 2:1 ratio, this reduces to 2.5 ms -- faster than lowest sleep interval and without sleep watchdog will trigger.
 Therefore, signal generation must leverage specialized microcontroller peripherals.
 
@@ -281,17 +281,9 @@ As long as the stepper queues are supplied with commands in advance, the platfor
 Most importantly, the platform’s timely and predictable behavior ensures that mathematical corrections to the radar data can be applied accurately.
 
 
-% RPM & desired  & low interval & high interval & deviation
-
-% speed how fast follow on command gets executed
-
-%% Table how fast are command processed
-%% Table with how reliable is timing (with different rpm)
-
 \include{conclusion}
 
 \include{bibliography}
-% \printbibliography
 
 \listoffigures
 

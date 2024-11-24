@@ -1,3 +1,17 @@
-\chapter*{Consclusions}
-\addcontentsline{toc}{chapter}{Consclusion}
+% vim.ft=tex
+\chapter*{Conclusions}
+\addcontentsline{toc}{chapter}{Conclusion}
 
+The goal of this thesis was to design and build a cost-effective two-axis rotary platform for a radar system.
+Due to the radar's relatively low resolution and polling rate, the platform could be constructed using standard off-the-shelf components such as bipolar stepper motors and an ESP32 microcontroller.
+This approach significantly reduced costs compared to professionally manufactured solutions currently available on the market.
+
+The platform's software was developed with a focus on maximizing performance while ensuring high autonomy in operation.
+This design philosophy facilitates seamless integration with other projects, eliminating the need for users to understand the intricacies of system operations.
+Movement patterns are simply defined using standard G-code commands inside custom programs and send to the platform which handles their execution autonomously.
+
+Performance measurements demonstrated the platform’s precise speed control, achieving an relative error in the order of $10^{-3}$ \%.
+Furthermore, when supplied with commands in advance, the platform transitions between commands with imperceptible pauses, even at high speeds leading to smooth and continuous movement.
+Coupled with the frequent uplink of the platform's current position, this capability allows users to make all necessary movement corrections during post-processing of radar data.
+
+By combining affordability, precision, and ease of use, the designed platform serves as a practical and efficient solution for low-bandwith radar-based applications, offering a valuable tool for further research and development.
