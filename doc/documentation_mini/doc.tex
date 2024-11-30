@@ -31,11 +31,11 @@
 \chapter{Design parameters}
 
 To begin, it is essential to outline the fundamental requirements for the platform.
-These stem from the physical capabilities of the radar system and requirements for the software.
+These stem from the physical capabilities of the radar system, SiRad Easy evalutions kit, and requirements for the software.
 
 \section{Physical capabilities}
 
-The primary constraints on the physical design arise from the radar's radiation pattern (24 and 122 GHz headers), as it is crucial to minimize strong reflections from the platform's structure. According to the 122 GHz Transceiver datasheet, the angular width at -3dB is approximately $\pm30\text{°}$ in both the E-plane and H-plane \cite{sidarTRX}. With the addition of a radar dome, this value decreases to $\pm4\text{°}$ \cite{sidarMAN}.
+The primary constraints on the physical design arise from the radar's radiation pattern (Both 24 and 122 GHz headers are accounted for.), as it is crucial to minimize strong reflections from the platform's structure. According to the 122 GHz transceiver datasheet, the angular width at -3 dB is approximately $\pm30\text{°}$ in both the E-plane and H-plane \cite{sidarTRX}. With the addition of a radar dome the value decreases to $\pm4\text{°}$ \cite{sidarMAN}.
 
 The radiation pattern for the 24 GHz microstrip patch antenna is not explicitly provided by the manufacturer. However, based on similar designs, a conservative estimate of $\pm15\text{°}$ is adopted, informed by \cite{patch1} and \cite{patch2}. Considering these values, we set a reasonably forgiving clearance limit of $\pm45\text{°}$ in front of the radar.
 
@@ -43,7 +43,7 @@ One can also see that significant cost cutting can be done in the area of precis
 As the radar system has relatively low angular resolution the sub degree control of commercial solutions is not needed.
 This allows basic 200 steps NEMA17 stepper motors be used with optional microstepping to increase smoothness of movement.
 
-In terms of speed due to the radar system's relatively low polling rate (1 Mbit/s), high-speed movement is unnecessary. The manufacturer specifies a maximum update frequency of 50 Hz, equating to a new update every 20 ms \cite{sidarMAN}.
+In terms of speed, due to the radar system's relatively low polling rate (1 Mbit/s \cite{sidarMAN}), high-speed movement is unnecessary. The manufacturer specifies a maximum update frequency of 50 Hz, equating to a new update every 20 ms \cite{sidarMAN}.
 Using the following equation:
 %
 \begin{equation}
@@ -51,11 +51,11 @@ Using the following equation:
   \label{eq:poll}
 \end{equation}
 %
-where $t_{\mathrm{angle}}$ is time between spend on traveling angle of $\alpha $ in seconds and $N_{\mathrm{RMP}}$ is number of rotations per minute, we can calculate that even for low RPM of 60 an angle of 8 degrees the platform travels (angular width of main lobe for 122 GHz radar) in 10ms.
+where $t_{\mathrm{angle}}$ is time between spend on traveling angle of $\alpha $ in seconds and $N_{\mathrm{RMP}}$ is number of rotations per minute, we can calculate that even for low RPM of 60 an angle of 8 degrees the platform travels (angular width of main lobe for 122 GHz radar) in 10 ms.
 
 \section{Software requirements}
 
-Given its widespread adoption as an industry standard for controlling multi-axis machines, G-code is a natural choice for the platform's control software. Beyond the basic functionality typically offered by G-code interpreters, the platform must support additional features to reduce the user's manual control burden. These features include the ability to define movement limits and preprogram sequences of movements for autonomous execution by the platform.
+Given its widespread adoption as an industry standard for controlling multi-axis machines, G-code over serial is a natural choice for the platform's communication format. Beyond the basic functionality typically offered by G-code interpreters, the platform must support additional features to reduce the user's manual control burden. These features include the ability to define movement limits and preprogram sequences of movements for autonomous execution by the platform.
 
 For uplink communication, the platform must provide real-time information about its current position and speed. This data allows the user to make mathematical corrections to the radar's gathered data.
 
@@ -64,7 +64,7 @@ For uplink communication, the platform must provide real-time information about 
 
 \chapter{Hardware construction}
 
-To enable continuous rotational motion, the use of a slip ring is indispensable. Given the radar system's relatively low transmission speed (maximum 1 Mbit/s), a standard contact slip ring suffices -- a model with a USB 2.0 interface and eight additional lines was selected to meet the system's needs. The rest of the structure is 3D printed from PLA, since mechanical stresses on the platform are minimal.
+To enable continuous rotational motion, the use of a slip ring is indispensable. Given the radar system's relatively low transmission speed, a standard contact slip ring suffices -- a model with a USB 2.0 interface and eight additional lines was selected to meet the system's needs. The rest of the structure is 3D printed from PLA, since mechanical stresses on the platform are minimal.
 
 
 \begin{figure}[h!]
@@ -84,7 +84,7 @@ To enable continuous rotational motion, the use of a slip ring is indispensable.
   \label{fig:side_by_side}
 \end{figure}
 
-In stark departure from commercial solutions \cite{carl,standa} due to need to accommodate large slipring first axis controls rotation and second one tilt.
+In stark departure from commercial solutions \cite{carl,standa} due to need to accommodate a large slipring first axis controls rotation and second one tilt.
 This arrangement also leads to simpler calculation of speed vector, needed for radar processing, by reducing the interdependence of movements between each axis.
 
 
@@ -93,26 +93,26 @@ This arrangement also leads to simpler calculation of speed vector, needed for r
 Electronic side of the project is rather simple given that only control of two stepper motors and having ability to home their position is needed.
 The system is managed by an ESP32 microcontroller. Since the project does not demand advanced capabilities, a basic ESP32 model is sufficient.
 
-Given the low load on the stepper motors and the platform's inability to accumulate significant momentum, a simple stepper driver without feedback control is adequate.
-For this purpose, the A4988 stepper driver given its low cost, microstepping capabilities and basic current control\cite{a4988} was selected.
+Given the low load on stepper motors and the platform's inability to accumulate significant momentum, a simple stepper driver without feedback control is adequate.
+For this purpose, the A4988 stepper driver was selected, due to its low cost, microstepping capabilities and basic current control \cite{a4988}.
 
 To implement homing, two potential solutions were considered: Hall effect sensors and optical gates.
 While Hall effect sensors offer the advantage of angle sensing, allowing correction of any positional drift during operation, they require precise alignment.
-Since if the orthogonal Hall effect sensor is not perfectly placed in the axis of rotation, calibration becomes necessary \cite{hall}.
+If the orthogonal Hall effect sensor is not perfectly placed in the axis of rotation, non simply calibration becomes a necessity \cite{hall}.
 
-For simplicity and ease of integration, optical gates were selected to enable homing.
+Thus for simplicity and ease of integration, optical gates were selected.
 This decision eliminates the need for complex calibration while providing reliable functionality.
 
 
 \chapter{Software realization}
 
-To maximize efficiency in processing commands and ensure accurate stepper motor control, the program workflow is divided into three distinct layers, as illustrated in Figure \ref{fig:code_diag}.
+To maximize efficiency in processing commands and ensure accurate stepper motor control, the program workflow is divided into three distinct layers, as illustrated by figure \ref{fig:code_diag}.
 
 The commonly used two-component architecture—where one component handles communication/command parsing and the other manages execution—was deemed unsuitable for this use case.
 Such an approach would complicate integration of programming interface and require just-in-time processing of commands, which could lead to performance issues.
 
 In the chosen architecture, the degree of abstraction decreases with each successive layer, simplifying processing at each step.
-This design allows the final layer to operate with maximum efficiency, where transitioning from one command to the next is primarily limited by the inertia of the stepper motors and not by the software.
+This design allows the final layer to operate with maximum efficiency, where transition from one command to the next is primarily limited by the inertia of stepper motors and not by the software.
 
 \begin{figure}[h!]
   \centering
@@ -182,31 +182,27 @@ This design allows the final layer to operate with maximum efficiency, where tra
 \section{Communication layer}
 
 The communication layer manages incoming data over the serial line, with efficient handling facilitated with the aid of RTOS queues.
-Upon receiving data the text string is parsed and either push to queue (if we are declaring a programm) or added to programm declaration.
+Upon receiving data the text string is parsed and either pushed to a queue or added to programm declaration, in case we are currently declaring program.
 
-Immediately after parsing response is send to the user confirming whether the command was parsed correctly or not.
-However as communication layer does not a can not check command within context of all previous commands it is possible that command will be parsed correctly but its execution will fail in the application layer.
+Immediately after parsing, a response is send to the user confirming whether the command was parsed correctly or not.
+However, as the communication layer does not a can not check command within context of all previous commands, it is possible that command will be parsed correctly but its execution will fail in the application layer.
 
 
 \section{Application layer}
 
-The application layer performs two primary functions: tracking the current device position and scheduling commands to be sent to the stepper motors.
-Aside from tracking current position program also keeps track of the end position of the last scheduled command.
-Thanks to this the application layer can handle calculations necessary for absolute positioning and enforce movement limits.
-
-A significant departure from standard G-code interpreters is the platform's handling of single-axis move commands.
-If a move command targets only one axis, the other axis remains free to read the next command and begin execution.
-If this behavior is undesirable, the user must issue commands for both axes.
-In relative positioning mode, a zero value will result in no motion; in absolute positioning mode, the command must specify the current position for no movement to occur.
+The application layer performs two primary functions: tracking the current device position and scheduling commands to be sent to stepper motors.
+Aside from current position the program also keeps track of the end position of the last scheduled command.
+Thanks to this the application layer make necessary calculations to facilitate absolute positioning and enforce movement limits.
 
 A key departure from standard G-code interpreters, like \cite{duet}, is how the platform handles single-axis move commands.
-When a move command targets only one axis, the other axis remains free to read the next command and begin execution.
+When a move command targets only one axis, the other axis remains free to read next command and begin its execution.
 If this behavior is undesirable, the user must issue commands for both axes.
 In relative positioning mode, a zero value results in no motion; in absolute positioning mode, the command must specify the current position to prevent movement.
 
 This behavior is a necessary side effect of the spindle regime, which typically cannot be toggled on or off dynamically.
 Another consequence is the requirement for separate positioning modes for each axis.
-Continuous rotation prevents the calculation of a move’s end position, making it impossible to pre-schedule absolute positioning commands.
+Continuous rotation prevents calculations of a move’s end position, making it impossible to make calculation for absolute positioning commands -- thus necessitating relative positioning.
+However it would be rather restrictive to force user to relative positioning on second axis, therefore the independent positioning settings.
 
 
 
@@ -218,7 +214,7 @@ In its loop, the program waits for the next command in the stepper queue.
 Upon receiving a command, it sets up execution, waits for one or both steppers to complete their movement, and then proceeds to the next command.
 Since limit and absolute positioning calculations are handled in the application layer whole routine remains highly efficient.
 
-The main challenge lies in generating precise PWM signals and stopping signal generation after a specific number of steps.
+The main challenge lies in generating precise PWM signals (Used to control stepper motors drivers.) and stopping signal generation after a specific number of steps.
 Using the equation:
 %
 \begin{equation}
@@ -227,26 +223,26 @@ Using the equation:
 \end{equation}
 %
 where $s$ is speed in RPM, $N_{\mathrm{steps}}$ is the number of steps (Anywhere from 200 to 1600 depending on microstepping.), and $t_{\mathrm{delay}}$ is the time between steps, we calculate that even at 30 RPM, the delay between output changes is 5 ms per step.
-With microstepping at a 2:1 ratio, this reduces to 2.5 ms -- faster than lowest sleep interval and without sleep watchdog will trigger.
+With microstepping at a 2:1 ratio, this reduces to 2.5 ms -- faster than lowest sleep interval on ESP32 and without sleeping the RTOS watchdog will trigger.
 Therefore, signal generation must leverage specialized microcontroller peripherals.
 
 The ESP32 platform offers two options: Remote Controlled Transceiver (RMT) and Motor Control Pulse Width Modulation (MCPWM) combined with Pulse Counter (PCNT).
 While RMT allows smooth PWM frequency adjustments, it has several drawbacks.
-These include: generating a specific number of pulses is supported only on newer ESP32 models \cite{gitRMT}, synchronization is restricted to its proprietary API, and there is no straightforward way to track progress during a move \cite{espRMT}.
+Such as the fact that generating a specific number of pulses is supported only on newer ESP32 models \cite{gitRMT}, synchronization is restricted to its proprietary API, and there is no straightforward way to track progress during a move \cite{espRMT}.
 
 For these reasons, MCPWM and PCNT were chosen.
 MCPWM handles pulse generation, while PCNT counts steps, enabling easy synchronization, continuous rotation, and a robust API for step tracking \cite{espPCNT}.
-The only limitation is the PCNT’s 15-bit counter, which caps the maximum steps per move at 32,767.
+The only limitation is the PCNT’s 15-bit counter, which caps the maximum steps per move at 32.767.
 
 
-\subsection{Performance of HAL Layer}
+\subsection{Performance of the HAL Layer}
 
 
 Table \ref{tab:performancepwm} illustrates the stability of PWM generation by the MCPWM module at various speeds.
 Measurements were conducted using a Saleae Logic Pro 16 logic analyzer, with no microstepping enabled.
 
 The results show that frequency deviation is minimal, though the generated speed is consistently marginally faster than the target, and  the error increases slightly with higher speeds.
-Nevertheless, for 24,000 steps at 120 RPM, the relative error in time taken would be only $\epsilon = -0.004\%$, demonstrating excellent accuracy.
+Nevertheless, when measuring time of 24,000 steps at 120 RPM, the relative error in time duration (or speed) was only $\epsilon = -0.004\%$, demonstrating excellent accuracy.
 
 
 \begin{table}[h!]
@@ -273,11 +269,12 @@ Nevertheless, for 24,000 steps at 120 RPM, the relative error in time taken woul
 	\label{fig:switching}
 \end{figure}
 
-An attempt was made to measure the speed of switching between commands, as shown in Figure \ref{fig:switching}.
-The results indicate that the delay between commands is imperceptible, with similar outcomes observed for other command combinations.
+An attempt was made to also measure the delay  between switching commands, displayed in figure \ref{fig:switching}.
+The results indicate that the delay between commands is imperceptible.
+Similar outcomes were also observed for other command combinations.
 
 This demonstrates the efficiency of the HAL layer in managing stepper motor control and transitioning seamlessly between commands.
-As long as the stepper queues are supplied with commands in advance, the platform can operate without noticeable interruptions.
+As long as stepper queues are supplied with commands in advance, the platform can operate without noticeable interruptions.
 Most importantly, the platform’s timely and predictable behavior ensures that mathematical corrections to the radar data can be applied accurately.
 
 

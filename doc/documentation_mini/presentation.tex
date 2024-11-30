@@ -1,0 +1,119 @@
+\documentclass[aspectratio=43]{beamer}
+\usetheme{Berlin}
+
+\usepackage[czech]{babel}
+\usecolortheme{dolphin}
+\usepackage{graphicx}
+\usepackage{dirtree}
+\usepackage{listings}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[utf8]{inputenc}
+\usepackage{caption}
+\usepackage{bbding}
+\usepackage{xurl}
+\usepackage{scrextend}
+\usepackage{minted}
+\usepackage{appendixnumberbeamer}
+
+\captionsetup{labelformat=empty}
+
+\beamertemplatenavigationsymbolsempty
+\defbeamertemplate*{title page}{customized}[1][]
+{
+	\usebeamerfont{title}\inserttitle\par
+	\usebeamerfont{subtitle}\usebeamercolor[fg]{subtitle}\insertsubtitle\par
+	\bigskip
+	\usebeamerfont{author}\insertauthor\par
+	\usebeamerfont{institute}\insertinstitute\par
+	\usebeamerfont{date}\insertdate\par
+	\usebeamercolor[fg]{titlegraphic}\inserttitlegraphic
+}
+
+\hypersetup{unicode}
+\hypersetup{breaklinks=true}
+
+\input{metadata.tex}
+
+
+\title{\ThesisTitle}
+\subtitle{\Department}
+\author{Havránek Kryštof }
+\date{5th December 2024}
+\institute{ČVUT-FEL}
+\setbeamertemplate{sidebar right}{}
+\setbeamertemplate{footline}{%
+\hfill\textbf{\insertframenumber{}/\inserttotalframenumber} \hspace{0.01cm} \vspace{0.1cm}}
+\setbeamerfont{footnote}{size=\tiny}
+
+\begin{document}
+
+\begin{frame}[plain]
+	\maketitle
+\end{frame}
+
+\clearpage
+\setcounter{framenumber}{0}
+
+
+
+\begin{frame}[fragile]
+\section{Introduction}
+  \frametitle{Goal of the thesis}
+  \begin{itemize}
+    \item Design a two-axis rotary platform purpose build for radar-based applications
+    \item Cost effective platform -- off-the-shelf components
+    \item Simple control mechanism
+    \item Timely and deterministic movement
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Hardware}
+  \section{Hardware}
+  \begin{figure}[!htb]
+    \begin{minipage}{0.48\textwidth}
+      \begin{itemize}
+        \item 3D printed parts
+        \item Use of slipring
+        \item Optical endstops for homing
+        \item ESP32 + basic stepper driver
+      \end{itemize}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+      \centering
+      \includegraphics[height=\linewidth]{../img/whole_assembly_2.png}
+      \caption{3D render}
+    \end{minipage}
+  \end{figure}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \frametitle{Software}
+  \section{Software}
+  \begin{itemize}
+    \item Three-layer command processing architecture
+      \begin{itemize}
+        \item Communication layer
+        \item Application layer
+        \item Movement layer
+      \end{itemize}
+    \item Controlled with G-code over serial
+    \item Prescheduling of tasks
+    \item Programming environment -- declaration of movement commands sequences
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Conclusion}
+  \section{Conclusion}
+  \begin{itemize}
+    \item Speed control with $\epsilon=-0.004\%$
+    \item Imperceivable delays during command switching
+    \item Easy integration into other projects
+    \item Practical, affordable alternative to existing commercial systems
+  \end{itemize}
+\end{frame}
+
+\end{document}
