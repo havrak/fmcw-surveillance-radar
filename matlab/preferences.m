@@ -147,6 +147,7 @@ classdef preferences < handle
 		end
 
 		function loadConfig(obj)
+			fprintf("Prefernces | loadConfig | loading config");
 			if ~isfile(obj.configFilePath)
 				return;
 			end
@@ -188,6 +189,8 @@ classdef preferences < handle
 					obj.configStruct.(section).(item) = struct.(section).(item);
 				end
 			end
+
+			fprintf("Prefernces | loadConfig | config loaded");
 		end
 	end
 	methods (Access = private)

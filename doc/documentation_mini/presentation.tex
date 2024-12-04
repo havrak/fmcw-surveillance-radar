@@ -75,7 +75,7 @@
     \begin{minipage}{0.48\textwidth}
       \begin{itemize}
         \item 3D printed parts
-        \item Use of slipring
+        \item Use of a slipring
         \item Optical endstops for homing
         \item ESP32 + basic stepper driver
       \end{itemize}
@@ -88,21 +88,23 @@
   \end{figure}
 \end{frame}
 
-
 \begin{frame}[fragile]
   \frametitle{Software}
   \section{Software}
-  \begin{itemize}
+	\begin{figure}[!htb]
+		\begin{minipage}{0.48\textwidth}
+			\begin{itemize}
     \item Three-layer command processing architecture
-      \begin{itemize}
-        \item Communication layer
-        \item Application layer
-        \item Movement layer
-      \end{itemize}
-    \item Controlled with G-code over serial
     \item Prescheduling of tasks
-    \item Programming environment -- declaration of movement commands sequences
-  \end{itemize}
+    \item Programming environment -- declaration of movement command sequences
+    \item Controlled with G-code over serial
+			\end{itemize}
+		\end{minipage}\hfill
+		\begin{minipage}{0.48\textwidth}
+			\centering
+			\includegraphics[height=\linewidth, trim = 30mm 30mm 30mm 25mm, ]{./memoize.memo.dir/BDE417D794BE8D061E9010BC0D77F984-E778DCCCB8AAB0BBD3F6CFEEFD2421F8.pdf}
+		\end{minipage}
+	\end{figure}
 \end{frame}
 
 \begin{frame}[fragile]

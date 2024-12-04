@@ -1,4 +1,5 @@
-clc; clear;
+clc; 
+clear;
 clear preferences.getInstance
 clear platformControl.getInstance
 

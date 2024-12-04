@@ -3,8 +3,8 @@ classdef platformControl < handle
 	properties (Access = public)
 		hFig;
 		hSidebar;        % Sidebar for program fieldnames
-		hEditCommandField;      % Single-line text field for commands
-		hEditProgramDisplay;    % Large text field for program declaration
+		hQuickCommand;      % Single-line text field for commands
+		hProgrammingField;    % Large text field for program declaration
 		hButtonPanel            % Button panel
 		hButtonNew;
 		hButtonDelete;          % Button to delete a program
@@ -25,6 +25,7 @@ classdef platformControl < handle
 		function obj = platformControl()
 
 			% obj.programs.test1="Banana";
+			fprintf("PlatformControl | platformControl | constructing object");
 			obj.programs.test2="Mango";
 
 			loadSavedPrograms(obj);
@@ -45,20 +46,20 @@ classdef platformControl < handle
 			obj.hSidebar = uicontrol('Style', 'listbox', ...
 				'Parent', obj.hFig, ...
 				'Tag', 'Sidebar', ...
+				'Value', 1, ...
 				'String', fieldnames(obj.programs), ...
 				'Callback', @(src, event) obj.loadProgram());
 
-			obj.hEditCommandField = uicontrol('Style', 'edit', ...
+			obj.hQuickCommand = uicontrol('Style', 'edit', ...
 				'Parent', obj.hFig, ...
 				'Tag', 'CommandField', ...
 				'HorizontalAlignment', 'left');
 
-			obj.hEditProgramDisplay = uicontrol('Style', 'edit', ...
+			obj.hProgrammingField = uicontrol('Style', 'edit', ...
 				'Parent', obj.hFig, ...
 				'Tag', 'ProgramDisplay', ...
 				'Max', 2, ...
 				'HorizontalAlignment', 'left', ...
-				'Enable', 'inactive', ...
 				'String', '');
 
 			obj.hButtonPanel = uipanel('Parent', obj.hFig, ...
@@ -104,19 +105,20 @@ classdef platformControl < handle
 
 			sidebarWidth = 150;
 			obj.hSidebar.Position = [10, 50, sidebarWidth, height - 110];
-			obj.hEditCommandField.Position = [sidebarWidth + 20, height - 40, width - sidebarWidth - 30, 30];
+			obj.hQuickCommand.Position = [sidebarWidth + 20, height - 40, width - sidebarWidth - 30, 30];
 			displayWidth = width - sidebarWidth - 210;
-			obj.hEditProgramDisplay.Position = [sidebarWidth + 20, 50, displayWidth, height - 110];
+			obj.hProgrammingField.Position = [sidebarWidth + 20, 50, displayWidth, height - 110];
 			buttonPanelWidth = 180;
-			obj.hButtonPanel.Position = [sidebarWidth + 30 + displayWidth, 50, buttonPanelWidth, height - 110];
+			obj.hButtonPanel.Position = [sidebarWidth + 30 + displayWidth, 50, buttonPanelWidth-10, height - 110];
 			buttonHeight = 40;
 			spacing = 10;
-			obj.hButtonNew.Position = [10, height - 130 - buttonHeight - spacing, buttonPanelWidth - 20, buttonHeight];
-			obj.hButtonSave.Position = [10, height - 130 - 2 * (buttonHeight + spacing), buttonPanelWidth - 20, buttonHeight];
-			obj.hButtonDelete.Position = [10, height - 130 - 3 * (buttonHeight + spacing), buttonPanelWidth - 20, buttonHeight];
-			obj.hButtonUpload.Position = [10, height - 130 - 4 * (buttonHeight + spacing), buttonPanelWidth - 20, buttonHeight];
-			obj.hButtonClose.Position = [10, 10, buttonPanelWidth - 20, buttonHeight]; % Fixed at the bottom of the panel
+			obj.hButtonNew.Position = [10, height - 130 - buttonHeight - spacing, buttonPanelWidth - 30, buttonHeight];
+			obj.hButtonSave.Position = [10, height - 130 - 2 * (buttonHeight + spacing), buttonPanelWidth - 30, buttonHeight];
+			obj.hButtonDelete.Position = [10, height - 130 - 3 * (buttonHeight + spacing), buttonPanelWidth - 30, buttonHeight];
+			obj.hButtonUpload.Position = [10, height - 130 - 4 * (buttonHeight + spacing), buttonPanelWidth - 30, buttonHeight];
+			obj.hButtonClose.Position = [10, 10, buttonPanelWidth - 30, buttonHeight]; % Fixed at the bottom of the panel
       
+			loadProgram(obj);
 
 		end
 
@@ -126,7 +128,7 @@ classdef platformControl < handle
 			fields = fieldnames(obj.programs); % Get fieldnames
 			if selected > 0 && selected <= numel(fields)
 				obj.currentProgramName = fields{selected};
-				obj.hEditProgramDisplay.String = obj.programs.(obj.currentProgramName);
+				obj.hProgrammingField.String = sprintf(obj.programs.(obj.currentProgramName)); % sprintf will execute line breaks
 			end
 		end
 		
@@ -157,7 +159,11 @@ classdef platformControl < handle
 
 		function uploadProgram(obj)
 			% Empty callback for Upload Program button
-			fprintf("PlatformControl | uploadProgram\n");
+			disp (string(get(obj.hProgrammingField, "String")));
+			value = get(obj.hProgrammingField, "String");
+			trimmed = (strtrim(string(value)));
+			tosave = strjoin(trimmed, "\n");
+			disp (tosave);
 		end
 
 
