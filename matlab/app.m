@@ -1,7 +1,7 @@
 classdef app < handle 
 	properties (Access = public)
-		hPreferences (1,1) preferences
-		hPlatformControl (1,1) platformControl
+		hPreferences
+		hPlatformControl 
 
 		hFig 
     hToolbar 
@@ -11,7 +11,7 @@ classdef app < handle
 		function obj = app()
 			obj.constructGUI();
 			obj.hPreferences = preferences();
-			obj.hPlatformControl = platformControl(obj.hPreferences);
+			% obj.hPlatformControl = platformControl(obj.hPreferences);
 		end
 
 		function constructGUI(obj)
@@ -60,7 +60,7 @@ classdef app < handle
 		function handle=getInstance()
 			persistent instanceStatic;
 			if isempty(instanceStatic) || ~isvalid(instanceStatic.hToolbar)
-				fprintf('app | getInstance | Creating new instance');
+				fprintf('app | getInstance | Creating new instance\n');
 				instanceStatic = app();
 			end
 			handle=instanceStatic;

@@ -2,7 +2,7 @@ clc;
 clear;
 % clearing persisent doesn't fucking work and will only refresh if there
 % was a change in accompaning class, no clue why
-clear app.getInstance
+clear .getInstance
 % clear platformControl.getInstance
 app = app.getInstance();
 

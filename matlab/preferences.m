@@ -2,48 +2,41 @@ classdef preferences < handle
 	properties (Access = public)
 		
 		% GUI %
-		hFig 
-		hEdit
-		hButt
-		hClose
-
-		hStoreConfig
-		hLabelRadar
-		hLabelPlatform
-		hRadarPort
-		hPlatformPort
-		hRadarBaudrate
-		hPlatformBaudrate
-		
-		hStatusLabel
-		hLabelPlatformOffsetDistance 
-		hLabelPlarformOffsetT 
-		hLabelPlatformOffsetH  
-		hPlatformOffsetDistance  
-		hPlarformOffsetT  
-		hPlatformOffsetH  
+		hFig;                   % uifugre - main figure
+		hBtnApply;              % uibutton - check validity
+		hBtnClose;              % uibutton - close window
+		hBtnRefresh;            % uibutton - refresh serial
+		hBtnReload;             % uibutton - reload config from file
+		hBtnStore;              % uibutton - permit storing to file
+		hDropRadarPort;         % uidropdown - radar serial port
+		hDropRadarBaudrate;     % uidropdown - radar serial baudrate 
+		hDropPlatformPort;      % uidropdown - platform serial port
+		hDropPlatformBaudrate;  % uidropdown - platofrm serial baudrate
+		 
+		hEditOffsetD;           % uicontrol/edit - distance offset
+		hEditOffsetT;          % uicontrol/edit - angle offset tilt
+		hEditOffsetH;           % uicontrol/edit - angle offset horizontal
 
 		% OTHER VARS % 
-		availableBaudrates
-		configStruct
-		configFilePath
+		availableBaudrates = [ 9600 19200 115200 230400 1000000];
+		configStruct;
+		configFilePath;
 	end
 
 	methods(Access = public)
 
 		function obj = preferences()
 
-			obj.configStruct.radar.radarPort='none';
-			obj.configStruct.radar.radarBaudrate='0';
-			obj.configStruct.Platform.PlatformPort='none';
-			obj.configStruct.Platform.PlatformBaudrate='0';
-			obj.configStruct.platform.distanceOffset=3;
+			obj.configStruct.radar.port='none';
+			obj.configStruct.radar.baudrate='0';
+			obj.configStruct.platform.port='none';
+			obj.configStruct.platform.baudrate='0';
+			obj.configStruct.platform.distanceOffset=0;
 			obj.configStruct.platform.angleOffsetT=0;
-			obj.configStruct.platofrm.angleOffsetH=0;
+			obj.configStruct.platform.angleOffsetH=0;
 			
 			obj.configStruct.programs=[];
 
-			obj.availableBaudrates = [ 9600 19200 100000 115200 230400];
 			if isunix
 				path=fullfile(getenv("HOME"), ".config", "fmcw" );
 			elseif ispc
@@ -60,7 +53,7 @@ classdef preferences < handle
 
 			obj.configFilePath=fullfile(path, "fmcw.conf");
 
-			loadConfig(obj);
+
 		end
 
 		function showGUI(obj)
@@ -101,13 +94,13 @@ classdef preferences < handle
 		end
 
 		function storeConfig(obj)
-			if get(obj.hStoreConfig, 'Value')
+			if get(obj.hBtnStore, 'Value')
 				struct2ini(obj.configFilePath, obj.configStruct);
 			end
 		end
 
 		function loadConfig(obj)
-			fprintf('Prefernces | loadConfig | loading config');
+			fprintf('Prefernces | loadConfig | loading config\n');
 			if ~isfile(obj.configFilePath)
 				return;
 			end
@@ -115,10 +108,9 @@ classdef preferences < handle
 			struct = ini2struct(obj.configFilePath);
 			% not everything might be present in the read struct
 			sections = fieldnames(obj.configStruct);
+			list=cat(2, 'none', serialportlist);
 			for k=1:length(sections)
 				section = char(sections(k));
-				disp (section);
-
 
 				obj.configStruct.programs = [];
 
@@ -131,18 +123,26 @@ classdef preferences < handle
 
 
 				if ~isfield(struct,section)
-					fprintf('Section %s not found in config\r\n', section);
+					fprintf('Section %s not found in config\n', section);
 					continue;
 				end
 				for l=1:length(items)
 					item=char(items(l));
 					if ~isfield(struct.(section),item)
-						fprintf('Item %s not found in configs section %s\r\n', item, section);
+						fprintf('Prefernces | loadConfig | Item %s not found in configs section %s\n', item, section);
 						continue;
 					end
 					% check for baudrate
-					if numel(strfind(item, 'Baudrate')) ~=0 && ~any(obj.availableBaudrates == struct.(section).(item))
-						uialert(obj.hFig, 'Unsupported baudrate wrong in config file', 'Config loading erro', 'icon', 'error');
+					if numel(strfind(item, 'baudrate')) ~=0 && ~any(obj.availableBaudrates == struct.(section).(item))
+						fprintf('Prefernces | loadConfig | Unsupported baudrate wrong in config file\n');
+						struct.(section).(item) = obj.availableBaudrates(1);
+						continue;
+					end
+
+					% check for devices ports
+						if numel(strfind(item, 'port')) ~=0 && ~any(list == struct.(section).(item))
+						fprintf('Prefernces | loadConfig | Port in config not found\n');
+						struct.(section).(item) = list(1);
 						continue;
 					end
 
@@ -151,6 +151,18 @@ classdef preferences < handle
 			end
 
 			fprintf('Prefernces | loadConfig | config loaded');
+			
+			set(obj.hEditOffsetD, 'String', obj.configStruct.platform.distanceOffset);
+			
+			if any(obj.availableBaudrates == obj.configStruct.platform.baudrate)
+				set(obj.hDropPlatformBaudrate, 'Value', num2str(obj.configStruct.platform.baudrate));
+			end
+
+			if any(obj.availableBaudrates == obj.configStruct.radar.baudrate)
+				set(obj.hDropRadarBaudrate, 'Value', num2str(obj.configStruct.radar.baudrate));
+			end
+			set(obj.hEditOffsetT, 'String', obj.configStruct.platform.angleOffsetT);
+			set(obj.hEditOffsetH, 'String', obj.configStruct.platform.angleOffsetH);
 		end
 	end
 	methods (Access = private)
@@ -168,92 +180,126 @@ classdef preferences < handle
 
 			uilabel(obj.hFig, 'Position', [150, figSize(2)-50, 140, 25], 'Text', 'Baudrate');
 			uilabel(obj.hFig, 'Position', [240, figSize(2)-50, 140, 25], 'Text', 'Port' );
-			obj.hLabelRadar=uilabel(obj.hFig, ...
+			uilabel(obj.hFig, ...
 				'Position', [20, figSize(2)-100, 140, 25], ...
 				'Text', 'Radar serial setting:');
 
-			obj.hRadarBaudrate = uidropdown(obj.hFig, ...
+			obj.hDropRadarBaudrate = uidropdown(obj.hFig, ...
 				'Position', [150, figSize(2)-100, 80, 25], ...
-				'Items', {'9600','19200','100000', '115200', '230400'});
+				'Items', {'9600','19200', '115200', '230400','1000000'});
 
 			list=cat(2, 'none', serialportlist);
-			obj.hRadarPort = uidropdown(obj.hFig, ...
+			obj.hDropRadarPort = uidropdown(obj.hFig, ...
 				'Position', [240, figSize(2)-100, 120, 25], ...
 				'Items', list);
 
-			obj.hLabelPlatform=uilabel(obj.hFig, ...
+			uilabel(obj.hFig, ...
 				'Position', [20, figSize(2)-70, 140, 25], ...
 				'Text', 'Platform serial setting:');
 
-			obj.hPlatformBaudrate = uidropdown(obj.hFig, ...
+			obj.hDropPlatformBaudrate = uidropdown(obj.hFig, ...
 				'Position', [150, figSize(2)-70, 80, 25], ...
-				'Items', {'9600', '19200', '100000', '115200', '230400'});
+				'Items', {'9600', '19200', '115200', '230400','1000000'});
 
-			obj.hPlatformPort = uidropdown(obj.hFig, ...
+			obj.hDropPlatformPort = uidropdown(obj.hFig, ...
 				'Position', [240, figSize(2)-70, 120, 25], ...
 				'Items', list);
 
-			obj.hLabelPlatformOffsetDistance=uilabel(obj.hFig, ...
+			uilabel(obj.hFig, ...
 				'Position', [20, figSize(2)-140, 140, 25], ...
 				'Text', 'Platform offset [mm]:');
 			
-			obj.hLabelPlarformOffsetT=uilabel(obj.hFig, ...
+			uilabel(obj.hFig, ...
 				'Position', [20, figSize(2)-170, 140, 25], ...
 				'Text', 'Tilt offset [deg]:');
 
-			obj.hLabelPlatformOffsetH=uilabel(obj.hFig, ...
+			uilabel(obj.hFig, ...
 				'Position', [20, figSize(2)-200, 140, 25], ...
 				'Text', 'Horizontal offset [deg]:');
 			
-			obj.hPlatformOffsetDistance=uicontrol('Style', 'edit', ...
+			obj.hEditOffsetD=uicontrol('Style', 'edit', ...
 				'Parent',obj.hFig,  ...
 				'Position', [150, figSize(2)-140, 140, 25], ...
 				'Max',1, ...
 				'String',"", ...
 				'HorizontalAlignment', 'left');
 
-			obj.hPlarformOffsetT=uicontrol('Style', 'edit', ...
+			obj.hEditOffsetT=uicontrol('Style', 'edit', ...
 				'Parent',obj.hFig,  ...
 				'Position', [150, figSize(2)-170, 140, 25], ...
 				'Max',1, ...
 				'String',"", ...
 				'HorizontalAlignment', 'left');
 
-			obj.hPlatformOffsetH=uicontrol('Style', 'edit', ...
+			obj.hEditOffsetH=uicontrol('Style', 'edit', ...
 				'Parent',obj.hFig,  ...
 				'Position', [150, figSize(2)-200, 140, 25], ...
 				'Max',1, ...
 				'String',"", ...
 				'HorizontalAlignment', 'left');
 
-			obj.hStatusLabel=uilabel(obj.hFig, ...
-				'Position', [20, figSize(2)-480, 80, 25]);
+			obj.hBtnStore=uibutton(obj.hFig, 'state', ...
+				'Position', [figSize(1)-200, figSize(2)-450, 80, 25], ...
+				'Text', 'Store Config', ...
+				'Value', true);
 
-			obj.hStoreConfig=uibutton(obj.hFig, 'state', 'Position', [figSize(1)-200, figSize(2)-450, 80, 25], ...
-				'Text', 'Store Config', 'Value', true);
+		obj.hBtnReload = uibutton(obj.hFig, ...
+				'Text', 'Reload', ...
+				'Position', [figSize(1)-300, figSize(2)-480, 80, 25], ...
+				'ButtonPushedFcn', @(src,event) obj.loadConfig());
+			
+			obj.hBtnRefresh = uibutton(obj.hFig, ...
+				'Text', 'Refresh', ...
+				'Position', [375, figSize(2)-85, 80, 25], ...
+				'ButtonPushedFcn', @(src,event) obj.refreshSerial());
+			
+			obj.hBtnApply = uibutton(obj.hFig, ...
+				'Text', 'Apply', ...
+				'Position', [figSize(1)-200, figSize(2)-480, 80, 25], ...
+				'ButtonPushedFcn',  @(src, event)obj.apply() );
+			
+			obj.hBtnClose = uibutton(obj.hFig, ...
+				'Text', 'Close', ...
+				'Position', [figSize(1)-100, figSize(2)-480, 80, 25], ...
+				'ButtonPushedFcn',@(src,event) set(obj.hFig, 'Visible', 'off'));
 
-			obj.hButt = uibutton(obj.hFig, 'Text', 'Apply', ...
-				'Position', [figSize(1)-200, figSize(2)-480, 80, 25]);
-			obj.hClose = uibutton(obj.hFig, 'Text', 'Close', ...
-				'Position', [figSize(1)-100, figSize(2)-480, 80, 25]);
+			loadConfig(obj);
+		end
 
-			obj.hButt.ButtonPushedFcn = @(src, event)obj.apply();
-			obj.hClose.ButtonPushedFcn=@(src,event) set(obj.hFig, 'Visible', 'off');
-
-			% set values according to those loaded 
+		function refreshSerial(obj)
+			list=cat(2, 'none', serialportlist);
+			set(obj.hDropPlatformPort, 'Items', list);
+			set(obj.hDropPlatformBaudrate, 'Items', list);
 		end
 
 		function apply(obj)
-			err=false;
-			obj.configStruct.Platform.PlatformBaudrate=str2double(obj.hPlatformBaudrate.Value);
-			obj.configStruct.radar.radarBaudrate=str2double(obj.hRadarBaudrate.Value);
 
-			if strcmp(obj.hPlatformPort.Value,obj.hRadarPort.Value) == 1 && obj.hRadarPort.Value ~= "none"
+			err=false;
+			obj.configStruct.platform.platformBaudrate=str2double(obj.hDropPlatformBaudrate.Value);
+			obj.configStruct.radar.baudrate=str2double(obj.hDropRadarBaudrate.Value);
+
+
+			tmp = get(obj.hEditOffsetD, 'String');
+			if isnan(str2double(tmp)) warndlg('Offset must be numerical');
+			else obj.configStruct.platform.distanceOffset=tmp;
+			end
+
+			tmp = get(obj.hEditOffsetT, 'String');
+			if isnan(str2double(tmp)) warndlg('Offset must be numerical');
+			else obj.configStruct.platform.angleOffsetT=tmp;
+			end
+			
+			tmp = get(obj.hEditOffsetH, 'String');
+			if isnan(str2double(tmp)) warndlg('Offset must be numerical');
+			else obj.configStruct.platform.angleOffsetH=tmp;
+			end			
+
+			if strcmp(obj.hDropPlatformPort.Value,obj.hDropRadarPort.Value) == 1 && obj.hDropRadarPort.Value ~= "none"
 				err=true;
 				uialert(obj.hFig, 'Both serial ports are same', 'Serial port', 'icon', 'error');
 			else
-				obj.configStruct.Platform.PlatformPort=obj.hPlatformPort.Value;
-				obj.configStruct.radar.radarPort=obj.hRadarPort.Value;
+				obj.configStruct.platform.platformPort=obj.hDropPlatformPort.Value;
+				obj.configStruct.radar.port=obj.hDropRadarPort.Value;
 			end
 
 			if ~err
@@ -261,10 +307,6 @@ classdef preferences < handle
 				uiwait(gcbf);
 				set(obj.hFig, 'Visible', 'off');
 			end
-
-			obj.configStruct.programs = platformControl.getInstance().exportSavedPrograms();
-			obj.storeConfig
-			disp(obj.configStruct.radar);
 
 			storeConfig(obj);
 		end
