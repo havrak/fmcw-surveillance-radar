@@ -2,37 +2,28 @@ classdef platformControl < handle
 	%properties (SetAccess = private, GetAccess=public)
 	properties (Access = public)
 		hFig;
-		hSidebar;        % Sidebar for program fieldnames
-		hQuickCommand;      % Single-line text field for commands
-		hProgrammingField;    % Large text field for program declaration
+		hSidebar;               % Sidebar for program fieldnames
+		hQuickCommand;          % Single-line text field for commands
+		hProgrammingField;      % Large text field for program declaration
 		hButtonPanel            % Button panel
 		hButtonNew;
 		hButtonDelete;          % Button to delete a program
-		hButtonSave;            % Button to save programs
+		hButtonStore;           % Button to save store programs
+		hButtonSave;            % Button to save program
 		hButtonUpload;          % Button to upload programs
 		hButtonClose;
+		hPreferences;           
 		programs;
 		currentProgramName;
 	end
 	methods(Access=private)
 		function loadSavedPrograms(obj)
-			obj.programs = preferences.getInstance().getPrograms(); % might need to replace \n with ;
+			obj.programs = obj.hPreferences.getPrograms(); % might need to replace \n with ;
 			disp (obj.programs)
 		end
 
-
-
-		function obj = platformControl()
-
-			% obj.programs.test1="Banana";
-			fprintf("PlatformControl | platformControl | constructing object");
-			obj.programs.test2="Mango";
-
-			loadSavedPrograms(obj);
-		end
-
 		function constructGUI(obj)
-			fprintf("PlatformControl | constructGUI | starting GUI constructions\n");
+			fprintf('PlatformControl | constructGUI | starting GUI constructions\n');
 			figSize = [800, 600];
 			screenSize = get(groot, 'ScreenSize');
 			obj.hFig = figure('Name', 'Platform Control', ...
@@ -42,7 +33,6 @@ classdef platformControl < handle
 				'Resize', 'on', ...
 				'Visible', 'off');
 
-			% 'Visible', 'off', ...
 			obj.hSidebar = uicontrol('Style', 'listbox', ...
 				'Parent', obj.hFig, ...
 				'Tag', 'Sidebar', ...
@@ -53,7 +43,9 @@ classdef platformControl < handle
 			obj.hQuickCommand = uicontrol('Style', 'edit', ...
 				'Parent', obj.hFig, ...
 				'Tag', 'CommandField', ...
-				'HorizontalAlignment', 'left');
+				'HorizontalAlignment', 'left', ...
+				'Callback', @(src,event) obj.callbackQuickCommand());
+
 
 			obj.hProgrammingField = uicontrol('Style', 'edit', ...
 				'Parent', obj.hFig, ...
@@ -77,22 +69,28 @@ classdef platformControl < handle
 				'String', 'Delete Program', ...
 				'Callback', @(src, event) obj.deleteProgram());
 
+			obj.hButtonStore = uicontrol('Style', 'pushbutton', ...
+				'Parent', obj.hButtonPanel, ...
+				'String', 'Store Programs', ...
+				'Callback', @(src, event) obj.storePrograms());
+
 			obj.hButtonSave = uicontrol('Style', 'pushbutton', ...
 				'Parent', obj.hButtonPanel, ...
-				'String', 'Save Programs', ...
+				'String', 'save Programs', ...
 				'Callback', @(src, event) obj.saveProgram());
 
 			obj.hButtonUpload = uicontrol('Style', 'pushbutton', ...
 				'Parent', obj.hButtonPanel, ...
 				'String', 'Upload Program', ...
 				'Callback', @(src, event) obj.uploadProgram());
+
 			obj.hButtonClose = uicontrol('Style', 'pushbutton', ...
                 'Parent', obj.hButtonPanel, ...
                 'String', 'Close', ...
-                'Callback', @(src, event) set(obj.hFig, "Visible", "off"));
+                'Callback', @(src, event) set(obj.hFig, 'Visible', 'off'));
 			obj.resizeUI();
 
-			fprintf("PlatformControl | constructGUI | GUI constructed\n");
+			fprintf('PlatformControl | constructGUI | GUI constructed\n');
 
 
 			set(obj.hFig, 	'SizeChangedFcn', @(src, event) obj.resizeUI());
@@ -113,7 +111,7 @@ classdef platformControl < handle
 			buttonHeight = 40;
 			spacing = 10;
 			obj.hButtonNew.Position = [10, height - 130 - buttonHeight - spacing, buttonPanelWidth - 30, buttonHeight];
-			obj.hButtonSave.Position = [10, height - 130 - 2 * (buttonHeight + spacing), buttonPanelWidth - 30, buttonHeight];
+			obj.hButtonStore.Position = [10, height - 130 - 2 * (buttonHeight + spacing), buttonPanelWidth - 30, buttonHeight];
 			obj.hButtonDelete.Position = [10, height - 130 - 3 * (buttonHeight + spacing), buttonPanelWidth - 30, buttonHeight];
 			obj.hButtonUpload.Position = [10, height - 130 - 4 * (buttonHeight + spacing), buttonPanelWidth - 30, buttonHeight];
 			obj.hButtonClose.Position = [10, 10, buttonPanelWidth - 30, buttonHeight]; % Fixed at the bottom of the panel
@@ -132,38 +130,46 @@ classdef platformControl < handle
 			end
 		end
 		
+		function  callbackQuickCommand(obj)
+			% push commadn to the front of upload queue
+		end
 		function newProgram(obj)
 			% Empty callback for Delete Program button
 
-			fprintf("PlatformControl | newProgram\n");
-			userInput = inputdlg("Enter new program name", "Create new Program", [1 50], "");
+			fprintf('PlatformControl | newProgram\n');
+			userInput = inputdlg('Enter new program name', 'Create new Program', [1 50], "");
 
-			if ~isempty(userInput) && isstrprop(userInput, "alphanum")
+			if ~isempty(userInput) && isstrprop(userInput, 'alphanum')
 				obj.programs.(userInput) = "";
 				set(obj.hSidebar, 'String', fieldnames(obj.programs));
 			end
 		end
 
 		function deleteProgram(obj)
-			% Empty callback for Delete Program button
-			fprintf("PlatformControl | deleteProgram\n");
+			fprintf('PlatformControl | deleteProgram\n');
 			obj.programs = rmfield(obj.programs, obj.currentProgramName);
 
 		end
 
-		function saveProgram(obj)
-			% Empty callback for Save Program button
-			fprintf("PlatformControl | saveProgram\n");
-			prefernces.getInstance().savePrograms(obj.programs);
+		function storePrograms(obj)
+			fprintf('PlatformControl | storePrograms\n');
+			obj.hPreferences.storeProgramss(obj.programs);
+		end
+
+			function saveProgram(obj)
+			fprintf('PlatformControl | saveProgram\n');
+			value = get(obj.hProgrammingField, 'String');
+			trimmed = (strtrim(string(value)));
+			tosave = strjoin(trimmed, "\n");
+			disp (tosave);
+			obj.programs(obj.currentProgramName) = tosave;
 		end
 
 		function uploadProgram(obj)
 			% Empty callback for Upload Program button
-			disp (string(get(obj.hProgrammingField, "String")));
-			value = get(obj.hProgrammingField, "String");
-			trimmed = (strtrim(string(value)));
-			tosave = strjoin(trimmed, "\n");
-			disp (tosave);
+			disp (string(get(obj.hProgrammingField, 'String')));
+			% -> call to send 
+			
 		end
 
 
@@ -171,23 +177,18 @@ classdef platformControl < handle
 
 	methods(Access=public)
 
+		function obj = platformControl(hPreferences)
+			fprintf('PlatformControl | platformControl | constructing object\n');
+			obj.hPreferences = hPreferences;
+			loadSavedPrograms(obj);
+		end
+
 		function showGUI(obj)
-			if isempty(obj.hFig) || ~isvalid(obj.hFig) % closing should be also overwritten to hide
+			if isempty(obj.hFig) % closing should be also overwritten to hide
 				constructGUI(obj);
 			end
-			set(obj.hFig, "Visible", "on");
+			set(obj.hFig, 'Visible', 'on');
 		end
 	end
 
-	methods(Static=true)
-		function handle=getInstance()
-			persistent instanceStatic
-
-			if isempty(instanceStatic)
-				disp('Is empty');
-				instanceStatic = platformControl(); % XXX is it possible to get rid of the name space
-			end
-			handle=instanceStatic;
-		end
-	end
 end

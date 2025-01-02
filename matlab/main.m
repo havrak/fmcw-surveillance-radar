@@ -1,10 +1,13 @@
 clc; 
 clear;
-clear preferences.getInstance
-clear platformControl.getInstance
+% clearing persisent doesn't fucking work and will only refresh if there
+% was a change in accompaning class, no clue why
+clear app.getInstance
+% clear platformControl.getInstance
+app = app.getInstance();
 
-hPreferences = preferences.getInstance();
+% hPreferences = preferences.getInstance();
 % hPreferences.showGUI();
 
-hPlatformControl = platformControl.getInstance();
-hPlatformControl.showGUI();
+% hPlatformControl = platformControl.getInstance();
+% hPlatformControl.showGUI();

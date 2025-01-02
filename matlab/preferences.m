@@ -1,83 +1,46 @@
 classdef preferences < handle
 	properties (Access = public)
-		hFig
+		
+		% GUI %
+		hFig 
 		hEdit
 		hButt
 		hClose
 
 		hStoreConfig
 		hLabelRadar
-		hLabelEsp
+		hLabelPlatform
 		hRadarPort
-		hEspPort
+		hPlatformPort
 		hRadarBaudrate
-		hEspBaudrate
-		result
+		hPlatformBaudrate
+		
 		hStatusLabel
+		hLabelPlatformOffsetDistance 
+		hLabelPlarformOffsetT 
+		hLabelPlatformOffsetH  
+		hPlatformOffsetDistance  
+		hPlarformOffsetT  
+		hPlatformOffsetH  
 
+		% OTHER VARS % 
 		availableBaudrates
 		configStruct
 		configFilePath
 	end
-	methods(Static=true)
-		function handle=getInstance()
-			persistent instanceStatic;
-			if isempty(instanceStatic)
-				instanceStatic = preferences();
-			end
-			handle=instanceStatic;
-		end
-	end
-	methods
-		function constructGUI(obj)
-			fprintf("Preferences | constructGUI | starting gui constructions");
-			figSize = [500, 500];
-			screenSize = get(groot, 'ScreenSize');
-			obj.hFig = uifigure('Name', 'Preferences', ...
-				'Position', [(screenSize(3:4) - figSize)/2, figSize], ...
-				'MenuBar', 'none', ...
-				'NumberTitle', 'off', ...
-				'Resize', 'off', ...
-				'Visible', 'off');
 
-			uilabel(obj.hFig, "Position", [140, figSize(2)-50, 140, 25], "Text", "Baudrate");
-			uilabel(obj.hFig, "Position", [230, figSize(2)-50, 140, 25], "Text", "Port" );
-			obj.hLabelRadar=uilabel(obj.hFig, "Position", [20, figSize(2)-100, 140, 25], "Text", "Radar serial setting:");
-
-			obj.hRadarBaudrate = uidropdown(obj.hFig, 'Position', [140, figSize(2)-100, 80, 25], ...
-				'Items', {'9600','19200','100000', '115200', '230400'});
-			list=cat(2, 'none', serialportlist);
-			obj.hRadarPort = uidropdown(obj.hFig, 'Position', [230, figSize(2)-100, 120, 25], ...
-				'Items', list);
-
-			obj.hLabelEsp=uilabel(obj.hFig, "Position", [20, figSize(2)-70, 140, 25], "Text", "ESP serial setting:");
-			obj.hEspBaudrate = uidropdown(obj.hFig, 'Position', [140, figSize(2)-70, 80, 25], ...
-				'Items', {'9600', '19200', '100000', '115200', '230400'});
-			obj.hEspPort = uidropdown(obj.hFig, 'Position', [230, figSize(2)-70, 120, 25], ...
-				'Items', list);
-
-			obj.hStatusLabel=uilabel(obj.hFig, ...
-				'Position', [20, figSize(2)-480, 80, 25]);
-
-			obj.hStoreConfig=uibutton(obj.hFig, "state", "Position", [figSize(1)-200, figSize(2)-450, 80, 25], ...
-				"Text", "Store Config", "Value", true);
-
-			obj.hButt = uibutton(obj.hFig, 'Text', 'Apply', ...
-				'Position', [figSize(1)-200, figSize(2)-480, 80, 25]);
-			obj.hClose = uibutton(obj.hFig, 'Text', 'Close', ...
-				'Position', [figSize(1)-100, figSize(2)-480, 80, 25]);
-			obj.guiConstructed=true;
-
-			obj.hButt.ButtonPushedFcn = @(src, event)obj.apply();
-			obj.hClose.ButtonPushedFcn=@(src,event) set(obj.hFig, "Visible", "off");
-		end
+	methods(Access = public)
 
 		function obj = preferences()
 
 			obj.configStruct.radar.radarPort='none';
 			obj.configStruct.radar.radarBaudrate='0';
-			obj.configStruct.esp.espPort='none';
-			obj.configStruct.esp.espBaudrate='0';
+			obj.configStruct.Platform.PlatformPort='none';
+			obj.configStruct.Platform.PlatformBaudrate='0';
+			obj.configStruct.platform.distanceOffset=3;
+			obj.configStruct.platform.angleOffsetT=0;
+			obj.configStruct.platofrm.angleOffsetH=0;
+			
 			obj.configStruct.programs=[];
 
 			obj.availableBaudrates = [ 9600 19200 100000 115200 230400];
@@ -87,8 +50,8 @@ classdef preferences < handle
 				[~,cmdout] = system('echo %APPDATA%');
 				path=fullfile(cmdout, "Local", "fmcw");
 			else
-				path="lorem impsum dolor sit ament";
-				fprintf("Storing config is not supported on this platform");
+				path="placeholder";
+				fprintf('Storing config is not supported on this platform');
 			end
 
 			if ~isfolder(path)
@@ -101,10 +64,11 @@ classdef preferences < handle
 		end
 
 		function showGUI(obj)
-			if isempty(obj.hFig) || ~isvalid(obj.hFig) 
+			fprintf('prefrences | showGUI');
+			if isempty(obj.hFig)
 				constructGUI(obj);
 			end
-			set(obj.hFig, "Visible", "on");
+			set(obj.hFig, 'Visible', 'on');
 		end
 
 		function [programs] = getPrograms(obj)
@@ -115,14 +79,14 @@ classdef preferences < handle
 			programs = obj.configStruct.programs;
 		end
 
-		function [port, baudrate] = getConnectionESP(obj)
-			% getConnectionESP: return paramters of serial connection to the esp
+		function [port, baudrate] = getConnectionPlatform(obj)
+			% getConnectionPlatform: return paramters of serial connection to the Platform
 			%
 			% Output:
 			% port ... serial port to use
 			% baudrate ... serial baudrate
-			port = obj.configStruct.esp.espPort;
-			baudrate = obj.configStruct.esp.baudrate;
+			port = obj.configStruct.Platform.PlatformPort;
+			baudrate = obj.configStruct.Platform.baudrate;
 		end
 
 		function [port, baudrate] = getConnectionRadar(obj)
@@ -132,22 +96,18 @@ classdef preferences < handle
 			% Output:
 			% port ... serial port to use
 			% baudrate ... serial baudrate
-			port = obj.configStruct.radar.espPort;
+			port = obj.configStruct.radar.PlatformPort;
 			baudrate = obj.configStruct.radar.baudrate;
 		end
 
-		function savePrograms(programs)
-			
-		end
-
 		function storeConfig(obj)
-			if get(obj.hStoreConfig, "Value")
+			if get(obj.hStoreConfig, 'Value')
 				struct2ini(obj.configFilePath, obj.configStruct);
 			end
 		end
 
 		function loadConfig(obj)
-			fprintf("Prefernces | loadConfig | loading config");
+			fprintf('Prefernces | loadConfig | loading config');
 			if ~isfile(obj.configFilePath)
 				return;
 			end
@@ -163,7 +123,7 @@ classdef preferences < handle
 				obj.configStruct.programs = [];
 
 
-				if (strcmp(section,"programs") && isfield(struct, "programs"))
+				if (strcmp(section,'programs') && isfield(struct, 'programs'))
 					items=fieldnames(struct.(section)); % load all variables in section
 				else
 					items=fieldnames(obj.configStruct.(section)); % load section names from configStruct, ignore all non present
@@ -171,13 +131,13 @@ classdef preferences < handle
 
 
 				if ~isfield(struct,section)
-					fprintf("Section %s not found in config\r\n", section);
+					fprintf('Section %s not found in config\r\n', section);
 					continue;
 				end
 				for l=1:length(items)
 					item=char(items(l));
 					if ~isfield(struct.(section),item)
-						fprintf("Item %s not found in configs section %s\r\n", item, section);
+						fprintf('Item %s not found in configs section %s\r\n', item, section);
 						continue;
 					end
 					% check for baudrate
@@ -190,28 +150,116 @@ classdef preferences < handle
 				end
 			end
 
-			fprintf("Prefernces | loadConfig | config loaded");
+			fprintf('Prefernces | loadConfig | config loaded');
 		end
 	end
 	methods (Access = private)
 
+		function constructGUI(obj)
+			fprintf('Preferences | constructGUI | starting gui constructions');
+			figSize = [500, 500];
+			screenSize = get(groot, 'ScreenSize');
+			obj.hFig = uifigure('Name','Preferences', ...
+				'Position', [(screenSize(3:4) - figSize)/2, figSize], ...
+				'MenuBar', 'none', ...
+				'NumberTitle', 'off', ...
+				'Resize', 'off', ...
+				'Visible', 'off');
+
+			uilabel(obj.hFig, 'Position', [150, figSize(2)-50, 140, 25], 'Text', 'Baudrate');
+			uilabel(obj.hFig, 'Position', [240, figSize(2)-50, 140, 25], 'Text', 'Port' );
+			obj.hLabelRadar=uilabel(obj.hFig, ...
+				'Position', [20, figSize(2)-100, 140, 25], ...
+				'Text', 'Radar serial setting:');
+
+			obj.hRadarBaudrate = uidropdown(obj.hFig, ...
+				'Position', [150, figSize(2)-100, 80, 25], ...
+				'Items', {'9600','19200','100000', '115200', '230400'});
+
+			list=cat(2, 'none', serialportlist);
+			obj.hRadarPort = uidropdown(obj.hFig, ...
+				'Position', [240, figSize(2)-100, 120, 25], ...
+				'Items', list);
+
+			obj.hLabelPlatform=uilabel(obj.hFig, ...
+				'Position', [20, figSize(2)-70, 140, 25], ...
+				'Text', 'Platform serial setting:');
+
+			obj.hPlatformBaudrate = uidropdown(obj.hFig, ...
+				'Position', [150, figSize(2)-70, 80, 25], ...
+				'Items', {'9600', '19200', '100000', '115200', '230400'});
+
+			obj.hPlatformPort = uidropdown(obj.hFig, ...
+				'Position', [240, figSize(2)-70, 120, 25], ...
+				'Items', list);
+
+			obj.hLabelPlatformOffsetDistance=uilabel(obj.hFig, ...
+				'Position', [20, figSize(2)-140, 140, 25], ...
+				'Text', 'Platform offset [mm]:');
+			
+			obj.hLabelPlarformOffsetT=uilabel(obj.hFig, ...
+				'Position', [20, figSize(2)-170, 140, 25], ...
+				'Text', 'Tilt offset [deg]:');
+
+			obj.hLabelPlatformOffsetH=uilabel(obj.hFig, ...
+				'Position', [20, figSize(2)-200, 140, 25], ...
+				'Text', 'Horizontal offset [deg]:');
+			
+			obj.hPlatformOffsetDistance=uicontrol('Style', 'edit', ...
+				'Parent',obj.hFig,  ...
+				'Position', [150, figSize(2)-140, 140, 25], ...
+				'Max',1, ...
+				'String',"", ...
+				'HorizontalAlignment', 'left');
+
+			obj.hPlarformOffsetT=uicontrol('Style', 'edit', ...
+				'Parent',obj.hFig,  ...
+				'Position', [150, figSize(2)-170, 140, 25], ...
+				'Max',1, ...
+				'String',"", ...
+				'HorizontalAlignment', 'left');
+
+			obj.hPlatformOffsetH=uicontrol('Style', 'edit', ...
+				'Parent',obj.hFig,  ...
+				'Position', [150, figSize(2)-200, 140, 25], ...
+				'Max',1, ...
+				'String',"", ...
+				'HorizontalAlignment', 'left');
+
+			obj.hStatusLabel=uilabel(obj.hFig, ...
+				'Position', [20, figSize(2)-480, 80, 25]);
+
+			obj.hStoreConfig=uibutton(obj.hFig, 'state', 'Position', [figSize(1)-200, figSize(2)-450, 80, 25], ...
+				'Text', 'Store Config', 'Value', true);
+
+			obj.hButt = uibutton(obj.hFig, 'Text', 'Apply', ...
+				'Position', [figSize(1)-200, figSize(2)-480, 80, 25]);
+			obj.hClose = uibutton(obj.hFig, 'Text', 'Close', ...
+				'Position', [figSize(1)-100, figSize(2)-480, 80, 25]);
+
+			obj.hButt.ButtonPushedFcn = @(src, event)obj.apply();
+			obj.hClose.ButtonPushedFcn=@(src,event) set(obj.hFig, 'Visible', 'off');
+
+			% set values according to those loaded 
+		end
+
 		function apply(obj)
 			err=false;
-			obj.configStruct.esp.espBaudrate=str2double(obj.hEspBaudrate.Value);
+			obj.configStruct.Platform.PlatformBaudrate=str2double(obj.hPlatformBaudrate.Value);
 			obj.configStruct.radar.radarBaudrate=str2double(obj.hRadarBaudrate.Value);
 
-			if strcmp(obj.hEspPort.Value,obj.hRadarPort.Value) == 1 && obj.hRadarPort.Value ~= "none"
+			if strcmp(obj.hPlatformPort.Value,obj.hRadarPort.Value) == 1 && obj.hRadarPort.Value ~= "none"
 				err=true;
 				uialert(obj.hFig, 'Both serial ports are same', 'Serial port', 'icon', 'error');
 			else
-				obj.configStruct.esp.espPort=obj.hEspPort.Value;
+				obj.configStruct.Platform.PlatformPort=obj.hPlatformPort.Value;
 				obj.configStruct.radar.radarPort=obj.hRadarPort.Value;
 			end
 
 			if ~err
 				uialert(obj.hFig, 'Config applied', 'Config', 'icon', 'info', 'CloseFcn','uiresume(gcbf)');
 				uiwait(gcbf);
-				set(obj.hFig, "Visible", "off");
+				set(obj.hFig, 'Visible', 'off');
 			end
 
 			obj.configStruct.programs = platformControl.getInstance().exportSavedPrograms();
@@ -270,7 +318,7 @@ end
 
 function Result = ini2struct(filename)
 	%==========================================================================
-	%  Author: Andriy Nych ( nych.andriy@gmail.com )
+	% Author: Andriy Nych ( nych.andriy@gmail.com )
 	% Version:        733341.4155741782200
 	%==========================================================================
 	%
@@ -281,7 +329,7 @@ function Result = ini2struct(filename)
 	%
 	% sections from INI file are returned as fields of INI structure.
 	% Each fiels (section of INI file) in turn is structure.
-	% It's fields are variables from the corresponding section of the INI file.
+	% It's fields are variables from the corrPlatformonding section of the INI file.
 	%
 	% If INI file contains "oprhan" variables at the beginning, they will be
 	% added as fields to INI structure.
