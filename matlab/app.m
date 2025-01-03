@@ -11,13 +11,13 @@ classdef app < handle
 		function obj = app()
 			obj.constructGUI();
 			obj.hPreferences = preferences();
-			% obj.hPlatformControl = platformControl(obj.hPreferences);
+			obj.hPlatformControl = platformControl(obj.hPreferences);
 		end
 
 		function constructGUI(obj)
 			figSize = [800, 600];
 			screenSize = get(groot, 'ScreenSize');
-			obj.hFig = uifigure('Name', 'Preferences', ...
+			obj.hFig = uifigure('Name', 'FMCW', ...
 				'Position', [(screenSize(3:4) - figSize)/2, figSize], ...
 				'MenuBar','none', ...
 				'NumberTitle', 'off', ...
@@ -60,7 +60,7 @@ classdef app < handle
 		function handle=getInstance()
 			persistent instanceStatic;
 			if isempty(instanceStatic) || ~isvalid(instanceStatic.hToolbar)
-				fprintf('app | getInstance | Creating new instance\n');
+				fprintf('App | getInstance | Creating new instance\n');
 				instanceStatic = app();
 			end
 			handle=instanceStatic;

@@ -14,6 +14,9 @@ classdef platformControl < handle
 		hBtnSave;              % uicontrol/pushBtn - save program form form to struct
 		hBtnUpload;            % uicontrol/pushBtn - upload program to device
 		hBtnClose;             % uicontrol/pushBtn - close figure
+		hLabelCommand;         % uilabel - quck commnad lable
+		hTextOut;              % uicontrol/text - output from platfrom
+		
 		                   
 		% OTHER VARS% 
 		hPreferences;
@@ -23,6 +26,7 @@ classdef platformControl < handle
 	methods(Access=private)
 		function loadSavedPrograms(obj)
 			obj.programs = obj.hPreferences.getPrograms(); % might need to replace \n with ;
+			fprintf('PlatformControl | loadSavedPrograms | loaded programs:\n');
 			disp (obj.programs)
 		end
 
@@ -44,6 +48,8 @@ classdef platformControl < handle
 				'String', fieldnames(obj.programs), ...
 				'Callback', @(src, event) obj.loadProgram());
 
+			obj.hLabelCommand = uilabel('Parent', obj.hFig, 'Text', 'QUICK COMMAND:', 'FontWeight', 'bold', 'FontSize', 16);
+
 			obj.hEditCommand = uicontrol('Style', 'edit', ...
 				'Parent', obj.hFig, ...
 				'Tag', 'CommandField', ...
@@ -58,37 +64,44 @@ classdef platformControl < handle
 				'HorizontalAlignment', 'left', ...
 				'String', '');
 
+			obj.hTextOut =  uicontrol('Style', 'text', ...
+				'Parent', obj.hFig, ...
+				'Tag', 'ProgramDisplay', ...
+				'Max', 2, ...
+				'HorizontalAlignment', 'left', ...
+				'String', 'Platform serial output');
+
 			obj.hPanelBtn = uipanel('Parent', obj.hFig, ...
 				'Title', 'Actions', ...
 				'Tag', 'ButtonPanel', ...
 				'Units', 'pixels');
 			
-			obj.hBtnNew = uicontrol('Style', 'pushBtn', ...
+			obj.hBtnNew = uicontrol('Style', 'pushbutton', ...
 				'Parent', obj.hPanelBtn, ...
 				'String', 'New Program', ...
 				'Callback', @(src, event) obj.newProgram());
 
-			obj.hBtnDelete = uicontrol('Style', 'pushBtn', ...
+			obj.hBtnDelete = uicontrol('Style', 'pushbutton', ...
 				'Parent', obj.hPanelBtn, ...
 				'String', 'Delete Program', ...
 				'Callback', @(src, event) obj.deleteProgram());
 
-			obj.hBtnStore = uicontrol('Style', 'pushBtn', ...
+			obj.hBtnStore = uicontrol('Style', 'pushbutton', ...
 				'Parent', obj.hPanelBtn, ...
 				'String', 'Store Programs', ...
 				'Callback', @(src, event) obj.storePrograms());
 
-			obj.hBtnSave = uicontrol('Style', 'pushBtn', ...
+			obj.hBtnSave = uicontrol('Style', 'pushbutton', ...
 				'Parent', obj.hPanelBtn, ...
-				'String', 'save Programs', ...
+				'String', 'Save Program', ...
 				'Callback', @(src, event) obj.saveProgram());
 
-			obj.hBtnUpload = uicontrol('Style', 'pushBtn', ...
+			obj.hBtnUpload = uicontrol('Style', 'pushbutton', ...
 				'Parent', obj.hPanelBtn, ...
 				'String', 'Upload Program', ...
 				'Callback', @(src, event) obj.uploadProgram());
 
-			obj.hBtnClose = uicontrol('Style', 'pushBtn', ...
+			obj.hBtnClose = uicontrol('Style', 'pushbutton', ...
                 'Parent', obj.hPanelBtn, ...
                 'String', 'Close', ...
                 'Callback', @(src, event) set(obj.hFig, 'Visible', 'off'));
@@ -106,18 +119,24 @@ classdef platformControl < handle
 			height = figPos(4);
 
 			sidebarWidth = 150;
-			obj.hListboxSidebar.Position = [10, 50, sidebarWidth, height - 110];
+			obj.hListboxSidebar.Position = [10, 20, sidebarWidth, height - 70];
+			obj.hLabelCommand.Position = [10, height-40, sidebarWidth, 30];
 			obj.hEditCommand.Position = [sidebarWidth + 20, height - 40, width - sidebarWidth - 30, 30];
 			displayWidth = width - sidebarWidth - 210;
-			obj.hEditProgram.Position = [sidebarWidth + 20, 50, displayWidth, height - 110];
+			
+			obj.hEditProgram.Position = [sidebarWidth + 20, 130, displayWidth, height-180];
+			obj.hTextOut.Position = [sidebarWidth + 20, 20, displayWidth, 100];
+			
 			buttonPanelWidth = 180;
-			obj.hPanelBtn.Position = [sidebarWidth + 30 + displayWidth, 50, buttonPanelWidth-10, height - 110];
+			obj.hPanelBtn.Position = [sidebarWidth + 30 + displayWidth, 20, buttonPanelWidth-10, height - 70];
 			buttonHeight = 40;
 			spacing = 10;
-			obj.hBtnNew.Position = [10, height - 130 - buttonHeight - spacing, buttonPanelWidth - 30, buttonHeight];
-			obj.hBtnStore.Position = [10, height - 130 - 2 * (buttonHeight + spacing), buttonPanelWidth - 30, buttonHeight];
-			obj.hBtnDelete.Position = [10, height - 130 - 3 * (buttonHeight + spacing), buttonPanelWidth - 30, buttonHeight];
-			obj.hBtnUpload.Position = [10, height - 130 - 4 * (buttonHeight + spacing), buttonPanelWidth - 30, buttonHeight];
+			obj.hBtnNew.Position = [10, height - 90 - buttonHeight - spacing, buttonPanelWidth - 30, buttonHeight];
+			obj.hBtnSave.Position = [10, height - 90 - 2 * (buttonHeight + spacing), buttonPanelWidth - 30, buttonHeight];
+			obj.hBtnDelete.Position = [10, height - 90 - 3 * (buttonHeight + spacing), buttonPanelWidth - 30, buttonHeight];
+			obj.hBtnUpload.Position = [10, height - 90 - 4 * (buttonHeight + spacing), buttonPanelWidth - 30, buttonHeight];
+			obj.hBtnStore.Position = [10, 60, buttonPanelWidth - 30, buttonHeight]; % Fixed at the bottom of the panel
+      
 			obj.hBtnClose.Position = [10, 10, buttonPanelWidth - 30, buttonHeight]; % Fixed at the bottom of the panel
       
 			loadProgram(obj);
@@ -142,9 +161,11 @@ classdef platformControl < handle
 
 			fprintf('PlatformControl | newProgram\n');
 			userInput = inputdlg('Enter new program name', 'Create new Program', [1 50], "");
-
-			if ~isempty(userInput) && isstrprop(userInput, 'alphanum')
-				obj.programs.(userInput) = "";
+			name = userInput{1,1};
+			disp(~isempty(name))
+			disp(isstrprop(name, 'alphanum'))
+			if all([~isempty(name) isstrprop(name, 'alphanum')])
+				obj.programs.(name) = "";
 				set(obj.hListboxSidebar, 'String', fieldnames(obj.programs));
 			end
 		end
@@ -152,12 +173,13 @@ classdef platformControl < handle
 		function deleteProgram(obj)
 			fprintf('PlatformControl | deleteProgram\n');
 			obj.programs = rmfield(obj.programs, obj.currentProgramName);
-
+			set(obj.hListboxSidebar, 'String', fieldnames(obj.programs));
 		end
 
 		function storePrograms(obj)
 			fprintf('PlatformControl | storePrograms\n');
-			obj.hPreferences.storeProgramss(obj.programs);
+			obj.hPreferences.setPrograms(obj.programs);
+			obj.hPreferences.storeConfig();
 		end
 
 			function saveProgram(obj)
@@ -166,7 +188,7 @@ classdef platformControl < handle
 			trimmed = (strtrim(string(value)));
 			tosave = strjoin(trimmed, "\n");
 			disp (tosave);
-			obj.programs(obj.currentProgramName) = tosave;
+			obj.programs.(obj.currentProgramName) = tosave;
 		end
 
 		function uploadProgram(obj)

@@ -7,14 +7,13 @@ classdef preferences < handle
 		hBtnClose;              % uibutton - close window
 		hBtnRefresh;            % uibutton - refresh serial
 		hBtnReload;             % uibutton - reload config from file
-		hBtnStore;              % uibutton - permit storing to file
 		hDropRadarPort;         % uidropdown - radar serial port
 		hDropRadarBaudrate;     % uidropdown - radar serial baudrate 
 		hDropPlatformPort;      % uidropdown - platform serial port
 		hDropPlatformBaudrate;  % uidropdown - platofrm serial baudrate
 		 
 		hEditOffsetD;           % uicontrol/edit - distance offset
-		hEditOffsetT;          % uicontrol/edit - angle offset tilt
+		hEditOffsetT;           % uicontrol/edit - angle offset tilt
 		hEditOffsetH;           % uicontrol/edit - angle offset horizontal
 
 		% OTHER VARS % 
@@ -53,6 +52,8 @@ classdef preferences < handle
 
 			obj.configFilePath=fullfile(path, "fmcw.conf");
 
+			obj.loadConfig();
+
 
 		end
 
@@ -70,6 +71,10 @@ classdef preferences < handle
 			% Output:
 			% programs ... struct will all programs
 			programs = obj.configStruct.programs;
+		end
+
+		function setPrograms(obj, programs)
+			obj.configStruct.programs = programs;
 		end
 
 		function [port, baudrate] = getConnectionPlatform(obj)
@@ -94,9 +99,7 @@ classdef preferences < handle
 		end
 
 		function storeConfig(obj)
-			if get(obj.hBtnStore, 'Value')
 				struct2ini(obj.configFilePath, obj.configStruct);
-			end
 		end
 
 		function loadConfig(obj)
@@ -106,9 +109,10 @@ classdef preferences < handle
 			end
 
 			struct = ini2struct(obj.configFilePath);
+			list=cat(2, 'none', serialportlist);
 			% not everything might be present in the read struct
 			sections = fieldnames(obj.configStruct);
-			list=cat(2, 'none', serialportlist);
+			
 			for k=1:length(sections)
 				section = char(sections(k));
 
@@ -150,20 +154,11 @@ classdef preferences < handle
 				end
 			end
 
-			fprintf('Prefernces | loadConfig | config loaded');
+			fprintf('Prefernces | loadConfig | config loaded\n');
 			
-			set(obj.hEditOffsetD, 'String', obj.configStruct.platform.distanceOffset);
-			
-			if any(obj.availableBaudrates == obj.configStruct.platform.baudrate)
-				set(obj.hDropPlatformBaudrate, 'Value', num2str(obj.configStruct.platform.baudrate));
-			end
-
-			if any(obj.availableBaudrates == obj.configStruct.radar.baudrate)
-				set(obj.hDropRadarBaudrate, 'Value', num2str(obj.configStruct.radar.baudrate));
-			end
-			set(obj.hEditOffsetT, 'String', obj.configStruct.platform.angleOffsetT);
-			set(obj.hEditOffsetH, 'String', obj.configStruct.platform.angleOffsetH);
+	
 		end
+
 	end
 	methods (Access = private)
 
@@ -237,16 +232,16 @@ classdef preferences < handle
 				'Max',1, ...
 				'String',"", ...
 				'HorizontalAlignment', 'left');
-
-			obj.hBtnStore=uibutton(obj.hFig, 'state', ...
-				'Position', [figSize(1)-200, figSize(2)-450, 80, 25], ...
-				'Text', 'Store Config', ...
-				'Value', true);
+			 
+		function reloadConfig(obj)
+			obj.loadConfig();
+			obj.configToGUI();
+		end
 
 		obj.hBtnReload = uibutton(obj.hFig, ...
 				'Text', 'Reload', ...
 				'Position', [figSize(1)-300, figSize(2)-480, 80, 25], ...
-				'ButtonPushedFcn', @(src,event) obj.loadConfig());
+				'ButtonPushedFcn', @(src,event) reloadConfig(obj) );
 			
 			obj.hBtnRefresh = uibutton(obj.hFig, ...
 				'Text', 'Refresh', ...
@@ -262,8 +257,35 @@ classdef preferences < handle
 				'Text', 'Close', ...
 				'Position', [figSize(1)-100, figSize(2)-480, 80, 25], ...
 				'ButtonPushedFcn',@(src,event) set(obj.hFig, 'Visible', 'off'));
+			
+			obj.configToGUI();
 
-			loadConfig(obj);
+		end
+		
+		
+		function configToGUI(obj)
+		
+			list=cat(2, 'none', serialportlist);
+
+			if any(list == obj.configStruct.platform.port)
+				set(obj.hDropPlatformPort, 'Value', obj.configStruct.platform.port);
+			end
+
+			if any(list == obj.configStruct.radar.port)
+				set(obj.hDropRadarPort, 'Value', obj.configStruct.radar.port);
+			end
+			
+			if any(obj.availableBaudrates == obj.configStruct.platform.baudrate)
+				set(obj.hDropPlatformBaudrate, 'Value', num2str(obj.configStruct.platform.baudrate));
+			end
+
+			if any(obj.availableBaudrates == obj.configStruct.radar.baudrate)
+				set(obj.hDropRadarBaudrate, 'Value', num2str(obj.configStruct.radar.baudrate));
+			end
+
+			set(obj.hEditOffsetD, 'String', obj.configStruct.platform.distanceOffset);
+			set(obj.hEditOffsetT, 'String', obj.configStruct.platform.angleOffsetT);
+			set(obj.hEditOffsetH, 'String', obj.configStruct.platform.angleOffsetH);
 		end
 
 		function refreshSerial(obj)
@@ -275,7 +297,7 @@ classdef preferences < handle
 		function apply(obj)
 
 			err=false;
-			obj.configStruct.platform.platformBaudrate=str2double(obj.hDropPlatformBaudrate.Value);
+			obj.configStruct.platform.baudrate=str2double(obj.hDropPlatformBaudrate.Value);
 			obj.configStruct.radar.baudrate=str2double(obj.hDropRadarBaudrate.Value);
 
 
@@ -298,7 +320,7 @@ classdef preferences < handle
 				err=true;
 				uialert(obj.hFig, 'Both serial ports are same', 'Serial port', 'icon', 'error');
 			else
-				obj.configStruct.platform.platformPort=obj.hDropPlatformPort.Value;
+				obj.configStruct.platform.port=obj.hDropPlatformPort.Value;
 				obj.configStruct.radar.port=obj.hDropRadarPort.Value;
 			end
 
