@@ -83,8 +83,8 @@ classdef preferences < handle
 			% Output:
 			% port ... serial port to use
 			% baudrate ... serial baudrate
-			port = obj.configStruct.Platform.PlatformPort;
-			baudrate = obj.configStruct.Platform.baudrate;
+			port = obj.configStruct.platform.port;
+			baudrate = obj.configStruct.platform.baudrate;
 		end
 
 		function [port, baudrate] = getConnectionRadar(obj)
@@ -94,7 +94,7 @@ classdef preferences < handle
 			% Output:
 			% port ... serial port to use
 			% baudrate ... serial baudrate
-			port = obj.configStruct.radar.PlatformPort;
+			port = obj.configStruct.radar.port;
 			baudrate = obj.configStruct.radar.baudrate;
 		end
 

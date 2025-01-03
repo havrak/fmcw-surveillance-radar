@@ -23,6 +23,7 @@ classdef platformControl < handle
 		hSerial;
 		programs;
 		currentProgramName;
+		hDataProcessingFunction;
 		
 	end
 	methods(Access=private)
@@ -111,8 +112,9 @@ classdef platformControl < handle
 
 			fprintf('PlatformControl | constructGUI | GUI constructed\n');
 
-
 			set(obj.hFig, 	'SizeChangedFcn', @(src, event) obj.resizeUI());
+
+			loadProgram(obj);
 		end
 
 		function resizeUI(obj)
@@ -138,10 +140,9 @@ classdef platformControl < handle
 			obj.hBtnDelete.Position = [10, height - 90 - 3 * (buttonHeight + spacing), buttonPanelWidth - 30, buttonHeight];
 			obj.hBtnUpload.Position = [10, height - 90 - 4 * (buttonHeight + spacing), buttonPanelWidth - 30, buttonHeight];
 			obj.hBtnStore.Position = [10, 60, buttonPanelWidth - 30, buttonHeight]; % Fixed at the bottom of the panel
-      
+    
 			obj.hBtnClose.Position = [10, 10, buttonPanelWidth - 30, buttonHeight]; % Fixed at the bottom of the panel
       
-			loadProgram(obj);
 
 		end
 
@@ -156,8 +157,16 @@ classdef platformControl < handle
 		end
 		
 		function  callbackQuickCommand(obj)
-			% push commadn to the front of upload queue
+			value = get(obj.hEditProgram, 'String');
+			flush(obj.hSerial); 
+			writeline(obj.hSerial, value);
 		end
+
+
+		function processIncommingData(obj)
+
+		end
+
 		function newProgram(obj)
 			% Empty callback for Delete Program button
 
@@ -184,7 +193,7 @@ classdef platformControl < handle
 			obj.hPreferences.storeConfig();
 		end
 
-			function saveProgram(obj)
+		function saveProgram(obj)
 			fprintf('PlatformControl | saveProgram\n');
 			value = get(obj.hEditProgram, 'String');
 			trimmed = (strtrim(string(value)));
@@ -195,11 +204,17 @@ classdef platformControl < handle
 
 		function uploadProgram(obj)
 			% Empty callback for Upload Program button
-			disp (string(get(obj.hEditProgram, 'String')));
+			value = get(obj.hEditProgram, 'String');
+			trimmed = (strtrim(string(value)));
 			% -> call to send 
-			
-		end
+			flush(obj.hSerial); 
+			for i=1:numel(trimmed)
+				writeline(obj.hSerial, trimmed(i));
+				pause(0.002); % incomming buffer on esp32 is not infinit so we introduce a small delay
+			end
+			flush(obj.hSerial); 
 
+		end
 
 	end
 
@@ -209,6 +224,19 @@ classdef platformControl < handle
 			fprintf('PlatformControl | platformControl | constructing object\n');
 			obj.hPreferences = hPreferences;
 			loadSavedPrograms(obj);
+		end
+		
+		function endProcesses(obj)
+			if ~isempty(obj.hSerial)
+				if ~isempty(obj.hDataProcessingFunction) && strcmp(obj.hDataProcessingFunction.State,'running')
+					cancel(obj.hDataProcessingFunction);
+				end
+				delete(obj.hSerial)
+			end
+		end
+
+		function setupSerial(obj)
+		
 		end
 
 		function showGUI(obj)

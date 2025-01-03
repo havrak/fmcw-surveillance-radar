@@ -1,10 +1,21 @@
 classdef app < handle 
 	properties (Access = public)
-		hPreferences
-		hPlatformControl 
+		% GUI %
+		hPanelBtn              % uipanel - panel to group buttons
+		hBtnConnectRadar;      % uicontrol/pushBtn - new program
+		hBtnConnectPlatform;   % uicontrol/pushBtn - delete a program
+		hBtnConnectPlatformS;
+		hTextTelemetry;        % uicontrol/text - basic telemetry
+		h
 
-		hFig 
-    hToolbar 
+
+		% OTHER VARS% 
+		hPreferences;
+		hPlatformControl;
+		hRadar;
+
+		hFig; 
+    hToolbar; 
 	end
 
 	methods(Access=private)
@@ -12,16 +23,26 @@ classdef app < handle
 			obj.constructGUI();
 			obj.hPreferences = preferences();
 			obj.hPlatformControl = platformControl(obj.hPreferences);
+			obj.hRadar = radar(obj.hPreferences);
 		end
-
+		
+		function shutdown(obj)
+			fprintf("App | shutdown\n")
+			obj.hRadar.endProcesses();
+			obj.hPlatformControl.endProcesses();
+		end
+		
 		function constructGUI(obj)
-			figSize = [800, 600];
+			figSize = [1200, 800];
 			screenSize = get(groot, 'ScreenSize');
 			obj.hFig = uifigure('Name', 'FMCW', ...
 				'Position', [(screenSize(3:4) - figSize)/2, figSize], ...
-				'MenuBar','none', ...
+				'MenuBar', 'none', ...
 				'NumberTitle', 'off', ...
-				'Resize', 'off');
+				'Resize', 'on', ...
+				'Visible', 'on', ...
+				'AutoResizeChildren', 'off', ...
+				'DeleteFcn',@(~,~) obj.shutdown());
 			
 			obj.hToolbar = uitoolbar(obj.hFig);
 
@@ -37,6 +58,7 @@ classdef app < handle
 			[img,map] = imread(fullfile(matlabroot,...
 				'toolbox','matlab','icons','tool_rotate_3d.gif'));
 			ptImage = ind2rgb(img,map);
+
 			uipushtool(obj.hToolbar, ...
 				'TooltipString', 'Platform', ...
 				'ClickedCallback', @(~,~) obj.hPlatformControl.showGUI(), ...
@@ -51,7 +73,57 @@ classdef app < handle
 				'TooltipString', 'Help', ...
 				'CData', ptImage);
 
+				obj.hPanelBtn = uipanel('Parent', obj.hFig, ...
+				'Title', 'Actions', ...
+				'Tag', 'ButtonPanel', ...
+				'Units', 'pixels');
+			
+			obj.hTextTelemetry =  uicontrol('Style', 'edit', ...
+				'Parent', obj.hFig, ...
+				'Tag', 'ProgramDisplay', ...
+				'Max', 2, ...
+				'HorizontalAlignment', 'left', ...
+				'String', 'Platform serial output');
+			
+			obj.hBtnConnectPlatform = uicontrol('Style', 'pushbutton', ...
+				'Parent', obj.hPanelBtn, ...
+				'String', 'Platform Connect', ...
+				'Callback', @(src, event) obj.hPlatformControl.setupSerial(), ...
+				'BackgroundColor', '#E57373');
+
+
+			obj.hBtnConnectRadar = uicontrol('Style', 'pushbutton', ...
+				'Parent', obj.hPanelBtn, ...
+				'String', 'Radar Connect', ...
+				'Callback', @(src, event) obj.hRadar.setupSerial(), ...
+				'BackgroundColor', '#E57373');
+
+			set(obj.hFig, 'SizeChangedFcn', @(src, event) obj.resizeUI());
+
 		end
+
+		function setupRadarSerial()
+			
+		end
+
+		function resizeUI(obj)
+			figPos = get(obj.hFig, 'Position');
+			width = figPos(3);
+			height = figPos(4);
+
+			displayWidth = width - 180;
+			
+			obj.hTextTelemetry.Position = [10, 20, displayWidth-20, 200];
+			
+			buttonPanelWidth = 180;
+			obj.hPanelBtn.Position = [displayWidth, 20, buttonPanelWidth-10, height - 30];
+			buttonHeight = 40;
+			spacing = 10;
+			obj.hBtnConnectPlatform.Position = [10, height - 50 - buttonHeight - spacing, buttonPanelWidth - 30, buttonHeight];
+			obj.hBtnConnectRadar.Position = [10, height - 50 - 2 * (buttonHeight + spacing), buttonPanelWidth - 30, buttonHeight];
+			
+		end
+
 	end
 
 	

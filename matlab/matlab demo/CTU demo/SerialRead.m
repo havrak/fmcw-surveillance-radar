@@ -1,3 +1,5 @@
+
+
 function SerialRead()
 % graph size
 figureW = 1000; %1920;
