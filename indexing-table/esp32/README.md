@@ -4,9 +4,6 @@ As of now code relies on proprietary libraries that are not included in this rep
 Following codebase is written entirely for esp-idf framework. While hal layer used is mimicking arduino, there are differences and thus simple porting of the code to arduino is not possible.
 Configuration of the device is done primarily with Kconfig under esp-idf. While runtime configuration with storing to flash is possible, it is not needed for the current application and would result in unnecessary slowdowns.
 
-# TODO
-* reintroduce MQTT as it will not pose any slowdowns with current architecture
-
 # Constants
 * these parameters are defined in Kconfig and will require recompilation of the firmware to change
 * STEPPER_H_STEP_COUNT, STEPPER_T_STEP_COUNT - number of steps in a single rotation on horizontal and tilt axis
@@ -69,10 +66,9 @@ Configuration of the device is done primarily with Kconfig under esp-idf. While 
 
 # Communication
 
+WARNING: DO NOT use this device without first reading the documentation. Commands might have similar names and structures as in common G-code but their behavior can be radically different as this device has rather specific requirements.
+
 ## Motor control
-* uses custom command strcuture based on G-code
-* in plain G-code its difficult to support both continuos motion and finite positioning with G-code
-* move to absolute position, move to relative position, spin
 * axis descriptors: H for horizontal rotation, T for tilt
 * M80: turn on high voltage power supply
 * M81: turn off high voltage power supply
@@ -96,7 +92,6 @@ Configuration of the device is done primarily with Kconfig under esp-idf. While 
 		* H - angle by/to rotate in horizontal plane
 		* ST<SPEED> - speed for tilt motor in tilt axis
 		* T - angle by/to rotate in tilt axis
-	* can be followed with S<rpm> to set speed
 * spindle mode
 	* beware when using spindle in programming mode one can desynchronized two command queues, this "issue" will be fixed and is up to user to handle as there is no clear way to decipher user intentions in programm in order to prevent it
 	* M03:  Start spindle mode
@@ -178,6 +173,23 @@ Configuration of the device is done primarily with Kconfig under esp-idf. While 
 | P99           | Main dec               | end programming                              |
 
 
+### Special advanced commands
+* WARN: usage of these commands is not recommended and can lead to unexpected behavior
+* their primary usecase is to enable real time control over the device - for example to do tracking of some object
+* M82: stop steppers and clear queues
+	* similar to M80, however stop command is issued to the steppers instead of shutting them down
+	* this means steppers will finish their current movement and then stop - thus data about current position should be still valid
+	* used in conjunction with G3 to setup environment for real time control
+* G3: direct control over steppers
+	* G3 command skip whole scheduling routine and put command directly into stepper queues
+	* NOTE: limits are not and cannot be checked
+	* NOTE: all values are interpreted as steps
+	* NOTE: if M82 is issued beforehand than G3 command should not lead to invalidation of current position
+	* S<SPEED> - fallback speed
+	* SH<SPEED> - speed for motor in horizontal plane
+	* H - angle by/to rotate in horizontal plane
+	* ST<SPEED> - speed for tilt motor in tilt axis
+	* T - angle by/to rotate in tilt axis
 
 
 

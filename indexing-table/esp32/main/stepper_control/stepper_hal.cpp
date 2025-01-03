@@ -334,16 +334,41 @@ bool StepperHal::stopStepperT(bool synchronized){
 	return xQueueSend(varsHalT.commandQueue, &command, portMAX_DELAY)==  pdTRUE;
 }
 
-void StepperHal::stopNowStepperH(){ // impediately stop generator, clear the queue and remove watchpoint
+bool StepperHal::carefullStop(){
+	clearQueueH();
+	clearQueueT();
+	return stopStepperT() && stopStepperH();
+}
+
+bool StepperHal::clearQueueH(){
+	if(varsHalH.stepperCommand->type == CommandType::STEPPER){
+		pcnt_unit_remove_watch_point(varsHalH.pcntUnit, varsHalH.stepperCommand->val.steps);
+	}
+	return xQueueReset(varsHalH.commandQueue) == pdTRUE;
+}
+
+bool StepperHal::clearQueueT(){
+	if(varsHalT.stepperCommand->type == CommandType::STEPPER){
+		pcnt_unit_remove_watch_point(varsHalT.pcntUnit, varsHalT.stepperCommand->val.steps);
+	}
+	return xQueueReset(varsHalT.commandQueue) == pdTRUE;
+}
+
+
+void StepperHal::stopNowStepperH(){ // immediately stop generator, clear the queue and remove watchpoint
 	ESP_ERROR_CHECK(mcpwm_timer_start_stop(varsHalH.timer, MCPWM_TIMER_START_STOP_FULL));
 	if(varsHalH.stepperCommand->type == CommandType::STEPPER)
 		ESP_ERROR_CHECK(pcnt_unit_remove_watch_point(varsHalH.pcntUnit, varsHalH.stepperCommand->val.steps));
+	xEventGroupSetBits(StepperHal::stepperEventGroup, STEPPER_COMPLETE_BIT_H);
+	clearQueueH();
 }
 
-void StepperHal::stopNowStepperT(){ // impediately stop generator, clear the queue and remove watchpoint
+void StepperHal::stopNowStepperT(){ // immediately stop generator, clear the queue and remove watchpoint
 	ESP_ERROR_CHECK(mcpwm_timer_start_stop(varsHalT.timer, MCPWM_TIMER_START_STOP_FULL));
 	if(varsHalT.stepperCommand->type == CommandType::STEPPER)
 		ESP_ERROR_CHECK(pcnt_unit_remove_watch_point(varsHalT.pcntUnit, varsHalT.stepperCommand->val.steps));
+	xEventGroupSetBits(StepperHal::stepperEventGroup, STEPPER_COMPLETE_BIT_T);
+	clearQueueT();
 }
 
 int64_t StepperHal::getStepsTraveledOfCurrentCommandH(){

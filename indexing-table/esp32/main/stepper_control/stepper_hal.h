@@ -274,28 +274,26 @@ class StepperHal{
 		bool skipStepperT(bool synchronized = true);
 
 		/**
+		 * @brief clears command queue and issues stop command
+		 * use of this function should not lead to devalidation of current position
+		 *
+		 * @return true if queue was cleared successfully
+		 */
+		bool carefullStop();
+
+		/**
 		 * @brief clears command queue for stepper H
 		 *
 		 * @return true if queue was cleared successfully
 		 */
-		bool clearQueueH(){
-			if(varsHalH.stepperCommand->type == CommandType::STEPPER){
-				pcnt_unit_remove_watch_point(varsHalH.pcntUnit, varsHalH.stepperCommand->val.steps);
-			}
-			return xQueueReset(varsHalH.commandQueue) == pdTRUE;
-		}
+		bool clearQueueH();
 
 		/**
 		 * @brief clears command queue for stepper T
 		 *
 		 * @return true if queue was cleared successfully
 		 */
-		bool clearQueueT(){
-			if(varsHalT.stepperCommand->type == CommandType::STEPPER){
-				pcnt_unit_remove_watch_point(varsHalT.pcntUnit, varsHalT.stepperCommand->val.steps);
-			}
-			return xQueueReset(varsHalT.commandQueue) == pdTRUE;
-		}
+		bool clearQueueT();
 
 		/**
 		 * @brief return number of steps traveled by stepper H since start of the command

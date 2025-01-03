@@ -20,8 +20,10 @@ classdef platformControl < handle
 		                   
 		% OTHER VARS% 
 		hPreferences;
+		hSerial;
 		programs;
 		currentProgramName;
+		
 	end
 	methods(Access=private)
 		function loadSavedPrograms(obj)

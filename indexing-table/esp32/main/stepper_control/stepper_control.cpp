@@ -142,7 +142,7 @@ void StepperControl::stepperMoveTask(void* arg)
 		printf("[%lld, %f, %f]\n", esp_timer_get_time(), STEPS_TO_ANGLE(NORMALIZE_ANGLE(varsH.position + steppers.getStepsTraveledOfCurrentCommandH(), CONFIG_STEPPER_H_STEP_COUNT), CONFIG_STEPPER_H_STEP_COUNT), STEPS_TO_ANGLE(NORMALIZE_ANGLE(varsT.position + steppers.getStepsTraveledOfCurrentCommandT(), CONFIG_STEPPER_H_STEP_COUNT), CONFIG_STEPPER_H_STEP_COUNT));
 
 		// if queues are filled we will wait
-		if(steppers.getQueueLengthH() ==  CONFIG_STEPPER_HAL_QUEUE_SIZE || steppers.getQueueLengthT() ==  CONFIG_STEPPER_HAL_QUEUE_SIZE){
+if(steppers.getQueueLengthH() ==  CONFIG_STEPPER_HAL_QUEUE_SIZE || steppers.getQueueLengthT() ==  CONFIG_STEPPER_HAL_QUEUE_SIZE){
 			vTaskDelay(20 / portTICK_PERIOD_MS);
 			continue;
 		}
@@ -411,6 +411,9 @@ ParsingGCodeResult StepperControl::parseGCode(const char* gcode, uint16_t length
 		}
 		return false;
 	};
+	int64_t elementInt = 0;
+	float elementFloat = 0;
+
 
 	// NOTE: all commands will be handled same we aren't in programm regime they will be added to to programm 0
 	// all commands should be executed in motorTask -> added to a list and thats all
@@ -426,10 +429,72 @@ ParsingGCodeResult StepperControl::parseGCode(const char* gcode, uint16_t length
 		steppers.stopNowStepperH();
 		steppers.stopNowStepperT();
 
-		return ParsingGCodeResult::SUCCESS;
+		return ParsingGCodeResult::NO_SUPPORT;
 	} else if (strncmp(gcode, "M81", 3) == 0) { // power up high voltage supply
 																							// XXX this command will be executed immediately
 		return ParsingGCodeResult::NO_SUPPORT;
+	} else if (strncmp(gcode, "M82", 3) == 0) { // carefull stop
+		activeProgram = nullptr;
+		programmingMode.store(ProgrammingMode::NO_PROGRAMM);
+		xSemaphoreTake(noProgrammQueueLock, (TickType_t)1000);
+		noProgrammQueue = {};
+		xSemaphoreGive(noProgrammQueueLock);
+		steppers.carefullStop();
+		return ParsingGCodeResult::SUCCESS;
+	} else if (strncmp(gcode, "G3", 2) == 0) { // override
+
+		gcode_command_movement_t* movementH = nullptr;
+		gcode_command_movement_t* movementT = nullptr;
+		elementInt = getElementInt(3, "H", 1);
+		if (elementInt != GCODE_ELEMENT_INVALID_INT) {
+			movementH = new gcode_command_movement_t();
+			movementH->val.steps = elementInt;
+		} else
+			return ParsingGCodeResult::INVALID_ARGUMENT;
+
+
+		elementInt = getElementInt(3, "T", 1);
+		if (elementInt != GCODE_ELEMENT_INVALID_INT) {
+			movementT = new gcode_command_movement_t();
+			movementT->val.steps = elementInt;
+		} else
+			return ParsingGCodeResult::INVALID_ARGUMENT;
+
+
+		elementFloat = getElementFloat(3, "S", 1);
+		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT) {
+			if (movementH != nullptr)
+				movementH->rpm = elementFloat < CONFIG_STEPPER_MAX_SPEED ? elementFloat : CONFIG_STEPPER_MAX_SPEED;
+			if (movementT != nullptr)
+				movementT->rpm = elementFloat < CONFIG_STEPPER_MAX_SPEED ? elementFloat : CONFIG_STEPPER_MAX_SPEED;
+		} else
+			return ParsingGCodeResult::INVALID_ARGUMENT;
+
+
+		elementFloat = getElementFloat(3, "SH", 2);
+		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT && movementH != nullptr)
+			movementH->rpm = elementFloat < CONFIG_STEPPER_MAX_SPEED ? elementFloat : CONFIG_STEPPER_MAX_SPEED;
+		else
+			return ParsingGCodeResult::INVALID_ARGUMENT;
+
+		elementFloat = getElementFloat(3, "ST", 2);
+		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT && movementT != nullptr)
+			movementT->rpm = elementFloat < CONFIG_STEPPER_MAX_SPEED ? elementFloat : CONFIG_STEPPER_MAX_SPEED;
+		else
+			return ParsingGCodeResult::INVALID_ARGUMENT;
+
+
+		if(movementH !=nullptr && movementT != nullptr){
+			steppers.stepStepperH(movementH->val.steps, movementH->rpm, true);
+			steppers.stepStepperT(movementT->val.steps, movementT->rpm, true);
+			return ParsingGCodeResult::SUCCESS;
+		}
+		if(movementH !=nullptr)
+			steppers.stepStepperH(movementH->val.steps, movementH->rpm, true);
+		if(movementT !=nullptr)
+			steppers.stepStepperT(movementT->val.steps, movementT->rpm, true);
+		return ParsingGCodeResult::SUCCESS;
+
 	} else if (strncmp(gcode, "P0", 2) == 0) { // stop programm execution
 		return ParsingGCodeResult::NO_SUPPORT;
 		if (programmingMode != ProgrammingMode::RUN_PROGRAM)
@@ -446,8 +511,6 @@ ParsingGCodeResult StepperControl::parseGCode(const char* gcode, uint16_t length
 	if (programmingMode == ProgrammingMode::RUN_PROGRAM) // all following commands don't make any sense to process if we are already running a program
 		return ParsingGCodeResult::NOT_PROCESSING_COMMANDS;
 
-	int64_t elementInt = 0;
-	float elementFloat = 0;
 
 	gcode_command_t* command = new gcode_command_t();
 	auto deleteCommand = [command]() {
