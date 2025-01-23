@@ -86,6 +86,7 @@ Let us picture an ideal FMCW radar system sending a chirp with frequency frequen
 % Horizontal lines for BW
 \draw[dashed] (0, 4.5) -- (7.5, 4.5);
 \draw[dashed] (0, 1) -- (7.5, 1);
+\draw[dashed] (2.5, -0.05) -- (2.5, 4.7);
 
 % Labels for fc and BW
 \node[left] at (0, 1) {$f_c$};
@@ -123,30 +124,114 @@ Let us picture an ideal FMCW radar system sending a chirp with frequency frequen
 \end{figure}
 
 We can clearly see that in given time $t$ the frequency spread from sent signal to received signal is proportional to the time delay $\tau$.
-However doing some simple subtraction in spectrogram of the both signals isn't really feasible -- the calculation needs to take a smarter approach.
+However doing some simple subtraction in spectrogram of the both signals isn't really feasible -- the calculation need to take a smarter approach.
 
 
-Let us define the chirp slope $k_{sw}$ we can describe the change in frequency of the received signal as
+Let us define the chirp slope $k_\mathrm{sw}$ we can describe the change in frequency of the received signal as
 \begin{equation}
-	\Delta f_s(t) = k_{sw}t = \frac{BW}{T_{ch}} t,
+	\Delta f_\mathrm{s}(t) = k_\mathrm{sw}t = \frac{BW}{T_\mathrm{ch}} t,
 	\label{eq:deltaf}
 \end{equation}
-where $t$ is the time goes from 0 to chirp length $T_{ch}$. Standard equation of FM signal can be written as
+where $t$ is the time goes from 0 to chirp length $T_\mathrm{ch}$. Standard equation of FM signal can be written as
 \begin{equation}
-	s(t) = A \cos\left(\omega_c t + \int_{0}^{t} f(s) dt\right),
+	s_\mathrm{t}(t) = A \cos\left(\omega_c t + 2\pi \int_{0}^{t} f_\mathrm{s}(t) \mathrm{d}t\right),
 	\label{eq:fm}
 \end{equation}
 where $A$ is amplitude of the signal, $\omega_c$ is carrier frequency and $f(s)$ is frequency of the signal. Substituting \ref{eq:deltaf} into \ref{eq:fm} we get the signal borrowed from the radar
 \begin{equation}
-	s(t) = A \cos(\omega_c t + \frac{k_{sw}}{2}t^2).
+	s_\mathrm{t}(t) = A \cos(\omega_c t + \pi k_\mathrm{sw}t^2).
 	\label{eq:fm2}
 \end{equation}
 
 Signal bounced back from the target will have the same equation with the only difference being the time delay $\tau$,
 \begin{equation}
-	s(t) = A \cos(\omega_c (t - \tau) + \frac{k_{sw}}{2}(t - \tau)^2).
+	s_\mathrm{r}(t) = A \cos(\omega_c (t - \tau) + \pi k_\mathrm{sw}(t - \tau)^2).
 	\label{eq:fm3}
 \end{equation}
+Now we can calculate the product of the two signals, this can be done easily in the real world using a frequency mixer. This is done with the standard formula $\cos(\alpha)\cos\beta = \frac{1}{2}(\cos(\alpha-\beta)+\cos(\alpha+\beta))$
+The result of the multiplication is
+\begin{align}
+	s(t) = s_\mathrm{r}(t) \cdot  s_\mathrm{t}(t) &= \frac{A^2}{2}\cos\left(2(\omega_c - 2\pi k_\mathrm{sw}T_\tau)t + 2\pi k_{sw}t^2 + (\pi k_\mathrm{sw} \tau^2 - \omega_c \tau) \right)+ \nonumber \\
+	&+\frac{A^2}{2} \cos\left(2\pi k_\mathrm{sw} \tau t + (\omega_c \tau - \pi k_\mathrm{sw} \tau^2)\right).
+	\label{eq:fm4}
+\end{align}
+First additive term will lead to a signal with very high frequency, well above $2\omega_c$, this term doesn't carry any useful information and is usually filtered out -- either by low pass filter or the frequency mixer itself \cite{graham2015}.
+Second term is so call beat signal whole frequency is directly proportional to the time delay $\tau$.
+Applying a first time derivative to the cosine argument we get the frequency of the beat signal.
+\begin{equation}
+	f_\mathrm{b} = \frac{1}{2\pi}\frac{\partial}{\partial t} \left(2\pi k_\mathrm{sw} \tau t + (\omega_c \tau - \pi k_\mathrm{sw} \tau^2)\right) = k_\mathrm{sw} \tau.
+	\label{eq:fb}
+\end{equation}
+
+Calculating the distance to the target is now trivial, delay $\tau$ is equal to the time it takes for the signal to travel to the target and back
+\begin{equation}
+	R = \frac{c_0 \tau}{2},
+	\label{eq:distance2}
+\end{equation}
+Substituting \ref{eq:fb} into \ref{eq:distance2} we get equation for distance
+\begin{equation}
+	R = \frac{c_0 f_\mathrm{b}}{2k_\mathrm{sw}}= \frac{c_o f_\mathrm{b} T_{\mathrm{ch}}}{2 BW}.
+	\label{eq:distance3}
+\end{equation}
+
+
+\subsection{Limits of Range Measurement}
+
+Absolute limit for maximal distance is given by the time it takes for the signal to travel from the radar to the target and back.
+Would the distance be greater than a time of single chirp the signal would be interpreted as coming from a closer target.
+That gives us an maximal limit on beat frequency $f_\mathrm{b} = BW$.
+
+However in most case the limit will imposed not by $T_\mathrm{ch}$ respectively $BW$ but by our sampling frequency $f_\mathrm{s}$.
+In order to avoid aliasing the Nyquist-Shannon theorem must be satisfied thus limiting the maximal beat frequency to $f_\mathrm{s}/2$ and giving us maximal distance of
+\begin{equation}
+	R = \frac{c_o f_\mathrm{s}}{4k_\mathrm{sw}}.
+	\label{eq:distance4max}
+\end{equation}
+
+While sampling with frequency $f_\mathrm{s}$ we get $N =\mathrm{f}_\mathrm{s} T_\mathrm{ch}$ samples. Applying a Discrete Fourier Transform (DFT) to the signal we get $N$ samples in spectrum with frequency resolution of
+\begin{equation}
+	\upDelta f_\mathrm{b} = \frac{f_\mathrm{s}}{N} = \frac{1}{T_{ch}},
+	\label{eq:resolution}
+\end{equation}
+we can see that the resolution of spectrum is inversely proportional to the chirp length, however it doesn't depend on sampling frequency \cite{jankiraman2018}.
+Now we can enter $\upDelta f_\mathrm{b}$ into \ref{eq:distance3} to get the minimal distance that can be measured as
+\begin{equation}
+	\upDelta R = \frac{c_o}{2BW}
+	\label{eq:distance5min}
+\end{equation}
+Thus in order to increase resolution in range a wider bandwidth is needed.
+
+
+
+
+
+\subsection{Speed Measurement}
+
+In order to demonstrate the effect of moving target on the beat frequency we can redefine the time delay $\tau$ as
+\begin{equation}
+	\tau = \frac{2(R_0+vt)}{c_o}
+	\label{eq:tau}
+\end{equation}
+where $R_0$ is the initial distance to the target and $v$ is the radial speed of the target.
+Within a single chirp there is no way to distinguish between the effects distance and speed of the target -- thus multiple chirps are needed.
+Rewriting \label{eq:tau} as
+\begin{equation}
+	\tau = \frac{2(R_0 v(nT_\mathrm{ch} + t_\mathrm{s}))}{c_0}
+	\label{eq:tau2}
+\end{equation}
+where $n$ is the number of chirps, $T_\mathrm{ch}$ is the chirp length and $t_\mathrm{s}$ denotes time withing  a single chirp ($0 \leq t_\mathrm{s} \leq T_\mathrm{ch}$).
+Substituting \ref{eq:tau2} into low frequency part \ref{eq:fm4} leads to very complex equation, however according to \cite{graham2015} most of the terms can be neglected leading us to
+\begin{equation}
+	s(t_\mathrm{s}, n) = \frac{A^2}{2} \cos\left(\frac{4\pi k_\mathrm{sw} R_0}{c_0} t_\mathrm{s} + \frac{2\omega_c v n}{c_0} T_\mathrm{ch} + \varphi_0 \right),
+	\label{eq:fb2}
+\end{equation}
+where $\varphi_0$ is a phase shift given by the initial distance to the target.
+Its clear that first element describes predominantly the distance to the target and the second one the speed of the target however a clear separation of the two cannot obviously be made.
+
+
+
+
+
 
 
 \section{AoA Estimation of FMCW Radar}
