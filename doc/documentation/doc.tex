@@ -31,9 +31,131 @@
 \include{introduction}
 \pagestyle{fancy}
 
-\chapter{Basics of FMCW Radar}
+\chapter{FMCW Radar Fundamentals}
 
 \boldred{TODO: Consider some semi-introductory chapter before this one. Also the name "Basics of FMCW Radar" is not very good.}
+
+As opposed to classical continuos wave (CW) radars Frequency Modulated Continuous Wave (FMCW) radars broadcast a signal not on a single frequency but with linear sweep across a range of frequencies.
+Such approach allows computing a range estimation without requiring a pulsing signal.
+This is while the capability to measure speed of the target using doppler shift is still maintained.
+However the calculation of speed more complex than in case of broadcast on a single frequency.
+
+The MW suffix in FMCW radar is used to denote that the radar operates in microwave range of frequencies.
+Such frequencies enable the antenna array to be small, enabling even on chip internaration.
+Also MM part of radio spectrum is generally license free \cite{spektrumCTU} and offers large bandwiths -- limiting possible interference.
+
+\section{Comparison FMCW Radar to Pulse Radar}
+
+Distance measurement with radar predates an invent of FMCW radar by a few decades.
+Traditional approaches relied predominantly on sending pulsing the signal electromagnetic radiation and measuring time it takes for the signal to return.
+On such radars speed can be calculated traditionally using Doppler effect as
+\begin{equation}
+	v = \frac{f_\mathrm{dop} c_o}{2f_\mathrm{rad}},
+	\label{eq:dopler}
+\end{equation}
+where $f_\mathrm{dop}$ is doppler frequency, $c_o$ is speed of light and $f_\mathrm{rad}$ is frequency of the radar signal.
+And distance was tied to time of flight $t$ of the signal as
+\begin{equation}
+	d = \frac{c_o \cdot t}{2}.
+	\label{eq:distance}
+\end{equation}
+
+Such approach is on paper simpler and more intuitive however it has several drawbacks that seriously limit its precision and usability especially in close range applications.
+In order to achieve a good resolution in distance measurement the pulse must be very short.
+However in order to to impede on radars capabilities (need to maintain strong signal-to-noise ration SNR over long distances) the power of the pulses must stay the same even when the duty cycle is dramatically increased \cite{jankiraman2018}.
+
+Transmitting with high average power is problematic legally and technically.
+It can result in interfering with other devices not to mention circuity to drive high power radars is bulky and expensive often requiring use of high voltages and vacuum tubes.
+Thus pulsed radars are predominantly used in application where high resolution in range is not needed such as long range detection.
+
+One major advantage of pulsed radar is the ease of processing data.
+On FMCW radar the there is a entanglement of distance and speed readings as there is both frequency change due to Doppler effect and the frequency sweep itself.
+
+\section{Basic principles of ideal FMCW radar}
+
+Let us picture an ideal FMCW radar system sending a chirp with frequency frequency sweep from $f_\mathrm{c}$ to $f_\mathrm{c}+BW$ and receiving the exact same signal signal after it has been reflected from a static target.
+
+\begin{figure}[h!]
+	\centering
+\begin{tikzpicture}[>=latex, scale=1]
+
+% Axes
+\draw[->] (0, 0) -- (8, 0) node[below] {$t$};
+\draw[->] (0, 0) -- (0, 5) node[left] {$f$};
+
+% Horizontal lines for BW
+\draw[dashed] (0, 4.5) -- (7.5, 4.5);
+\draw[dashed] (0, 1) -- (7.5, 1);
+
+% Labels for fc and BW
+\node[left] at (0, 1) {$f_c$};
+\draw[<->] (-0.5, 1) -- (-0.5, 4.5) node[midway,left] {$BW$};
+
+% Triangular wave for Tx
+\draw[thick,blue] (0, 1) -- (2.5, 4.5);
+\draw[thick,blue]	(2.5, 1) -- (5, 4.5);
+\draw[thick, dashed, blue] (5, 1) -- (6, 2.4);
+
+% Triangular wave for Rx (offset version)
+\draw[thick,red] (0.5, 1) -- (3, 4.5);
+\draw[thick,red] (3, 1) -- (5.5, 4.5);
+\draw[thick, dashed, red] (5.4, 1) -- (6.4, 2.4);
+
+% Label for Tch
+	\draw[-] (2.5, -0.05) -- (2.5, 0.05) node[below] {$T_{\text{ch}}$};
+
+% Labels for Tx and Rx
+\node[blue] at (4.2, 4.1) {\small Tx};
+\node[red] at (5.3, 3.7) {\small Rx};
+
+% Sweep slope and fb
+\draw[<->] (1, 1) arc[start angle=0, end angle=55, radius=1];
+\node at (1.5, 1.3) {\small $k_{\text{sw}}$};
+\draw[<->] (1.5, 2.37) -- (1.5, 3.12) node[above, left] {$f_b$};
+
+% Small time delay (tau)
+\draw[<->] (2.5, 0.7) -- (3, 0.7) node[midway,below] {$\tau$};
+
+\end{tikzpicture}
+
+	\caption[]{Ideal relation of frequency and time for received and sent signal}
+	\label{fig:fmcw_ideal}
+\end{figure}
+
+We can clearly see that in given time $t$ the frequency spread from sent signal to received signal is proportional to the time delay $\tau$.
+However doing some simple subtraction in spectrogram of the both signals isn't really feasible -- the calculation needs to take a smarter approach.
+
+
+Let us define the chirp slope $k_{sw}$ we can describe the change in frequency of the received signal as
+\begin{equation}
+	\Delta f_s(t) = k_{sw}t = \frac{BW}{T_{ch}} t,
+	\label{eq:deltaf}
+\end{equation}
+where $t$ is the time goes from 0 to chirp length $T_{ch}$. Standard equation of FM signal can be written as
+\begin{equation}
+	s(t) = A \cos\left(\omega_c t + \int_{0}^{t} f(s) dt\right),
+	\label{eq:fm}
+\end{equation}
+where $A$ is amplitude of the signal, $\omega_c$ is carrier frequency and $f(s)$ is frequency of the signal. Substituting \ref{eq:deltaf} into \ref{eq:fm} we get the signal borrowed from the radar
+\begin{equation}
+	s(t) = A \cos(\omega_c t + \frac{k_{sw}}{2}t^2).
+	\label{eq:fm2}
+\end{equation}
+
+Signal bounced back from the target will have the same equation with the only difference being the time delay $\tau$,
+\begin{equation}
+	s(t) = A \cos(\omega_c (t - \tau) + \frac{k_{sw}}{2}(t - \tau)^2).
+	\label{eq:fm3}
+\end{equation}
+
+
+\section{AoA Estimation of FMCW Radar}
+
+
+Picture \ref{fig:fmcw} illustrates output and input of the FMWC radar system.
+
+
+
 
 \chapter{\sidar}
 
