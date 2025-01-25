@@ -12,7 +12,7 @@
 
 \addbibresource{bibliography.bib}
 
-\newcommand{\sidar}{SiRad Easy\textsuperscript{\copyright}}
+\newcommand{\sidar}{SiRad Easy\textsuperscript{\copyright} }
 \newcommand{\boldred}[1]{\textbf{\textcolor{red}{#1}}}
 \newcommand{\boldblue}[1]{\textbf{\textcolor{blue}{#1}}}
 % \newcommand{\red}[1]{\textcolor{red}{#1}}
@@ -73,7 +73,11 @@ On FMCW radar the there is a entanglement of distance and speed readings as ther
 
 \section{Basic principles of ideal FMCW radar}
 
-Let us picture an ideal FMCW radar system sending a chirp with frequency frequency sweep from $f_\mathrm{c}$ to $f_\mathrm{c}+BW$ and receiving the exact same signal signal after it has been reflected from a static target.
+Let us picture an ideal FMCW radar system sending a periodic chirp with frequency frequency sweep from $f_\mathrm{c}$ to $f_\mathrm{c}+BW$ so called sawtooth waveform.
+This waveform is also used on the devkit used in this thesis \cite{sidarMAN}.
+
+Other FMCW systems may use a different modulations such a linear triangular modulation or segmented linear frequency Modulation.
+These offer some advantages but the nature  of the beat signal (which forms a sinewave with sawtooth modulation) is more complex in them especially when multiple targets are present \cite{jankiraman2018}.
 
 \begin{figure}[h!]
 	\centering
@@ -119,7 +123,7 @@ Let us picture an ideal FMCW radar system sending a chirp with frequency frequen
 
 \end{tikzpicture}
 
-	\caption[]{Ideal relation of frequency and time for received and sent signal}
+	\caption[Ideal relation of frequency and time for received and sent signal]{Ideal relation of frequency and time for received and sent signal}
 	\label{fig:fmcw_ideal}
 \end{figure}
 
@@ -155,7 +159,7 @@ The result of the multiplication is
 	&+\frac{A^2}{2} \cos\left(2\pi k_\mathrm{sw} \tau t + (\omega_c \tau - \pi k_\mathrm{sw} \tau^2)\right).
 	\label{eq:fm4}
 \end{align}
-First additive term will lead to a signal with very high frequency, well above $2\omega_c$, this term doesn't carry any useful information and is usually filtered out -- either by low pass filter or the frequency mixer itself \cite{graham2015}.
+First additive term will lead to a signal with very high frequency, well above $2\omega_c$, this term doesn't carry any useful information and is usually filtered out -- either by low pass filter or the frequency mixer itself \cite{graham2005}.
 Second term is so call beat signal whole frequency is directly proportional to the time delay $\tau$.
 Applying a first time derivative to the cosine argument we get the frequency of the beat signal.
 \begin{equation}
@@ -193,7 +197,7 @@ While sampling with frequency $f_\mathrm{s}$ we get $N =\mathrm{f}_\mathrm{s} T_
 	\upDelta f_\mathrm{b} = \frac{f_\mathrm{s}}{N} = \frac{1}{T_{ch}},
 	\label{eq:resolution}
 \end{equation}
-we can see that the resolution of spectrum is inversely proportional to the chirp length, however it doesn't depend on sampling frequency \cite{jankiraman2018}.
+we can see that the resolution of spectrum is only inversely proportional to the chirp length and doesn't have any relation to sampling frequency \cite{jankiraman2018}.
 Now we can enter $\upDelta f_\mathrm{b}$ into \ref{eq:distance3} to get the minimal distance that can be measured as
 \begin{equation}
 	\upDelta R = \frac{c_o}{2BW}
@@ -201,8 +205,10 @@ Now we can enter $\upDelta f_\mathrm{b}$ into \ref{eq:distance3} to get the mini
 \end{equation}
 Thus in order to increase resolution in range a wider bandwidth is needed.
 
-
-
+There are of course other effect impeding the resolution of the radar system -- such a phase noise around targets or sweep nonlinearity.
+Sweep Linearity can be both in the ramp itself -- leading to decreasing resolution with range (with both linear and quadratic errors present) \cite{graham2005} (Appendix D and E).
+Or in sweep recovery (time to return to the start of the sweep) which leads to a fix decrease in resolution \cite{piper1995}.
+Both are however largely compensated in modern radar systems by using a closed feedback loop \cite{graham2005}.
 
 
 \subsection{Speed Measurement}
@@ -220,7 +226,7 @@ Rewriting \label{eq:tau} as
 	\label{eq:tau2}
 \end{equation}
 where $n$ is the number of chirps, $T_\mathrm{ch}$ is the chirp length and $t_\mathrm{s}$ denotes time withing  a single chirp ($0 \leq t_\mathrm{s} \leq T_\mathrm{ch}$).
-Substituting \ref{eq:tau2} into low frequency part \ref{eq:fm4} leads to very complex equation, however according to \cite{graham2015} most of the terms can be neglected leading us to
+Substituting \ref{eq:tau2} into low frequency part \ref{eq:fm4} leads to very complex equation, however according to \cite{suleymanov2016} most of the terms can be neglected leading us to
 \begin{equation}
 	s(t_\mathrm{s}, n) = \frac{A^2}{2} \cos\left(\frac{4\pi k_\mathrm{sw} R_0}{c_0} t_\mathrm{s} + \frac{2\omega_c v n}{c_0} T_\mathrm{ch} + \varphi_0 \right),
 	\label{eq:fb2}
@@ -229,21 +235,64 @@ where $\varphi_0$ is a phase shift given by the initial distance to the target.
 Its clear that first element describes predominantly the distance to the target and the second one the speed of the target.
 We can also see that speed will not affect a beat frequency in a single spectrum but will lead to a phase shift across multiple spectrums.
 
-% 2D FFT
-% speed resolution
+In order to calculate doppler shift frequency
+\begin{equation}
+	f_\mathrm{d} = \frac{2f_\mathrm{c}v}{c_0},
+	\label{eq:doppler2}
+\end{equation}
+we can use 2D Fourier transform -- first in time within a single chirp and then in time across multiple chirps.
+This will lead to a so called range-Doppler map which on one axis contains information about speed and on second distance of the target \cite{suleymanov2016}.
+
+Speed resolution is derived from a number of chirps $N$ we are analyzing and their length $T_{\mathrm{ch}}$ as
+\begin{equation}
+	\upDelta v = \frac{c_0}{2f_c} \frac{1}{NT_{\mathrm{ch}}}.
+	\label{eq:doppler3}
+\end{equation}
+On the other hand the increase in number of chirps will affect the distance measurement if the target movement speed is sufficiently high.
+
+\boldred{Would like to expand in this section a little more, but IEEE SSO login is down and I can't access the papers.}
+
+\section{AoA Estimation}
+
+% TODO
+
+\section{CFAR}
+
+% TODO
 
 
-
-
-
-\section{AoA Estimation of FMCW Radar}
 
 \chapter{\sidar}
 
-\boldred{TODO: Consider whether to have it as a chapter or just section under chapter dealing with FMCW technology itself.}
+Indie Semiconductor's \sidar is a FMCW radar system development kit designed primarily for automotive applications.
+Out of the box it offsets two headers - a 24~GHz and 122~GHz one, both based on IC from Indie Semiconductors (TRX-024-007 and TRA-120-002 respectively).
+Both  are solely single-input single-output (SISO) systems thus by default azimut estimation is not possible.
 
-\section{24 GHz Header Simulation}
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=0.7\textwidth]{../img/sidar.png}
 
+	\caption[\sidar, Downloaded from: \url{https://wiki.ffo.indiesemi.com/wiki/images/2/29/Figure_2_24_GHz_configuration.png} on \[2024-12-28\]]{\sidar  24~GHz configuration}
+	\label{fig:sidar}
+\end{figure}
+
+Communication with the radar board itself isn't possible, or at least  the communication interface is not documented.
+In order to configure the radar or read its measurements user is either connected to on board ESP chip wirelessly or to STM32 Nucleo series microcontroller over UART (facilitated with mini USB 2.0 connection).
+Both are relatively low bandwidth communication -- the serial maxing at baudrate of 1~000~0000.
+
+Low level communication with the radar system is not possible and by default radar doesn't even forward raw data from ADC to the user.
+Instead a on board DSP takes place with 1D FFT being calculated and targets classified.
+
+
+
+
+\section{24~GHz Header}
+
+Center of 24~GHz header is a single input TRX-024-007 transceiver.
+
+
+
+\section{122~GHz Header}
 
 
 
