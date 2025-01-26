@@ -28,6 +28,8 @@
 \pagenumbering{arabic}
 \setcounter{page}{1}
 
+\include{abbereviations}
+
 \include{introduction}
 \pagestyle{fancy}
 
@@ -250,29 +252,19 @@ Speed resolution is derived from a number of chirps $N$ we are analyzing and the
 \end{equation}
 On the other hand the increase in number of chirps will affect the distance measurement if the target movement speed is sufficiently high.
 
-\boldred{Would like to expand in this section a little more, but IEEE SSO login is down and I can't access the papers.}
-
-\section{AoA Estimation}
-
-% TODO
-
-\section{CFAR}
-
-% TODO
-
 
 
 \chapter{\sidar}
 
 Indie Semiconductor's \sidar is a FMCW radar system development kit designed primarily for automotive applications.
-Out of the box it offsets two headers - a 24~GHz and 122~GHz one, both based on IC from Indie Semiconductors (TRX-024-007 and TRA-120-002 respectively).
+Out of the box it offsets two headers - a 24~GHz and 122~GHz one, both based on IC from Indie Semiconductors (TRX-024-007 and TRA-120-001 respectively).
 Both  are solely single-input single-output (SISO) systems thus by default azimut estimation is not possible.
 
 \begin{figure}[h!]
 	\centering
 	\includegraphics[width=0.7\textwidth]{../img/sidar.png}
 
-	\caption[\sidar, Downloaded from: \url{https://wiki.ffo.indiesemi.com/wiki/images/2/29/Figure_2_24_GHz_configuration.png} on \[2024-12-28\]]{\sidar  24~GHz configuration}
+	\caption[\sidar, Downloaded from: \url{https://wiki.ffo.indiesemi.com/wiki/images/2/29/Figure_2_24_GHz_configuration.png} Visited on \text{[2024-12-28]}]{\sidar  24~GHz configuration}
 	\label{fig:sidar}
 \end{figure}
 
@@ -300,16 +292,20 @@ For purpose of this project the driver was configured to output raw data from th
 This allows for a more detailed analysis of the radar system and the possibility of implementing custom signal processing algorithms.
 For these reasons default windowing was also turned off.
 
-In addition to picking ADC output there are many other necessary configurations that need to be set in order to get a meaningful data from the radar for this application.
+In addition to picking ADC output there are many other necessary configuration steps that need to be taken in order to get a meaningful data from the radar for this application.
 Chief among them is number of samples per chirp and number of chirps in a sequence.
 Number of chirps will directly affect maximal distance that can be measured as (\ref{eq:distance4max}) demonstrates.
 More important is the number of chirps within a set -- for moving platform its more beneficial to get smaller updates more often then to get a single large update.
 If one needs it there is no problem to buffer multiple downlinks and process them as single large one.
 
-Another parameters to consider for a rotating application is AGC.
+Another parameter that warrants some consideration in rotary usecase is AGC.
 Using it adds two additional ramps that are used solely to set gain value but it also can lead to inconsistent weights of values between two neighboring data sets.
 Though the latter this is unlikely as the gain setting are quite far apart (8~dB$\Rightarrow$ 21~dB $\Rightarrow$ 43~dB as listed in \cite{sidarPRO}) so a difference in distance would have to be quite large.
 Thus its safest to turn AGC off and set the gain manually depending on how the readings appear.
+
+Its is also worth to point out that the radar system isn't really suited for changing configuration on the fly.
+Configuration takes a quite a long time to be applied not to mention radar doesn't provide any feedback that would enable user to send new configuration at the right time.
+Thus commonly used techniques such as alternating chirp slope or frequency are not possible.
 
 
 \boldred{TODO: compare TSV output vs binary output}
@@ -323,11 +319,23 @@ Thus its safest to turn AGC off and set the gain manually depending on how the r
 
 \section{24~GHz Header}
 
-Center of 24~GHz header is a single input TRX-024-007 transceiver.
+Center of 24~GHz header is a SISO TRX-024-007 transceiver which integrates low noise amplifier, frequency mixer, filters and VCO into a single chip.
+It's designed to broadcast primarily in the ISM band (24.0-24.25~GHz) additionally ultra-wide bandwidth mode is also supported (23-26~GHz) however this mode cannot be enabled on the development kit.
+In its main band transmitter output power is in the range of 2.5-6~dBm depending on the configuration \cite{sidarTRX}.
+Maximal range of
 
+As showed on picture \ref{fig:sidar} the chip is connected to two microstrip patch antennas.
+Patches are placed in relatively standard configuration forming a 6 by 4 array with spacing roughly equal to half of the wavelength.
+
+Since the manufacturer doesn't provide any information about the radiation pattern of the array a simulation was carried out using CST simulation suite.
+Dimensions of the array were taken using a classical optical microscope and whole array was redrawn in CST studio.
+Substrate parameters also weren't provided by the manufacturer however in TRX-024-007 datasheet there is a board stack up for the evalutions board of the chip itself.
 
 
 \section{122~GHz Header}
+
+122~GHz header is based on TRX-120-001 transceiver that aside from basic components needed to transmit and recive RF also include two on-chip antennas.
+
 
 
 
@@ -599,6 +607,9 @@ This demonstrates the efficiency of the HAL layer in managing stepper motor cont
 As long as stepper queues are supplied with commands in advance, the platform can operate without noticeable interruptions.
 Most importantly, the platform’s timely and predictable behavior ensures that mathematical corrections to the radar data can be applied accurately.
 
+\chapter{Radar Data Processing}
+
+\boldred{TODO: target detection at least using CFAR}
 
 \include{conclusion}
 
