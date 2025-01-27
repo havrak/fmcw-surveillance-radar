@@ -328,14 +328,56 @@ Maximal range of 400~m is advertised \cite{sidarMANOld}, however this is likely 
 As showed on picture \ref{fig:sidar} the chip is connected to two microstrip patch antennas.
 Patches are placed in relatively standard configuration forming a 6 by 4 array with spacing roughly equal to half of the wavelength at 24~GHz.
 
-Since the manufacturer doesn't provide any information about the radiation pattern of the array a simulation was carried out using CST simulation suite.
-%% Dimensions of the array were taken using a classical optical microscope and whole array was redrawn \ref{fig:24drawing} in CST studio. TODO
-Substrate parameters also weren't provided by the manufacturer for the radar board specifically.
+Since the manufacturer wouldn't provide any information about the radiation pattern of the array a simulation was carried out using CST simulation suite.
+In addition substrate parameters also weren't provided by the manufacturer for the radar board specifically.
 Thankfully in the TRX-024-007 datasheet there is a board stack up for the evalutions board for the chip itself.
 It was assumed that same stack up would be used -- 18~$\mu$m copper for the traces and grounding plane with 250~$\mu$m thick substrate of Rogers RO4350B \cite{sidarTRX24}.
 
-Radar board showed a smallest reflection coefficient $s_{11} = -25\mathrm{~dB}$ at 24.5~GHz.
+After measuring the dimensions of the array using a classical optical microscope the whole array was redrawn in CST studio.
+Picture \ref{fig:boundaries} than shows a boundary conditions used -- antenna was placed in open space and alongside the symmetry plane a $H=0$ condition was set in order to speed up the simulation.
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=0.7\textwidth]{../img/boundaries.png}
+	\caption[Simulated 24 GHz header with boundary conditions showed]{Simulated 24 GHz header with boundary conditions showed}
+	\label{fig:boundaries}
+\end{figure}
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=0.9\textwidth]{../img/s11.png}
+	\caption[$s_{11}$ parameter of the 24~GHz header]{$s_{11}$ parameter of the 24~GHz header}
+	\label{fig:s11}
+\end{figure}
+
+After carrying out standard time simulation with excitation of the antenna with signal from 0 to 26~GHz the antenna array showed a smallest reflection coefficient $s_{11} \doteq -26.4 \mathrm{~dB}$ at 23.478~GHz with second minimum at 24.518~GHz.
 This could be explained by difficulties in measuring exact dimensions (Etching quality of the copper tracer wasn't the greatest.) and neglecting change of substrate parameters due to interactions of different layers.
+
+At both frequencies with minimal reflection a farfield radiation pattern was calculated for the sake of clarity only the 24.518~GHz one is shown in \ref{fig:farfield3d}.
+Main lobe width was measured at roughly 16 degrees \ref{fig:farfield180} at 180 degrees norm (for orientation use red cone on the PCB) at 18.6~dBi gain and -12~dB side lobe suppression.
+For 90 degree norm the main lobe width \ref{fig:farfield90}was 30 degrees with -10~dB side lobe suppression.
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=0.7\textwidth]{../img/farfield3d.png}
+	\caption[Radiation pattern of 24~GHz header -- 3D view]{Radiation pattern of 24~GHz header -- 3D view}
+	\label{fig:fardield3d}
+\end{figure}
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=0.7\textwidth]{../img/farfield180.png}
+	\caption[Radiation pattern of 24~GHz header -- 180° norm]{Radiation pattern of 24~GHz header -- 180° norm}
+	\label{fig:fardield180}
+\end{figure}
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=0.7\textwidth]{../img/farfield90.png}
+	\caption[Radiation pattern of 24~GHz header -- 90° norm]{Radiation pattern of 24~GHz header -- 90° norm}
+	\label{fig:fardield90}
+\end{figure}
+
 
 \section{122~GHz Header}
 
@@ -349,7 +391,7 @@ This could be explained by difficulties in measuring exact dimensions (Etching q
 122~GHz header is based on TRX-120-001 transceiver that aside from basic components needed to transmit and receive RF also include two on-chip antennas.
 It's designed to operate in the 122-123~GHz band and with output power ranging from -7~dBm to 1~dBm \cite{sidarTRX122}.
 Out of the box performance of the system is quite bad (see \ref{fig:sidar122rad}) with width of the main lobe being roughly $\pm40\text{°}$ in both E-plane and H-plane \cite{sidarTRX122}.
-This can be improved by supplied collimator lens to $\pm4\text{°}$ \cite{sidarTRX122col} (see \ref{fig:sidar122radcol}).
+This can be improved by supplied collimator lens to $\pm4\text{°}$ \cite{sidarTRX122col} (see \ref{fig:sidar122rad}).
 The chip can detect large targets up to 40~m away \cite{sidarMANOld}.
 
 
@@ -401,9 +443,18 @@ For uplink communication, the platform must provide real-time information about 
 
 \section{Platform Construction}
 
-\boldred{TODO: Add more pictures, list out dimensions, little bit more info about 3D print.}
+As the platform needs to transmit data from the rotating part to the stationary a slip ring is needed.
+Due to relatively low transmission speed of the radar and lack of any special requirements, like waterproofing, an affordable model UH3899-01-0810 from manufacturer Senring was chosen classical contact slip ring was chosen.
+It boasts dedicated USB 2.0 connection and 8 wires for additional signal with advertised insertion loss of sub 2~dB \cite{slipring}.
 
-To enable continuous rotational motion, the use of a slip ring is indispensable. Given the radar system's relatively low transmission speed, a standard contact slip ring suffices -- a model with a USB 2.0 interface and eight additional lines was selected to meet the system's needs. The rest of the structure is 3D printed from PLA, since mechanical stresses on the platform are minimal.
+Unfortunately the manufacturer went with non standard male-male USB 2.0 connection which requires a female-female adapter in order to connect the radar to the slip ring.
+Still especially when used with a poor quality cable the whole system starts to have signal integrity problems.
+These issues could most likely be mitigated by integrating a signal conditioner into the transmission line.
+
+
+
+
+The rest of the structure is 3D printed from PLA, since mechanical stresses on the platform are minimal.
 
 
 \begin{figure}[h!]
