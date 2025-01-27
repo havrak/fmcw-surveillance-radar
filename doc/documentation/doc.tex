@@ -28,9 +28,10 @@
 \pagenumbering{arabic}
 \setcounter{page}{1}
 
-\include{abbereviations}
+\include{abbreviations}
 
 \include{introduction}
+
 \pagestyle{fancy}
 
 \chapter{FMCW Radar Fundamentals}
@@ -64,7 +65,7 @@ And distance was tied to time of flight $t$ of the signal as
 
 Such approach is on paper simpler and more intuitive however it has several drawbacks that seriously limit its precision and usability especially in close range applications.
 In order to achieve a good resolution in distance measurement the pulse must be very short.
-However in order to to impede on radars capabilities (need to maintain strong signal-to-noise ration SNR over long distances) the power of the pulses must stay the same even when the duty cycle is dramatically increased \cite{jankiraman2018}.
+However in order to to impede on radars capabilities (need to maintain strong SNR over long distances) the power of the pulses must stay the same even when the duty cycle is dramatically increased \cite{jankiraman2018}.
 
 Transmitting with high average power is problematic legally and technically.
 It can result in interfering with other devices not to mention circuity to drive high power radars is bulky and expensive often requiring use of high voltages and vacuum tubes.
@@ -258,13 +259,13 @@ On the other hand the increase in number of chirps will affect the distance meas
 
 Indie Semiconductor's \sidar is a FMCW radar system development kit designed primarily for automotive applications.
 Out of the box it offsets two headers - a 24~GHz and 122~GHz one, both based on IC from Indie Semiconductors (TRX-024-007 and TRA-120-001 respectively).
-Both  are solely single-input single-output (SISO) systems thus by default azimut estimation is not possible.
+Both are solely SISO systems thus by default azimut estimation is not possible.
 
 \begin{figure}[h!]
 	\centering
 	\includegraphics[width=0.7\textwidth]{../img/sidar.png}
 
-	\caption[\sidar, Downloaded from: \url{https://wiki.ffo.indiesemi.com/wiki/images/2/29/Figure_2_24_GHz_configuration.png} Visited on \text{[2024-12-28]}]{\sidar  24~GHz configuration}
+	\caption[\sidar \cite{sidarMANOld}]{\sidar  24~GHz configuration}
 	\label{fig:sidar}
 \end{figure}
 
@@ -282,7 +283,7 @@ Both are relatively low bandwidth communication -- the serial maxing at baudrate
 Devkit is designed to be as easy to integrate into existing project as possible this is unfortunately to the determent of this thesis.
 In normal operating mode the radar system is a black box (Processing schema showed on \ref{fig:sidarFlow}) -- it's own filtering, FFT and CFAR algorithms and only reporting a target list to the user.
 This whole sequence can be either triggered internally (driven by configurable oscillator) or externally (driven by GPIO pin or UART input).
-After trigger is received the device will carry out a N chirps (or N+2 in case automatic gain control (AGC) is turned on) which are sampled with user chosen sampling frequency.
+After trigger is received the device will carry out a N chirps (or N+2 in case AGC is turned on) which are sampled with user chosen sampling frequency.
 It is worth noting that as the computational abilities of the kit are rather restrictive radar might not emit a continuos sawtooth waveform but rather a segmented one \cite{sidarPRO}.
 
 \section{Outline of Chosen Configuration }
@@ -320,23 +321,44 @@ Thus commonly used techniques such as alternating chirp slope or frequency are n
 \section{24~GHz Header}
 
 Center of 24~GHz header is a SISO TRX-024-007 transceiver which integrates low noise amplifier, frequency mixer, filters and VCO into a single chip.
-It's designed to broadcast primarily in the ISM band (24.0-24.25~GHz) additionally ultra-wide bandwidth mode is also supported (23-26~GHz) however this mode cannot be enabled on the development kit.
-In its main band transmitter output power is in the range of 2.5-6~dBm depending on the configuration \cite{sidarTRX}.
-Maximal range of
+It's designed to broadcast primarily in the ISM band (24.0-24.25~GHz) additionally ultra-wide bandwidth mode is also supported (23-26~GHz) \cite{sidarTRX24} however this mode cannot be enabled on the development kit \cite{sidarPRO}.
+In its main band transmitter output power is in the range of 2.5-6~dBm depending on the configuration \cite{sidarTRX24}.
+Maximal range of 400~m is advertised \cite{sidarMANOld}, however this is likely under ideal conditions when observing a large target.
 
 As showed on picture \ref{fig:sidar} the chip is connected to two microstrip patch antennas.
-Patches are placed in relatively standard configuration forming a 6 by 4 array with spacing roughly equal to half of the wavelength.
+Patches are placed in relatively standard configuration forming a 6 by 4 array with spacing roughly equal to half of the wavelength at 24~GHz.
 
 Since the manufacturer doesn't provide any information about the radiation pattern of the array a simulation was carried out using CST simulation suite.
-Dimensions of the array were taken using a classical optical microscope and whole array was redrawn in CST studio.
-Substrate parameters also weren't provided by the manufacturer however in TRX-024-007 datasheet there is a board stack up for the evalutions board of the chip itself.
+%% Dimensions of the array were taken using a classical optical microscope and whole array was redrawn \ref{fig:24drawing} in CST studio. TODO
+Substrate parameters also weren't provided by the manufacturer for the radar board specifically.
+Thankfully in the TRX-024-007 datasheet there is a board stack up for the evalutions board for the chip itself.
+It was assumed that same stack up would be used -- 18~$\mu$m copper for the traces and grounding plane with 250~$\mu$m thick substrate of Rogers RO4350B \cite{sidarTRX24}.
 
+Radar board showed a smallest reflection coefficient $s_{11} = -25\mathrm{~dB}$ at 24.5~GHz.
+This could be explained by difficulties in measuring exact dimensions (Etching quality of the copper tracer wasn't the greatest.) and neglecting change of substrate parameters due to interactions of different layers.
 
 \section{122~GHz Header}
 
-122~GHz header is based on TRX-120-001 transceiver that aside from basic components needed to transmit and recive RF also include two on-chip antennas.
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=0.7\textwidth]{../img/sidar122.png}
+	\caption[\sidar with 122~GHz header \cite{sidarPRO}]{\sidar with 122~GHz header}
+	\label{fig:sidar122}
+\end{figure}
+
+122~GHz header is based on TRX-120-001 transceiver that aside from basic components needed to transmit and receive RF also include two on-chip antennas.
+It's designed to operate in the 122-123~GHz band and with output power ranging from -7~dBm to 1~dBm \cite{sidarTRX122}.
+Out of the box performance of the system is quite bad (see \ref{fig:sidar122rad}) with width of the main lobe being roughly $\pm40\text{°}$ in both E-plane and H-plane \cite{sidarTRX122}.
+This can be improved by supplied collimator lens to $\pm4\text{°}$ \cite{sidarTRX122col} (see \ref{fig:sidar122radcol}).
+The chip can detect large targets up to 40~m away \cite{sidarMANOld}.
 
 
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=0.7\textwidth]{../img/sidar122rad.jpg}
+	\caption[Radiation pattern of 122~GHz header comparison \cite{sidarTRX122col}]{Radiation pattern of 122~GHz header comparison}
+	\label{fig:sidar122rad}
+\end{figure}
 
 
 \chapter{Rotary Platform}
@@ -351,16 +373,14 @@ These stem from the physical capabilities of the radar system, SiRad Easy evalut
 
 \subsection{Physical Capabilities}
 
-\boldred{TODO: Should be more tied to the radar system - especially in regard to the radiation pattern of 24 GHz header.}
+The primary constraints on the physical design arise from the radar's radiation pattern (Both 24 and 122 GHz headers are accounted for.).
+That gives us information about the clearance needed in front of the radar and more importantly how precise the platform needs to be.
+As stated previously the 24~GHz radar has a main lobe width of some $\pm7\text{°}$ and the 122~GHz radar has a main lobe width of $\pm4\text{°}$ \cite{sidarTRX122}.
+Thus a conservative clearance of $\pm45\text{°}$ in front of the radar was set in order to prevent any strong reflections be it from the main lobe or side lobes.
 
-The primary constraints on the physical design arise from the radar's radiation pattern (Both 24 and 122 GHz headers are accounted for.), as it is crucial to minimize strong reflections from the platform's structure. According to the 122 GHz transceiver datasheet, the angular width at -3 dB is approximately $\pm30\text{°}$ in both the E-plane and H-plane \cite{sidarTRX}. With the addition of a radar dome the value decreases to $\pm4\text{°}$ \cite{sidarMAN}.
-
-The radiation pattern for the 24 GHz microstrip patch antenna is not explicitly provided by the manufacturer. However, based on similar designs, a conservative estimate of $\pm15\text{°}$ is adopted, informed by \cite{patch1} and \cite{patch2}. Considering these values, we set a reasonably forgiving clearance limit of $\pm45\text{°}$ in front of the radar.
-
-One can also see that significant cost cutting can be done in the area of precision of the platform.
-As the radar system has relatively low angular resolution the sub degree control of commercial solutions is not needed.
-This allows basic 200 steps NEMA17 stepper motors be used with optional microstepping to increase smoothness of movement.
-
+With a relatively low angular resolution of the radar a high precision of the platform is not needed.
+Basic 200 step stepper motor with step size of 1.8\text{°} is sufficient however smoother motion will be easier to compensate for in the software.
+Still due to low radar weight, measured at 120~g with the mounting bracket, the smoothens of the motion can be achieved relying solely on microstepping of the motor.
 
 In terms of speed, due to the radar system's relatively low polling rate (1 Mbit/s \cite{sidarMAN}), high-speed movement is unnecessary. The manufacturer specifies a maximum update frequency of 50 Hz, equating to a new update every 20 ms \cite{sidarMAN}.
 Using the following equation:
