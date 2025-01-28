@@ -21,11 +21,11 @@
 #include <freertos/queue.h>
 #include <freertos/task.h>
 #include <hal/gpio_hal.h>
-#include <os_core_tasker_ids.h>
 #include <queue>
+#include <list>
 #include <vector>
+#include <cmath>
 #include <stepper_hal.h>
-#include <tasker_singleton_wrapper.h>
 #include <functional>
 
 #define HOMING_DONE_BIT BIT2

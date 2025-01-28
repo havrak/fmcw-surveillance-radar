@@ -7,19 +7,11 @@
 
 #include "comm_endpoint.h"
 
+CommEndpoint commEndpoint = CommEndpoint();
 CommEndpoint* CommEndpoint::instance = nullptr;
 
 CommEndpoint::CommEndpoint()
 {
-#ifdef CONFIG_COMM_ENABLE_LOCKS
-	lock = xSemaphoreCreateMutex();
-	if (lock == NULL) {
-		ESP_LOGE(TAG, "CommEndpoint | xSemaphoreCreateMutex failed");
-	} else {
-		ESP_LOGI(TAG, "CommEndpoint | created lock");
-	}
-#endif
-	setupComm();
 }
 
 
@@ -58,7 +50,16 @@ void CommEndpoint::uartEvent(void* commEndpointInstance) // TODO pin to core 0
 
 
 						pointer = buffer + startIndex(buffer);
-						((CommEndpoint*) commEndpointInstance)->logRequestGCD(pointer, strlen(pointer));
+						// ((CommEndpoint*) commEndpointInstance)->logRequestGCD(pointer, strlen(pointer));
+						ParsingGCodeResult result = stepperControl.parseGCode(pointer, strlen(pointer));
+						char response[12];
+						if(result == ParsingGCodeResult::SUCCESS)
+							sprintf(response, "!R OK\n");
+						else
+							sprintf(response, "!R ERR %d\n", result);
+
+						uart_write_bytes(UART_NUM_0, response, strlen(response));
+
 						i = 0;
 						j_prev = j + 1;
 					}
@@ -107,58 +108,4 @@ bool CommEndpoint::setupComm()
 	return true;
 }
 
-bool CommEndpoint::logRequestGCD(const char* input, uint16_t inputLength)
-{
-#ifdef CONFIG_COMM_ENABLE_LOCKS
-	if (xSemaphoreTake(lock, (TickType_t)1000) != pdTRUE)
-		return false;
-#endif
 
-	// NOTE: gcode command are processed immediately (usually means move commands are just scheduled and executed in rtos task)
-	CommRequest* request = new CommRequest(input, inputLength);
-	request->error =  stepperControl.parseGCode(input, inputLength);
-	requestsQueue.push(request);
-
-	if (requestsQueue.size() == 1) {
-		return TaskerSingletonWrapper::getInstance()->addTask(new Task(this, TSID_PROCESS_COMM_REQUEST, (uint64_t)0, 0, TaskPriority::TSK_PRIORITY_HIGH));
-	}
-#ifdef CONFIG_COMM_ENABLE_LOCKS
-	xSemaphoreGive(lock);
-#endif
-
-	return true;
-}
-
-void CommEndpoint::sendResponse(const CommRequest* request, const char* response, uint16_t responseLength)
-{
-	uart_write_bytes(UART_NUM_0, response, responseLength);
-}
-
-uint8_t CommEndpoint::call(uint16_t id)
-{
-	if (requestsQueue.size() == 0)
-		return 0;
-#ifdef CONFIG_COMM_ENABLE_LOCKS
-	xSemaphoreTake(lock, portMAX_DELAY);
-#endif
-
-	CommRequest* request = requestsQueue.front();
-	requestsQueue.pop();
-	if (requestsQueue.size() != 0) // schedule before processing as to prevent it being scheduled twice in handler of some event
-		TaskerSingletonWrapper::getInstance()->addTask(new Task(this, TSID_PROCESS_COMM_REQUEST, (uint64_t)0, 0, TaskPriority::TSK_PRIORITY_HIGH));
-
-#ifdef CONFIG_COMM_ENABLE_LOCKS
-	xSemaphoreGive(lock);
-#endif
-
-	processRequestGCD(request);
-	static const char* strOK = "[0K]\n";
-	static const char* strERR = "[ERR]\n";
-	static char responseBuffer[CONFIG_COMM_RS232_BUFFER_SIZE+6];
-	memcpy(responseBuffer, request->command, strlen(request->command));
-	memcpy(responseBuffer + strlen(request->command)+1, request->error ? strERR : strOK, request->error ? 5 : 4);
-	sendResponse(request, responseBuffer, strlen(request->command) + (request->error ? 6 : 5));
-	delete request;
-
-	return 0;
-}

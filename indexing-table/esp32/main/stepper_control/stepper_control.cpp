@@ -139,7 +139,7 @@ void StepperControl::stepperMoveTask(void* arg)
 		varsH.position += steppers.getStepsTraveledOfPrevCommandH();
 		varsT.position += steppers.getStepsTraveledOfPrevCommandT();
 
-		printf("[%lld, %f, %f]\n", esp_timer_get_time(), STEPS_TO_ANGLE(NORMALIZE_ANGLE(varsH.position + steppers.getStepsTraveledOfCurrentCommandH(), CONFIG_STEPPER_H_STEP_COUNT), CONFIG_STEPPER_H_STEP_COUNT), STEPS_TO_ANGLE(NORMALIZE_ANGLE(varsT.position + steppers.getStepsTraveledOfCurrentCommandT(), CONFIG_STEPPER_H_STEP_COUNT), CONFIG_STEPPER_H_STEP_COUNT));
+		printf("!P %lld, %f, %f\n", esp_timer_get_time(), STEPS_TO_ANGLE(NORMALIZE_ANGLE(varsH.position + steppers.getStepsTraveledOfCurrentCommandH(), CONFIG_STEPPER_H_STEP_COUNT), CONFIG_STEPPER_H_STEP_COUNT), STEPS_TO_ANGLE(NORMALIZE_ANGLE(varsT.position + steppers.getStepsTraveledOfCurrentCommandT(), CONFIG_STEPPER_H_STEP_COUNT), CONFIG_STEPPER_H_STEP_COUNT));
 
 		// if queues are filled we will wait
 if(steppers.getQueueLengthH() ==  CONFIG_STEPPER_HAL_QUEUE_SIZE || steppers.getQueueLengthT() ==  CONFIG_STEPPER_HAL_QUEUE_SIZE){

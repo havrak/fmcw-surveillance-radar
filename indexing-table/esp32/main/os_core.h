@@ -13,23 +13,17 @@
 #include <esp_task_wdt.h>
 #include <sdkconfig.h>
 #include <stdio.h>
-#include <tasker_event_observer.h>
 #include <comm_endpoint.h>
 #include <nvs_flash.h>
 #include <stepper_control.h>
 #include "esp_task_wdt.h"
 
 
-
-#include <os_core_tasker_ids.h>
-
 #include <stepper_hal.h>
 #include <functional>
 
-#include <callback_interface.h>
 
-
-class OSCore : CallbackInterface, TaskerEventObserver{
+class OSCore {
 	private:
 
 
@@ -50,17 +44,6 @@ class OSCore : CallbackInterface, TaskerEventObserver{
 	void setup();
 	void loop();
 
-	uint8_t call(uint16_t id) override;
-
-	void onTaskerEvent(CallbackInterface* eventSourceOwner, uint16_t eventSourceId, uint8_t code) override;
-
-	void connectionToAPEstablished(){
-		ESP_LOGI(TAG, "connectionToAPEstablished | established connection");
-	}
-
-	void connectionToAPLost(){
-		ESP_LOGI(TAG, "connectionToAPLost | lost conenction");
-	}
 
 };
 

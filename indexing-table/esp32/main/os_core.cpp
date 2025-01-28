@@ -32,10 +32,6 @@ void OSCore::init()
 void OSCore::loop()
 {
 	ESP_LOGI(TAG, "Main | loop | loop started");
-	do {
-		TaskerSingletonWrapper::getInstance()->tick();
-		vTaskDelay(1);
-	} while (true);
 }
 
 void OSCore::setup()
@@ -50,7 +46,7 @@ void OSCore::setup()
 	// WiFiManager::getInstance()->setOnConnectionLost(std::bind(&OSCore::connectionToAPLost, this));
 	// WiFiManager::getInstance()->setRegime(WiFiRegime::WIFI_REGIME_STATION);
 
-	// CommEndpoint::getInstance();
+	commEndpoint.setupComm();
 
 	// ------------------------------------------
 	// Time Manager
@@ -84,20 +80,9 @@ void OSCore::setup()
 	// ------------------------------------------
 	// OSCora Tasker calls setup
 	// ------------------------------------------
-	TaskerSingletonWrapper::getInstance()->addTask(new Task(this, TSID_OS_CORE_TEST, 10'000, 0, TaskPriority::TSK_PRIORITY_MEDIUM));
 
 	// END
 	ESP_LOGI(TAG, "setup | setup finished");
 }
 
-uint8_t OSCore::call(uint16_t id)
-{
 
-	TaskerSingletonWrapper::getInstance()->addTask(new Task(this, TSID_OS_CORE_TEST, 10'000, 0, TaskPriority::TSK_PRIORITY_MEDIUM));
-	return 0;
-}
-
-void OSCore::onTaskerEvent(CallbackInterface* eventSourceOwner, uint16_t eventSourceId, uint8_t code)
-{
-	return;
-}

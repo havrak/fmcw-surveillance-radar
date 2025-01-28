@@ -8,7 +8,6 @@ file(GLOB main_source
 idf_component_register(SRCS ${main_source}
 	INCLUDE_DIRS . stepper_control
 	PRIV_REQUIRES
-	fw-lib-esp32-tasker
 	json
 	esp_timer
 	driver

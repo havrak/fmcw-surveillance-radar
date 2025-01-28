@@ -11,9 +11,6 @@
 
 #include <esp_log.h>
 #include <queue>
-#include <callback_interface.h>
-#include <tasker_singleton_wrapper.h>
-#include <os_core_tasker_ids.h>
 #include <stepper_control.h>
 
 #define EX_UART_NUM UART_NUM_0
@@ -47,7 +44,7 @@ class CommRequest{
 };
 
 
-class CommEndpoint: CallbackInterface{
+class CommEndpoint {
 	private:
 
 		static CommEndpoint* instance;
@@ -59,58 +56,26 @@ inline static QueueHandle_t uart0_queue = NULL; // from recent FreeRTOS version 
 
 		char responseBuffer[CONFIG_COMM_RS232_BUFFER_SIZE];
 
-		CommEndpoint();
-
 #ifdef CONFIG_WFM_ENABLE_LOCKS
     SemaphoreHandle_t lock;
 #endif
 
 
-		bool setupComm();
-
 		static void uartEvent(void* pvParameters);
-
-		void processRequestGCD(const CommRequest* request);
-
-		void sendResponse(const CommRequest* request, const char* response, uint16_t responseLength);
 
 
 
 	public:
 
+		bool setupComm();
+
+		CommEndpoint();
 
 
 
-
-
-		/**
-		 * returns instance of CommEndpoint, instance needs to be created with createInstance call
-		 *
-		 * @return CommEndpoint*, nullptr if instance wasn't created
-		 */
-		static CommEndpoint* getInstance(){
-			if(instance == nullptr)
-			{
-				instance = new CommEndpoint();
-				ESP_LOGE(TAG, "getInstance | instance not created");
-			}
-			return instance;
-		};
-
-		/**
-		 * callback from CallbackInterface, should NOT be called manually
-		 */
-		uint8_t call(uint16_t id) override;
-
-		/**
-		 * schedules processing of GCD request, data are copied and GCD is parsed
-		 *
-		 * @param input - input string
-		 * @param origin - origin of data
-		 * @return bool - true if successful (Tasker was able to schedule task)
-		 */
-		bool logRequestGCD(const char* input, uint16_t inputLength);
 
 };
+
+extern CommEndpoint commEndpoint;
 
 #endif /* !COMM_ENDPOINT_H */
