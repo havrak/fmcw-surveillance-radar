@@ -66,41 +66,60 @@ flush(SerialObj);% cte jenom do prvniho \n
 % paket=readline(serialPort);
 %configureCallback(serialPort,"terminator",@(x, y)callbackFcn(serialPort, hLine));
 i=1;
+oldBuf = [];
 
 % TRIGGER = '!M';
 % writeline(SerialObj, TRIGGER);
         
         
-while 1
+while 1 
     
     fprintf("Trying to read serial data\r\n");
-    buf = char(readline(SerialObj));
-    
-    indStartData = strfind(buf, '1024')+5;
-    if isempty(indStartData)
-       continue;
-    end
-    
-    charData = buf(indStartData:end);
-    cislavCelle = split(charData, char(9));
-    cisla = cellfun(@str2double, cislavCelle);
-    
-%     arrayNa2Dfft(end+1,:)=cisla;
-%     if i>128 && rem(i,50)==0
-%         
-%         Y = fft2(arrayNa2Dfft((i-128:end), :).');
-%         imagesc(log10(abs(fftshift(Y))))
-%     end
+    % buf = char(readline(SerialObj));
+		% 
+    % indStartData = strfind(buf, '1024')+5;
+    % if isempty(indStartData)
+    %    continue;
+    % end
+		% 
+    % charData = buf(16:end);
+    % cislavCelle = split(charData, char(9));
+    % cisla = cellfun(@str2double, cislavCelle);
+		% 
+    % nData = length(cisla);
+    % DataI = cisla(1:2:nData);
+    % DataQ = cisla(2:2:nData);
+		% 
+			buf = fgets(SerialObj);
 
-    nData = length(cisla);
-    DataI = cisla(1:2:nData);
-    DataQ = cisla(2:2:nData);
-    
-    
+			process = [oldBuf buf];
+			if length(process) ~= (4*512+11)
+				oldBuf = buf;
+				continue;
+			end
+			oldBuf = [];
+
+			if(process(5) ~= 77)
+				continue;
+			end
+				dataCount = process(9)*256+process(8);
+				tmp = process(10:2:(9+dataCount*2)) * 256 + process(11:2:(9+dataCount*2));
+				data = typecast(uint16(tmp), 'int16');
+				nData = numel(data);
+				DataI = data(1:2:nData);
+				DataQ = data(2:2:nData);
+				disp(data(1:10));
+
+
+
+		fftI = 20*log10(abs(fft(DataI)));
+		fftQ= 20*log10(abs(fft(DataQ)));
     set(hLine2, 'XData', 1:2:nData, 'YData', DataI);
     set(hLine22, 'XData', 2:2:nData, 'YData', DataQ);
-    set(hLine3, 'XData', 1:2:nData, 'YData', fftshift(abs(fft(DataI))));
-    set(hLine4, 'XData', 2:2:nData, 'YData', fftshift(abs(fft(DataQ))));
+    set(hLine3, 'XData', 1:(numel(fftI)/2), 'YData', fftI(1:(numel(fftI)/2)));
+
+		
+    set(hLine4, 'XData', 1:(numel(fftQ)/2), 'YData', fftQ(1:(numel(fftQ)/2)));
     
 
 end

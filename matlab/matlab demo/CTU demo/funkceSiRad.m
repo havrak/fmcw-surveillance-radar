@@ -34,7 +34,7 @@ systemDEFAULT='!S00032012'; %(only change is TSV mode and led)
     FMT='0'; %0-mm | 1-cm
     LED='00'; %00-off |01-1st trget rainbow
     reserved2='0000';
-    protocol='001'; %001 TSV output(ideal) | 010 binary |000 webgui
+    protocol='010'; %001 TSV output(ideal) | 010 binary |000 webgui
     AGC='0'; %auto gain 0-off|1-on
     gain='11';%00-8dB|10-21|10-43|11-56dB
     SER2='1';%usb connect 0-off|1-on
@@ -80,7 +80,7 @@ function basebandCommand = BasebandConfig() %returns a baseband command, NESMI B
     DOWNsample='000';%downsampling factor 000-0,1,2,4,8..111-64
     RAMPS='100';%ramps per measurement 
     NofSAMPLES='100';%samples per measurement 512
-    ADCclkDIV='101';%sampling freq 000-2.571,2.4,2.118,1.8,1.125,0.487,0.186,0.059
+    ADCclkDIV='100';%sampling freq 000-2.571,2.4,2.118,1.8,1.125,0.487,0.186,0.059
     baseband=append(WIN,FIR,DC,CFAR,CFARthreshold,CFARsize,CFARgrd,AVERAGEn,FFTsize,DOWNsample,RAMPS,NofSAMPLES,ADCclkDIV);
     basebandHEX=bin2hex(baseband);
     basebandCommand=append('!B',basebandHEX);
@@ -89,8 +89,8 @@ end
 function frontendCommand = FrontEndConfig()
    defaultFrontEnd='!F00075300';
    %21 bit freq in lsb=250kHz
-   OperatingFreq='001110101001100011000';
-   FreqReserved='00000000000';
+   OperatingFreq='000010111011100000000';
+	 FreqReserved='00000000000';
    %1st 11 bits are reserved
    frontendCommand=bin2hex(append(FreqReserved, OperatingFreq));
    frontendCommand=append('!F', frontendCommand);
@@ -105,9 +105,8 @@ function pllCommand = PLLConfig()
     %max bandwidth by sending '!K'
     %16bit, MSB bit is sign 1=minus|0=plus
     %example 100...001 = -65536MHz | 1111...111= -2MHz
-    bandwidth='0000100111000100'; %
     PLLreserved='0000000000000000';%1 at the start to save starting 0s
-
+		bandwidth='0000000111110100'; % 1000 MHz
     pllCommand = bin2hex(append(PLLreserved, bandwidth));
     pllCommand=append('!P',pllCommand);
 

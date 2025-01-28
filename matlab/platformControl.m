@@ -13,6 +13,7 @@ classdef platformControl < handle
 		hBtnStore;             % uicontrol/pushBtn - store programs to file
 		hBtnSave;              % uicontrol/pushBtn - save program form form to struct
 		hBtnUpload;            % uicontrol/pushBtn - upload program to device
+		hBtnStart;             % uicontrol/pushBtn - upload program to device
 		hBtnClose;             % uicontrol/pushBtn - close figure
 		hLabelCommand;         % uilabel - quck commnad lable
 		hTextOut;              % uicontrol/text - output from platfrom
@@ -103,6 +104,11 @@ classdef platformControl < handle
 				'String', 'Upload Program', ...
 				'Callback', @(src, event) obj.uploadProgram());
 
+			obj.hBtnStart = uicontrol('Style', 'pushbutton', ...
+				'Parent', obj.hPanelBtn, ...
+				'String', 'Start Program', ...
+				'Callback', @(src, event) obj.startProgram());
+
 			obj.hBtnClose = uicontrol('Style', 'pushbutton', ...
                 'Parent', obj.hPanelBtn, ...
                 'String', 'Close', ...
@@ -138,6 +144,8 @@ classdef platformControl < handle
 			obj.hBtnSave.Position = [10, height - 90 - 2 * (buttonHeight + spacing), buttonPanelWidth - 30, buttonHeight];
 			obj.hBtnDelete.Position = [10, height - 90 - 3 * (buttonHeight + spacing), buttonPanelWidth - 30, buttonHeight];
 			obj.hBtnUpload.Position = [10, height - 90 - 4 * (buttonHeight + spacing), buttonPanelWidth - 30, buttonHeight];
+			obj.hBtnStart.Position = [10, height - 90 - 5 * (buttonHeight + spacing), buttonPanelWidth - 30, buttonHeight];
+		
 			obj.hBtnStore.Position = [10, 60, buttonPanelWidth - 30, buttonHeight]; % Fixed at the bottom of the panel
     
 			obj.hBtnClose.Position = [10, 10, buttonPanelWidth - 30, buttonHeight]; % Fixed at the bottom of the panel
@@ -199,6 +207,10 @@ classdef platformControl < handle
 			tosave = strjoin(trimmed, "\n");
 			disp (tosave);
 			obj.programs.(obj.currentProgramName) = tosave;
+		end
+
+		function startProgram(obj)
+			fprintf('PlatformControl | startProgram\n');
 		end
 
 		function uploadProgram(obj)

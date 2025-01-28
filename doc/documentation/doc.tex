@@ -289,7 +289,7 @@ It is worth noting that as the computational abilities of the kit are rather res
 \section{Outline of Chosen Configuration }
 
 
-For purpose of this project the driver was configured to output raw data from the 16 bit ADC in form of inphase and quadrature components of the signal.
+For purpose of this project the driver was configured to output raw data from the 12 bit ADC in form of inphase and quadrature components of the signal.
 This allows for a more detailed analysis of the radar system and the possibility of implementing custom signal processing algorithms.
 For these reasons default windowing was also turned off.
 
@@ -304,19 +304,13 @@ Using it adds two additional ramps that are used solely to set gain value but it
 Though the latter this is unlikely as the gain setting are quite far apart (8~dB$\Rightarrow$ 21~dB $\Rightarrow$ 43~dB as listed in \cite{sidarPRO}) so a difference in distance would have to be quite large.
 Thus its safest to turn AGC off and set the gain manually depending on how the readings appear.
 
-Its is also worth to point out that the radar system isn't really suited for changing configuration on the fly.
+It's also worth to point out that the radar system isn't really suited for changing configuration on the fly.
 Configuration takes a quite a long time to be applied not to mention radar doesn't provide any feedback that would enable user to send new configuration at the right time.
 Thus commonly used techniques such as alternating chirp slope or frequency are not possible.
 
-
-\boldred{TODO: compare TSV output vs binary output}
-
-
-
-
-
-
-
+As for output format the radar system can output data in two formats -- binary and TSV.
+Since the speed of output doesn't differ much between those two formats the deciding factor is speed of parsing each of them.
+There even tough MATLAB isn't really suited for parsing binary data it still comes out around 40\% faster than parsing human readable TSV data.
 
 \section{24~GHz Header}
 
@@ -388,19 +382,20 @@ For 90 degree norm the main lobe width \ref{fig:farfield90}was 30 degrees with -
 	\label{fig:sidar122}
 \end{figure}
 
-122~GHz header is based on TRX-120-001 transceiver that aside from basic components needed to transmit and receive RF also include two on-chip antennas.
-It's designed to operate in the 122-123~GHz band and with output power ranging from -7~dBm to 1~dBm \cite{sidarTRX122}.
-Out of the box performance of the system is quite bad (see \ref{fig:sidar122rad}) with width of the main lobe being roughly $\pm40\text{°}$ in both E-plane and H-plane \cite{sidarTRX122}.
-This can be improved by supplied collimator lens to $\pm4\text{°}$ \cite{sidarTRX122col} (see \ref{fig:sidar122rad}).
-The chip can detect large targets up to 40~m away \cite{sidarMANOld}.
-
-
 \begin{figure}[h!]
 	\centering
 	\includegraphics[width=0.7\textwidth]{../img/sidar122rad.jpg}
 	\caption[Radiation pattern of 122~GHz header comparison \cite{sidarTRX122col}]{Radiation pattern of 122~GHz header comparison}
 	\label{fig:sidar122rad}
 \end{figure}
+
+122~GHz header is based on TRX-120-001 transceiver which, aside from basic components needed to transmit and receive RF, also incorporates two on-chip antennas.
+It's designed to operate in the 122-123~GHz band and with output power ranging from -7~dBm to 1~dBm \cite{sidarTRX122}.
+Out of the box performance of the system is quite bad (see \ref{fig:sidar122rad}) with width of the main lobe being roughly $\pm40\text{°}$ in both E-plane and H-plane \cite{sidarTRX122}.
+This can be improved by supplied collimator lens to $\pm4\text{°}$ \cite{sidarTRX122col} (see \ref{fig:sidar122rad}).
+The chip can detect large targets up to 40~m away \cite{sidarMANOld}.
+
+
 
 
 \chapter{Rotary Platform}
@@ -689,8 +684,21 @@ Radar data processing might do some correction based on the platform speed, acce
 Thus the control flow of the platform is rather simple -- user uploads a program to the microcontroller and starts it's execution.
 In order to managed programs and provide window to read platform diagnostics from a simple MATLAB application was created.
 
-After connecting to the platform by picking correct port and baudrate in preference user can go into platform control window.
-There on the left sidebar is a list of all store programs
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=0.9\textwidth]{../img/platform_control.jpg}
+	\caption[GUI of the platform control]{GUI of the platform control}
+	\label{fig:platformControl}
+\end{figure}
+
+After connecting to the platform (Picking correct port and baudrate in preferences, clicking the connect button in the main window.) user can go into platform control window \ref{fig:platformControl}.
+On the left there is a sidebar with a list of all stored programs.
+Clicking on any of them will load it into the editor windows and by presssing buttons on the right user can send the program to the platform.
+
+After the program has been sent it can be either started manually by sending a start command from the QUICK COMMAND box or by pressing the start button.
+Using the start button will make sure that the platform queues are empty, the platform is homed and only then the program will start.
+To see feedback from the platform user can see the text window on the bottom of the screen.
+
 
 
 

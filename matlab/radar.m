@@ -8,28 +8,33 @@ classdef radar < handle
 		dataTimestamp;
 		dataI;
 		dataQ;
+		oldBuf;
+		samples = 512;
 	end
 
 	methods (Access=private)
 
 		function processIncommingData(obj,src)
-			buf = char(readline(src));
-			indStartData = strfind(buf, '1024')+5;
-			if isempty(indStartData)
+			
+			buf = fgets(src);
+			process = [obj.oldBuf buf];
+			if length(process) ~= (4*obj.samples+11)
+				obj.oldBuf = buf;
 				return;
 			end
-			disp(buf);
-				
-			%numbersText = split(buf(indStartData:end), char(9));
-			%numbers = cellfun(@str2double, numbersText);
-			%nData = length(numbers);
-			%obj.dataI = numbers(1:2:nData);
-			%obj.dataQ = numbers(2:2:nData);
-			%disp(numel(obj.dataI)); % 512 data
-			fprintf("Time elapsed: %f ms\n", (posixtime(datetime('now'))-obj.dataTimestamp) * 1000);
-			obj.dataTimestamp = posixtime(datetime('now'));
-		
+			obj.oldBuf = [];
+
+			if(process(5) ~= 77)
+				return;
 			end
+			dataCount = process(9)*256+process(8);
+			tmp = process(11:2:(9+dataCount*2)) * 256 + process(10:2:(9+dataCount*2));
+			data = typecast(uint16(tmp), 'int16');
+			nData = numel(data);
+			obj.dataI = data(1:2:nData);
+			obj.dataQ = data(2:2:nData);
+		end
+		
 
 		function sysConfig = generateSystemConfig(obj)
 			% DEFAULT: !S00032012
@@ -38,9 +43,9 @@ classdef radar < handle
 			reserved='0';
 			LOG='0';              % MAG 0 log | 1-linear
 			FMT='0';              % 0-mm | 1-cm
-			LED='00';             % 00-off |01-1st trget rainbow
+			LED='01';             % 00-off |01-1st trget rainbow
 			reserved2='0000';
-			protocol='001';       % 001 TSV output(ideal) | 010 binary |000 webgui
+			protocol='010';       % 001 TSV output | 010 binary |000 webgui
 			AGC='0';              % auto gain 0-off|1-on
 			gain='11';            % 00-8dB|10-21|10-43|11-56dB
 			SER2='1';             % usb connect 0-off|1-on
@@ -67,6 +72,7 @@ classdef radar < handle
 			sys8=append(reserved,reserved,SLF,PRE);
 			sysCommand=bin2hex(append(sys1,sys2,sys3,sys4,sys5,sys6,sys7,sys8));
 			sysConfig = append('!S', sysCommand);
+			disp(sysConfig);
 		end
 
 		function basebandCommand = generateBasebandCommand(obj)
@@ -83,7 +89,7 @@ classdef radar < handle
 			DOWNsample='000';     % downsampling factor 000-0,1,2,4,8..111-64
 			RAMPS='100';          % ramps per measurement
 			NofSAMPLES='100';     % samples per measurement
-			ADCclkDIV='101';      % sampling freq 000-2.571,2.4,2.118,1.8,1.125,0.487,0.186,0.059
+			ADCclkDIV='100';      % sampling freq
 			baseband=append(WIN,FIR,DC,CFAR,CFARthreshold,CFARsize,CFARgrd,AVERAGEn,FFTsize,DOWNsample,RAMPS,NofSAMPLES,ADCclkDIV);
 			basebandHEX=bin2hex(baseband);
 			basebandCommand=append('!B',basebandHEX);
