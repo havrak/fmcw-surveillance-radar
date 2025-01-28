@@ -20,10 +20,13 @@ classdef platformControl < handle
 		
 		                   
 		% OTHER VARS% 
-		hPreferences;
+		hPreferences preferences;
 		hSerial;
 		programs;
 		currentProgramName;
+		timestamp double;
+		currPosHorz double;
+		currPosTilt double;
 		
 	end
 	methods(Access=private)
@@ -170,7 +173,16 @@ classdef platformControl < handle
 		end
 
 
-		function processIncommingData(obj)
+		function processIncommingData(obj, src)
+			line = char(readline(src));
+			if strcmp(line(1:2),'!P')
+				vals = split(line(2:end), ',');
+				obj.timestamp = str2double(vals{1});
+				obj.currPosHorz = str2double(vals{1});
+				obj.currPosTilt = str2double(vals{1});
+			elseif strcmp(line(1:2),'!R')a
+				set(obj.hTextOut, 'Value', append(obj.hTextOut.Value + "\n" + line));
+			end
 
 		end
 
@@ -211,6 +223,12 @@ classdef platformControl < handle
 
 		function startProgram(obj)
 			fprintf('PlatformControl | startProgram\n');
+			flush(obj.hSerial); 
+			writeline(obj.hSerial, "M82"); % stop current move
+			writeline(obj.hSerial, "G28"); % home steppers
+			writeline(obj.hSerial, "G92"); % set home to current location
+			writeline(obj.hSerial, "P1 "+obj.currentProgramName);
+			flush(obj.hSerial);
 		end
 
 		function uploadProgram(obj)
@@ -219,11 +237,15 @@ classdef platformControl < handle
 			trimmed = (strtrim(string(value)));
 			% -> call to send 
 			flush(obj.hSerial); 
+			writeline(obj.hSerial, "P90 "+obj.currentProgramName);
 			for i=1:numel(trimmed)
 				writeline(obj.hSerial, trimmed(i));
 				pause(0.002); % incomming buffer on esp32 is not infinit so we introduce a small delay
 			end
+
+			writeline(obj.hSerial, "P99");
 			flush(obj.hSerial); 
+
 
 		end
 
@@ -239,15 +261,30 @@ classdef platformControl < handle
 		
 		function endProcesses(obj)
 			if ~isempty(obj.hSerial)
-				if ~isempty(obj.hDataProcessingFunction) && strcmp(obj.hDataProcessingFunction.State,'running')
-					cancel(obj.hDataProcessingFunction);
-				end
+				configureCallback(obj.hSerial, "off");
 				delete(obj.hSerial)
 			end
 		end
 
-		function setupSerial(obj)
-		
+		function status = setupSerial(obj)
+		if ~isempty(obj.hSerial)
+				configureCallback(obj.hSerial, "off");
+				delete(obj.hSerial)
+			end
+			[port, baudrate] = obj.hPreferences.getConnectionPlatform();
+			try 
+				fprintf("platFormControl | setupSerial | port: %s, baud: %f\n", port, baudrate)
+				obj.hSerial = serialport(port, baudrate, "Timeout", 5);
+				configureTerminator(obj.hSerial,"CR/LF");
+				flush(obj.hSerial);
+				fprintf("platFormControl | setupSerial | starting thread\n");			
+				configureCallback(obj.hSerial, "terminator", @(src, ~) obj.processIncommingData(src))
+				status = true;
+			catch ME
+				fprintf("platFormControl | setupSerial | Failed to setup serial")
+				status = false;
+			end
+
 		end
 
 		function showGUI(obj)

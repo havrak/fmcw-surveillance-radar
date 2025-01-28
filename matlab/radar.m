@@ -15,7 +15,7 @@ classdef radar < handle
 	methods (Access=private)
 
 		function processIncommingData(obj,src)
-			
+
 			buf = fgets(src);
 			process = [obj.oldBuf buf];
 			if length(process) ~= (4*obj.samples+11)
@@ -147,9 +147,7 @@ classdef radar < handle
 		
 		function status = setupSerial(obj)
 			if ~isempty(obj.hSerial)
-				if ~isempty(obj.hDataProcessingFunction) && strcmp(obj.hDataProcessingFunction.State,'running')
-					cancel(obj.hDataProcessingFunction);
-				end
+				configureCallback(obj.hSerial, "off");
 				delete(obj.hSerial)
 			end
 			[port, baudrate] = obj.hPreferences.getConnectionRadar();

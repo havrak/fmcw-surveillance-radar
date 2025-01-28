@@ -194,16 +194,14 @@ WARNING: DO NOT use this device without first reading the documentation. Command
 
 
 # Uplink from the device
-* roughly every 20 ms device sends its current postion up with serial line
-	* [TIMESTAMP, HORIZONTAL_ANGLE, TILT_ANGLE]
-	* all further adjustments are done on the host side
-* upon receiving command from the host, device will send back an acknowledgement
-	* if error code is 0 command was processed successfully
-	* possible error codes are listed in a table below
+* !P <TIMESTAMP>, <HORIZONTAL_ANGLE>, <TILT_ANGLE>
+	* roughly every 20 ms device sends its current postion up with serial line
+* !R OK or !R ERR <CODE>
+	* upon receiving command from the host, device will send back an acknowledgement
+	* in case of an error reported please consult following table
 
 | Error code | Description                                                                                                                                                                |
 |------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 0          | processing was successful                                                                                                                                                  |
 | 1          | command wasn't able to be decoded                                                                                                                                          |
 | 2          | command code is valid but it's arguments aren't                                                                                                                            |
 | 3          | command was processed, should be added to noProgrammQueue but we failed to get a lock                                                                                      |
