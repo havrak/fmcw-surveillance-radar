@@ -3,8 +3,8 @@ classdef radar < handle
 		
 		hPreferences preferences;
 		hSerial;
+		processData = true;
 
-		hDataProcessingFunction;
 		dataTimestamp;
 		dataI;
 		dataQ;
@@ -12,27 +12,24 @@ classdef radar < handle
 
 	methods (Access=private)
 
-		function processIncommingData(obj)
-			fprintf("Thread started\n");
-			while 1
-				buf = char(readline(obj.hSerial));
-				indStartData = strfind(buf, '1024')+5;
-				if isempty(indStartData)
-					disp("Continue");
-					continue;
-				end
-				
-				% numbersText = split(buf(indStartData:end), char(9));
-				% numbers = cellfun(@str2double, numbersText);
-				% nData = length(numbers);
-				% obj.dataI = numbers(1:2:nData);
-				% obj.dataQ = numbers(2:2:nData);
-				% disp(numel(obj.dataI)); % 512 data
-				fprintf("Time ellapesd: %f ms\n", (posixtime(datetime('now'))-obj.dataTimestamp)*1000);
-				obj.dataTimestamp = posixtime(datetime('now'));
-
+		function processIncommingData(obj,src)
+			buf = char(readline(src));
+			indStartData = strfind(buf, '1024')+5;
+			if isempty(indStartData)
+				return;
 			end
-		end
+			disp(buf);
+				
+			%numbersText = split(buf(indStartData:end), char(9));
+			%numbers = cellfun(@str2double, numbersText);
+			%nData = length(numbers);
+			%obj.dataI = numbers(1:2:nData);
+			%obj.dataQ = numbers(2:2:nData);
+			%disp(numel(obj.dataI)); % 512 data
+			fprintf("Time elapsed: %f ms\n", (posixtime(datetime('now'))-obj.dataTimestamp) * 1000);
+			obj.dataTimestamp = posixtime(datetime('now'));
+		
+			end
 
 		function sysConfig = generateSystemConfig(obj)
 			% DEFAULT: !S00032012
@@ -137,10 +134,7 @@ classdef radar < handle
 		
 		function endProcesses(obj)
 			if ~isempty(obj.hSerial)
-				disp(obj.hDataProcessingFunction.State);
-				if strcmp(obj.hDataProcessingFunction.State,'running')
-					cancel(obj.hDataProcessingFunction);
-				end
+				configureCallback(obj.hSerial, "off");
 				delete(obj.hSerial)
 			end
 		end
@@ -156,20 +150,11 @@ classdef radar < handle
 			try 
 				fprintf("radar | setupSerial | port: %s, baud: %f\n", port, baudrate)
 				obj.hSerial = serialport(port, baudrate, "Timeout", 5);
-				
 				configureTerminator(obj.hSerial,"CR/LF");
-				flush(obj.hSerial);
-
-		
-
+				flush(obj.hSerial);								
 				obj.configureRadar();
-
-				fprintf("radar | setupSerial | starting thread\n");
-				obj.hDataProcessingFunction = parfeval(backgroundPool, @obj.processIncommingData, 0);
-				disp(obj.hDataProcessingFunction.State)
-				pause(10)
-				disp(obj.hDataProcessingFunction.State);
-				
+				fprintf("radar | setupSerial | starting thread\n");			
+				configureCallback(obj.hSerial, "terminator", @(src, ~) obj.processIncommingData(src))
 				status = true;
 			catch ME
 				fprintf("Radar | setupSerial | Failed to setup serial")

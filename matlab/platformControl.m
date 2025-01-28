@@ -23,7 +23,6 @@ classdef platformControl < handle
 		hSerial;
 		programs;
 		currentProgramName;
-		hDataProcessingFunction;
 		
 	end
 	methods(Access=private)

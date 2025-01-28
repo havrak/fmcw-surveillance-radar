@@ -12,6 +12,7 @@ classdef app < handle
 		hPreferences preferences
 		hPlatformControl platformControl
 		hRadar;
+		hTask;
 
 		hFig;
     hToolbar;
@@ -24,6 +25,7 @@ classdef app < handle
 			obj.hPlatformControl = platformControl(obj.hPreferences);
 			obj.hRadar = radar(obj.hPreferences);
 		end
+
 
 		function shutdown(obj)
 			fprintf("App | shutdown\n")
@@ -94,14 +96,19 @@ classdef app < handle
 			obj.hBtnConnectRadar = uicontrol('Style', 'pushbutton', ...
 				'Parent', obj.hPanelBtn, ...
 				'String', 'Radar Connect', ...
-				'Callback', @(src, event) obj.hRadar.setupSerial(), ...
+				'Callback', @(src, event) obj.setupRadarSerial(), ...
 				'BackgroundColor', '#E57373');
 
 			set(obj.hFig, 'SizeChangedFcn', @(src, event) obj.resizeUI());
 
 		end
 
-		function setupRadarSerial()
+		function setupRadarSerial(obj)
+			if obj.hRadar.setupSerial()
+				set(obj.hBtnConnectRadar, 'BackgroundColor', '#66BB6A');
+			else 
+				set(obj.hBtnConnectRadar, 'BackgroundColor', '#E57373');
+			end
 
 		end
 
@@ -130,7 +137,7 @@ classdef app < handle
 
 		function handle=getInstance()
 			persistent instanceStatic;
-			if isempty(instanceStatic) || ~isvalid(instanceStatic.hToolbar)
+			if isempty(instanceStatic) || (~isempty(instanceStatic.hToolbar) && ~isvalid(instanceStatic.hToolbar))
 				fprintf('App | getInstance | Creating new instance\n');
 				instanceStatic = app();
 			end
