@@ -1,7 +1,7 @@
 classdef radar < handle
 	properties(Access = public)
 		
-		hPreferences;
+		hPreferences preferences;
 		hSerial;
 
 		hDataProcessingFunction;
@@ -18,16 +18,19 @@ classdef radar < handle
 				buf = char(readline(obj.hSerial));
 				indStartData = strfind(buf, '1024')+5;
 				if isempty(indStartData)
+					disp("Continue");
 					continue;
 				end
-				disp(buf)
-
-				numbersText = split(buf(indStartData:end), char(9));
-				numbers = cellfun(@str2double, numbersText);
-				nData = length(numbers);
-				obj.dataI = numbers(1:2:nData);
-				obj.dataQ = numbers(2:2:nData);
+				
+				% numbersText = split(buf(indStartData:end), char(9));
+				% numbers = cellfun(@str2double, numbersText);
+				% nData = length(numbers);
+				% obj.dataI = numbers(1:2:nData);
+				% obj.dataQ = numbers(2:2:nData);
+				% disp(numel(obj.dataI)); % 512 data
+				fprintf("Time ellapesd: %f ms\n", (posixtime(datetime('now'))-obj.dataTimestamp)*1000);
 				obj.dataTimestamp = posixtime(datetime('now'));
+
 			end
 		end
 
@@ -92,8 +95,15 @@ classdef radar < handle
 		function frontendCommand = generateFrontendCommand(obj)
 			% DEFAULT: !F00075300
 			%21 bit freq in lsb=250kHz
-			OperatingFreq='001110101001100011000';
 			FreqReserved='00000000000';
+			if obj.hPreferences.getRadarHeaderType() == 122 
+				fprintf("radar | frontendCommand | setting frontend to 122 GHz\n");
+				OperatingFreq='001110101001100011000';
+			else 
+				fprintf("radar | frontendCommand | setting frontend to 24 GHz\n");
+				OperatingFreq='000010111011100000000';
+			end
+
 			%1st 11 bits are reserved
 			frontendCommand=bin2hex(append(FreqReserved, OperatingFreq));
 			frontendCommand=append('!F', frontendCommand);
@@ -103,11 +113,18 @@ classdef radar < handle
 			%max bandwidth by sending '!K'
 			%16bit, MSB bit is sign 1=minus|0=plus
 			%example 100...001 = -65536MHz | 1111...111= -2MHz
-			bandwidth='0000100111000100'; %
 			PLLreserved='0000000000000000';%1 at the start to save starting 0s
-
+			
+			if obj.hPreferences.getRadarHeaderType() == 122
+				fprintf("radar | pllCommand | setting bandwidth to 122 GHz setting\n");
+				bandwidth='0000100111000100'; % 5000 Hz 
+			else 
+				fprintf("radar | pllCommand | setting bandwidth to 24 GHz setting\n");
+				bandwidth='0000000111110100'; % 1000 MHz
+			end
 			pllCommand = bin2hex(append(PLLreserved, bandwidth));
 			pllCommand=append('!P',pllCommand);
+			disp(pllCommand);
     end
 
 	end
@@ -136,27 +153,28 @@ classdef radar < handle
 				delete(obj.hSerial)
 			end
 			[port, baudrate] = obj.hPreferences.getConnectionRadar();
-			% try 
+			try 
 				fprintf("radar | setupSerial | port: %s, baud: %f\n", port, baudrate)
 				obj.hSerial = serialport(port, baudrate, "Timeout", 5);
 				
 				configureTerminator(obj.hSerial,"CR/LF");
 				flush(obj.hSerial);
 
-				fprintf("radar | setupSerial | starting thread\n");
-				obj.configureRadar();
-				obj.processIncommingData();
+		
 
-				%obj.hDataProcessingFunction = parfeval(backgroundPool, @obj.processIncommingData, 0);
-				%disp(obj.hDataProcessingFunction.State)
-				%pause(10)
-				%disp(obj.hDataProcessingFunction.State);
+				obj.configureRadar();
+
+				fprintf("radar | setupSerial | starting thread\n");
+				obj.hDataProcessingFunction = parfeval(backgroundPool, @obj.processIncommingData, 0);
+				disp(obj.hDataProcessingFunction.State)
+				pause(10)
+				disp(obj.hDataProcessingFunction.State);
 				
 				status = true;
-			%catch ME
-			%	fprintf("Radar | setupSerial | Failed to setup serial")
-			%	status = false;
-			%end
+			catch ME
+				fprintf("Radar | setupSerial | Failed to setup serial")
+				status = false;
+			end
 
 			end
 

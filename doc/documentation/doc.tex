@@ -80,7 +80,7 @@ Let us picture an ideal FMCW radar system sending a periodic chirp with frequenc
 This waveform is also used on the devkit used in this thesis \cite{sidarMAN}.
 
 Other FMCW systems may use a different modulations such a linear triangular modulation or segmented linear frequency Modulation.
-These offer some advantages but the nature  of the beat signal (which forms a sinewave with sawtooth modulation) is more complex in them especially when multiple targets are present \cite{jankiraman2018}.
+These offer some advantages but the nature  of the beat signal (which forms a sine wave with sawtooth modulation) is more complex in them especially when multiple targets are present \cite{jankiraman2018}.
 
 \begin{figure}[h!]
 	\centering
@@ -361,21 +361,21 @@ For 90 degree norm the main lobe width \ref{fig:farfield90}was 30 degrees with -
 	\centering
 	\includegraphics[width=0.7\textwidth]{../img/farfield3d.png}
 	\caption[Radiation pattern of 24~GHz header -- 3D view]{Radiation pattern of 24~GHz header -- 3D view}
-	\label{fig:fardield3d}
+	\label{fig:farfield3d}
 \end{figure}
 
 \begin{figure}[h!]
 	\centering
 	\includegraphics[width=0.7\textwidth]{../img/farfield180.png}
 	\caption[Radiation pattern of 24~GHz header -- 180° norm]{Radiation pattern of 24~GHz header -- 180° norm}
-	\label{fig:fardield180}
+	\label{fig:farfield180}
 \end{figure}
 
 \begin{figure}[h!]
 	\centering
 	\includegraphics[width=0.7\textwidth]{../img/farfield90.png}
 	\caption[Radiation pattern of 24~GHz header -- 90° norm]{Radiation pattern of 24~GHz header -- 90° norm}
-	\label{fig:fardield90}
+	\label{fig:farfield90}
 \end{figure}
 
 
@@ -451,10 +451,20 @@ Unfortunately the manufacturer went with non standard male-male USB 2.0 connecti
 Still especially when used with a poor quality cable the whole system starts to have signal integrity problems.
 These issues could most likely be mitigated by integrating a signal conditioner into the transmission line.
 
+The rest of the design is rather simple.
+Fixed section mounts a slipring with stepper motor underneath directly driving a shaft connected to the rotating platform.
+Connection is done using long set M4 crews that go trough the slipring and fix the shaft in place.
+3D printed housing than acts only as a centering guide and isn't load bearing.
 
+Rotating section than has a simple A frame design that elevates the radar which is mounted with bearing enabling the radar to tilt freely.
+In order to control the tilt a second stepper is mounted on the rotating platform a linked with 2:1 down gearing ration using a standard 8~mm belt to the radar.
+On second support start there is an optical endstop mounted that is used to home the platform.
 
+Since mechanical stresses are quite low most parts could be 3D printed using standard PLA filament.
 
 The rest of the structure is 3D printed from PLA, since mechanical stresses on the platform are minimal.
+Only non 3D printed parts are the screws, bearings, and the stepper motors.
+Final assembly \ref{fig:side_by_side} measures some 33~cm and has footprint of 20x20~cm.
 
 
 \begin{figure}[h!]
@@ -474,35 +484,29 @@ The rest of the structure is 3D printed from PLA, since mechanical stresses on t
   \label{fig:side_by_side}
 \end{figure}
 
-In stark departure from commercial solutions \cite{carl,standa} due to need to accommodate a large slipring first axis controls rotation and second one tilt.
-This arrangement also leads to simpler calculation of speed vector, needed for radar processing, by reducing the interdependence of movements between each axis.
-
 
 \subsection{Platform Electronics}
 
-\boldred{
-	TODO: total rewrite of this section, drop things about Hall effect, outlay a basic schema of what components are present and how are they connected.
-	Keep it rather short if possible
-}
-
-% \red{
-Electronic side of the project is rather simple given that only control of two stepper motors and having ability to home their position is needed.
-The system is managed by an ESP32 microcontroller. Since the project does not demand advanced capabilities, a basic ESP32 model is sufficient.
+Electronic side of the project is rather simple -- there are only two things to handle: driving of stepper motors and enabling some homing mechanism.
 
 Given the low load on stepper motors and the platform's inability to accumulate significant momentum, a simple stepper driver without feedback control is adequate.
 For this purpose, the A4988 stepper driver was selected, due to its low cost, microstepping capabilities and basic current control \cite{a4988}.
+Minor disadvantages is the lack of any feedback from the driver to microcontroller including some sort of stall detection.
+In order to simplify the design A4988 devkits were used soldered onto a prototyping board without creating a custom PCB design.
 
 To implement homing, two potential solutions were considered: Hall effect sensors and optical gates.
 While Hall effect sensors offer the advantage of angle sensing, allowing correction of any positional drift during operation, they require precise alignment.
-If the orthogonal Hall effect sensor is not perfectly placed in the axis of rotation, non simply calibration becomes a necessity \cite{hall}.
+If the orthogonal Hall effect sensor is not perfectly placed in the axis of rotation, calibration becomes a necessity \cite{hall}.
+While the feedback would be nice, given the fact that microcontroller sends signal for each step taken by the motor in normal operating conditions the position of the platform can be easily calculated using software.
 
 Thus for simplicity and ease of integration, optical gates were selected.
 This decision eliminates the need for complex calibration while providing reliable functionality.
-% }
+
+Driving the whole system is an ESP32 microcontroller.
+ESP32C6 version was chosen due to author's extensive experience with this particular version.
+System doesn't require any special peripherals or high processing power thus any ESP32 version would be sufficient.
 
 \section{Platform Software Realization}
-
-\boldblue{NOTE: Basic structure of this chapter is fine.}
 
 To maximize efficiency in processing commands and ensure accurate stepper motor control, the program workflow is divided into three distinct layers, as illustrated by figure \ref{fig:code_diag}.
 
@@ -586,6 +590,7 @@ Immediately after parsing, a response is send to the user confirming whether the
 However, as the communication layer does not a can not check command within context of all previous commands, it is possible that command will be parsed correctly but its execution will fail in the application layer.
 
 
+
 \subsection{Application layer}
 
 The application layer performs two primary functions: tracking the current device position and scheduling commands to be sent to stepper motors.
@@ -602,12 +607,13 @@ Another consequence is the requirement for separate positioning modes for each a
 Continuous rotation prevents calculations of a move’s end position, making it impossible to make calculation for absolute positioning commands -- thus necessitating relative positioning.
 However it would be rather restrictive to force user to relative positioning on second axis, therefore the independent positioning settings.
 
-
+In order to support or possible operating regimes a manual override mode was also implementing.
+This enables the user to manually push a move command directly to stepper queues totally skipping the application layer.
+Primary usecase of this mode is to allow tracking of targets or other application that require real time control of the platform.
+However in this regime no limits are enforced and the platform operates strictly in relative positioning mode.
 
 
 \subsection{HAL Layer}
-
-\boldred{TODO: Drop primitive equation which is totaly unnecessary and was only included to comply with the original assigment}
 
 The final layer manages stepper motor control and provides the application layer with essential data for position calculations.
 In its loop, the program waits for the next command in the stepper queue.
@@ -636,8 +642,6 @@ The only limitation is the PCNT’s 15-bit counter, which caps the maximum steps
 
 
 \subsubsection{Performance of the HAL Layer}
-
-\boldred{TODO: Including Measurement is not a bad idea however the table is totaly redundant and doesn't provide much.}
 
 Table \ref{tab:performancepwm} illustrates the stability of PWM generation by the MCPWM module at various speeds.
 Measurements were conducted using a Saleae Logic Pro 16 logic analyzer, with no microstepping enabled.
@@ -678,6 +682,18 @@ This demonstrates the efficiency of the HAL layer in managing stepper motor cont
 As long as stepper queues are supplied with commands in advance, the platform can operate without noticeable interruptions.
 Most importantly, the platform’s timely and predictable behavior ensures that mathematical corrections to the radar data can be applied accurately.
 
+\section{MATLAB Control Interface}
+
+In its basic operating mode the platform control is totally deattached from the radar system.
+Radar data processing might do some correction based on the platform speed, accelerations and position but it doesn't send any commands to the platform itself.
+Thus the control flow of the platform is rather simple -- user uploads a program to the microcontroller and starts it's execution.
+In order to managed programs and provide window to read platform diagnostics from a simple MATLAB application was created.
+
+After connecting to the platform by picking correct port and baudrate in preference user can go into platform control window.
+There on the left sidebar is a list of all store programs
+
+
+
 \chapter{Radar Data Processing}
 
 \boldred{TODO: target detection at least using CFAR}
@@ -693,3 +709,4 @@ Most importantly, the platform’s timely and predictable behavior ensures that 
 \clearpage
 \openright
 \end{document}
+

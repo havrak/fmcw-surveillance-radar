@@ -6,12 +6,11 @@ classdef app < handle
 		hBtnConnectPlatform;   % uicontrol/pushBtn - delete a program
 		hBtnConnectPlatformS;
 		hTextTelemetry;        % uicontrol/text - basic telemetry
-		h
 
 
 		% OTHER VARS%
-		hPreferences (1,1) preferences = Preferences.empty;
-		hPlatformControl (1,1) platformControl = PlatformContro.empty;
+		hPreferences preferences
+		hPlatformControl platformControl
 		hRadar;
 
 		hFig;

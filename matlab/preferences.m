@@ -11,6 +11,7 @@ classdef preferences < handle
 		hDropRadarBaudrate;     % uidropdown - radar serial baudrate 
 		hDropPlatformPort;      % uidropdown - platform serial port
 		hDropPlatformBaudrate;  % uidropdown - platofrm serial baudrate
+		hSwitchRadarHeader;
 		 
 		hEditOffsetD;           % uicontrol/edit - distance offset
 		hEditOffsetT;           % uicontrol/edit - angle offset tilt
@@ -28,6 +29,7 @@ classdef preferences < handle
 
 			obj.configStruct.radar.port='none';
 			obj.configStruct.radar.baudrate='0';
+			obj.configStruct.radar.header='';
 			obj.configStruct.platform.port='none';
 			obj.configStruct.platform.baudrate='0';
 			obj.configStruct.platform.distanceOffset=0;
@@ -97,6 +99,16 @@ classdef preferences < handle
 			port = obj.configStruct.radar.port;
 			baudrate = obj.configStruct.radar.baudrate;
 		end
+
+	
+		function header = getRadarHeaderType(obj)
+			% getRadarHeaderType: return header used on the radar
+			% radar
+			%
+			% Output:
+			% header ... either 122 or 24
+			header = obj.configStruct.radar.header;
+    end
 
 		function storeConfig(obj)
 				struct2ini(obj.configFilePath, obj.configStruct);
@@ -218,6 +230,16 @@ classdef preferences < handle
 				'Max',1, ...
 				'String',"", ...
 				'HorizontalAlignment', 'left');
+			
+			uilabel(obj.hFig, ...
+				'Position', [20, figSize(2)-240, 140, 25], ...
+				'Text', 'Header frequency [GHz]: ');
+
+			obj.hSwitchRadarHeader=uiswitch('Parent', obj.hFig, ...
+				'Position', [180, figSize(2)-240, 140, 25], ...
+				'Items', {'24', '122'}, ...
+				'Orientation', 'horizontal' ...
+				);
 
 			obj.hEditOffsetT=uicontrol('Style', 'edit', ...
 				'Parent',obj.hFig,  ...
@@ -286,6 +308,11 @@ classdef preferences < handle
 			set(obj.hEditOffsetD, 'String', obj.configStruct.platform.distanceOffset);
 			set(obj.hEditOffsetT, 'String', obj.configStruct.platform.angleOffsetT);
 			set(obj.hEditOffsetH, 'String', obj.configStruct.platform.angleOffsetH);
+			
+
+			if ismember(num2str(obj.configStruct.radar.header),obj.hSwitchRadarHeader.Items)
+				set(obj.hSwitchRadarHeader, 'Value', num2str(obj.configStruct.radar.header));
+			end
 		end
 
 		function refreshSerial(obj)
@@ -299,7 +326,7 @@ classdef preferences < handle
 			err=false;
 			obj.configStruct.platform.baudrate=str2double(obj.hDropPlatformBaudrate.Value);
 			obj.configStruct.radar.baudrate=str2double(obj.hDropRadarBaudrate.Value);
-
+			obj.configStruct.radar.header=obj.hSwitchRadarHeader.Value;
 
 			tmp = get(obj.hEditOffsetD, 'String');
 			if isnan(str2double(tmp)) warndlg('Offset must be numerical');
@@ -310,7 +337,7 @@ classdef preferences < handle
 			if isnan(str2double(tmp)) warndlg('Offset must be numerical');
 			else obj.configStruct.platform.angleOffsetT=tmp;
 			end
-			
+
 			tmp = get(obj.hEditOffsetH, 'String');
 			if isnan(str2double(tmp)) warndlg('Offset must be numerical');
 			else obj.configStruct.platform.angleOffsetH=tmp;
