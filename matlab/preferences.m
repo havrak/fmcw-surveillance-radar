@@ -12,7 +12,8 @@ classdef preferences < handle
 		hDropPlatformPort;      % uidropdown - platform serial port
 		hDropPlatformBaudrate;  % uidropdown - platofrm serial baudrate
 		hSwitchRadarHeader;
-		 
+		hEditRadarBandwith;           % uicontrol/edit - distance offset
+		
 		hEditOffsetD;           % uicontrol/edit - distance offset
 		hEditOffsetT;           % uicontrol/edit - angle offset tilt
 		hEditOffsetH;           % uicontrol/edit - angle offset horizontal
@@ -30,6 +31,7 @@ classdef preferences < handle
 			obj.configStruct.radar.port='none';
 			obj.configStruct.radar.baudrate='0';
 			obj.configStruct.radar.header='';
+			obj.configStruct.radar.bandwidth='';
 			obj.configStruct.platform.port='none';
 			obj.configStruct.platform.baudrate='0';
 			obj.configStruct.platform.distanceOffset=0;
@@ -108,7 +110,16 @@ classdef preferences < handle
 			% Output:
 			% header ... either 122 or 24
 			header = obj.configStruct.radar.header;
-    end
+		end
+
+		function bandwith = getRadarBandwidth(obj)
+			% getRadarBandwidth: return bandwidth used on the radar
+			% radar
+			%
+			% Output:
+			% header ... either 122 or 24
+			bandwith = obj.configStruct.radar.bandwidth;
+		end
 
 		function storeConfig(obj)
 				struct2ini(obj.configFilePath, obj.configStruct);
@@ -235,6 +246,17 @@ classdef preferences < handle
 				'Position', [20, figSize(2)-240, 140, 25], ...
 				'Text', 'Header frequency [GHz]: ');
 
+			uilabel(obj.hFig, ...
+				'Position', [20, figSize(2)-270, 140, 25], ...
+				'Text', 'Header Bandwith [MHz]: ');
+
+			obj.hEditRadarBandwith = uicontrol('Style', 'edit', ...
+				'Parent',obj.hFig,  ...
+				'Position', [150, figSize(2)-270, 140, 25], ...
+				'Max',1, ...
+				'String',"", ...
+				'HorizontalAlignment', 'left');
+
 			obj.hSwitchRadarHeader=uiswitch('Parent', obj.hFig, ...
 				'Position', [180, figSize(2)-240, 140, 25], ...
 				'Items', {'24', '122'}, ...
@@ -309,7 +331,8 @@ classdef preferences < handle
 			set(obj.hEditOffsetT, 'String', obj.configStruct.platform.angleOffsetT);
 			set(obj.hEditOffsetH, 'String', obj.configStruct.platform.angleOffsetH);
 			
-
+			set(obj.hEditRadarBandwith, 'String', obj.configStruct.radar.bandwidth);
+			
 			if ismember(num2str(obj.configStruct.radar.header),obj.hSwitchRadarHeader.Items)
 				set(obj.hSwitchRadarHeader, 'Value', num2str(obj.configStruct.radar.header));
 			end
@@ -342,6 +365,11 @@ classdef preferences < handle
 			if isnan(str2double(tmp)) warndlg('Offset must be numerical');
 			else obj.configStruct.platform.angleOffsetH=tmp;
 			end			
+
+			tmp = get(obj.hEditRadarBandwith, 'String');
+			if isnan(str2double(tmp)) warndlg('Bandwidth must be numerical');
+			else obj.configStruct.radar.bandwidth=tmp;
+			end	
 
 			if strcmp(obj.hDropPlatformPort.Value,obj.hDropRadarPort.Value) == 1 && obj.hDropRadarPort.Value ~= "none"
 				err=true;

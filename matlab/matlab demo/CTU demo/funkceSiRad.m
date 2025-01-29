@@ -70,18 +70,27 @@ function basebandCommand = BasebandConfig() %returns a baseband command, NESMI B
     basebandDEFAULT='!BA252C125';
     WIN='0';%windowing before FFT
     FIR='0';%FIR filter 0-of|1-on
-    DC='1'; %DCcancel 1-on|0-off
+    DC='0'; %DCcancel 1-on|0-off
     CFAR='00';%00-CA_CFAR|01-CFFAR_GO|10-CFAR_SO|11 res
     CFARthreshold='0100'; %0-30, step 2
     CFARsize='1010';%0000-0|1111-15| n of 
     CFARgrd='01'; %guard cells range 0-3
-    AVERAGEn='01'; %n FFTs averaged range 0-3
-    FFTsize='100';% 000-32,64,128...,111-2048 100 for 512
+    AVERAGEn='00'; %n FFTs averaged range 0-3
+    FFTsize='000';% 000-32,64,128...,111-2048 100 for 512
     DOWNsample='000';%downsampling factor 000-0,1,2,4,8..111-64
-    RAMPS='100';%ramps per measurement 
-    NofSAMPLES='100';%samples per measurement 512
-    ADCclkDIV='100';%sampling freq 000-2.571,2.4,2.118,1.8,1.125,0.487,0.186,0.059
-    baseband=append(WIN,FIR,DC,CFAR,CFARthreshold,CFARsize,CFARgrd,AVERAGEn,FFTsize,DOWNsample,RAMPS,NofSAMPLES,ADCclkDIV);
+    
+		
+		% RAMPS='100';%ramps per measurement 
+    % NofSAMPLES='011';%samples per measurement 512
+    % ADCclkDIV='101';%sampling freq 000-2.571,2.4,2.118,1.8,1.125,0.487,0.186,0.059
+    
+
+		RAMPS='000';%ramps per measurement 
+    NofSAMPLES='011';%samples per measurement 512
+    ADCclkDIV='101';%sampling freq 000-2.571,2.4,2.118,1.8,1.125,0.487,0.186,0.059
+    
+
+		baseband=append(WIN,FIR,DC,CFAR,CFARthreshold,CFARsize,CFARgrd,AVERAGEn,FFTsize,DOWNsample,RAMPS,NofSAMPLES,ADCclkDIV);
     basebandHEX=bin2hex(baseband);
     basebandCommand=append('!B',basebandHEX);
 end
@@ -107,6 +116,7 @@ function pllCommand = PLLConfig()
     %example 100...001 = -65536MHz | 1111...111= -2MHz
     PLLreserved='0000000000000000';%1 at the start to save starting 0s
 		bandwidth='0000000111110100'; % 1000 MHz
+		% bandwidth= '0000000001111101'; % 250 MHz
     pllCommand = bin2hex(append(PLLreserved, bandwidth));
     pllCommand=append('!P',pllCommand);
 

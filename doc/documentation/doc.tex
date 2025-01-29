@@ -282,8 +282,18 @@ Both are relatively low bandwidth communication -- the serial maxing at baudrate
 
 Devkit is designed to be as easy to integrate into existing project as possible this is unfortunately to the determent of this thesis.
 In normal operating mode the radar system is a black box (Processing schema showed on \ref{fig:sidarFlow}) -- it's own filtering, FFT and CFAR algorithms and only reporting a target list to the user.
+
 This whole sequence can be either triggered internally (driven by configurable oscillator) or externally (driven by GPIO pin or UART input).
-After trigger is received the device will carry out a N chirps (or N+2 in case AGC is turned on) which are sampled with user chosen sampling frequency.
+After trigger is received the device will carry out a N chirps (or N+2 in case AGC is turned on).
+Length of the chirp is derived from number or sampling steps and ADC sampling time as
+\begin{equation}
+	t_\mathrm{ramp} = \frac{t_\mathrm{ADC} \cdot  (N_\mathrm{samples} + 85)}{36\,\, \mathrm{MHz}} \,\, \mu\mathrm{s}
+	\label{eq:sampling}
+\end{equation}
+with optimal time for good SNR stated to be 1~ms by the manufacturer \cite{sidarPRO}.
+What is done with sampled rams hasn't been made clear by the manufacturer.
+Most likely the data are somehow averaged improve SNR of the reported signal as if the  \ref{eq:sampling} is to be believed each ramp is taken with $N_\mathrm{samples}$ samples but in the end only $N_\mathrm{samples}$ are reported with their respective inphase and quadrature components.
+
 It is worth noting that as the computational abilities of the kit are rather restrictive radar might not emit a continuos sawtooth waveform but rather a segmented one \cite{sidarPRO}.
 
 \section{Outline of Chosen Configuration }
@@ -293,11 +303,17 @@ For purpose of this project the driver was configured to output raw data from th
 This allows for a more detailed analysis of the radar system and the possibility of implementing custom signal processing algorithms.
 For these reasons default windowing was also turned off.
 
-In addition to picking ADC output there are many other necessary configuration steps that need to be taken in order to get a meaningful data from the radar for this application.
-Chief among them is number of samples per chirp and number of chirps in a sequence.
-Number of chirps will directly affect maximal distance that can be measured as (\ref{eq:distance4max}) demonstrates.
-More important is the number of chirps within a set -- for moving platform its more beneficial to get smaller updates more often then to get a single large update.
-If one needs it there is no problem to buffer multiple downlinks and process them as single large one.
+After configuring output regimes its necessary to pick correct balance of number of ramps, samples and sampling frequency.
+As the radar will be moving there is obvious need to get reports from the radar as frequently as possible.
+With faster updates we can move the platform faster and it is more possible to use neighboring samples as the angular distance between them won't be that large.
+
+Decreasing the number of ramps slightly improves frequency of reports.
+However the increase of speed is quite small -- decreasing the number of ramps from 16 to 1 only leads to 11~\% faster reporting speed.
+Similarly small  gains in speed occur even when changing the sampling frequency.
+Only parametr that has a large impact on frequency of reports is number of samples -- halfing the number of samples leads to some 50~\% improvement.
+This is with sampling frequency adjusted for optimal SNR (close to 1~ms).
+Still even then report comes in every roughly 60~ms and the maximal distance is more than halved.
+
 
 Another parameter that warrants some consideration in rotary usecase is AGC.
 Using it adds two additional ramps that are used solely to set gain value but it also can lead to inconsistent weights of values between two neighboring data sets.
@@ -419,7 +435,9 @@ With a relatively low angular resolution of the radar a high precision of the pl
 Basic 200 step stepper motor with step size of 1.8\text{°} is sufficient however smoother motion will be easier to compensate for in the software.
 Still due to low radar weight, measured at 120~g with the mounting bracket, the smoothens of the motion can be achieved relying solely on microstepping of the motor.
 
-In terms of speed, due to the radar system's relatively low polling rate (1 Mbit/s \cite{sidarMAN}), high-speed movement is unnecessary. The manufacturer specifies a maximum update frequency of 50 Hz, equating to a new update every 20 ms \cite{sidarMAN}.
+In terms of speed high-speed movement is unnecessary.
+The manufacturer specifies a maximum update frequency of 50 Hz, equating to a new update every 20 ms \cite{sidarMAN}.
+And in this application the update frequency will be closer to 10 to 20 Hz.
 Using the following equation:
 %
 \begin{equation}
@@ -427,7 +445,8 @@ Using the following equation:
   \label{eq:poll}
 \end{equation}
 %
-where $t_{\mathrm{angle}}$ is time between spend on traveling angle of $\alpha $ in seconds and $N_{\mathrm{RMP}}$ is number of rotations per minute, we can calculate that even for low RPM of 60 an angle of 8 degrees the platform travels (angular width of main lobe for 122 GHz radar) in 10 ms.
+where $t_{\mathrm{angle}}$ is time between spend on traveling angle of $\alpha $ in seconds and $N_{\mathrm{RMP}}$ is number of rotations per minute, we can calculate that even for low RPM of 60 an angle of 8 degrees the platform travels (angular width of main lobe for 122 GHz radar) in 10 ms -- too fast to properly interpret the data.
+
 
 \subsection{Software Requirements}
 

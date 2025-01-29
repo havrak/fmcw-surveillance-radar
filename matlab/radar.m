@@ -9,7 +9,7 @@ classdef radar < handle
 		dataI;
 		dataQ;
 		oldBuf;
-		samples = 512;
+		samples = 256;
 	end
 
 	methods (Access=private)
@@ -19,7 +19,11 @@ classdef radar < handle
 			buf = fgets(src);
 			process = [obj.oldBuf buf];
 			if length(process) ~= (4*obj.samples+11)
-				obj.oldBuf = buf;
+				if length(process) > (4*obj.samples+11)
+					obj.oldBuf = [];
+				else
+					obj.oldBuf = buf;
+				end
 				return;
 			end
 			obj.oldBuf = [];
@@ -33,24 +37,27 @@ classdef radar < handle
 			nData = numel(data);
 			obj.dataI = data(1:2:nData);
 			obj.dataQ = data(2:2:nData);
+			fprintf("Time elapsed: %f ms\n", (posixtime(datetime('now'))-obj.dataTimestamp) * 1000);
+			obj.dataTimestamp = posixtime(datetime('now'));
 		end
 		
 
 		function sysConfig = generateSystemConfig(obj)
-			% DEFAULT: !S00032012
-			%(only change is TSV mode and led)
 			SelfTrigDelay='000';  % 0 ms delay
 			reserved='0';
 			LOG='0';              % MAG 0 log | 1-linear
 			FMT='0';              % 0-mm | 1-cm
-			LED='01';             % 00-off |01-1st trget rainbow
+			LED='01';             % 00-off | 01-1st trget rainbow
 			reserved2='0000';
-			protocol='010';       % 001 TSV output | 010 binary |000 webgui
-			AGC='0';              % auto gain 0-off|1-on
-			gain='11';            % 00-8dB|10-21|10-43|11-56dB
-			SER2='1';             % usb connect 0-off|1-on
-			SER1='0';             % wifi 0-off|1-on
-			%data frames sent to PC
+			protocol='010';       % 001 TSV output | 010 binary | 000 webgui
+			AGC='0';              % auto gain 0-off | 1-on
+			gain='11';            % 00-8dB | 10-21dB | 10-43dB | 11-56dB
+			SER2='1';             % usb connect 0-off | 1-on
+			SER1='0';             % wifi 0-off | 1-on
+			SLF='1';              % 0-ext trig mode | 1-standard
+			PRE='0';              % pretrigger 
+			
+			% data frames sent to PC
 			ERR='0';
 			ST='0';               % status
 			TL='0';               % target list
@@ -59,9 +66,7 @@ classdef radar < handle
 			P='0';                % phase
 			CPL='0';              % complex FFT
 			RAW='1';              % raw ADC
-			% then 2x reserved
-			SLF='1';              % 0-ext trig mode |1-standard
-			PRE='0';              % pretrigger 
+			
 			sys1=append(SelfTrigDelay,reserved);
 			sys2=append(LOG,FMT,LED);
 			sys3=reserved2;
@@ -78,26 +83,38 @@ classdef radar < handle
 		function basebandCommand = generateBasebandCommand(obj)
 			% DEFAULT: !BA252C125
 			WIN='0';              % windowing before FFT
-			FIR='0';              % FIR filter 0-of|1-on
-			DC='1';               % DCcancel 1-on|0-off
-			CFAR='00';            % 00-CA_CFAR|01-CFFAR_GO|10-CFAR_SO|11 res
-			CFARthreshold='0100'; % 0-30, step 2
-			CFARsize='1010';      % 0000-0|1111-15| n of
-			CFARgrd='01';         % guard cells range 0-3
-			AVERAGEn='01';        % n FFTs averaged range 0-3
-			FFTsize='100';        % 000-32,64,128...,111-2048
+			FIR='0';              % FIR filter 0-of | 1-on
+			DC='1';               % DCcancel 1-on | 0-off
+			CFAR='00';            % 00-CA_CFAR | 01-CFFAR_GO | 10-CFAR_SO | 11 res
+			CFARthreshold='0000'; % 0-30, step 2
+			CFARsize='0000';      % 0000-0 | 1111-15|  n of
+			CFARgrd='00';         % guard cells range 0-3
+			AVERAGEn='00';        % n FFTs averaged range 0-3
+			FFTsize='000';        % 000-32,64,128...,111-2048
 			DOWNsample='000';     % downsampling factor 000-0,1,2,4,8..111-64
+			
 			RAMPS='100';          % ramps per measurement
-			NofSAMPLES='100';     % samples per measurement
-			ADCclkDIV='100';      % sampling freq
+			
+			
+			if obj.samples == 512
+				%512 (tr ~ 0.53)
+				NofSAMPLES='100';   % samples per measurement
+				ADCclkDIV='100';    % sampling freq
+			elseif obj.samples == 256
+				NofSAMPLES='011';   % samples per measurement
+				ADCclkDIV='100';    % sampling freq
+			end
+	
+			
+			% 256 (tr ~ 0.7)
+		
+			
 			baseband=append(WIN,FIR,DC,CFAR,CFARthreshold,CFARsize,CFARgrd,AVERAGEn,FFTsize,DOWNsample,RAMPS,NofSAMPLES,ADCclkDIV);
 			basebandHEX=bin2hex(baseband);
 			basebandCommand=append('!B',basebandHEX);
 		end
 
 		function frontendCommand = generateFrontendCommand(obj)
-			% DEFAULT: !F00075300
-			%21 bit freq in lsb=250kHz
 			FreqReserved='00000000000';
 			if obj.hPreferences.getRadarHeaderType() == 122 
 				fprintf("radar | frontendCommand | setting frontend to 122 GHz\n");
@@ -107,26 +124,13 @@ classdef radar < handle
 				OperatingFreq='000010111011100000000';
 			end
 
-			%1st 11 bits are reserved
 			frontendCommand=bin2hex(append(FreqReserved, OperatingFreq));
 			frontendCommand=append('!F', frontendCommand);
 		end
 
 		function pllCommand = generatePLLCommand(obj)
-			%max bandwidth by sending '!K'
-			%16bit, MSB bit is sign 1=minus|0=plus
-			%example 100...001 = -65536MHz | 1111...111= -2MHz
-			PLLreserved='0000000000000000';%1 at the start to save starting 0s
-			
-			if obj.hPreferences.getRadarHeaderType() == 122
-				fprintf("radar | pllCommand | setting bandwidth to 122 GHz setting\n");
-				bandwidth='0000100111000100'; % 5000 Hz 
-			else 
-				fprintf("radar | pllCommand | setting bandwidth to 24 GHz setting\n");
-				bandwidth='0000000111110100'; % 1000 MHz
-			end
-			pllCommand = bin2hex(append(PLLreserved, bandwidth));
-			pllCommand=append('!P',pllCommand);
+			bandwidth=dec2hex(obj.hPreferences.getRadarBandwidth()/2);
+			pllCommand=append('!P0000',bandwidth);
 			disp(pllCommand);
     end
 
