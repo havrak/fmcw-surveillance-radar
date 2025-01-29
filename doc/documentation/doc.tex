@@ -257,9 +257,9 @@ On the other hand the increase in number of chirps will affect the distance meas
 
 \chapter{\sidar}
 
-Indie Semiconductor's \sidar is a FMCW radar system development kit designed primarily for automotive applications.
-Out of the box it offsets two headers - a 24~GHz and 122~GHz one, both based on IC from Indie Semiconductors (TRX-024-007 and TRA-120-001 respectively).
-Both are solely SISO systems thus by default azimut estimation is not possible.
+Indie Semiconductor's \sidar is an FMCW radar system development kit designed primarily for automotive applications.
+Out of the box, it offers two headers a 24GHz and a 122GHz module both based on ICs from Indie Semiconductor (TRX-024-007 and TRA-120-001, respectively).
+Both are strictly SISO IC with two antennas -- one for receiving another for transmitting so azimuth estimation is not possible by default.
 
 \begin{figure}[h!]
 	\centering
@@ -269,8 +269,9 @@ Both are solely SISO systems thus by default azimut estimation is not possible.
 	\label{fig:sidar}
 \end{figure}
 
-Communication with the radar board itself isn't possible, or at least  the communication interface is not documented.
-In order to configure the radar or read its measurements user is either connected to on board ESP chip via WiFi or to STM32 Nucleo series microcontroller over UART (facilitated with mini USB 2.0 connector).
+Direct communication with the radar board itself is not possible, or at least, the communication interface is undocumented.
+Instand there is always and intermediary in the form of  STM32 Nucleo series microcontroller.
+To this microcontroller does the user connect either directly with UART over USB or with WiFi over on board ESP32.
 Both are relatively low bandwidth communication -- the serial maxing at baudrate of 1~000~0000.
 
 \begin{figure}[h!]
@@ -280,78 +281,89 @@ Both are relatively low bandwidth communication -- the serial maxing at baudrate
 	\label{fig:sidarFlow}
 \end{figure}
 
-Devkit is designed to be as easy to integrate into existing project as possible this is unfortunately to the determent of this thesis.
-In normal operating mode the radar system is a black box (Processing schema showed on \ref{fig:sidarFlow}) -- it's own filtering, FFT and CFAR algorithms and only reporting a target list to the user.
+The devkit is designed for easy integration into existing projects; however, this unfortunately poses limitations for this thesis.
+In normal operation, the radar system functions as a black box (processing schema shown in \ref{fig:sidarFlow}), implementing its own filtering, FFT, and CFAR algorithms while only reporting a target list to the user.
 
-This whole sequence can be either triggered internally (driven by configurable oscillator) or externally (driven by GPIO pin or UART input).
-After trigger is received the device will carry out a N chirps (or N+2 in case AGC is turned on).
-Length of the chirp is derived from number or sampling steps and ADC sampling time as
+This entire sequence can be triggered either internally (driven by a configurable oscillator) or externally (via a GPIO pin or UART input).
+Once trigger is received the device carries out a user configured number of chirps.
+The chirp length is determined by the number of sampling steps and the ADC sampling time as follows:
 \begin{equation}
-	t_\mathrm{ramp} = \frac{t_\mathrm{ADC} \cdot  (N_\mathrm{samples} + 85)}{36\,\, \mathrm{MHz}} \,\, \mu\mathrm{s}
+	t_\mathrm{ramp} = \frac{t_\mathrm{ADC} \cdot  (N_\mathrm{samples} + 85)}{36\,\, \mathrm{MHz}} \,\, \mu\mathrm{s},
 	\label{eq:sampling}
 \end{equation}
-with optimal time for good SNR stated to be 1~ms by the manufacturer \cite{sidarPRO}.
-What is done with sampled rams hasn't been made clear by the manufacturer.
-Most likely the data are somehow averaged improve SNR of the reported signal as if the  \ref{eq:sampling} is to be believed each ramp is taken with $N_\mathrm{samples}$ samples but in the end only $N_\mathrm{samples}$ are reported with their respective inphase and quadrature components.
-
-It is worth noting that as the computational abilities of the kit are rather restrictive radar might not emit a continuos sawtooth waveform but rather a segmented one \cite{sidarPRO}.
+with the manufacturer recommending an optimal time of 1~ms for good SNR \cite{sidarPRO}.
+What happens to the sampled ramps remains unclear, as the manufacturer has not provided details.
+It is likely that the data are somehow averaged to improve the SNR of the reported signal.
+As only $N_\mathrm{samples}$ are reported by the radar but according to manufacturer provided equation (\ref{eq:sampling}) each ramp should be sampled with that number of samples.
+Additionally, due to the devkit's limited computational resources, the radar does not emit a continuous sawtooth waveform but rather a segmented one \cite{sidarPRO}.
 
 \section{Outline of Chosen Configuration }
 
 
-For purpose of this project the driver was configured to output raw data from the 12 bit ADC in form of inphase and quadrature components of the signal.
-This allows for a more detailed analysis of the radar system and the possibility of implementing custom signal processing algorithms.
-For these reasons default windowing was also turned off.
+For the purpose of this project, the devkit was configured to output raw data from the 12-bit ADC in the form of in-phase and quadrature components of the signal.
+This allows for a more detailed analysis of the radar system and enables the implementation of custom signal processing algorithms.
+For these reasons, the default windowing and undocumented filtering was also disabled.
 
-After configuring output regimes its necessary to pick correct balance of number of ramps, samples and sampling frequency.
-As the radar will be moving there is obvious need to get reports from the radar as frequently as possible.
-With faster updates we can move the platform faster and it is more possible to use neighboring samples as the angular distance between them won't be that large.
+After configuration of the output regimes, it is necessary to find the correct balance between the number of ramps, samples, and sampling frequency.
+Since the radar will be in motion, frequent updates are crucial to ensure accurate reporting.
+Faster updates allow for higher platform speeds or make it possible to use neighboring samples to aid in evaluation of current one (As the angular distance between them remains relatively small.).
 
-Decreasing the number of ramps slightly improves frequency of reports.
-However the increase of speed is quite small -- decreasing the number of ramps from 16 to 1 only leads to 11~\% faster reporting speed.
-Similarly small  gains in speed occur even when changing the sampling frequency.
-Only parametr that has a large impact on frequency of reports is number of samples -- halfing the number of samples leads to some 50~\% improvement.
-This is with sampling frequency adjusted for optimal SNR (close to 1~ms).
-Still even then report comes in every roughly 60~ms and the maximal distance is more than halved.
+Reducing the number of ramps slightly improves the update rate, but the effect is minimal—decreasing the number of ramps from 16 to 1 results in only an 11~\% increase in reporting speed.
+Similarly, changes in sampling frequency yield only minor improvements.
+The only parameter that significantly impacts the update rate is the number of samples—halving the number of samples leads to an approximately 50~\% increase in speed.
+This is with the sampling frequency adjusted for optimal SNR (close to 1~ms).
+Even then, reports are received roughly every 60ms (for 256 samples), and the maximum detection range is more than halved.
 
 
-Another parameter that warrants some consideration in rotary usecase is AGC.
+Another parameter that requires consideration in rotary applications is AGC.
 Using it adds two additional ramps that are used solely to set gain value but it also can lead to inconsistent weights of values between two neighboring data sets.
-Though the latter this is unlikely as the gain setting are quite far apart (8~dB$\Rightarrow$ 21~dB $\Rightarrow$ 43~dB as listed in \cite{sidarPRO}) so a difference in distance would have to be quite large.
-Thus its safest to turn AGC off and set the gain manually depending on how the readings appear.
+Tough former only introduces a small slowdown but the letter could be a problem.
+Especially since radar doesn't really report change in AGC value.
+Thus its safest to turn AGC off and set the gain manually depending on how the readings appear in post processing.
 
-It's also worth to point out that the radar system isn't really suited for changing configuration on the fly.
-Configuration takes a quite a long time to be applied not to mention radar doesn't provide any feedback that would enable user to send new configuration at the right time.
-Thus commonly used techniques such as alternating chirp slope or frequency are not possible.
+It is also important to note that the radar system is not well-suited for on-the-fly configuration changes.
+Applying a new configuration takes a considerable amount of time, and the radar does not provide any feedback to indicate when a new configuration can be safely applied.
+As a result, commonly used techniques such as alternating chirp slope or frequency modulation are not feasible.
 
-As for output format the radar system can output data in two formats -- binary and TSV.
-Since the speed of output doesn't differ much between those two formats the deciding factor is speed of parsing each of them.
-There even tough MATLAB isn't really suited for parsing binary data it still comes out around 40\% faster than parsing human readable TSV data.
+Regarding the output format, the radar system supports two options: binary and TSV.
+Since the output speed does not differ significantly between the two, the primary deciding factor is the ease and speed of parsing.
+Even though MATLAB is not particularly optimized for parsing binary data, it still processes binary output approximately 40% faster than human-readable TSV data.
 
 \section{24~GHz Header}
 
 Center of 24~GHz header is a SISO TRX-024-007 transceiver which integrates low noise amplifier, frequency mixer, filters and VCO into a single chip.
-It's designed to broadcast primarily in the ISM band (24.0-24.25~GHz) additionally ultra-wide bandwidth mode is also supported (23-26~GHz) \cite{sidarTRX24} however this mode cannot be enabled on the development kit \cite{sidarPRO}.
-In its main band transmitter output power is in the range of 2.5-6~dBm depending on the configuration \cite{sidarTRX24}.
-Maximal range of 400~m is advertised \cite{sidarMANOld}, however this is likely under ideal conditions when observing a large target.
+It is primarily designed to operate in the ISM band (24.0--24.25GHz), with an additional ultra-wideband mode supporting 23--26~GHz \cite{sidarTRX24}.
+On the \sidar there is no distinction made between  those two modes and the user is free to set any bandwidth \cite{sidarPRO} .
+The transmitter output power ranges from 2.5~dBm to 6~dBm, depending on the configuration \cite{sidarTRX24}.
+A maximum range of 400~m is advertised \cite{sidarMANOld}, though this is likely under ideal conditions when observing a large target.
+Also as previously stated the radar will operate on much lower sampling frequency than needed to achieve such results.
 
-As showed on picture \ref{fig:sidar} the chip is connected to two microstrip patch antennas.
-Patches are placed in relatively standard configuration forming a 6 by 4 array with spacing roughly equal to half of the wavelength at 24~GHz.
 
-Since the manufacturer wouldn't provide any information about the radiation pattern of the array a simulation was carried out using CST simulation suite.
-In addition substrate parameters also weren't provided by the manufacturer for the radar board specifically.
-Thankfully in the TRX-024-007 datasheet there is a board stack up for the evalutions board for the chip itself.
-It was assumed that same stack up would be used -- 18~$\mu$m copper for the traces and grounding plane with 250~$\mu$m thick substrate of Rogers RO4350B \cite{sidarTRX24}.
+As shown in Figure \ref{fig:sidar}, the chip is connected to two microstrip patch antennas.
+The patches are arranged in a relatively standard configuration, forming a 6×4 array with spacing approximately equal to half the wavelength at 24~GHz.
 
-After measuring the dimensions of the array using a classical optical microscope the whole array was redrawn in CST studio.
-Picture \ref{fig:boundaries} than shows a boundary conditions used -- antenna was placed in open space and alongside the symmetry plane a $H=0$ condition was set in order to speed up the simulation.
+Since the manufacturer did not provide any information about the radiation pattern of the array, a simulation was conducted using the CST simulation suite.
+Additionally, the manufacturer did not disclose the substrate parameters for the radar board specifically.
+Fortunately, the TRX-024-007 datasheet includes a board stack-up for the chip's evaluation board.
+It was assumed that the same stack-up would be used—18~$\mu$m copper for the traces and ground plane, with a 250~$\mu$m thick Rogers RO4350B substrate \cite{sidarTRX24}.
 
-\begin{figure}[h!]
+\begin{figure}[ht!]
 	\centering
-	\includegraphics[width=0.7\textwidth]{../img/boundaries.png}
+	\includegraphics[width=0.6\textwidth]{../img/boundaries.png}
 	\caption[Simulated 24 GHz header with boundary conditions showed]{Simulated 24 GHz header with boundary conditions showed}
 	\label{fig:boundaries}
 \end{figure}
+
+After measuring the dimensions of the array using an optical microscope, the entire array was redrawn in CST Studio.
+Figure \ref{fig:boundaries} shows the applied boundary conditions: the antenna was placed in open space, and an $H=0$ condition was set along the symmetry plane to speed up the simulation.
+
+After performing a standard time-domain simulation with an excitation signal ranging from 0 to 26GHz, the antenna array exhibited a minimum reflection coefficient $s_{11} \doteq -26.4 \mathrm{~dB}$ at 23A.478~GHz with second minimum at 24.518~GHz (Figure \ref{fig:s11}).
+Lack of minimum at 24~GHz may be attributed to measurement difficulties (The etching quality of the copper traces was suboptimal.) and the neglecting variations of substrate parameter due to interactions of different layers.
+
+At both frequencies with minimal reflection, a far-field radiation pattern was calculated.
+For clarity, only the 24.518~GHz pattern is shown in Figure \ref{fig:farfield3d}.
+The main lobe width was measured at approximately 16 degrees (Figure \ref{fig:farfield180}) along the 180-degree norm (for orientation refer to the red cone on the PCB), with a peak gain of 18.6~dBi and side-lobe suppression of -13~dB.
+For the 90-degree norm, the main lobe width (Figure \ref{fig:farfield90}) was 30 degrees, with side-lobe suppression of -10~dB.
 
 \begin{figure}[h!]
 	\centering
@@ -360,30 +372,24 @@ Picture \ref{fig:boundaries} than shows a boundary conditions used -- antenna wa
 	\label{fig:s11}
 \end{figure}
 
-After carrying out standard time simulation with excitation of the antenna with signal from 0 to 26~GHz the antenna array showed a smallest reflection coefficient $s_{11} \doteq -26.4 \mathrm{~dB}$ at 23.478~GHz with second minimum at 24.518~GHz.
-This could be explained by difficulties in measuring exact dimensions (Etching quality of the copper tracer wasn't the greatest.) and neglecting change of substrate parameters due to interactions of different layers.
-
-At both frequencies with minimal reflection a farfield radiation pattern was calculated for the sake of clarity only the 24.518~GHz one is shown in \ref{fig:farfield3d}.
-Main lobe width was measured at roughly 16 degrees \ref{fig:farfield180} at 180 degrees norm (for orientation use red cone on the PCB) at 18.6~dBi gain and -12~dB side lobe suppression.
-For 90 degree norm the main lobe width \ref{fig:farfield90}was 30 degrees with -10~dB side lobe suppression.
 
 \begin{figure}[h!]
 	\centering
-	\includegraphics[width=0.7\textwidth]{../img/farfield3d.png}
+	\includegraphics[width=0.43\textwidth]{../img/farfield3d.png}
 	\caption[Radiation pattern of 24~GHz header -- 3D view]{Radiation pattern of 24~GHz header -- 3D view}
 	\label{fig:farfield3d}
 \end{figure}
 
 \begin{figure}[h!]
 	\centering
-	\includegraphics[width=0.7\textwidth]{../img/farfield180.png}
+	\includegraphics[width=0.9\textwidth]{../img/farfield180.png}
 	\caption[Radiation pattern of 24~GHz header -- 180° norm]{Radiation pattern of 24~GHz header -- 180° norm}
 	\label{fig:farfield180}
 \end{figure}
 
 \begin{figure}[h!]
 	\centering
-	\includegraphics[width=0.7\textwidth]{../img/farfield90.png}
+	\includegraphics[width=0.9\textwidth]{../img/farfield90.png}
 	\caption[Radiation pattern of 24~GHz header -- 90° norm]{Radiation pattern of 24~GHz header -- 90° norm}
 	\label{fig:farfield90}
 \end{figure}
@@ -398,19 +404,20 @@ For 90 degree norm the main lobe width \ref{fig:farfield90}was 30 degrees with -
 	\label{fig:sidar122}
 \end{figure}
 
+The 122~GHz header is based on the TRX-120-001 transceiver, which, in addition to the essential components required for RF transmission and reception, also incorporates two on-chip antennas.
+It's designed to operate in the 122-123~GHz band, with output power ranging from -7~dBm to 1~dBm \cite{sidarTRX122}.
+The chip is capable of detecting large targets at distances of up to 40~m \cite{sidarMANOld}.
+
+Out of the box performance of the system is quite bad (Figure \ref{fig:sidar122rad}) with width of the main lobe being roughly $\pm40\text{°}$ in both E-plane and H-plane \cite{sidarTRX122}.
+However, this can be significantly improved using the supplied collimator lens, reducing the main lobe width to $\pm4\text{°}$ \cite{sidarTRX122col} (see Figure \ref{fig:sidar122rad}).
+
+
 \begin{figure}[h!]
 	\centering
-	\includegraphics[width=0.7\textwidth]{../img/sidar122rad.jpg}
+	\includegraphics[width=0.85\textwidth]{../img/sidar122rad.jpg}
 	\caption[Radiation pattern of 122~GHz header comparison \cite{sidarTRX122col}]{Radiation pattern of 122~GHz header comparison}
 	\label{fig:sidar122rad}
 \end{figure}
-
-122~GHz header is based on TRX-120-001 transceiver which, aside from basic components needed to transmit and receive RF, also incorporates two on-chip antennas.
-It's designed to operate in the 122-123~GHz band and with output power ranging from -7~dBm to 1~dBm \cite{sidarTRX122}.
-Out of the box performance of the system is quite bad (see \ref{fig:sidar122rad}) with width of the main lobe being roughly $\pm40\text{°}$ in both E-plane and H-plane \cite{sidarTRX122}.
-This can be improved by supplied collimator lens to $\pm4\text{°}$ \cite{sidarTRX122col} (see \ref{fig:sidar122rad}).
-The chip can detect large targets up to 40~m away \cite{sidarMANOld}.
-
 
 
 
@@ -422,7 +429,7 @@ Following chapter outlines design process and operation of a rotary platform spe
 
 
 To begin, it is essential to outline the fundamental requirements for the platform.
-These stem from the physical capabilities of the radar system, SiRad Easy evalutions kit, and requirements for the software.
+These stem from the physical capabilities of the \sidar and need to provide easy to use interface to control the platform.
 
 \subsection{Physical Capabilities}
 

@@ -51,7 +51,7 @@ classdef radar < handle
 			reserved2='0000';
 			protocol='010';       % 001 TSV output | 010 binary | 000 webgui
 			AGC='0';              % auto gain 0-off | 1-on
-			gain='11';            % 00-8dB | 10-21dB | 10-43dB | 11-56dB
+			gain='10';            % 00-8dB | 10-21dB | 10-43dB | 11-56dB
 			SER2='1';             % usb connect 0-off | 1-on
 			SER1='0';             % wifi 0-off | 1-on
 			SLF='1';              % 0-ext trig mode | 1-standard
@@ -81,7 +81,6 @@ classdef radar < handle
 		end
 
 		function basebandCommand = generateBasebandCommand(obj)
-			% DEFAULT: !BA252C125
 			WIN='0';              % windowing before FFT
 			FIR='0';              % FIR filter 0-of | 1-on
 			DC='1';               % DCcancel 1-on | 0-off
@@ -101,14 +100,11 @@ classdef radar < handle
 				NofSAMPLES='100';   % samples per measurement
 				ADCclkDIV='100';    % sampling freq
 			elseif obj.samples == 256
+				% 256 (tr ~ 0.7)
 				NofSAMPLES='011';   % samples per measurement
 				ADCclkDIV='100';    % sampling freq
 			end
-	
-			
-			% 256 (tr ~ 0.7)
-		
-			
+
 			baseband=append(WIN,FIR,DC,CFAR,CFARthreshold,CFARsize,CFARgrd,AVERAGEn,FFTsize,DOWNsample,RAMPS,NofSAMPLES,ADCclkDIV);
 			basebandHEX=bin2hex(baseband);
 			basebandCommand=append('!B',basebandHEX);
