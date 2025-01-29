@@ -36,51 +36,49 @@
 
 \chapter{FMCW Radar Fundamentals}
 
-\boldred{TODO: Consider some semi-introductory chapter before this one. Also the name "Basics of FMCW Radar" is not very good.}
+Unlike classical Continuous Wave (CW) radars, Frequency Modulated Continuous Wave (FMCW) radars do not broadcast a signal at a single frequency.
+Instead, they employ a linear frequency sweep across a defined range.
+This approach enables range estimation without requiring pulsed transmissions while still allowing speed measurements using the Doppler shift.
+However, velocity calculations in FMCW radars are more complex compared to single-frequency CW radars.
 
-As opposed to classical continuos wave (CW) radars Frequency Modulated Continuous Wave (FMCW) radars broadcast a signal not on a single frequency but with linear sweep across a range of frequencies.
-Such approach allows computing a range estimation without requiring a pulsing signal.
-This is while the capability to measure speed of the target using doppler shift is still maintained.
-However the calculation of speed more complex than in case of broadcast on a single frequency.
-
-The MW suffix in FMCW radar is used to denote that the radar operates in microwave range of frequencies.
-Such frequencies enable the antenna array to be small, enabling even on chip internaration.
-Also MM part of radio spectrum is generally license free \cite{spektrumCTU} and offers large bandwiths -- limiting possible interference.
+The "MW" suffix in FMCW radar denotes that the system operates in the microwave frequency range.
+These high frequencies allow for compact antenna arrays, even enabling on-chip integration.
+Additionally, the millimeter-wave (MMW) portion of the spectrum is typically license-free \cite{spektrumCTU} and offers large bandwidths, reducing the risk of interference.
 
 \section{Comparison FMCW Radar to Pulse Radar}
 
-Distance measurement with radar predates an invent of FMCW radar by a few decades.
-Traditional approaches relied predominantly on sending pulsing the signal electromagnetic radiation and measuring time it takes for the signal to return.
-On such radars speed can be calculated traditionally using Doppler effect as
+Distance measurement using radar predates FMCW technology by several decades.
+Early radar systems primarily relied on pulsed electromagnetic signals, measuring the time taken for the signal to reflect back.
+In such systems, speed can be determined using the Doppler effect as
 \begin{equation}
 	v = \frac{f_\mathrm{dop} c_o}{2f_\mathrm{rad}},
 	\label{eq:dopler}
 \end{equation}
 where $f_\mathrm{dop}$ is doppler frequency, $c_o$ is speed of light and $f_\mathrm{rad}$ is frequency of the radar signal.
-And distance was tied to time of flight $t$ of the signal as
+Distance is derived from the time of flight $t$ of the signal as
 \begin{equation}
 	d = \frac{c_o \cdot t}{2}.
 	\label{eq:distance}
 \end{equation}
 
-Such approach is on paper simpler and more intuitive however it has several drawbacks that seriously limit its precision and usability especially in close range applications.
-In order to achieve a good resolution in distance measurement the pulse must be very short.
-However in order to to impede on radars capabilities (need to maintain strong SNR over long distances) the power of the pulses must stay the same even when the duty cycle is dramatically increased \cite{jankiraman2018}.
+While this approach is conceptually straightforward, it has several limitations, particularly in applications requiring high precision at close range.
+Achieving fine resolution in distance measurement necessitates very short pulses.
+However, to maintain sufficient signal-to-noise ratio (SNR), the transmitted pulse power must remain high, regardless of the number of pulses \cite{jankiraman2018}.
 
-Transmitting with high average power is problematic legally and technically.
-It can result in interfering with other devices not to mention circuity to drive high power radars is bulky and expensive often requiring use of high voltages and vacuum tubes.
-Thus pulsed radars are predominantly used in application where high resolution in range is not needed such as long range detection.
+Maintaining high average transmission power poses legal and technical challenges.
+It increases the risk of interference with other devices and demands bulky, high-power circuitry -- often requiring high voltages and even vacuum tubes.
+Consequently, pulsed radar is predominantly used in applications where fine range resolution is not essential, such as long-range target detection.
 
-One major advantage of pulsed radar is the ease of processing data.
-On FMCW radar the there is a entanglement of distance and speed readings as there is both frequency change due to Doppler effect and the frequency sweep itself.
+One key advantage of pulsed radar is its relatively simple data processing.
+In contrast, FMCW radar data processing is more complex due to the interdependence of distance and velocity measurements -- both the frequency sweep and the Doppler shift contribute to frequency changes in the received signal.
 
 \section{Basic principles of ideal FMCW radar}
 
-Let us picture an ideal FMCW radar system sending a periodic chirp with frequency frequency sweep from $f_\mathrm{c}$ to $f_\mathrm{c}+BW$ so called sawtooth waveform.
-This waveform is also used on the devkit used in this thesis \cite{sidarMAN}.
-
+Let us picture an ideal FMCW radar system sending a periodic chirp with frequency frequency sweep from $f_\mathrm{c}$ to $f_\mathrm{c}+BW$, so called sawtooth waveform.
 Other FMCW systems may use a different modulations such a linear triangular modulation or segmented linear frequency Modulation.
-These offer some advantages but the nature  of the beat signal (which forms a sine wave with sawtooth modulation) is more complex in them especially when multiple targets are present \cite{jankiraman2018}.
+These offer some advantages but the nature of the beat signal (which forms a sine wave with sawtooth modulation) is more complex.
+Especially in case of triangle when multiple targets are present \cite{jankiraman2018}.
+\sidar kit technically uses a segmented linear frequency modulation due to its limited computational power \cite{sidarPRO} but for the sake of simplicity we will stick to the ideal sawtooth waveform.
 
 \begin{figure}[h!]
 	\centering
@@ -139,12 +137,14 @@ Let us define the chirp slope $k_\mathrm{sw}$ we can describe the change in freq
 	\Delta f_\mathrm{s}(t) = k_\mathrm{sw}t = \frac{BW}{T_\mathrm{ch}} t,
 	\label{eq:deltaf}
 \end{equation}
-where $t$ is the time goes from 0 to chirp length $T_\mathrm{ch}$. Standard equation of FM signal can be written as
+where $t$ is the time goes from 0 to chirp length $T_\mathrm{ch}$.
+Standard equation of FM signal can be written as
 \begin{equation}
 	s_\mathrm{t}(t) = A \cos\left(\omega_c t + 2\pi \int_{0}^{t} f_\mathrm{s}(t) \mathrm{d}t\right),
 	\label{eq:fm}
 \end{equation}
-where $A$ is amplitude of the signal, $\omega_c$ is carrier frequency and $f(s)$ is frequency of the signal. Substituting (\ref{eq:deltaf}) into (\ref{eq:fm}) we get the signal borrowed from the radar
+where $A$ is amplitude of the signal, $\omega_c$ is carrier frequency and $f(s)$ is frequency of the signal.
+Substituting (\ref{eq:deltaf}) into (\ref{eq:fm}) we get the signal borrowed from the radar
 \begin{equation}
 	s_\mathrm{t}(t) = A \cos(\omega_c t + \pi k_\mathrm{sw}t^2).
 	\label{eq:fm2}
@@ -155,7 +155,7 @@ Signal bounced back from the target will have the same equation with the only di
 	s_\mathrm{r}(t) = A \cos(\omega_c (t - \tau) + \pi k_\mathrm{sw}(t - \tau)^2).
 	\label{eq:fm3}
 \end{equation}
-Now we can calculate the product of the two signals, this can be done easily in the real world using a frequency mixer. This is done with the standard formula $\cos(\alpha)\cos\beta = \frac{1}{2}(\cos(\alpha-\beta)+\cos(\alpha+\beta))$
+Now we can calculate the product of the two signals, this can be done easily in the real world using a frequency mixer.
 The result of the multiplication is
 \begin{align}
 	s(t) = s_\mathrm{r}(t) \cdot  s_\mathrm{t}(t) &= \frac{A^2}{2}\cos\left(2(\omega_c - 2\pi k_\mathrm{sw}T_\tau)t + 2\pi k_{sw}t^2 + (\pi k_\mathrm{sw} \tau^2 - \omega_c \tau) \right)+ \nonumber \\
@@ -163,7 +163,7 @@ The result of the multiplication is
 	\label{eq:fm4}
 \end{align}
 First additive term will lead to a signal with very high frequency, well above $2\omega_c$, this term doesn't carry any useful information and is usually filtered out -- either by low pass filter or the frequency mixer itself \cite{graham2005}.
-Second term is so call beat signal whole frequency is directly proportional to the time delay $\tau$.
+Second term is so call beat signal whose frequency is directly proportional to the time delay $\tau$.
 Applying a first time derivative to the cosine argument we get the frequency of the beat signal.
 \begin{equation}
 	f_\mathrm{b} = \frac{1}{2\pi}\frac{\partial}{\partial t} \left(2\pi k_\mathrm{sw} \tau t + (\omega_c \tau - \pi k_\mathrm{sw} \tau^2)\right) = k_\mathrm{sw} \tau.
@@ -175,7 +175,7 @@ Calculating the distance to the target is now trivial, delay $\tau$ is equal to 
 	R = \frac{c_0 \tau}{2},
 	\label{eq:distance2}
 \end{equation}
-By substituting (\ref{eq:fb}) into (\ref{eq:distance2}) we get an equation for distance
+By substituting (\ref{eq:fb}) into (\ref{eq:distance2}) we get the equation for distance
 \begin{equation}
 	R = \frac{c_0 f_\mathrm{b}}{2k_\mathrm{sw}}= \frac{c_o f_\mathrm{b} T_{\mathrm{ch}}}{2 BW}.
 	\label{eq:distance3}
@@ -188,19 +188,19 @@ Absolute limit for maximal distance is given by the time it takes for the signal
 Would the distance be greater than a time of single chirp the signal would be interpreted as coming from a closer target.
 That gives us an maximal limit on beat frequency $f_\mathrm{b} = BW$.
 
-However in most case the limit will imposed not by $T_\mathrm{ch}$ respectively $BW$ but by our sampling frequency $f_\mathrm{s}$.
-In order to avoid aliasing the Nyquist-Shannon theorem must be satisfied thus limiting the maximal beat frequency to $f_\mathrm{s}/2$ and giving us maximal distance of
+However in most case the limit will imposed not by $T_\mathrm{ch}$ respectively $BW$ but by sampling frequency $f_\mathrm{s}$.
+In order to avoid aliasing the Nyquist-Shannon theorem must be satisfied thus limiting the maximal beat frequency to $f_\mathrm{s}/2$ and resulting in maximal distance of
 \begin{equation}
 	R = \frac{c_o f_\mathrm{s}}{4k_\mathrm{sw}}.
 	\label{eq:distance4max}
 \end{equation}
 
-While sampling with frequency $f_\mathrm{s}$ we get $N =\mathrm{f}_\mathrm{s} T_\mathrm{ch}$ samples. Applying a Discrete Fourier Transform (DFT) to the signal we get $N$ samples in spectrum with frequency resolution of
+While sampling with frequency $f_\mathrm{s}$ we get $N =\mathrm{f}_\mathrm{s} T_\mathrm{ch}$ samples applying a DFT to the signal we get $N$ samples in spectrum with frequency resolution of
 \begin{equation}
-	\upDelta f_\mathrm{b} = \frac{f_\mathrm{s}}{N} = \frac{1}{T_{ch}},
+	\upDelta f_\mathrm{b} = \frac{f_\mathrm{s}}{N} = \frac{1}{T_{ch}}.
 	\label{eq:resolution}
 \end{equation}
-we can see that the resolution of spectrum is only inversely proportional to the chirp length and doesn't have any relation to sampling frequency \cite{jankiraman2018}.
+We can see that the resolution of spectrum is only inversely proportional to the chirp length and doesn't have any relation to sampling frequency \cite{jankiraman2018}.
 Now we can enter $\upDelta f_\mathrm{b}$ into (\ref{eq:distance3}) to get the minimal distance that can be measured as
 \begin{equation}
 	\upDelta R = \frac{c_o}{2BW}
@@ -258,7 +258,7 @@ On the other hand the increase in number of chirps will affect the distance meas
 \chapter{\sidar}
 
 Indie Semiconductor's \sidar is an FMCW radar system development kit designed primarily for automotive applications.
-Out of the box, it offers two headers a 24GHz and a 122GHz module both based on ICs from Indie Semiconductor (TRX-024-007 and TRA-120-001, respectively).
+Out of the box, it offers two headers a 24~GHz and a 122~GHz module both based on ICs from Indie Semiconductor (TRX-024-007 and TRA-120-001, respectively).
 Both are strictly SISO IC with two antennas -- one for receiving another for transmitting so azimuth estimation is not possible by default.
 
 \begin{figure}[h!]
@@ -433,60 +433,60 @@ These stem from the physical capabilities of the \sidar and need to provide easy
 
 \subsection{Physical Capabilities}
 
-The primary constraints on the physical design arise from the radar's radiation pattern (Both 24 and 122 GHz headers are accounted for.).
-That gives us information about the clearance needed in front of the radar and more importantly how precise the platform needs to be.
-As stated previously the 24~GHz radar has a main lobe width of some $\pm7\text{°}$ and the 122~GHz radar has a main lobe width of $\pm4\text{°}$ \cite{sidarTRX122}.
-Thus a conservative clearance of $\pm45\text{°}$ in front of the radar was set in order to prevent any strong reflections be it from the main lobe or side lobes.
+The primary constraints on the physical design arise from the radar’s radiation pattern (considering both the 24~GHz and 122~GHz headers).
+These patterns determine the necessary clearance in front of the radar and, more importantly, the precision required for platform movement.
+As stated previously, the 24GHz radar has a main lobe width of approximately $\pm7\text{°}$, while the 122~GHz radar has a main lobe width of $\pm4\text{°}$ \cite{sidarTRX122}.
+To minimize strong reflections from both the main lobe and side lobes, a conservative clearance of $\pm45\text{°}$ in front of the radar was selected.
 
-With a relatively low angular resolution of the radar a high precision of the platform is not needed.
-Basic 200 step stepper motor with step size of 1.8\text{°} is sufficient however smoother motion will be easier to compensate for in the software.
-Still due to low radar weight, measured at 120~g with the mounting bracket, the smoothens of the motion can be achieved relying solely on microstepping of the motor.
+Due to the relatively low angular resolution of the radar, high platform precision is not required.
+A basic 200-step stepper motor with a step size of 1.8\text{°} is sufficient; however, smoother motion simplifies software compensation of the movement.
+Given the radar’s low weight—measured at 120~g, including the mounting bracket, smoothness of movement can be achieved solely through motor microstepping.
 
-In terms of speed high-speed movement is unnecessary.
-The manufacturer specifies a maximum update frequency of 50 Hz, equating to a new update every 20 ms \cite{sidarMAN}.
-And in this application the update frequency will be closer to 10 to 20 Hz.
-Using the following equation:
+High-speed movement is unnecessary for this application.
+The manufacturer specifies a maximum update frequency of 50 Hz, corresponding to a new measurement every 20ms \cite{sidarMAN}.
+In this use case, the update frequency will be closer to 10-20~Hz.
+Using
 %
 \begin{equation}
   t_{\mathrm{angle}} = \frac{60}{360\cdot N_{\mathrm{RMP}}} \cdot  \alpha,
   \label{eq:poll}
 \end{equation}
 %
-where $t_{\mathrm{angle}}$ is time between spend on traveling angle of $\alpha $ in seconds and $N_{\mathrm{RMP}}$ is number of rotations per minute, we can calculate that even for low RPM of 60 an angle of 8 degrees the platform travels (angular width of main lobe for 122 GHz radar) in 10 ms -- too fast to properly interpret the data.
+where $t_{\mathrm{angle}}$ represents the time spent traveling an angle $\alpha$ in seconds, and $N_{\mathrm{RPM}}$ is the number of rotations per minute, we can calculate that even at a low rotational speed of 60~RPM, an 8-degree movement (matching the angular width of the main lobe for the 122~GHz radar) takes only 10~ms -- too fast to properly interpret the data.
 
 
 \subsection{Software Requirements}
 
-Given its widespread adoption as an industry standard for controlling multi-axis machines, G-code over serial is a natural choice for the platform's communication format. Beyond the basic functionality typically offered by G-code interpreters, the platform must support additional features to reduce the user's manual control burden. These features include the ability to define movement limits and preprogram sequences of movements for autonomous execution by the platform.
+Given its widespread adoption as an industry standard for controlling multi-axis machines, G-code over serial is a natural choice for the platform's communication format.
+Beyond the basic functionality typically offered by G-code interpreters, the platform must support additional features to reduce the user's manual control burden.
+These features include the ability to define movement limits and preprogram sequences of movements for autonomous execution by the platform.
 
-For uplink communication, the platform must provide real-time information about its current position and speed. This data allows the user to make mathematical corrections to the radar's gathered data.
+For uplink communication, the platform must provide real-time information about its current position and speed.
+This data enables the user to make any mathematical corrections and properly interpret radar's gathered data.
 
 
 \section{Platform Construction}
 
-As the platform needs to transmit data from the rotating part to the stationary a slip ring is needed.
-Due to relatively low transmission speed of the radar and lack of any special requirements, like waterproofing, an affordable model UH3899-01-0810 from manufacturer Senring was chosen classical contact slip ring was chosen.
-It boasts dedicated USB 2.0 connection and 8 wires for additional signal with advertised insertion loss of sub 2~dB \cite{slipring}.
+As the platform needs to transmit data from the rotating section to the stationary base, a slip ring is required.
+Due to the relatively low transmission speed of the radar and the absence of special requirements such as waterproofing, an affordable model, UH3899-01-0810 from Senring, was selected.
+This is a classical contact slip ring that features a dedicated USB~2.0 connection along with 8 additional signal wires, with an advertised insertion loss of less than 2~dB \cite{slipring}.
 
-Unfortunately the manufacturer went with non standard male-male USB 2.0 connection which requires a female-female adapter in order to connect the radar to the slip ring.
-Still especially when used with a poor quality cable the whole system starts to have signal integrity problems.
-These issues could most likely be mitigated by integrating a signal conditioner into the transmission line.
+Unfortunately, the manufacturer opted for a non-standard male-male USB~2.0 connection, requiring a female-female adapter to connect the radar to the slip ring.
+Additionally, when used with a poor-quality cable, the system exhibits signal integrity issues.
+These problems could likely be mitigated by integrating a signal conditioner into the transmission line.
 
-The rest of the design is rather simple.
-Fixed section mounts a slipring with stepper motor underneath directly driving a shaft connected to the rotating platform.
-Connection is done using long set M4 crews that go trough the slipring and fix the shaft in place.
-3D printed housing than acts only as a centering guide and isn't load bearing.
+The rest of the design is relatively simple.
+The fixed section mounts the slip ring with the stepper motor positioned underneath, directly driving a shaft connected to the rotating platform.
+The connection is secured using long M4 set screws that pass through the slip ring and hold the shaft in place.
+A 3D-printed housing serves only as a centering guide and is not load-bearing.
 
-Rotating section than has a simple A frame design that elevates the radar which is mounted with bearing enabling the radar to tilt freely.
-In order to control the tilt a second stepper is mounted on the rotating platform a linked with 2:1 down gearing ration using a standard 8~mm belt to the radar.
-On second support start there is an optical endstop mounted that is used to home the platform.
+The rotating section features a simple A-frame design that elevates the radar, which is mounted on bearings, allowing it to tilt freely.
+To control the tilt, a second stepper motor is mounted on the rotating platform and linked to the radar via a 2:1 down-gearing ratio using a standard 8~mm belt.
+An optical endstop, used for homing of the platform, is mounted on the second support strut.
 
-Since mechanical stresses are quite low most parts could be 3D printed using standard PLA filament.
-
-The rest of the structure is 3D printed from PLA, since mechanical stresses on the platform are minimal.
-Only non 3D printed parts are the screws, bearings, and the stepper motors.
-Final assembly \ref{fig:side_by_side} measures some 33~cm and has footprint of 20x20~cm.
-
+Since mechanical stresses are minimal, most parts can be 3D-printed using standard PLA filament.
+The only non-3D-printed components are the screws, bearings, and stepper motors.
+The final assembly (Figure~\ref{fig:side_by_side}) measures approximately 33~cm in height and has a footprint of $20\times20$~cm.
 
 \begin{figure}[h!]
   \centering
@@ -508,24 +508,22 @@ Final assembly \ref{fig:side_by_side} measures some 33~cm and has footprint of 2
 
 \subsection{Platform Electronics}
 
-Electronic side of the project is rather simple -- there are only two things to handle: driving of stepper motors and enabling some homing mechanism.
+The electronic aspect of the platform is relatively simple, involving only two main tasks: driving the stepper motors and implementing a homing mechanism.
 
-Given the low load on stepper motors and the platform's inability to accumulate significant momentum, a simple stepper driver without feedback control is adequate.
-For this purpose, the A4988 stepper driver was selected, due to its low cost, microstepping capabilities and basic current control \cite{a4988}.
-Minor disadvantages is the lack of any feedback from the driver to microcontroller including some sort of stall detection.
-In order to simplify the design A4988 devkits were used soldered onto a prototyping board without creating a custom PCB design.
+Given the low load on the stepper motors and the platform's inability to accumulate significant momentum, a basic stepper driver without feedback control is sufficient.
+For this purpose the A4988 stepper driver was chosen due to its low cost, microstepping capabilities and basic current control \cite{a4988}.
+A minor drawback is the lack of feedback from the driver to the microcontroller, including the absence of stall detection.
+To simplify the design, A4988 development kits were used and soldered onto a prototyping board, eliminating the need for a custom PCB.
 
-To implement homing, two potential solutions were considered: Hall effect sensors and optical gates.
-While Hall effect sensors offer the advantage of angle sensing, allowing correction of any positional drift during operation, they require precise alignment.
-If the orthogonal Hall effect sensor is not perfectly placed in the axis of rotation, calibration becomes a necessity \cite{hall}.
-While the feedback would be nice, given the fact that microcontroller sends signal for each step taken by the motor in normal operating conditions the position of the platform can be easily calculated using software.
-
+For homing implementation, two potential solutions were considered: Hall effect sensors and optical gates.
+Hall effect sensors offer the advantage of angle sensing, allowing correction for positional drift during operation; however, they require precise alignment.
+If the orthogonal Hall effect sensor is not perfectly placed along the axis of rotation, calibration becomes necessary \cite{hall}.
+While feedback would be beneficial, the microcontroller already tracks each step taken by the motor during normal operation, making it possible to determine the platform's position purely in software.
 Thus for simplicity and ease of integration, optical gates were selected.
-This decision eliminates the need for complex calibration while providing reliable functionality.
 
-Driving the whole system is an ESP32 microcontroller.
-ESP32C6 version was chosen due to author's extensive experience with this particular version.
-System doesn't require any special peripherals or high processing power thus any ESP32 version would be sufficient.
+The system is controlled by an ESP32 microcontroller.
+The ESP32-C6 version was chosen due to the author's extensive experience with this particular model.
+However, since the system does not require specialized peripherals or high processing power, any ESP32 variant would be sufficient.
 
 \section{Platform Software Realization}
 
@@ -598,7 +596,7 @@ This design allows the final layer to operate with maximum efficiency, where tra
 
   \end{tikzpicture}
 
-  \caption[Programm diagram]{Programm diagram}
+  \caption[Program flow diagram]{Program flow diagram}
   \label{fig:code_diag}
 \end{figure}
 
@@ -705,10 +703,10 @@ Most importantly, the platform’s timely and predictable behavior ensures that 
 
 \section{MATLAB Control Interface}
 
-In its basic operating mode the platform control is totally deattached from the radar system.
-Radar data processing might do some correction based on the platform speed, accelerations and position but it doesn't send any commands to the platform itself.
-Thus the control flow of the platform is rather simple -- user uploads a program to the microcontroller and starts it's execution.
-In order to managed programs and provide window to read platform diagnostics from a simple MATLAB application was created.
+In its basic operating mode, platform control is entirely independent of the radar data processing.
+Or to be more precise, while radar data processing may apply corrections based on platform speed, acceleration, and position, it does not send any commands to the platform itself.
+As a result, the control flow of the platform remains simple -- users upload a program to the microcontroller and start its execution.
+To manage programs and provide a means of reading platform diagnostics, a simple MATLAB application was developed.
 
 \begin{figure}[h!]
 	\centering
@@ -717,15 +715,13 @@ In order to managed programs and provide window to read platform diagnostics fro
 	\label{fig:platformControl}
 \end{figure}
 
-After connecting to the platform (Picking correct port and baudrate in preferences, clicking the connect button in the main window.) user can go into platform control window \ref{fig:platformControl}.
-On the left there is a sidebar with a list of all stored programs.
-Clicking on any of them will load it into the editor windows and by presssing buttons on the right user can send the program to the platform.
+After connecting to the platform (by selecting the correct port and baud rate in the preferences menu and clicking the "Connect" button in the main window), the user can navigate to the platform control window, as shown in Figure \ref{fig:platformControl}.
+On the left side, a sidebar displays a list of all stored programs.
+Clicking on any of these programs loads it into the editor window, where the user can edit it or send it to the platform using the buttons on the right.
 
-After the program has been sent it can be either started manually by sending a start command from the \verb|QUICK COMMAND| box or by pressing the start button.
-Using the start button will make sure that the platform queues are empty, the platform is homed and only then the program will start.
-To see feedback from the platform user can see the text window on the bottom of the screen.
-
-
+Once the program is sent, execution can be initiated either manually by sending a start command from the \verb|QUICK COMMAND| box—or by pressing the "Start" button.
+Using the "Start" button ensures that platform queues are empty and that the platform is homed before execution begins.
+To monitor feedback from the platform, users can refer to the text window at the bottom of the screen.
 
 \chapter{Radar Data Processing}
 
