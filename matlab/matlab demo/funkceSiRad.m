@@ -27,7 +27,6 @@ PLLCommand = PLLConfig();%optional
 end
 
 function sysCommand = SystemConfig() %returns sysConfig Command ready for radar
-systemDEFAULT='!S00032012'; %(only change is TSV mode and led)
     SelfTrigDelay='000';
     reserved='0';
     LOG='0'; %MAG 0 log | 1-linear
@@ -36,7 +35,7 @@ systemDEFAULT='!S00032012'; %(only change is TSV mode and led)
     reserved2='0000';
     protocol='010'; %001 TSV output(ideal) | 010 binary |000 webgui
     AGC='0'; %auto gain 0-off|1-on
-    gain='11';%00-8dB|10-21|10-43|11-56dB
+    gain='01';%00-8dB|01-21|10-43|11-56dB
     SER2='1';%usb connect 0-off|1-on
     SER1='0';%wifi 0-off|1-on
     %data frames sent to PC
@@ -72,9 +71,9 @@ function basebandCommand = BasebandConfig() %returns a baseband command, NESMI B
     FIR='0';%FIR filter 0-of|1-on
     DC='0'; %DCcancel 1-on|0-off
     CFAR='00';%00-CA_CFAR|01-CFFAR_GO|10-CFAR_SO|11 res
-    CFARthreshold='0100'; %0-30, step 2
-    CFARsize='1010';%0000-0|1111-15| n of 
-    CFARgrd='01'; %guard cells range 0-3
+    CFARthreshold='0000'; %0-30, step 2
+    CFARsize='0000';%0000-0|1111-15| n of 
+    CFARgrd='00'; %guard cells range 0-3
     AVERAGEn='00'; %n FFTs averaged range 0-3
     FFTsize='000';% 000-32,64,128...,111-2048 100 for 512
     DOWNsample='000';%downsampling factor 000-0,1,2,4,8..111-64

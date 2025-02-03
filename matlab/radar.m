@@ -51,7 +51,7 @@ classdef radar < handle
 			reserved2='0000';
 			protocol='010';       % 001 TSV output | 010 binary | 000 webgui
 			AGC='0';              % auto gain 0-off | 1-on
-			gain='10';            % 00-8dB | 10-21dB | 10-43dB | 11-56dB
+			gain='00';            % 00-8dB | 10-21dB | 10-43dB | 11-56dB
 			SER2='1';             % usb connect 0-off | 1-on
 			SER1='0';             % wifi 0-off | 1-on
 			SLF='1';              % 0-ext trig mode | 1-standard

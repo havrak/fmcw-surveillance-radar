@@ -9,6 +9,7 @@ pdfa.xmpi
 *.asv
 *.bcf
 *.lof
+*.mmz
 *.lot
 *.run.xml
 /# Excluded #
