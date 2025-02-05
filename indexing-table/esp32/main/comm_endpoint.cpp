@@ -77,6 +77,11 @@ void CommEndpoint::uartEvent(void* commEndpointInstance) // TODO pin to core 0
 bool CommEndpoint::setupComm()
 {
 	ESP_LOGI(TAG, "setupComm | Setting up serial");
+	ESP_LOGI(TAG, "setupComm | CONFIG_COMM_RS232_BAUDRATE: %d", CONFIG_COMM_RS232_BAUDRATE);
+	ESP_LOGI(TAG, "setupComm | CONFIG_COMM_RS232_BUFFER_SIZE: %d", CONFIG_COMM_RS232_BUFFER_SIZE);
+
+
+	vTaskDelay(1000 / portTICK_PERIOD_MS);
 	esp_err_t err;
 	uart_config_t uart_config = {
 		.baud_rate = CONFIG_COMM_RS232_BAUDRATE,
@@ -104,7 +109,9 @@ bool CommEndpoint::setupComm()
 	}
 
 	// Create a task to handler UART event from ISR
-	xTaskCreatePinnedToCore(uartEvent, "uartEvent", 2048, this, 12, NULL, 0);
+	xTaskCreate(uartEvent, "uartEvent", 2048, NULL, 12, NULL);
+
+	// xTaskCreatePinnedToCore(uartEvent, "uartEvent", 2048, this, 12, NULL, 0);
 	return true;
 }
 

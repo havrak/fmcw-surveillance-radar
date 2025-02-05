@@ -46,7 +46,7 @@ void OSCore::setup()
 	// WiFiManager::getInstance()->setOnConnectionLost(std::bind(&OSCore::connectionToAPLost, this));
 	// WiFiManager::getInstance()->setRegime(WiFiRegime::WIFI_REGIME_STATION);
 
-	commEndpoint.setupComm();
+	// commEndpoint.setupComm();
 
 	// ------------------------------------------
 	// Time Manager
@@ -56,13 +56,10 @@ void OSCore::setup()
 	// Peripherals
 	// ------------------------------------------
 	ESP_LOGI(TAG, "setup | Peripherals");
-	// lcd = new PerI2CLCDDecorator(I2CPeriphery(0x27), 20, 4);
 	stepperControl.init();
 
-
-	// stepepr ()
 	// on first step there is some kind of initialization taking place making it much slower
-	steppers.stepStepperH(24000, 120); // one rotation -> 6 seconds
+	steppers.stepStepperH(1000, 15,true); // one rotation -> 6 seconds
 
 	// steppers.stepStepperH(200, 60); // one rotation -> 6 seconds
 

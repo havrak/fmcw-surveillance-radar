@@ -1,32 +1,5 @@
 menu "Indexing Table Configuration"
 
-config COMM_MQTT_BROKER_URL
-string "COMM_MQTT Broker URL"
-default "mqtt://broker.hivemq.com"
-help
-	URL of the broker to connect to
-
-config COMM_MQTT_PASSWORD_PROTECTED
-
-bool "COMM_MQTT Password Protected"
-default false
-help
-	Enable password protection for MQTT
-
-config COMM_MQTT_BROKER_USERNAME
-string "COMM_MQTT Username"
-default ""
-depends on COMM_MQTT_PASSWORD_PROTECTED
-help
-	Username to use for authentication
-
-config COMM_MQTT_BROKER_PASSWORD
-string "COMM_MQTT Password"
-default ""
-depends on COMM_MQTT_PASSWORD_PROTECTED
-help
-	Password to use for authentication
-
 config COMM_RS232_BUFFER_SIZE
 int "COMM RS232 communication buffer Size"
 range 128 4096
@@ -48,6 +21,8 @@ config COMM_RS232_BAUDRATE_38400
 bool '38400'
 config COMM_RS232_BAUDRATE_57600
 bool '57600'
+config COMM_RS232_BAUDRATE_115200
+bool '115200'
 config COMM_RS232_BAUDRATE_115200
 bool '115200'
 endchoice
@@ -113,21 +88,21 @@ help
 config STEPPER_H_PIN_DIR
 int "Horizontal motor GPIO connection direction pin"
 range 0 100
-default 23
+default 20
 help
 	Horizontal motor GPIO connection for direction pin
 
 config STEPPER_H_PIN_STEP
 int "Horizontal motor GPIO connection for step pin"
 range 0 100
-default 22
+default 19
 help
 	Horizontal motor GPIO connection for step pin
 
 config STEPPER_H_PIN_SENSE
 int "Horizontal motor GPIO connection for sense pin"
 range 0 100
-default 21
+default 18
 help
 	Horizontal motor GPIO connection for sense pin
 
@@ -140,7 +115,7 @@ help
 
 config STEPPER_T_PIN_ENDSTOP
 int  "Tilt motor endstop pin"
-default  -1
+default 11
 range -1 100
 help
 	GPIO pin number of the endstop of the motor in tilt axis, -1 for no endstop
@@ -148,21 +123,21 @@ help
 config STEPPER_T_PIN_DIR
 int "Tilt motor GPIO connection for direction pin"
 range 0 100
-default 20
+default 23
 help
 	Tilt motor GPIO connection for direction pin
 
 config STEPPER_T_PIN_STEP
 int "Tilt motor GPIO connection for step pin"
 range 0 100
-default 19
+default 22
 help
 	Tilt motor GPIO connection for step pin
 
 config STEPPER_T_PIN_SENSE
 int "Tilt motor GPIO connection for sense pin"
 range 0 100
-default 18
+default 21
 help
 	Tilt motor GPIO connection for sense pin
 
