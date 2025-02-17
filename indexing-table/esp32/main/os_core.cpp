@@ -36,36 +36,21 @@ void OSCore::loop()
 
 void OSCore::setup()
 {
-	// Wire.begin(SDA, SCL);
-	//
-	// ------------------------------------------
-	// WiFi
-	// ------------------------------------------
-	// ESP_LOGI(TAG, "setup | WiFi");
-	// WiFiManager::getInstance()->setOnConnectionEstablished(std::bind(&OSCore::connectionToAPEstablished, this));
-	// WiFiManager::getInstance()->setOnConnectionLost(std::bind(&OSCore::connectionToAPLost, this));
-	// WiFiManager::getInstance()->setRegime(WiFiRegime::WIFI_REGIME_STATION);
-
-	// commEndpoint.setupComm();
-
-	// ------------------------------------------
-	// Time Manager
-	// ------------------------------------------
-
 	// ------------------------------------------
 	// Peripherals
 	// ------------------------------------------
 	ESP_LOGI(TAG, "setup | Peripherals");
 	stepperControl.init();
+	commEndpoint.setupComm();
 
 	// on first step there is some kind of initialization taking place making it much slower
-	steppers.stepStepperH(1000, 15,true); // one rotation -> 6 seconds
+	steppers.stepStepper(stepperHalH, 3000, 60,true);
+	steppers.stepStepper(stepperHalT, 3000, 60,true);
 
-	// steppers.stepStepperH(200, 60); // one rotation -> 6 seconds
+	// steppers.stepStepper(varsHalT, 30000, 10,true); // one rotation -> 6 seconds
+	// vTaskDelay(6000 / portTICK_PERIOD_MS);
+	// stepperControl.parseGCode("M80", 3);
 
-	// spi
-	// char* testComamnd = "G0 HX";
-	// stepperControl.parseGCode(testComamnd, strlen(testComamnd));
 
 
 	// ------------------------------------------

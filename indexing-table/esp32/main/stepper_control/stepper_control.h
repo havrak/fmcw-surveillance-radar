@@ -198,10 +198,11 @@ typedef struct gcode_programm_t {
 typedef struct {
 	int32_t stepsMin = GCODE_ELEMENT_INVALID_INT32;							 // minimum number of steps from home, we can allow multiple rotations possibly
 	int32_t stepsMax = GCODE_ELEMENT_INVALID_INT32;							 // maximum number of steps from home
+	int16_t stepCount = 0;
 	int64_t position = 0;
 	int32_t positionLastScheduled = 0;
 	PositioningMode positioningMode = PositioningMode::RELATIVE;
-} stepper_variables_t;
+} stepper_operation_paramters_t;
 
 /*
  * NOTE

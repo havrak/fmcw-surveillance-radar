@@ -72,9 +72,11 @@ typedef struct {
 		pcnt_channel_handle_t pcntChan = NULL;
 		QueueHandle_t pcntQueue;
 		uint8_t stepperCompleteBit = 0;
+		gpio_num_t stepperDirectionPin = (gpio_num_t) 0;
 
 
-} stepper_hal_variables_t;
+} stepper_hal_struct_t;
+
 
 
 /**
@@ -91,40 +93,8 @@ class StepperHal{
 
 		static void stepperTask(void *arg);
 
-		static stepper_hal_variables_t varsHalH;
-		static stepper_hal_variables_t varsHalT;
 
-		/**
-		 * previous command issued, used by the application layer to determine
-		 * what number of steps last command had so we can calculate the current angle
-		 * timestmap will be time of their finish
-		 */
-		// inline static stepper_hal_command_t* varsHalH.stepperCommand;
-		// inline static stepper_hal_command_t* varsHalT.stepperCommand;
-		// inline static stepper_hal_command_t* stepperCommandPrevH;
-		// inline static stepper_hal_command_t* stepperCommandPrevT;
-		// inline static QueueHandle_t varsHalH.commandQueue = NULL;
-		// inline static QueueHandle_t varsHalT.commandQueue = NULL;
 		inline static EventGroupHandle_t stepperEventGroup = NULL;
-		//
-		// inline static mcpwm_timer_handle_t timerH = NULL;
-		// inline static mcpwm_timer_handle_t timerT = NULL;
-		//
-		// inline static mcpwm_oper_handle_t operatorH = NULL;
-		// inline static mcpwm_oper_handle_t operatorT = NULL;
-		// inline static mcpwm_cmpr_handle_t comparatorH = NULL;
-		// inline static mcpwm_cmpr_handle_t comparatorT = NULL;
-		// inline static mcpwm_gen_handle_t generatorH = NULL;
-		// inline static mcpwm_gen_handle_t generatorT = NULL;
-		//
-		// // PCNT variables
-		// inline static pcnt_unit_handle_t varsHalH.pcntUnit = NULL;
-		// inline static pcnt_unit_handle_t varsHalT.pcntUnit = NULL;
-		// inline static pcnt_channel_handle_t pcntChanH = NULL;
-		// inline static pcnt_channel_handle_t pcntChanT = NULL;
-		// inline static QueueHandle_t pcntQueueH;
-		// inline static QueueHandle_t pcntQueueT;
-		//
 
 		/**
 		 * @brief initializes the PWM generator
@@ -142,41 +112,21 @@ class StepperHal{
 		 */
 		void initStepperTasks();
 
-		/**
-		 * @brief get number of commands queued for stepper H
-		 *
-		 * @param uint8_t - number of commands in queue
-		 */
-		uint8_t getQueueLengthH(){
-			return uxQueueMessagesWaiting(varsHalH.commandQueue);
-		}
 
 		/**
 		 * @brief get number of commands queued for stepper T
 		 *
 		 * @param uint8_t - number of commands in queue
 		 */
-		uint8_t getQueueLengthT(){
-			return uxQueueMessagesWaiting(varsHalT.commandQueue);
-		}
+		uint8_t getQueueLength(stepper_hal_struct_t* stepperHal);
 
 		/**
 		 * @brief peek at next command in queue for stepper H
 		 *
 		 * @param pointer - stepper_hal_command_t* to which next command will be stored
 		 */
-		bool peekQueueH(stepper_hal_command_t* pointer){
-			return xQueuePeek(varsHalH.commandQueue, pointer, portMAX_DELAY) == pdTRUE;
-		}
+		bool peekQueue(stepper_hal_struct_t* stepperHal, stepper_hal_command_t* pointer);
 
-		/**
-		 * @brief peek at next command in queue for stepper T
-		 *
-		 * @param pointer - stepper_hal_command_t* to which next command will be stored
-		 */
-		bool peekQueueT(stepper_hal_command_t* pointer){
-			return xQueuePeek(varsHalT.commandQueue, pointer, portMAX_DELAY) == pdTRUE;
-		}
 
 
 		/**
@@ -189,19 +139,19 @@ class StepperHal{
 		 * @param synchronized - if true stepper H will wait for stepper T to finish before moving to next task
 		 * @return true if command was added successfully
 		 */
-		bool stepStepperH(int16_t steps, float rpm, bool synchronized = false);
+		bool stepStepper(stepper_hal_struct_t* stepperHal, int16_t steps, float rpm, bool synchronized = false);
 
-		/**
-		 * @brief steps stepper T a given number of steps
-		 * if steps is set to zero command will be interpreted as CommandType::SKIP
-		 * this can be used to maintain synchronization between command queues of two steppers
-		 *
-		 * @param steps  - number of steps stepper will take, limited to +-32767
-		 * @param rmp - rotations per minute
-		 * @param synchronized - if true stepper T will wait for stepper H to finish before moving to next task
-		 * @return true if command was added successfully
-		 */
-		bool stepStepperT(int16_t steps, float rpm, bool synchronized = false);
+		// /**
+		//  * @brief steps stepper T a given number of steps
+		//  * if steps is set to zero command will be interpreted as CommandType::SKIP
+		//  * this can be used to maintain synchronization between command queues of two steppers
+		//  *
+		//  * @param steps  - number of steps stepper will take, limited to +-32767
+		//  * @param rmp - rotations per minute
+		//  * @param synchronized - if true stepper T will wait for stepper H to finish before moving to next task
+		//  * @return true if command was added successfully
+		//  */
+		// bool stepStepperT(int16_t steps, float rpm, bool synchronized = false);
 
 		/**
 		 *	@brief waits for a given time on stepper H
@@ -210,25 +160,9 @@ class StepperHal{
 		 * @param synchronized - if true stepper H will wait for stepper T to finish before moving to next task
 		 * @return true if command was added successfully
 		 */
-		bool waitStepperH(uint32_t time, bool synchronized = false);
+		bool waitStepper(stepper_hal_struct_t* stepperHal, uint32_t time, bool synchronized = false);
 
-		/**
-		 *	@brief waits for a given time on stepper T
-		 *
-		 * @param time - time in ms to wait
-		 * @param synchronized - if true stepper T will wait for stepper H to finish before moving to next task
-		 * @return true if command was added successfully
-		 */
-		bool waitStepperT(uint32_t time, bool synchronized = false);
 
-		/**
-		 * @brief activates spindle on stepper
-		 * spindle is never synchronized
-		 *
-		 * @param rpm - rotations per minute
-		 * @return true if command was added successfully
-		 */
-		bool spindleStepperH(float rpm, Direction direction);
 
 		/**
 		 * @brief activates spindle on stepper T
@@ -237,41 +171,27 @@ class StepperHal{
 		 * @param rpm - rotations per minute
 		 * @return true if command was added successfully
 		 */
-		bool spindleStepperT(float rpm, Direction direction);
+		bool spindleStepper(stepper_hal_struct_t* stepperHal, float rpm, Direction direction);
 
-		/**
-		 * @brief stops the stepper H
-		 *
-		 * @return true if command was added successfully
-		 */
-		bool stopStepperH(bool synchronized = false);
 
 		/**
 		 * @brief stops the stepper T
 		 *
 		 * @return true if command was added successfully
 		 */
-		bool stopStepperT(bool synchronized = false);
+		bool stopStepper(stepper_hal_struct_t* stepperHal, bool synchronized = false);
 
-		/**
-		 * @brief immediately stops the stepper H, clears the queue
-		 */
-		void stopNowStepperH();
 
 		/**
 		 * @brief immediately stops the stepper T, clears the queue
 		 */
-		void stopNowStepperT();
+		void stopNowStepper(stepper_hal_struct_t* stepperHal);
+
 
 		/**
 		 * @brief skip command, used to maintain synchronization between command queues
 		 */
-		bool skipStepperH(bool synchronized = true);
-
-		/**
-		 * @brief skip command, used to maintain synchronization between command queues
-		 */
-		bool skipStepperT(bool synchronized = true);
+		bool skipStepper(stepper_hal_struct_t* stepperHal, bool synchronized = true);
 
 		/**
 		 * @brief clears command queue and issues stop command
@@ -286,21 +206,8 @@ class StepperHal{
 		 *
 		 * @return true if queue was cleared successfully
 		 */
-		bool clearQueueH();
+		bool clearQueue(stepper_hal_struct_t* stepperHal);
 
-		/**
-		 * @brief clears command queue for stepper T
-		 *
-		 * @return true if queue was cleared successfully
-		 */
-		bool clearQueueT();
-
-		/**
-		 * @brief return number of steps traveled by stepper H since start of the command
-		 *
-		 * @return int64_t - number of steps
-		 */
-		int64_t getStepsTraveledOfCurrentCommandH();
 
 
 		/**
@@ -308,16 +215,8 @@ class StepperHal{
 		 *
 		 * @return int64_t - number of steps
 		 */
-		int64_t getStepsTraveledOfCurrentCommandT();
+		int64_t getStepsTraveledOfCurrentCommand(stepper_hal_struct_t* stepperHal);
 
-
-		/**
-		 * @brief return number of steps traveled by stepper H in previous command
-		 * if synchronized of the previous command is set true than the number of steps will be zero
-		 *
-		 * @return int64_t - number of steps
-		 */
-		int64_t getStepsTraveledOfPrevCommandH();
 
 
 		/**
@@ -326,13 +225,16 @@ class StepperHal{
 		 *
 		 * @return int64_t - number of steps
 		 */
-		int64_t getStepsTraveledOfPrevCommandT();
+		int64_t getStepsTraveledOfPrevCommand(stepper_hal_struct_t* stepperHal);
 
 
 
 };
 
+
 extern StepperHal steppers;
+extern stepper_hal_struct_t* stepperHalH;
+extern stepper_hal_struct_t* stepperHalT;
 
 
 #endif /* !STEPPER_HAL_H */

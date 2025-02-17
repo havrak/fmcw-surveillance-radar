@@ -83,6 +83,12 @@ help
 	GPIO pin number of the endstop of the motor in horizontal axis, -1 for no endstop
 
 
+config STEPPER_H_PIN_EN
+int "Horizontal motor GPIO connection enable pin"
+range 0 100
+default 6
+help
+	Horizontal motor GPIO connection enable pin
 
 
 config STEPPER_H_PIN_DIR
@@ -119,6 +125,13 @@ default 11
 range -1 100
 help
 	GPIO pin number of the endstop of the motor in tilt axis, -1 for no endstop
+
+config STEPPER_T_PIN_EN
+int "Tilt motor GPIO connection enable pin"
+range 0 100
+default 7
+help
+	Tilt motor GPIO connection enable pin
 
 config STEPPER_T_PIN_DIR
 int "Tilt motor GPIO connection for direction pin"
