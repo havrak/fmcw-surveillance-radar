@@ -228,6 +228,9 @@ class StepperControl{
 	static void endstopHHandler(void* arg);
 	static void endstopTHandler(void* arg);
 
+	static int32_t moveStepperAbsolute(stepper_hal_struct_t* stepperHal, gcode_command_movement_t* movement, const stepper_operation_paramters_t* stepperOpPar, bool synchronized);
+
+	static int32_t moveStepperRelative(stepper_hal_struct_t* stepperHal, gcode_command_movement_t* movement, const stepper_operation_paramters_t* stepperOpPar, bool synchronized);
 
 	public:
 	constexpr static char TAG[] = "StepperControl";
