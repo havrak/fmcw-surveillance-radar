@@ -24,8 +24,8 @@ void StepperControl::init()
 
 	pinMode(CONFIG_STEPPER_H_PIN_EN, OUTPUT);
 	pinMode(CONFIG_STEPPER_T_PIN_EN, OUTPUT);
-	ESP_LOGI(TAG, "StepperControl | enable pin stepper H %d", CONFIG_STEPPER_H_PIN_EN);
-	ESP_LOGI(TAG, "StepperControl | enable pin stepper T %d", CONFIG_STEPPER_T_PIN_EN);
+	ESP_LOGI(TAG, "StepperControl | stepper H\n\tenable pin %d\n\tendstop pin %d\n\tstep pin %d\n\tsense pin %d\n\tdirection pin %d", CONFIG_STEPPER_H_PIN_EN, CONFIG_STEPPER_H_PIN_ENDSTOP, CONFIG_STEPPER_H_PIN_STEP, CONFIG_STEPPER_H_PIN_SENSE, CONFIG_STEPPER_H_PIN_DIR);
+	ESP_LOGI(TAG, "StepperControl | stepper T\n\tenable pin %d\n\tendstop pin %d\n\tstep pin %d\n\tsense pin %d\n\tdirection pin %d", CONFIG_STEPPER_T_PIN_EN, CONFIG_STEPPER_T_PIN_ENDSTOP, CONFIG_STEPPER_T_PIN_STEP, CONFIG_STEPPER_T_PIN_SENSE, CONFIG_STEPPER_T_PIN_DIR);
 	gpio_set_level((gpio_num_t)CONFIG_STEPPER_H_PIN_EN, 0);
 
 	gpio_set_level((gpio_num_t)CONFIG_STEPPER_T_PIN_EN, 0);

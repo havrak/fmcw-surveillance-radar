@@ -10,6 +10,8 @@ pdfa.xmpi
 *.bcf
 *.lof
 *.mmz
+*.DAT
+*.mat
 *.lot
 *.run.xml
 /# Excluded #

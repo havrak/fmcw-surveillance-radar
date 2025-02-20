@@ -1,6 +1,5 @@
 ## IDF Component Manager Manifest File
 dependencies:
-  espressif/esp-modbus: "*"
   JoTioTech/fw-lib-esp32-hal:
     path: "$HOME/prog/embedded/esp32-fw/fw-lib-esp32-hal"
     # path: "."
