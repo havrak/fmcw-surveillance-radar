@@ -13,7 +13,6 @@
 #include <queue>
 #include <stepper_control.h>
 
-#define EX_UART_NUM UART_NUM_0
 #define MAX_COMMAND_LENGTH 64
 
 #define LENGTH_TO_COPY(x, y) (x+y >= CONFIG_COMM_RS232_BUFFER_SIZE ? CONFIG_COMM_RS232_BUFFER_SIZE - x : y)

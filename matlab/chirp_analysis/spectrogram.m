@@ -39,15 +39,36 @@ end
 fprintf("Data loaded\n");
 
 figure;
-timeWindow = 150e-3; % 20 milliseconds
-idx = time >= max(time) - timeWindow; % Get indices of the last 20ms
+timeWindow = 150e-3; 
+step = round(timeWindow / segLen / 10);
+idx = time < timeWindow; 
 
-% Create 2D Waterfall Plot
 figure;
-imagesc(frequencies/1e6, time(idx)*1e3, spectrograms(idx, :)); % X in MHz, Y in ms
-axis xy; % Ensure correct orientation (time increasing downward)
-colormap(jet); % Choose colormap
-colorbar; % Show color scale
+imagesc(frequencies/1e6, time(idx)*1e3, spectrograms(idx, :)); 
+axis xy;
+colormap(jet); 
+colorbar; 
 xlabel('Frequency (MHz)');
 ylabel('Time (ms)');
 title('Waterfall Diagram');
+
+
+%% Processing
+figure;
+
+axis xy;
+colormap(jet); 
+colorbar; 
+xlabel('Frequency (MHz)');
+ylabel('Time (ms)');
+title('Waterfall Diagram');
+
+
+
+
+frequenciesRange = frequencies < 24.0005e9 & frequencies > 23.999e9;
+
+specStart=spectrograms(:, frequenciesRange);
+specStart(specStart < -40) = 0;
+
+imagesc(frequencies(frequenciesRange,:)/1e6, time(:)*1e3, specStart(:, :)); 

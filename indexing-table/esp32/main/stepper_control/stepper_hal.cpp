@@ -180,8 +180,8 @@ void StepperHal::stepperTask(void* arg)
 			// Reset and start pulse counter
 			switch (stepperHal->stepperCommand->type) {
 			case CommandType::STEPPER:
-#ifdef CONFIG_STEPPER_DEBUG
-				ESP_LOGI(TAG, "Stepper %s (STEPPER):\n\tperiod: %ld\n\tsteps: %ld", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "H" : "T", period_ticks, stepperHal->stepperCommand->val.steps);
+#ifdef CONFIG_HAL_DEBUG
+				ESP_LOGI(TAG, "Stepper %s (STEPPER), period: %ld, steps: %ld", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "H" : "T", period_ticks, stepperHal->stepperCommand->val.steps);
 #endif
 				stepperHal->stepperCommand->timestamp = esp_timer_get_time();
 				stepperHal->stepperCommand->complete = false;
@@ -192,8 +192,8 @@ void StepperHal::stepperTask(void* arg)
 				mcpwm_timer_start_stop(stepperHal->timer, MCPWM_TIMER_START_NO_STOP);
 				break;
 			case CommandType::SPINDLE:
-#ifdef CONFIG_STEPPER_DEBUG
-				ESP_LOGI(TAG, "Stepper %s (SPINDLE):\n\tperiod: %ld", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "H" : "T", period_ticks);
+#ifdef CONFIG_HAL_DEBUG
+				ESP_LOGI(TAG, "Stepper %s (SPINDLE), period: %ld", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "H" : "T", period_ticks);
 #endif
 				stepperHal->stepperCommand->timestamp = esp_timer_get_time();
 				stepperHal->stepperCommand->complete = false;
@@ -203,7 +203,7 @@ void StepperHal::stepperTask(void* arg)
 				vTaskDelay(CONFIG_STEPPER_MIN_SPINDLE_TIME / portTICK_PERIOD_MS); // NOTE: necessary delay to make sure information about previous command is read, if not present it would significantly complicate code
 				break;
 			case CommandType::SKIP:
-#ifdef CONFIG_STEPPER_DEBUG
+#ifdef CONFIG_HAL_DEBUG
 				ESP_LOGI(TAG, "Stepper %s (SKIP)", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "H" : "T");
 #endif
 				stepperHal->stepperCommand->complete = false;
@@ -212,15 +212,15 @@ void StepperHal::stepperTask(void* arg)
 				xEventGroupSetBits(StepperHal::stepperEventGroup, stepperHal->stepperCompleteBit);
 				break;
 			case CommandType::WAIT:
-#ifdef CONFIG_STEPPER_DEBUG
-				ESP_LOGI(TAG, "Stepper %s (WAIT):\n\ttime: %ld", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "H" : "T", stepperHal->stepperCommand->val.time);
+#ifdef CONFIG_HAL_DEBUG
+				ESP_LOGI(TAG, "Stepper %s (WAIT), time: %ld", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "H" : "T", stepperHal->stepperCommand->val.time);
 #endif
 				stepperHal->stepperCommand->complete = false;
 				vTaskDelay(stepperHal->stepperCommand->val.time / portTICK_PERIOD_MS);
 				xEventGroupSetBits(StepperHal::stepperEventGroup, stepperHal->stepperCompleteBit);
 				break;
 			case CommandType::STOP:
-#ifdef CONFIG_STEPPER_DEBUG
+#ifdef CONFIG_HAL_DEBUG
 				ESP_LOGI(TAG, "Stepper %s (STOP)", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "H" : "T");
 #endif
 				stepperHal->stepperCommand->complete = false;
@@ -237,7 +237,7 @@ void StepperHal::stepperTask(void* arg)
 					portMAX_DELAY);
 
 			stepperHal->stepperCommand->complete = true;
-#ifdef CONFIG_STEPPER_DEBUG
+#ifdef CONFIG_HAL_DEBUG
 			ESP_LOGI(TAG, "Stepper %s completed", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "H" : "T");
 #endif
 
