@@ -2,21 +2,21 @@ menu "Indexing Table Configuration"
 
 config COMM_DEBUG
 default n
-bool "Enable debug for comm layer"
+bool "Enable debug for communication layer"
 help
 	Enable debug messages for  communication layer
 
 config APP_DEBUG
 default n
-bool "Enable debug for aplication and comm layer"
+bool "Enable debug for aplication layer"
 help
 	Enable debug messages for application
 
 config HAL_DEBUG
-bool "Enable motor debug"
+bool "Enable debug for hal layer"
 default n
 help
-	Enable debug messages for motor
+	Enable debug messages for hal layer
 
 
 config COMM_RS232_BUFFER_SIZE

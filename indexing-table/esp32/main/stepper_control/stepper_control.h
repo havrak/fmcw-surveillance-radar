@@ -84,6 +84,8 @@ enum ParsingGCodeResult : uint8_t {
 	CODE_FAILURE = 6,						 // command might be fine but code runned into unexpected occurrence
 	NON_CLOSED_LOOP = 7,				 // specific error that can arise only when we are ending programming, indicated that program has unclosed for loop, it is recommended to delete whole program and start again
 	COMMAND_BAD_CONTEXT = 8, 		 // command is not valid in current context
+
+	RESERVED = 0xFF, 					 // for internal use only
 };
 
 // 1st status: 	DONE - commnad is parsed rom string
@@ -95,33 +97,35 @@ enum ParsingGCodeResult : uint8_t {
 // 3rd status: DONE  - command has been validated as working
 //						 TODO  - command needs to be validated
 enum GCodeCommand : uint8_t {
-	M80, // turn on high voltage supply DONE XXX
-	M81, // turn off high voltage supply DONE XXX
-	G20, // set units to degrees DONE DONE
-	G21, // set units to steps DONE DONE
-	G90, // set absolute positioning DONE DONE
-	G91, // set relative positioning DONE DONE
-	G92, // set current position as home  DONE DONE
-	G28, // start homing routine DONE DONE
-	G0,	 // move stepper DONE DONE
-	M03, // start spindle DONE DONE
-	M05, // stop spindle DONE DONE
-	M201, // set limits DONE DONE
-	M202, // disable limits DONE DONE
-	P0,	 // stop programm execution DONE XXX
-	P1,	 // start programm execution DONE XXX?????
-	P2,	 // delete program from memory DONE XXX????? - could be runned in motorTask
-	P90, // start program declaration (header) DONE XXX
-	P91, // start program declaration (main body) DONE XXX
-	P92, // end programm declaration DONE XXX
-	P21, // declare for loop start DONE DONE
-	P22, // declare for loop end DONE DONE
-	P29, // declare infinitely looped programm DONE XXX
-	W0,	 // wait seconds DONE XXX
-	W1,	 // wait milliseconds DONE
+	//																						1st  2nd  3rd
+	M80, // turn on high voltage supply 					DONE XXX 	TODO
+	M81, // turn off high voltage supply 					DONE XXX 	TODO
+	G20, // set units to degrees 									DONE DONE TODO
+	G21, // set units to steps 										DONE DONE TODO
+	G90, // set absolute positioning 							DONE DONE TODO
+	G91, // set relative positioning 							DONE DONE TODO
+	G92, // set current position as home  				DONE DONE TODO
+	G28, // start homing routine 									DONE DONE TODO
+	G0,	 // move stepper 													DONE DONE TODO
+	M03, // start spindle 												DONE DONE TODO
+	M05, // stop spindle 													DONE DONE TODO
+	M201, // set limits 													DONE DONE TODO
+	M202, // disable limits 											DONE DONE TODO
+	P0,	 // stop programm execution 							DONE XXX	TODO
+	P1,	 // start programm execution 							DONE XXX	TODO
+	P2,	 // delete program from memory 						DONE XXX	TODO
+	P90, // start program declaration (header) 		DONE XXX 	TODO
+	P91, // start program declaration (main body) DONE XXX 	TODO
+	P92, // end programm declaration 							DONE XXX 	TODO
+	P21, // declare for loop start 								DONE DONE TODO
+	P22, // declare for loop end 									DONE DONE TODO
+	P29, // declare infinitely looped programm 		DONE XXX 	TODO
+	W0,	 // wait seconds 													DONE XXX 	TODO
+	W1,	 // wait milliseconds 										DONE TODO TODO
 
 
 	// clear stepper QUEUE
+	COMMAND_TO_REMOVE
 };
 
 // these structures will be stored as a programm declaration
@@ -159,7 +163,7 @@ typedef struct gcode_command_t {
 } gcode_command_t;
 
 typedef struct gcode_programm_t {
-	char name[20];
+	char name[32];
 
 	std::vector<gcode_command_t*>* header = nullptr; // point to a list to save received programms in programming mode
 	// iterator to currect header command
@@ -206,6 +210,7 @@ typedef struct {
 	PositioningMode positioningMode = PositioningMode::RELATIVE;
 } stepper_operation_paramters_t;
 
+
 /*
  * NOTE
  *
@@ -224,23 +229,141 @@ class StepperControl{
 
 	std::list<gcode_programm_t> programms;
 
-	TaskHandle_t stepperMoveTaskHandle = NULL;
+	TaskHandle_t commandSchedulerTaskHandle = NULL;
 
-	static void stepperMoveTask(void* arg);
+	/**
+	 * @brief get new command from queue parses it and schedules it's execution in HAL layer
+	 * command is either from noProgrammQueue or activeProgram, than all neccesary calculations
+	 * are carried out (limits, absolute positioning) and command is scheduled for execution
+	 */
+	static void commandSchedulerTask(void* arg);
+
+	/**
+	 * callback activated when horizontal endstop is triggered
+	 */
 	static void endstopHHandler(void* arg);
+
+	/**
+	 * callback activated when vertical endstop is triggered
+	 */
 	static void endstopTHandler(void* arg);
 
+	/**
+	 * @brief moves stepper to absolute position
+	 *
+	 * @param stepperHal - HAL struct containing all necessary information to control stepper
+	 * @param movement - struct containing information about movement to be executed
+	 * @param stepperOpPar - current operational parameters of the stepper
+	 * @param synchronized - if true both steppers will wait for each other before executing next command
+	 * @return int32_t - new position of the stepper
+	 */
 	static int32_t moveStepperAbsolute(stepper_hal_struct_t* stepperHal, gcode_command_movement_t* movement, const stepper_operation_paramters_t* stepperOpPar, bool synchronized);
 
+	/**
+	 * @brief moves stepper to relative position
+	 *
+	 * @param stepperHal - HAL struct containing all necessary information to control stepper
+	 * @param movement - struct containing information about movement
+	 * @param stepperOpPar - current operational parameters of the stepper
+	 * @param synchronized - if true both steppers will wait for each other before executing next command
+	 * @return int32_t - new position of the stepper
+	 */
 	static int32_t moveStepperRelative(stepper_hal_struct_t* stepperHal, gcode_command_movement_t* movement, const stepper_operation_paramters_t* stepperOpPar, bool synchronized);
+
+	/**
+	 * @brief extract float from string that follows after a given sequence of characters
+	 *
+	 * @param str - string from which float is extracted
+	 * @param length - length of the string
+	 * @param startIndex - index from which the search starts
+	 * @param matchString - sequence of characters that must be present before the float
+	 * @param elementLength - length of the sequence of characters
+	 * @return float - extracted float
+	 */
+	float getElementFloat(const char* str, const uint16_t length, const uint16_t startIndex, const char* matchString, const uint16_t elementLength);
+
+	/**
+	 * @brief extract int from string that follows after a given sequence of characters
+	 *
+	 * @param str - string from which int is extracted
+	 * @param length - length of the string
+	 * @param startIndex - index from which the search starts
+	 * @param matchString - sequence of characters that must be present before the int
+	 * @param elementLength - length of the sequence of characters
+	 * @return int - extracted int
+	 */
+	int getElementInt(const char* str, const uint16_t length, const uint16_t startIndex, const char* matchString, const uint16_t elementLength);
+
+	/**
+	 * @brief checks if given sequence of characters is present in the string
+	 *
+	 * @param str - string to be checked
+	 * @param length - length of the string
+	 * @param startIndex - index from which the search starts
+	 * @param matchString - sequence of characters that must be present in the string
+	 * @param elementLength - length of the sequence of characters
+	 * @return bool - true if the sequence is present, false otherwise
+	 */
+	bool getElementString(const char* str, const uint16_t length, const uint16_t startIndex, const char* matchString, const uint16_t elementLength);
+
+	/**
+	 * @brief parses non scheduled commands
+	 *
+	 * @param gcode - gcode to be parsed
+	 * @param length - length of the gcode
+	 * @return ParsingGCodeResult - result of the parsing
+	 */
+	ParsingGCodeResult parseGCodeNonScheduledCommands(const char* gcode, const uint16_t length);
+
+	/**
+	 * @brief parses G commands
+	 *
+	 * @param gcode - gcode to be parsed
+	 * @param length - length of the gcode
+	 * @param command - command to be filled with parsed data
+	 * @return ParsingGCodeResult - result of the parsing
+	 */
+	ParsingGCodeResult parseGCodeGCommands(const char* gcode, const uint16_t length, gcode_command_t* command);
+
+	/**
+	 * @brief parses M commands
+	 *
+	 * @param gcode - gcode to be parsed
+	 * @param length - length of the gcode
+	 * @param command - command to be filled with parsed data
+	 * @return ParsingGCodeResult - result of the parsing
+	 */
+	ParsingGCodeResult parseGCodeMCommands(const char* gcode, const uint16_t length, gcode_command_t* command);
+
+	/**
+	 * @brief parses W commands
+	 *
+	 * @param gcode - gcode to be parsed
+	 * @param length - length of the gcode
+	 * @param command - command to be filled with parsed data
+	 * @return ParsingGCodeResult - result of the parsing
+	 */
+	ParsingGCodeResult parseGCodeWCommands(const char* gcode, const uint16_t length, gcode_command_t* command);
+
+	/**
+	 * @brief parses P commands
+	 *
+	 * @param gcode - gcode to be parsed
+	 * @param length - length of the gcode
+	 * @param command - command to be filled with parsed data
+	 * @return ParsingGCodeResult - result of the parsing
+	 */
+	ParsingGCodeResult parseGCodePCommands(const char* gcode, const uint16_t length, gcode_command_t* command);
+
 
 	public:
 	constexpr static char TAG[] = "StepperControl";
 
 	// operational variables of the steppers, std::atomic seemed to be fastest, rtos synchronization was slower
 	inline static std::atomic<ProgrammingMode> programmingMode = ProgrammingMode::NO_PROGRAMM;
-	static SemaphoreHandle_t noProgrammQueueLock;
 	static std::queue<gcode_command_t*> noProgrammQueue; // TODO -> static
+
+	inline static SemaphoreHandle_t noProgrammQueueLock = NULL;
 
 	inline static EventGroupHandle_t homingEventGroup = NULL;
 	inline static gcode_programm_t* activeProgram = nullptr;	 // TODO -> static
@@ -253,7 +376,7 @@ class StepperControl{
 	 *
 	 * @param mode
 	 */
-	ParsingGCodeResult parseGCode(const char* gcode, uint16_t length);
+	ParsingGCodeResult parseGCode(const char* gcode, const uint16_t length);
 
 	void init();
 

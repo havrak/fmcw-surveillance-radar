@@ -45,8 +45,8 @@ void OSCore::setup()
 	ESP_LOGI(TAG, "Device initialized");
 
 	// on first step there is some kind of initialization taking place making it much slower
-	steppers.stepStepper(stepperHalH, 3000, 15,true);
-	steppers.stepStepper(stepperHalT, 3000, 15,true);
+	// steppers.stepStepper(stepperHalH, 3000, 15,true);
+	// steppers.stepStepper(stepperHalT, 3000, 15,true);
 
 	// steppers.stepStepper(varsHalT, 30000, 10,true); // one rotation -> 6 seconds
 	// vTaskDelay(6000 / portTICK_PERIOD_MS);
