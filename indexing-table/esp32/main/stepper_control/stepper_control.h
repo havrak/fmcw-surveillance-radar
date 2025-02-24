@@ -92,16 +92,18 @@ enum ParsingGCodeResult : uint8_t {
 // 2nd status:	DONE - command is implemented in MotorTask
 //							TODO - command is not yet implemented in MotorTask
 // 							XXX  - command is not handled by MotorTask at all
+// 3rd status: DONE  - command has been validated as working
+//						 TODO  - command needs to be validated
 enum GCodeCommand : uint8_t {
 	M80, // turn on high voltage supply DONE XXX
-	M81, // turn off high voltage supply TODO XXX
+	M81, // turn off high voltage supply DONE XXX
 	G20, // set units to degrees DONE DONE
 	G21, // set units to steps DONE DONE
 	G90, // set absolute positioning DONE DONE
 	G91, // set relative positioning DONE DONE
 	G92, // set current position as home  DONE DONE
 	G28, // start homing routine DONE DONE
-	G0,	 // move stepper DONE TODO
+	G0,	 // move stepper DONE DONE
 	M03, // start spindle DONE DONE
 	M05, // stop spindle DONE DONE
 	M201, // set limits DONE DONE
