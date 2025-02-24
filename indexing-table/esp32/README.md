@@ -78,9 +78,11 @@ WARNING: DO NOT use this device without first reading the documentation. Command
 	* H - set absolute positioning on horizontal axis
 	* T - set absolute positioning on tilt axis
 	* NOTE: absolute positioning is not available in spindle mode, if you issue a M03 command to stepper in absolute positioning mode, it will be automatically switched to relative positioning and throw an error
+	* if no argument is provided both axis are switched to relative positioning
 * G91: sets relative positioning
 	* H - set relative positioning on horizontal axis
 	* T - set relative positioning on tilt axis
+	* if no argument is provided both axis are switched to relative positioning
 * G92: set current position as home
 	* NOTE: executes only when no other commands are queued in stepper queues
 * G28: move to home from current position
@@ -110,7 +112,7 @@ WARNING: DO NOT use this device without first reading the documentation. Command
 	* LT<ANGLE>: low limit on tilt stepper
 	* HT<ANGLE>: high limit on tilt stepper
 	* ANGLE is given in degrees if unit is set to degrees (0-360), otherwise in steps (0-STEP_COUNT)
-	* either no limits are placed on axis or both limits are placed, imposing just one limit doesn't make sense when we are limited only to one full rotation
+	* either no limits are placed on axis or both limits are placed, if user tries to impose just one limit whole axis will not be processed
 	* NOTE: keep in mind that if limits are imposed and current postion is not within them, you will have to get the device within limits in one G0 command
 * M202: disable limits
 	* H - disable limits on horizontal stepper

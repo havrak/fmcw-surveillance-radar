@@ -106,7 +106,7 @@ bool CommEndpoint::setupComm()
 	}
 
 	// Create a task to handler UART event from ISR
-	xTaskCreate(uartEvent, "uartEvent", 2048, NULL, 12, NULL);
+	xTaskCreate(uartEvent, "uartEvent", 8192, NULL, 12, NULL);
 	return true;
 }
 

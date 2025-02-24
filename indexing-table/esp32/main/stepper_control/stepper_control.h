@@ -30,8 +30,8 @@
 
 #define HOMING_DONE_BIT BIT2
 
-#define ANGLE_TO_STEPS(angle, steps_per_revolution) (angle * steps_per_revolution / 360)
-#define STEPS_TO_ANGLE(step, steps_per_revolution) (step * 360. / steps_per_revolution)
+#define ANGLE_TO_STEPS(angle, steps_per_revolution) ((angle * steps_per_revolution / 360))
+#define STEPS_TO_ANGLE(step, steps_per_revolution) ((float) (step * 360. / steps_per_revolution))
 #define ANGLE_DISTANCE(from, to, angleMax) ( \
     (((to) - (from) + (angleMax)) % (angleMax) > (angleMax) / 2) ? \
     ((to) - (from) + (angleMax)) % (angleMax) - (angleMax) : \
@@ -54,8 +54,7 @@
 #define STEPPER_COMPLETE_BIT_2 BIT1
 
 #define GCODE_ELEMENT_INVALID_FLOAT NAN
-#define GCODE_ELEMENT_INVALID_INT   0xFFFFFFFFFFFFFFFF
-#define GCODE_ELEMENT_INVALID_INT32 0xFFFFFFFF
+#define GCODE_ELEMENT_INVALID_INT 0xFFFFFFFF
 
 enum ProgrammingMode : uint8_t {
 	NO_PROGRAMM = 0, // commands are executed as they come in
@@ -98,19 +97,19 @@ enum ParsingGCodeResult : uint8_t {
 //						 TODO  - command needs to be validated
 enum GCodeCommand : uint8_t {
 	//																						1st  2nd  3rd
-	M80, // turn on high voltage supply 					DONE XXX 	TODO
-	M81, // turn off high voltage supply 					DONE XXX 	TODO
-	G20, // set units to degrees 									DONE DONE TODO
-	G21, // set units to steps 										DONE DONE TODO
-	G90, // set absolute positioning 							DONE DONE TODO
-	G91, // set relative positioning 							DONE DONE TODO
-	G92, // set current position as home  				DONE DONE TODO
+	M80, // turn on high voltage supply 					DONE XXX 	DONE
+	M81, // turn off high voltage supply 					DONE XXX 	DONE
+	G20, // set units to degrees 									DONE DONE DONE
+	G21, // set units to steps 										DONE DONE DONE
+	G90, // set absolute positioning 							DONE DONE DONE
+	G91, // set relative positioning 							DONE DONE DONE
+	G92, // set current position as home  				DONE DONE DONE
 	G28, // start homing routine 									DONE DONE TODO
 	G0,	 // move stepper 													DONE DONE TODO
 	M03, // start spindle 												DONE DONE TODO
 	M05, // stop spindle 													DONE DONE TODO
-	M201, // set limits 													DONE DONE TODO
-	M202, // disable limits 											DONE DONE TODO
+	M201, // set limits 													DONE DONE DONE // M201 LH30.41 HH150.5 LT10 HT100
+	M202, // disable limits 											DONE DONE DONE
 	P0,	 // stop programm execution 							DONE XXX	TODO
 	P1,	 // start programm execution 							DONE XXX	TODO
 	P2,	 // delete program from memory 						DONE XXX	TODO
@@ -133,19 +132,21 @@ enum GCodeCommand : uint8_t {
 // 	* time in case of wait ()
 typedef struct gcode_command_movement_t{
 	union {
-		uint64_t time;			 // for wait
+		int32_t time;			 // for wait
 		Direction direction; // for spindle mode
 		int16_t steps;			 // for regural steps
 		uint32_t iterations;	 // for for loop
 		struct {
-			int32_t min;
-			int32_t max;
+			float min;
+			float max;
 		} limits;
 	} val;
 	float rpm;
 
 	gcode_command_movement_t(){
-		val.time = GCODE_ELEMENT_INVALID_INT;
+		// val.time = GCODE_ELEMENT_INVALID_INT;
+		val.limits.min = GCODE_ELEMENT_INVALID_INT;
+		val.limits.max = GCODE_ELEMENT_INVALID_INT;
 		rpm = CONFIG_STEPPER_DEFAULT_SPEED;
 	};
 } gcode_command_movement_t;
@@ -157,8 +158,10 @@ typedef struct gcode_command_t {
 
 	~gcode_command_t()
 	{
-		delete movementH;
-		delete movementT;
+		if(movementH != nullptr)
+			delete movementH;
+		if(movementT != nullptr)
+			delete movementT;
 	}
 } gcode_command_t;
 
@@ -202,8 +205,8 @@ typedef struct gcode_programm_t {
 } gcode_programm_t;
 
 typedef struct {
-	int32_t stepsMin = GCODE_ELEMENT_INVALID_INT32;							 // minimum number of steps from home, we can allow multiple rotations possibly
-	int32_t stepsMax = GCODE_ELEMENT_INVALID_INT32;							 // maximum number of steps from home
+	uint32_t stepsMin = GCODE_ELEMENT_INVALID_INT;							 // minimum number of steps from home, we can allow multiple rotations possibly
+	uint32_t stepsMax = GCODE_ELEMENT_INVALID_INT;							 // maximum number of steps from home
 	int16_t stepCount = 0;
 	int64_t position = 0;
 	int32_t positionLastScheduled = 0;
@@ -290,9 +293,9 @@ class StepperControl{
 	 * @param startIndex - index from which the search starts
 	 * @param matchString - sequence of characters that must be present before the int
 	 * @param elementLength - length of the sequence of characters
-	 * @return int - extracted int
+	 * @return int32_t - extracted int
 	 */
-	int getElementInt(const char* str, const uint16_t length, const uint16_t startIndex, const char* matchString, const uint16_t elementLength);
+	int32_t getElementInt(const char* str, const uint16_t length, const uint16_t startIndex, const char* matchString, const uint16_t elementLength);
 
 	/**
 	 * @brief checks if given sequence of characters is present in the string

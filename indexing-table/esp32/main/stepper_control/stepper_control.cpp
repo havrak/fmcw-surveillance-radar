@@ -23,8 +23,8 @@ void StepperControl::init()
 
 	pinMode(CONFIG_STEPPER_H_PIN_EN, OUTPUT);
 	pinMode(CONFIG_STEPPER_T_PIN_EN, OUTPUT);
-	ESP_LOGI(TAG, "StepperControl | stepper H\n\tenable pin %d\n\tendstop pin %d\n\tstep pin %d\n\tsense pin %d\n\tdirection pin %d", CONFIG_STEPPER_H_PIN_EN, CONFIG_STEPPER_H_PIN_ENDSTOP, CONFIG_STEPPER_H_PIN_STEP, CONFIG_STEPPER_H_PIN_SENSE, CONFIG_STEPPER_H_PIN_DIR);
-	ESP_LOGI(TAG, "StepperControl | stepper T\n\tenable pin %d\n\tendstop pin %d\n\tstep pin %d\n\tsense pin %d\n\tdirection pin %d", CONFIG_STEPPER_T_PIN_EN, CONFIG_STEPPER_T_PIN_ENDSTOP, CONFIG_STEPPER_T_PIN_STEP, CONFIG_STEPPER_T_PIN_SENSE, CONFIG_STEPPER_T_PIN_DIR);
+	ESP_LOGI(TAG, "commandSchedulerTask | stepper H\n\tenable pin %d\n\tendstop pin %d\n\tstep pin %d\n\tsense pin %d\n\tdirection pin %d", CONFIG_STEPPER_H_PIN_EN, CONFIG_STEPPER_H_PIN_ENDSTOP, CONFIG_STEPPER_H_PIN_STEP, CONFIG_STEPPER_H_PIN_SENSE, CONFIG_STEPPER_H_PIN_DIR);
+	ESP_LOGI(TAG, "commandSchedulerTask | stepper T\n\tenable pin %d\n\tendstop pin %d\n\tstep pin %d\n\tsense pin %d\n\tdirection pin %d", CONFIG_STEPPER_T_PIN_EN, CONFIG_STEPPER_T_PIN_ENDSTOP, CONFIG_STEPPER_T_PIN_STEP, CONFIG_STEPPER_T_PIN_SENSE, CONFIG_STEPPER_T_PIN_DIR);
 	gpio_set_level((gpio_num_t)CONFIG_STEPPER_H_PIN_EN, 0);
 
 	gpio_set_level((gpio_num_t)CONFIG_STEPPER_T_PIN_EN, 0);
@@ -49,11 +49,12 @@ void StepperControl::init()
 	steppers.waitStepper(stepperHalT, 10);
 	steppers.stopStepper(stepperHalH);
 	steppers.stopStepper(stepperHalT);
-	// xTaskCreate(StepperControl::commandSchedulerTask, "commandSchedulerTask", 2048, NULL, 5, &commandSchedulerTaskHandle);
+	xTaskCreate(StepperControl::commandSchedulerTask, "commandSchedulerTask", 4096, NULL, 5, &commandSchedulerTaskHandle);
 }
 
 float StepperControl::getElementFloat(const char* str, const uint16_t length, const uint16_t startIndex, const char* matchString, const uint16_t elementLength)
 {
+	ESP_LOGI(TAG, "StepperControl | getElementFloat | start, matchString: %s, elementLength: %d", matchString, elementLength);
 	bool negative = false;
 	float toReturn = 0;
 	uint8_t decimal = 0;
@@ -61,6 +62,9 @@ float StepperControl::getElementFloat(const char* str, const uint16_t length, co
 		if (str[i] == matchString[0]) {
 			if (strncmp(str + i, matchString, elementLength) == 0) {
 				i += elementLength;
+
+				while (str[i] == ' ' && i < length)
+					i++;
 
 				if (str[i] == '-') {
 					negative = true;
@@ -81,7 +85,7 @@ float StepperControl::getElementFloat(const char* str, const uint16_t length, co
 					}
 					return GCODE_ELEMENT_INVALID_FLOAT;
 				}
-				toReturn /= pow(10, decimal - 1);
+				toReturn /= pow(10, decimal);
 				return negative ? -toReturn : toReturn;
 			}
 		}
@@ -89,7 +93,7 @@ float StepperControl::getElementFloat(const char* str, const uint16_t length, co
 	return GCODE_ELEMENT_INVALID_FLOAT;
 }
 
-int StepperControl::getElementInt(const char* str, const uint16_t length, const uint16_t startIndex, const char* matchString, const uint16_t elementLength)
+int32_t StepperControl::getElementInt(const char* str, const uint16_t length, const uint16_t startIndex, const char* matchString, const uint16_t elementLength)
 {
 	bool negative = false;
 	int64_t toReturn = 0;
@@ -97,6 +101,10 @@ int StepperControl::getElementInt(const char* str, const uint16_t length, const 
 		if (str[i] == matchString[0]) {
 			if (strncmp(str + i, matchString, elementLength) == 0) {
 				i += elementLength;
+
+				while (str[i] == ' ' && i < length)
+					i++;
+
 				if (str[i] == '-') {
 					negative = true;
 					i++;
@@ -130,7 +138,7 @@ bool StepperControl::getElementString(const char* str, const uint16_t length, co
 
 int32_t StepperControl::moveStepperAbsolute(stepper_hal_struct_t* stepperHal, gcode_command_movement_t* movement, const stepper_operation_paramters_t* stepperOpPar, bool synchronized)
 {
-	if (stepperOpPar->stepsMax == GCODE_ELEMENT_INVALID_INT32 && stepperOpPar->stepsMin == GCODE_ELEMENT_INVALID_INT32)
+	if (stepperOpPar->stepsMax == GCODE_ELEMENT_INVALID_INT && stepperOpPar->stepsMin == GCODE_ELEMENT_INVALID_INT)
 		steppers.stepStepper(stepperHalH, ANGLE_DISTANCE(stepperOpPar->positionLastScheduled, movement->val.steps, stepperOpPar->stepCount), movement->rpm, synchronized);
 	else if (stepperOpPar->stepsMax >= stepperOpPar->stepsMin) { // moving in interval <min, max>
 		if (movement->val.steps > stepperOpPar->stepsMax)
@@ -177,7 +185,7 @@ int32_t StepperControl::moveStepperAbsolute(stepper_hal_struct_t* stepperHal, gc
 
 int32_t StepperControl::moveStepperRelative(stepper_hal_struct_t* stepperHal, gcode_command_movement_t* movement, const stepper_operation_paramters_t* stepperOpPar, bool synchronized)
 {
-	if (stepperOpPar->stepsMax == GCODE_ELEMENT_INVALID_INT32 && stepperOpPar->stepsMin == GCODE_ELEMENT_INVALID_INT32) {
+	if (stepperOpPar->stepsMax == GCODE_ELEMENT_INVALID_INT && stepperOpPar->stepsMin == GCODE_ELEMENT_INVALID_INT) {
 		steppers.stepStepper(stepperHal, movement->val.steps, movement->rpm, synchronized);
 	} else if (stepperOpPar->stepsMax >= stepperOpPar->stepsMin) { // moving in interval <min, max>
 		if (stepperOpPar->positionLastScheduled + movement->val.steps >= stepperOpPar->stepsMax)
@@ -207,19 +215,19 @@ void StepperControl::commandSchedulerTask(void* arg)
 	stepper_operation_paramters_t stepperOpParT;
 	stepperOpParH.stepCount = CONFIG_STEPPER_H_STEP_COUNT;
 	stepperOpParT.stepCount = CONFIG_STEPPER_T_STEP_COUNT;
-	gcode_command_t* command = (gcode_command_t*)0x1; // NOTE: this is just hack so I don't have tu turn off -Werror=maybe-uninitialized
+	Unit unit = Unit::STEPS; // only used in motorTask
+
+	gcode_command_t* command = nullptr; // NOTE: this is just hack so I don't have tu turn off -Werror=maybe-uninitialized
 
 	// checks order of from and dest when in union of intervals <0, min> U <max, stepCount>
 	// true if from comes before dest -> we need to move clockwise
-
-	Unit unit = Unit::DEGREES; // only used in motorTask
 
 	while (true) {
 		stepperOpParH.position += steppers.getStepsTraveledOfPrevCommand(stepperHalH);
 		stepperOpParT.position += steppers.getStepsTraveledOfPrevCommand(stepperHalT);
 
 #ifndef CONFIG_APP_DEBUG
-		printf("!P %lld, %f, %f\n", esp_timer_get_time(), STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParH.position + steppers.getStepsTraveledOfCurrentCommand(stepperHalH), CONFIG_STEPPER_H_STEP_COUNT), CONFIG_STEPPER_H_STEP_COUNT), STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParT.position + steppers.getStepsTraveledOfCurrentCommand(stepperHalT), CONFIG_STEPPER_H_STEP_COUNT), CONFIG_STEPPER_H_STEP_COUNT));
+		printf("!P %ld, %f, %f\n", esp_timer_get_time(), STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParH.position + steppers.getStepsTraveledOfCurrentCommand(stepperHalH), CONFIG_STEPPER_H_STEP_COUNT), CONFIG_STEPPER_H_STEP_COUNT), STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParT.position + steppers.getStepsTraveledOfCurrentCommand(stepperHalT), CONFIG_STEPPER_H_STEP_COUNT), CONFIG_STEPPER_H_STEP_COUNT));
 #endif
 
 		// if queues are filled we will wait
@@ -228,11 +236,13 @@ void StepperControl::commandSchedulerTask(void* arg)
 			continue;
 		}
 
+		command = nullptr;
+
 		if (programmingMode == ProgrammingMode::NO_PROGRAMM) {
 			if (xSemaphoreTake(noProgrammQueueLock, (TickType_t)1000) == pdTRUE) {
 				if (noProgrammQueue.size() > 0) {
 #ifdef CONFIG_APP_DEBUG
-					ESP_LOGI(TAG, "StepperControl | CMD SOURCE: no programm queue");
+					ESP_LOGI(TAG, "commandSchedulerTask | CMD SOURCE: no programm queue");
 #endif
 					command = noProgrammQueue.front();
 					noProgrammQueue.pop();
@@ -242,37 +252,38 @@ void StepperControl::commandSchedulerTask(void* arg)
 		} else if (programmingMode == ProgrammingMode::RUN_PROGRAM) {
 			if (activeProgram->indexHeader != activeProgram->header->size()) { // running header
 #ifdef CONFIG_APP_DEBUG
-				ESP_LOGI(TAG, "StepperControl | CMD SOURCE: programm header");
+				ESP_LOGI(TAG, "commandSchedulerTask | CMD SOURCE: programm header");
 #endif
 				command = activeProgram->header->at(activeProgram->indexHeader);
 				activeProgram->indexHeader++;
 			} else if (activeProgram->indexMain == 0) { // header finished, switch to main
 #ifdef CONFIG_APP_DEBUG
-				ESP_LOGI(TAG, "StepperControl | CMD SOURCE: programm main (start)");
+				ESP_LOGI(TAG, "commandSchedulerTask | CMD SOURCE: programm main (start)");
 #endif
 				command = activeProgram->main->at(0);
 				activeProgram->indexMain = 1;
 			} else if (activeProgram->indexMain != activeProgram->main->size()) { // running main
 #ifdef CONFIG_APP_DEBUG
-				ESP_LOGI(TAG, "StepperControl | CMD SOURCE: programm main");
+				ESP_LOGI(TAG, "commandSchedulerTask | CMD SOURCE: programm main");
 #endif
 				command = activeProgram->main->at(activeProgram->indexMain);
 				activeProgram->indexMain++;
 			} else if (activeProgram->repeatIndefinitely) { // finished main but repeat indefinitely is on
 #ifdef CONFIG_APP_DEBUG
-				ESP_LOGI(TAG, "StepperControl | CMD SOURCE: programm main (repeat)");
+				ESP_LOGI(TAG, "commandSchedulerTask | CMD SOURCE: programm main (repeat)");
 #endif
 				command = activeProgram->main->at(0);
 				activeProgram->indexMain = 1;
 			} else { // finished main
 #ifdef CONFIG_APP_DEBUG
-				ESP_LOGI(TAG, "StepperControl | CMD SOURCE: programm main (end)");
+				ESP_LOGI(TAG, "commandSchedulerTask | CMD SOURCE: programm main (end)");
 #endif
 				activeProgram = nullptr;
 				programmingMode.store(ProgrammingMode::NO_PROGRAMM);
-				continue;
 			}
-		} else {
+		}
+
+		if (command == nullptr) {
 			vTaskDelay(20 / portTICK_PERIOD_MS); // there are no commands to process, we can wait and will only refresh the position
 			continue;
 		}
@@ -281,13 +292,13 @@ void StepperControl::commandSchedulerTask(void* arg)
 		switch (command->type) {
 		case GCodeCommand::G20:
 #ifdef CONFIG_APP_DEBUG
-			ESP_LOGI(TAG, "StepperControl | G20");
+			ESP_LOGI(TAG, "commandSchedulerTask | G20");
 #endif
 			unit = Unit::DEGREES;
 			break;
 		case GCodeCommand::G21:
 #ifdef CONFIG_APP_DEBUG
-			ESP_LOGI(TAG, "StepperControl | G21");
+			ESP_LOGI(TAG, "commandSchedulerTask | G21");
 #endif
 			unit = Unit::STEPS;
 			break;
@@ -298,11 +309,11 @@ void StepperControl::commandSchedulerTask(void* arg)
 				stepperOpParT.positioningMode = PositioningMode::ABSOLUTE;
 #ifdef CONFIG_APP_DEBUG
 			if (command->movementH != nullptr && command->movementT != nullptr)
-				ESP_LOGI(TAG, "StepperControl | G90 | H, T");
+				ESP_LOGI(TAG, "commandSchedulerTask | G90 | H, T");
 			else if (command->movementH != nullptr)
-				ESP_LOGI(TAG, "StepperControl | G90 | H");
+				ESP_LOGI(TAG, "commandSchedulerTask | G90 | H");
 			else if (command->movementT != nullptr)
-				ESP_LOGI(TAG, "StepperControl | G90 | T");
+				ESP_LOGI(TAG, "commandSchedulerTask | G90 | T");
 #endif
 			break;
 		case GCodeCommand::G91:
@@ -312,17 +323,17 @@ void StepperControl::commandSchedulerTask(void* arg)
 				stepperOpParT.positioningMode = PositioningMode::RELATIVE;
 #ifdef CONFIG_APP_DEBUG
 			if (command->movementH != nullptr && command->movementT != nullptr)
-				ESP_LOGI(TAG, "StepperControl | G91 | H, T");
+				ESP_LOGI(TAG, "commandSchedulerTask | G91 | H, T");
 			else if (command->movementH != nullptr)
-				ESP_LOGI(TAG, "StepperControl | G91 | H");
+				ESP_LOGI(TAG, "commandSchedulerTask | G91 | H");
 			else if (command->movementT != nullptr)
-				ESP_LOGI(TAG, "StepperControl | G91 | T");
+				ESP_LOGI(TAG, "commandSchedulerTask | G91 | T");
 #endif
 			break;
 		case GCodeCommand::G92:
 			if (steppers.getQueueLength(stepperHalH) == 0 && steppers.getQueueLength(stepperHalT) == 0) {
 #ifdef CONFIG_APP_DEBUG
-				ESP_LOGI(TAG, "StepperControl | G92");
+				ESP_LOGI(TAG, "commandSchedulerTask | G92");
 #endif
 				steppers.getStepsTraveledOfPrevCommand(stepperHalH); // clear previous command steps
 				steppers.getStepsTraveledOfPrevCommand(stepperHalT);
@@ -333,13 +344,13 @@ void StepperControl::commandSchedulerTask(void* arg)
 				stepperOpParT.positionLastScheduled = 0;
 			} else {
 #ifdef CONFIG_APP_DEBUG
-				ESP_LOGI(TAG, "StepperControl | G92 | ERR: cannot reset position while there are commands in queue");
+				ESP_LOGI(TAG, "commandSchedulerTask | G92 | ERR: cannot reset position while there are commands in queue");
 #endif
 			}
 			break;
 		case GCodeCommand::G28:
 #ifdef CONFIG_APP_DEBUG
-			ESP_LOGI(TAG, "StepperControl | G28");
+			ESP_LOGI(TAG, "commandSchedulerTask | G28");
 #endif
 			stepperControl.home();
 			break;
@@ -350,13 +361,13 @@ void StepperControl::commandSchedulerTask(void* arg)
 				command->movementH->val.steps = unit == Unit::DEGREES ? ANGLE_TO_STEPS(command->movementH->val.steps, CONFIG_STEPPER_H_STEP_COUNT) : command->movementH->val.steps;
 				if (stepperOpParH.positioningMode == PositioningMode::ABSOLUTE) {
 #ifdef CONFIG_APP_DEBUG
-					ESP_LOGI(TAG, "StepperControl | G0 | H absolute");
+					ESP_LOGI(TAG, "commandSchedulerTask | G0 | H absolute");
 #endif
 					command->movementH->val.steps = NORMALIZE_ANGLE(command->movementH->val.steps, CONFIG_STEPPER_H_STEP_COUNT);
 					stepperOpParH.positionLastScheduled = moveStepperAbsolute(stepperHalH, command->movementH, &stepperOpParH, SYNCHRONIZED);
 				} else {
 #ifdef CONFIG_APP_DEBUG
-					ESP_LOGI(TAG, "StepperControl | G0 | H relative");
+					ESP_LOGI(TAG, "commandSchedulerTask | G0 | H relative");
 #endif
 					stepperOpParH.positionLastScheduled = moveStepperRelative(stepperHalH, command->movementH, &stepperOpParH, SYNCHRONIZED);
 				}
@@ -367,13 +378,13 @@ void StepperControl::commandSchedulerTask(void* arg)
 				command->movementT->val.steps = unit == Unit::DEGREES ? ANGLE_TO_STEPS(command->movementT->val.steps, CONFIG_STEPPER_T_STEP_COUNT) : command->movementT->val.steps;
 				if (stepperOpParT.positioningMode == PositioningMode::ABSOLUTE) {
 #ifdef CONFIG_APP_DEBUG
-					ESP_LOGI(TAG, "StepperControl | G0 | T absolute");
+					ESP_LOGI(TAG, "commandSchedulerTask | G0 | T absolute");
 #endif
 					command->movementT->val.steps = NORMALIZE_ANGLE(command->movementT->val.steps, CONFIG_STEPPER_T_STEP_COUNT);
 					stepperOpParT.positionLastScheduled = moveStepperAbsolute(stepperHalT, command->movementT, &stepperOpParT, SYNCHRONIZED);
 				} else {
 #ifdef CONFIG_APP_DEBUG
-					ESP_LOGI(TAG, "StepperControl | G0 | T relative");
+					ESP_LOGI(TAG, "commandSchedulerTask | G0 | T relative");
 #endif
 					stepperOpParT.positionLastScheduled = moveStepperRelative(stepperHalT, command->movementT, &stepperOpParT, SYNCHRONIZED);
 				}
@@ -383,7 +394,7 @@ void StepperControl::commandSchedulerTask(void* arg)
 			if (command->movementH != nullptr) {
 				if (stepperOpParH.positioningMode != PositioningMode::RELATIVE) {
 #ifdef CONFIG_APP_DEBUG
-					ESP_LOGE(TAG, "StepperControl | M03 | H ERR: command with absolute positioning is not supported, will switch to relative");
+					ESP_LOGE(TAG, "commandSchedulerTask | M03 | H ERR: command with absolute positioning is not supported, will switch to relative");
 #endif
 					stepperOpParH.positioningMode = PositioningMode::RELATIVE;
 				}
@@ -392,7 +403,7 @@ void StepperControl::commandSchedulerTask(void* arg)
 			if (command->movementT != nullptr) {
 				if (stepperOpParT.positioningMode != PositioningMode::RELATIVE) {
 #ifdef CONFIG_APP_DEBUG
-					ESP_LOGE(TAG, "StepperControl | M03 | T ERR: command with absolute positioning is not supported, will switch to relative");
+					ESP_LOGE(TAG, "commandSchedulerTask | M03 | T ERR: command with absolute positioning is not supported, will switch to relative");
 #endif
 					stepperOpParT.positioningMode = PositioningMode::RELATIVE;
 				}
@@ -400,11 +411,11 @@ void StepperControl::commandSchedulerTask(void* arg)
 			}
 #ifdef CONFIG_APP_DEBUG
 			if (command->movementH != nullptr && command->movementT != nullptr)
-				ESP_LOGI(TAG, "StepperControl | M03 | H, T");
+				ESP_LOGI(TAG, "commandSchedulerTask | M03 | H, T");
 			else if (command->movementH != nullptr)
-				ESP_LOGI(TAG, "StepperControl | M03 | H");
+				ESP_LOGI(TAG, "commandSchedulerTask | M03 | H");
 			else if (command->movementT != nullptr)
-				ESP_LOGI(TAG, "StepperControl | M03 | T");
+				ESP_LOGI(TAG, "commandSchedulerTask | M03 | T");
 #endif
 			break;
 		case GCodeCommand::M05:
@@ -414,59 +425,60 @@ void StepperControl::commandSchedulerTask(void* arg)
 				steppers.stopStepper(stepperHalT, SYNCHRONIZED);
 #ifdef CONFIG_APP_DEBUG
 			if (command->movementH != nullptr && command->movementT != nullptr)
-				ESP_LOGI(TAG, "StepperControl | M05 | H, T");
+				ESP_LOGI(TAG, "commandSchedulerTask | M05 | H, T");
 			else if (command->movementH != nullptr)
-				ESP_LOGI(TAG, "StepperControl | M05 | H");
+				ESP_LOGI(TAG, "commandSchedulerTask | M05 | H");
 			else if (command->movementT != nullptr)
-				ESP_LOGI(TAG, "StepperControl | M05 | T");
+				ESP_LOGI(TAG, "commandSchedulerTask | M05 | T");
 #endif
 			break;
 		case GCodeCommand::M201:
 			if (unit == Unit::STEPS) {
 				if (command->movementH != nullptr) {
-					stepperOpParH.stepsMin = command->movementH->val.limits.min <= CONFIG_STEPPER_H_STEP_COUNT ? command->movementH->val.limits.min : CONFIG_STEPPER_H_STEP_COUNT;
-					stepperOpParH.stepsMax = command->movementH->val.limits.max <= CONFIG_STEPPER_H_STEP_COUNT ? command->movementH->val.limits.max : CONFIG_STEPPER_H_STEP_COUNT;
+					ESP_LOGI(TAG, "commandSchedulerTask | M201 | H: min %f, max %f", command->movementH->val.limits.min, command->movementH->val.limits.max);
+					stepperOpParH.stepsMin = command->movementH->val.limits.min <= CONFIG_STEPPER_H_STEP_COUNT ? (uint32_t) command->movementH->val.limits.min : CONFIG_STEPPER_H_STEP_COUNT;
+					stepperOpParH.stepsMax = command->movementH->val.limits.max <= CONFIG_STEPPER_H_STEP_COUNT ? (uint32_t) command->movementH->val.limits.max : CONFIG_STEPPER_H_STEP_COUNT;
 				}
 				if (command->movementT != nullptr) {
-					stepperOpParT.stepsMin = command->movementT->val.limits.min <= CONFIG_STEPPER_T_STEP_COUNT ? command->movementT->val.limits.min : CONFIG_STEPPER_T_STEP_COUNT;
-					stepperOpParT.stepsMax = command->movementT->val.limits.max <= CONFIG_STEPPER_T_STEP_COUNT ? command->movementT->val.limits.max : CONFIG_STEPPER_T_STEP_COUNT;
+					stepperOpParT.stepsMin = command->movementT->val.limits.min <= CONFIG_STEPPER_T_STEP_COUNT ? (uint32_t) command->movementT->val.limits.min : CONFIG_STEPPER_T_STEP_COUNT;
+					stepperOpParT.stepsMax = command->movementT->val.limits.max <= CONFIG_STEPPER_T_STEP_COUNT ? (uint32_t) command->movementT->val.limits.max : CONFIG_STEPPER_T_STEP_COUNT;
 				}
 			} else {
 				if (command->movementH != nullptr) {
-					stepperOpParH.stepsMin = ANGLE_TO_STEPS(command->movementH->val.limits.min, CONFIG_STEPPER_H_PIN_ENDSTOP) <= CONFIG_STEPPER_H_STEP_COUNT ? ANGLE_TO_STEPS(command->movementH->val.limits.min, CONFIG_STEPPER_H_PIN_ENDSTOP) : 360;
-					stepperOpParH.stepsMax = ANGLE_TO_STEPS(command->movementH->val.limits.max, CONFIG_STEPPER_H_PIN_ENDSTOP) <= CONFIG_STEPPER_H_STEP_COUNT ? ANGLE_TO_STEPS(command->movementH->val.limits.max, CONFIG_STEPPER_H_PIN_ENDSTOP) : 360;
+					stepperOpParH.stepsMin = ANGLE_TO_STEPS(command->movementH->val.limits.min, CONFIG_STEPPER_H_STEP_COUNT) <= CONFIG_STEPPER_H_STEP_COUNT ? ANGLE_TO_STEPS(command->movementH->val.limits.min, CONFIG_STEPPER_H_STEP_COUNT) : CONFIG_STEPPER_H_STEP_COUNT;
+					stepperOpParH.stepsMax = ANGLE_TO_STEPS(command->movementH->val.limits.max, CONFIG_STEPPER_H_STEP_COUNT) <= CONFIG_STEPPER_H_STEP_COUNT ? ANGLE_TO_STEPS(command->movementH->val.limits.max, CONFIG_STEPPER_H_STEP_COUNT) : CONFIG_STEPPER_H_STEP_COUNT;
 				}
 				if (command->movementT != nullptr) {
-					stepperOpParT.stepsMin = ANGLE_TO_STEPS(command->movementT->val.limits.min, CONFIG_STEPPER_T_PIN_ENDSTOP) <= CONFIG_STEPPER_T_STEP_COUNT ? ANGLE_TO_STEPS(command->movementT->val.limits.min, CONFIG_STEPPER_T_PIN_ENDSTOP) : 360;
-					stepperOpParT.stepsMax = ANGLE_TO_STEPS(command->movementT->val.limits.max, CONFIG_STEPPER_T_PIN_ENDSTOP) <= CONFIG_STEPPER_T_STEP_COUNT ? ANGLE_TO_STEPS(command->movementT->val.limits.max, CONFIG_STEPPER_T_PIN_ENDSTOP) : 360;
+					stepperOpParT.stepsMin = ANGLE_TO_STEPS(command->movementT->val.limits.min, CONFIG_STEPPER_H_STEP_COUNT) <= CONFIG_STEPPER_T_STEP_COUNT ? ANGLE_TO_STEPS(command->movementT->val.limits.min, CONFIG_STEPPER_H_STEP_COUNT) : CONFIG_STEPPER_T_STEP_COUNT;
+					stepperOpParT.stepsMax = ANGLE_TO_STEPS(command->movementT->val.limits.max, CONFIG_STEPPER_H_STEP_COUNT) <= CONFIG_STEPPER_T_STEP_COUNT ? ANGLE_TO_STEPS(command->movementT->val.limits.max, CONFIG_STEPPER_H_STEP_COUNT) : CONFIG_STEPPER_T_STEP_COUNT;
 				}
 			}
 #ifdef CONFIG_APP_DEBUG
 			if (command->movementH != nullptr && command->movementT != nullptr)
-				ESP_LOGI(TAG, "StepperControl | M201 | H, T");
+				ESP_LOGI(TAG, "commandSchedulerTask | M201 | H: min %ld, max %ld | T: min %ld, max %ld", stepperOpParH.stepsMin, stepperOpParH.stepsMax, stepperOpParT.stepsMin, stepperOpParT.stepsMax);
 			else if (command->movementH != nullptr)
-				ESP_LOGI(TAG, "StepperControl | M201 | H");
+				ESP_LOGI(TAG, "commandSchedulerTask | M201 | H: min %ld, max %ld", stepperOpParH.stepsMin, stepperOpParH.stepsMax);
 			else if (command->movementT != nullptr)
-				ESP_LOGI(TAG, "StepperControl | M201 | T");
+				ESP_LOGI(TAG, "commandSchedulerTask | M201 | T: min %ld, max %ld", stepperOpParT.stepsMin, stepperOpParT.stepsMax);
 #endif
 			break;
 
 		case GCodeCommand::M202:
 			if (command->movementH != nullptr) {
-				stepperOpParH.stepsMin = GCODE_ELEMENT_INVALID_INT32;
-				stepperOpParH.stepsMax = GCODE_ELEMENT_INVALID_INT32;
+				stepperOpParH.stepsMin = GCODE_ELEMENT_INVALID_INT;
+				stepperOpParH.stepsMax = GCODE_ELEMENT_INVALID_INT;
 			}
 			if (command->movementT != nullptr) {
-				stepperOpParT.stepsMin = GCODE_ELEMENT_INVALID_INT32;
-				stepperOpParT.stepsMax = GCODE_ELEMENT_INVALID_INT32;
+				stepperOpParT.stepsMin = GCODE_ELEMENT_INVALID_INT;
+				stepperOpParT.stepsMax = GCODE_ELEMENT_INVALID_INT;
 			}
 #ifdef CONFIG_APP_DEBUG
 			if (command->movementH != nullptr && command->movementT != nullptr)
-				ESP_LOGI(TAG, "StepperControl | M202 | H, T");
+				ESP_LOGI(TAG, "commandSchedulerTask | M202 | H, T");
 			else if (command->movementH != nullptr)
-				ESP_LOGI(TAG, "StepperControl | M202 | H");
+				ESP_LOGI(TAG, "commandSchedulerTask | M202 | H");
 			else if (command->movementT != nullptr)
-				ESP_LOGI(TAG, "StepperControl | M202 | T");
+				ESP_LOGI(TAG, "commandSchedulerTask | M202 | T");
 #endif
 			break;
 		case GCodeCommand::P21:
@@ -476,7 +488,7 @@ void StepperControl::commandSchedulerTask(void* arg)
 			else
 				activeProgram->indexForLoop = activeProgram->indexMain + 1;
 #ifdef CONFIG_APP_DEBUG
-			ESP_LOGI(TAG, "StepperControl | P21 | %d", activeProgram->forLoopCounter);
+			ESP_LOGI(TAG, "commandSchedulerTask | P21 | %d", activeProgram->forLoopCounter);
 #endif
 			break;
 		case GCodeCommand::P22:
@@ -488,7 +500,7 @@ void StepperControl::commandSchedulerTask(void* arg)
 					activeProgram->indexMain = activeProgram->indexForLoop;
 			}
 #ifdef CONFIG_APP_DEBUG
-			ESP_LOGI(TAG, "StepperControl | P22 | %d", activeProgram->forLoopCounter);
+			ESP_LOGI(TAG, "commandSchedulerTask | P22 | %d", activeProgram->forLoopCounter);
 #endif
 			break;
 		case GCodeCommand::W1:
@@ -500,11 +512,11 @@ void StepperControl::commandSchedulerTask(void* arg)
 			}
 #ifdef CONFIG_APP_DEBUG
 			if (command->movementH != nullptr && command->movementT != nullptr)
-				ESP_LOGI(TAG, "StepperControl | W1 | H, T");
+				ESP_LOGI(TAG, "commandSchedulerTask | W1 | H, T");
 			else if (command->movementH != nullptr)
-				ESP_LOGI(TAG, "StepperControl | W1 | H");
+				ESP_LOGI(TAG, "commandSchedulerTask | W1 | H");
 			else if (command->movementT != nullptr)
-				ESP_LOGI(TAG, "StepperControl | W1 | T");
+				ESP_LOGI(TAG, "commandSchedulerTask | W1 | T");
 #endif
 			break;
 		default:
@@ -526,20 +538,18 @@ ParsingGCodeResult StepperControl::parseGCode(const char* gcode, const uint16_t 
 	free(gcodeCopy);
 #endif /* CONFIG_COMM_DEBUG */
 
-
 	ParsingGCodeResult res = parseGCodeNonScheduledCommands(gcode, length);
-	if(res != ParsingGCodeResult::RESERVED)
+	if (res != ParsingGCodeResult::RESERVED)
 		return res;
 
 	if (programmingMode == ProgrammingMode::RUN_PROGRAM) {
 #ifdef CONFIG_COMM_DEBUG
-		ESP_LOGI(TAG, "Device is in RUN_PROGRAM mode");
+		ESP_LOGI(TAG, "parseGCode | Device is in RUN_PROGRAM mode");
 #endif /* CONFIG_COMM_DEBUG */
 		return ParsingGCodeResult::NOT_PROCESSING_COMMANDS;
 	}
 
 	gcode_command_t* command = new gcode_command_t();
-
 
 	switch (gcode[0]) {
 	case 'G':
@@ -553,6 +563,8 @@ ParsingGCodeResult StepperControl::parseGCode(const char* gcode, const uint16_t 
 		break;
 	case 'P':
 		res = parseGCodePCommands(gcode, length, command);
+	default:
+			res = ParsingGCodeResult::INVALID_COMMAND;
 		break;
 	}
 
@@ -567,12 +579,7 @@ ParsingGCodeResult StepperControl::parseGCode(const char* gcode, const uint16_t 
 				xSemaphoreGive(noProgrammQueueLock);
 				return ParsingGCodeResult::SUCCESS;
 			} else {
-				if (command->movementH != nullptr)
-					delete command->movementH;
-				if (command->movementT != nullptr)
-					delete command->movementT;
-				if (command != nullptr)
-					delete command;
+				delete command;
 				return ParsingGCodeResult::FAILED_TO_LOCK_QUEUE;
 			}
 		} else {
@@ -580,25 +587,19 @@ ParsingGCodeResult StepperControl::parseGCode(const char* gcode, const uint16_t 
 			return ParsingGCodeResult::SUCCESS;
 		}
 	} else {
-		if (command->movementH != nullptr)
-			delete command->movementH;
-		if (command->movementT != nullptr)
-			delete command->movementT;
-		if (command != nullptr)
-			delete command;
+		delete command;
 		return res;
 	}
-
 }
 
-ParsingGCodeResult StepperControl::parseGCodeNonScheduledCommands(const char* gcode, const uint16_t length){
+ParsingGCodeResult StepperControl::parseGCodeNonScheduledCommands(const char* gcode, const uint16_t length)
+{
 	int64_t elementInt = 0;
 	float elementFloat = 0;
 
-
 	if (strncmp(gcode, "M80", 3) == 0) { // power down high voltage supply
 #ifdef CONFIG_COMM_DEBUG
-		ESP_LOGI(TAG, "M80");
+		ESP_LOGI(TAG, "parseGCode | M80");
 #endif /* CONFIG_COMM_DEBUG */
 		activeProgram = nullptr;
 		programmingMode.store(ProgrammingMode::NO_PROGRAMM);
@@ -613,14 +614,14 @@ ParsingGCodeResult StepperControl::parseGCodeNonScheduledCommands(const char* gc
 		return ParsingGCodeResult::SUCCESS;
 	} else if (strncmp(gcode, "M81", 3) == 0) { // power up high voltage supply
 #ifdef CONFIG_COMM_DEBUG
-		ESP_LOGI(TAG, "M81");
+		ESP_LOGI(TAG, "parseGCode | M81");
 #endif /* CONFIG_COMM_DEBUG */
 		gpio_set_level((gpio_num_t)CONFIG_STEPPER_H_PIN_EN, 0);
 		gpio_set_level((gpio_num_t)CONFIG_STEPPER_T_PIN_EN, 0);
 		return ParsingGCodeResult::SUCCESS;
 	} else if (strncmp(gcode, "M82", 3) == 0) { // carefull stop
 #ifdef CONFIG_COMM_DEBUG
-		ESP_LOGI(TAG, "M82");
+		ESP_LOGI(TAG, "parseGCode | M82");
 #endif /* CONFIG_COMM_DEBUG */
 		activeProgram = nullptr;
 		programmingMode.store(ProgrammingMode::NO_PROGRAMM);
@@ -631,7 +632,7 @@ ParsingGCodeResult StepperControl::parseGCodeNonScheduledCommands(const char* gc
 		return ParsingGCodeResult::SUCCESS;
 	} else if (strncmp(gcode, "G3", 2) == 0) { // override
 #ifdef CONFIG_COMM_DEBUG
-		ESP_LOGI(TAG, "G3");
+		ESP_LOGI(TAG, "parseGCode| G3");
 #endif /* CONFIG_COMM_DEBUG */
 		gcode_command_movement_t* movementH = nullptr;
 		gcode_command_movement_t* movementT = nullptr;
@@ -672,7 +673,7 @@ ParsingGCodeResult StepperControl::parseGCodeNonScheduledCommands(const char* gc
 
 		if (movementH != nullptr && movementT != nullptr) {
 #ifdef CONFIG_COMM_DEBUG
-			ESP_LOGI(TAG, "G3 | H: %d, T: %d, SH: %f, ST %f", movementH->val.steps, movementT->val.steps, movementH->rpm, movementT->rpm);
+			ESP_LOGI(TAG, "parseGCode| G3 | H: %d, T: %d, SH: %f, ST %f", movementH->val.steps, movementT->val.steps, movementH->rpm, movementT->rpm);
 #endif /* CONFIG_COMM_DEBUG */
 			steppers.stepStepper(stepperHalH, movementH->val.steps, movementH->rpm, true);
 			steppers.stepStepper(stepperHalH, movementT->val.steps, movementT->rpm, true);
@@ -680,13 +681,13 @@ ParsingGCodeResult StepperControl::parseGCodeNonScheduledCommands(const char* gc
 		}
 		if (movementH != nullptr) {
 #ifdef CONFIG_COMM_DEBUG
-			ESP_LOGI(TAG, "G3 | H: %d, SH: %f", movementH->val.steps, movementH->rpm);
+			ESP_LOGI(TAG, "parseGCode| G3 | H: %d, SH: %f", movementH->val.steps, movementH->rpm);
 #endif /* CONFIG_COMM_DEBUG */
 			steppers.stepStepper(stepperHalH, movementH->val.steps, movementH->rpm, false);
 		}
 		if (movementT != nullptr) {
 #ifdef CONFIG_COMM_DEBUG
-			ESP_LOGI(TAG, "G3 | T: %d, ST: %f", movementT->val.steps, movementT->rpm);
+			ESP_LOGI(TAG, "parseGCode| G3 | T: %d, ST: %f", movementT->val.steps, movementT->rpm);
 #endif /* CONFIG_COMM_DEBUG */
 			steppers.stepStepper(stepperHalT, movementT->val.steps, movementT->rpm, false);
 		}
@@ -694,7 +695,7 @@ ParsingGCodeResult StepperControl::parseGCodeNonScheduledCommands(const char* gc
 
 	} else if (strncmp(gcode, "P0", 2) == 0) { // stop programm execution
 #ifdef CONFIG_COMM_DEBUG
-		ESP_LOGI(TAG, "P0");
+		ESP_LOGI(TAG, "parseGCode| P0");
 #endif /* CONFIG_COMM_DEBUG */
 		return ParsingGCodeResult::NO_SUPPORT;
 		if (programmingMode != ProgrammingMode::RUN_PROGRAM)
@@ -702,13 +703,13 @@ ParsingGCodeResult StepperControl::parseGCodeNonScheduledCommands(const char* gc
 
 		if (activeProgram != nullptr) { // we are running a program so reset it and move back to NO_PROGRAMM mode
 #ifdef CONFIG_COMM_DEBUG
-			ESP_LOGI(TAG, "P0 | Stopping program");
+			ESP_LOGI(TAG, "parseGCode| P0 | Stopping program");
 #endif /* CONFIG_COMM_DEBUG */
 			activeProgram->reset();
 			activeProgram = nullptr;
 		}
 #ifdef CONFIG_COMM_DEBUG
-		ESP_LOGI(TAG, "P0 | Device is in NO_PROGRAMM mode");
+		ESP_LOGI(TAG, "parseGCode| P0 | Device is in NO_PROGRAMM mode");
 #endif /* CONFIG_COMM_DEBUG */
 		programmingMode.store(ProgrammingMode::NO_PROGRAMM);
 		return ParsingGCodeResult::SUCCESS;
@@ -722,48 +723,57 @@ ParsingGCodeResult StepperControl::parseGCodeGCommands(const char* gcode, const 
 	int64_t elementInt = 0;
 	float elementFloat = 0;
 
-
 	if (strncmp(gcode, "G20", 3) == 0) { // set unit to degrees
 #ifdef CONFIG_COMM_DEBUG
-		ESP_LOGI(TAG, "G20");
+		ESP_LOGI(TAG, "parseGCode| G20");
 #endif /* CONFIG_COMM_DEBUG */
 		command->type = GCodeCommand::G20;
 	} else if (strncmp(gcode, "G21", 3) == 0) { // set unit to steps
 #ifdef CONFIG_COMM_DEBUG
-		ESP_LOGI(TAG, "G21");
+		ESP_LOGI(TAG, "parseGCode| G21");
 #endif /* CONFIG_COMM_DEBUG */
 		command->type = GCodeCommand::G21;
 	} else if (strncmp(gcode, "G90", 3) == 0) { // set the absolute positioning
 #ifdef CONFIG_COMM_DEBUG
-		ESP_LOGI(TAG, "G90");
+		ESP_LOGI(TAG, "parseGCode| G90");
 #endif /* CONFIG_COMM_DEBUG */
 		command->type = GCodeCommand::G90;
-		if (getElementString(gcode, length, 3, "H", 1))
+		if (!getElementString(gcode, length, 3, "H", 1) && !getElementString(gcode, length, 3, "T", 1)) {
 			command->movementH = new gcode_command_movement_t();
-		if (getElementString(gcode, length, 3, "T", 1))
 			command->movementT = new gcode_command_movement_t();
+		} else if (getElementString(gcode, length, 3, "H", 1)) {
+			command->movementH = new gcode_command_movement_t();
+		}
+		if (getElementString(gcode, length, 3, "T", 1)) {
+			command->movementT = new gcode_command_movement_t();
+		}
 	} else if (strncmp(gcode, "G91", 3) == 0) { // set the relative positioning
 #ifdef CONFIG_COMM_DEBUG
-		ESP_LOGI(TAG, "G91");
+		ESP_LOGI(TAG, "parseGCode| G91");
 #endif /* CONFIG_COMM_DEBUG */
 		command->type = GCodeCommand::G91;
-		if (getElementString(gcode, length, 3, "H", 1))
+		if (!getElementString(gcode, length, 3, "H", 1) && !getElementString(gcode, length, 3, "T", 1)) {
 			command->movementH = new gcode_command_movement_t();
-		if (getElementString(gcode, length, 3, "T", 1))
 			command->movementT = new gcode_command_movement_t();
+		} else if (getElementString(gcode, length, 3, "H", 1)) {
+			command->movementH = new gcode_command_movement_t();
+		}
+		if (getElementString(gcode, length, 3, "T", 1)) {
+			command->movementT = new gcode_command_movement_t();
+		}
 	} else if (strncmp(gcode, "G92", 3) == 0) { // set current position as home
 #ifdef CONFIG_COMM_DEBUG
-		ESP_LOGI(TAG, "G92");
+		ESP_LOGI(TAG, "parseGCode| G92");
 #endif /* CONFIG_COMM_DEBUG */
 		command->type = GCodeCommand::G92;
 	} else if (strncmp(gcode, "G28", 3) == 0) { // home both drivers
 #ifdef CONFIG_COMM_DEBUG
-		ESP_LOGI(TAG, "G28");
+		ESP_LOGI(TAG, "parseGCode| G28");
 #endif /* CONFIG_COMM_DEBUG */
 		command->type = GCodeCommand::G28;
 	} else if (strncmp(gcode, "G0", 2) == 0) { // home to given position, not the most efficient parsing but we don't excpet to have that many commands to process
 #ifdef CONFIG_COMM_DEBUG
-		ESP_LOGI(TAG, "G0");
+		ESP_LOGI(TAG, "parseGCode| G0");
 #endif /* CONFIG_COMM_DEBUG */
 		command->type = GCodeCommand::G0;
 		elementInt = getElementInt(gcode, length, 3, "H", 1);
@@ -805,11 +815,11 @@ ParsingGCodeResult StepperControl::parseGCodeGCommands(const char* gcode, const 
 			return ParsingGCodeResult::INVALID_ARGUMENT;
 #ifdef CONFIG_COMM_DEBUG
 		if (command->movementH != nullptr && command->movementT != nullptr)
-			ESP_LOGI(TAG, "G0 | H: %d, T: %d, SH: %f, ST %f", command->movementH->val.steps, command->movementT->val.steps, command->movementH->rpm, command->movementT->rpm);
+			ESP_LOGI(TAG, "parseGCode| G0 | H: %d, T: %d, SH: %f, ST %f", command->movementH->val.steps, command->movementT->val.steps, command->movementH->rpm, command->movementT->rpm);
 		else if (command->movementH != nullptr)
-			ESP_LOGI(TAG, "G0 | H: %d, SH: %f", command->movementH->val.steps, command->movementH->rpm);
+			ESP_LOGI(TAG, "parseGCode| G0 | H: %d, SH: %f", command->movementH->val.steps, command->movementH->rpm);
 		else if (command->movementT != nullptr)
-			ESP_LOGI(TAG, "G0 | T: %d, ST: %f", command->movementT->val.steps, command->movementT->rpm);
+			ESP_LOGI(TAG, "parseGCode| G0 | T: %d, ST: %f", command->movementT->val.steps, command->movementT->rpm);
 #endif /* CONFIG_COMM_DEBUG */
 
 	} else
@@ -823,10 +833,9 @@ ParsingGCodeResult StepperControl::parseGCodeMCommands(const char* gcode, const 
 	int64_t elementInt = 0;
 	float elementFloat = 0;
 
-
 	if (strncmp(gcode, "M03", 3) == 0) { // start spinning horzMot axis clockwise
 #ifdef CONFIG_COMM_DEBUG
-		ESP_LOGI(TAG, "M03");
+		ESP_LOGI(TAG, "parseGCode| M03");
 #endif /* CONFIG_COMM_DEBUG */
 		command->type = GCodeCommand::M03;
 
@@ -879,16 +888,16 @@ ParsingGCodeResult StepperControl::parseGCodeMCommands(const char* gcode, const 
 		}
 #ifdef CONFIG_COMM_DEBUG
 		if (command->movementH != nullptr && command->movementT != nullptr)
-			ESP_LOGI(TAG, "M03 | H: %d, T: %d, SH: %f, ST %f", command->movementH->val.direction, command->movementT->val.direction, command->movementH->rpm, command->movementT->rpm);
+			ESP_LOGI(TAG, "parseGCode| M03 | H: %d, T: %d, SH: %f, ST %f", command->movementH->val.direction, command->movementT->val.direction, command->movementH->rpm, command->movementT->rpm);
 		else if (command->movementH != nullptr)
-			ESP_LOGI(TAG, "M03 | H: %d, SH: %f", command->movementH->val.direction, command->movementH->rpm);
+			ESP_LOGI(TAG, "parseGCode| M03 | H: %d, SH: %f", command->movementH->val.direction, command->movementH->rpm);
 		else if (command->movementT != nullptr)
-			ESP_LOGI(TAG, "M03 | T: %d, ST: %f", command->movementT->val.direction, command->movementT->rpm);
+			ESP_LOGI(TAG, "parseGCode| M03 | T: %d, ST: %f", command->movementT->val.direction, command->movementT->rpm);
 
 #endif /* CONFIG_COMM_DEBUG */
 	} else if (strncmp(gcode, "M05", 3) == 0) {
 #ifdef CONFIG_COMM_DEBUG
-		ESP_LOGI(TAG, "M05");
+		ESP_LOGI(TAG, "parseGCode| M05");
 #endif /* CONFIG_COMM_DEBUG */
 
 		command->type = GCodeCommand::M05;
@@ -903,49 +912,53 @@ ParsingGCodeResult StepperControl::parseGCodeMCommands(const char* gcode, const 
 			return ParsingGCodeResult::INVALID_ARGUMENT;
 	} else if (strncmp(gcode, "M201", 4) == 0) {
 #ifdef CONFIG_COMM_DEBUG
-		ESP_LOGI(TAG, "M201");
+		ESP_LOGI(TAG, "parseGCode| M201");
 #endif /* CONFIG_COMM_DEBUG */
-		elementFloat = getElementFloat(gcode, length, 5, "LH", 2);
-		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT && elementFloat >= 0) {
-			command->movementH = new gcode_command_movement_t(); // stepper will stop in command->movementT is not nullptr
-			command->movementH->val.limits.min = elementFloat;
-		} else
-			return ParsingGCodeResult::INVALID_ARGUMENT;
+		command->type = GCodeCommand::M201;
+		if (getElementString(gcode, length, 5, "LH", 2) && getElementString(gcode, length, 5, "HH", 2)) {
+			command->movementH = new gcode_command_movement_t();
+			elementFloat = getElementFloat(gcode, length, 5, "LH", 2);
+			if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT && elementFloat >= 0) {
+				command->movementH->val.limits.min = elementFloat;
+			} else
+				return ParsingGCodeResult::INVALID_ARGUMENT;
 
-		elementFloat = getElementFloat(gcode, length, 5, "HH", 2);
-		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT && elementFloat >= 0) {
-			if (command->movementH == nullptr)
-				command->movementH = new gcode_command_movement_t();
-			command->movementH->val.limits.max = elementFloat;
-		} else
-			return ParsingGCodeResult::INVALID_ARGUMENT;
+			elementFloat = getElementFloat(gcode, length, 5, "HH", 2);
+			if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT && elementFloat >= 0) {
+				command->movementH->val.limits.max = elementFloat;
+			} else
+				return ParsingGCodeResult::INVALID_ARGUMENT;
+		}
 
-		elementFloat = getElementFloat(gcode, length, 5, "LT", 2);
-		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT && elementFloat >= 0) {
-			command->movementT = new gcode_command_movement_t(); // stepper will stop in command->movementT is not nullptr
-			command->movementT->val.limits.min = elementFloat;
-		} else
-			return ParsingGCodeResult::INVALID_ARGUMENT;
+		if (getElementString(gcode, length, 5, "LT", 2) && getElementString(gcode, length, 5, "HT", 2)) {
+			command->movementT = new gcode_command_movement_t();
 
-		elementFloat = getElementFloat(gcode, length, 5, "HT", 2);
-		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT && elementFloat >= 0) {
-			if (command->movementT == nullptr)
-				command->movementT = new gcode_command_movement_t();
-			command->movementT->val.limits.max = elementFloat;
-		} else
-			return ParsingGCodeResult::INVALID_ARGUMENT;
+			elementFloat = getElementFloat(gcode, length, 5, "LT", 2);
+			if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT && elementFloat >= 0) {
+				command->movementT->val.limits.min = elementFloat;
+			} else
+				return ParsingGCodeResult::INVALID_ARGUMENT;
+
+			elementFloat = getElementFloat(gcode, length, 5, "HT", 2);
+			if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT && elementFloat >= 0) {
+				command->movementT->val.limits.max = elementFloat;
+			} else
+				return ParsingGCodeResult::INVALID_ARGUMENT;
+		}
 #ifdef CONFIG_COMM_DEBUG
 		if (command->movementH != nullptr && command->movementT != nullptr)
-			ESP_LOGI(TAG, "M201 | H: %ld, T: %ld, SH: %ld, ST %ld", command->movementH->val.limits.min, command->movementT->val.limits.min, command->movementH->val.limits.max, command->movementT->val.limits.max);
+			ESP_LOGI(TAG, "parseGCode| M201 | LH: %f, LT: %f, HH: %f, HT %f", command->movementH->val.limits.min, command->movementT->val.limits.min, command->movementH->val.limits.max, command->movementT->val.limits.max);
 		else if (command->movementH != nullptr)
-			ESP_LOGI(TAG, "M201 | H: %ld, SH: %ld", command->movementH->val.limits.min, command->movementH->val.limits.max);
+			ESP_LOGI(TAG, "parseGCode| M201 | H: %f, SH: %f", command->movementH->val.limits.min, command->movementH->val.limits.max);
 		else if (command->movementT != nullptr)
-			ESP_LOGI(TAG, "M201 | T: %ld, ST: %ld", command->movementT->val.limits.min, command->movementT->val.limits.max);
+			ESP_LOGI(TAG, "parseGCode| M201 | T: %f, ST: %f", command->movementT->val.limits.min, command->movementT->val.limits.max);
 #endif /* CONFIG_COMM_DEBUG */
+
 	} else if (strncmp(gcode, "M202", 4) == 0) {
 #ifdef CONFIG_COMM_DEBUG
-		ESP_LOGI(TAG, "M202");
+		ESP_LOGI(TAG, "parseGCode| M202");
 #endif /* CONFIG_COMM_DEBUG */
+		command->type = GCodeCommand::M202;
 		if (getElementString(gcode, length, 5, "H", 1)) {
 			command->movementH = new gcode_command_movement_t();
 		}
@@ -954,11 +967,11 @@ ParsingGCodeResult StepperControl::parseGCodeMCommands(const char* gcode, const 
 		}
 #ifdef CONFIG_COMM_DEBUG
 		if (command->movementH != nullptr && command->movementT != nullptr)
-			ESP_LOGI(TAG, "M202 | H, T");
+			ESP_LOGI(TAG, "parseGCode| M202 | H, T");
 		else if (command->movementH != nullptr)
-			ESP_LOGI(TAG, "M202 | H");
+			ESP_LOGI(TAG, "parseGCode| M202 | H");
 		else if (command->movementT != nullptr)
-			ESP_LOGI(TAG, "M202 | T");
+			ESP_LOGI(TAG, "parseGCode| M202 | T");
 #endif /* CONFIG_COMM_DEBUG */
 	} else
 		return ParsingGCodeResult::INVALID_COMMAND;
@@ -971,10 +984,9 @@ ParsingGCodeResult StepperControl::parseGCodeWCommands(const char* gcode, const 
 	int64_t elementInt = 0;
 	float elementFloat = 0;
 
-
 	if (strncmp(gcode, "W0", 2) == 0) {
 #ifdef CONFIG_COMM_DEBUG
-		ESP_LOGI(TAG, "W0");
+		ESP_LOGI(TAG, "parseGCode| W0");
 #endif																/* CONFIG_COMM_DEBUG */
 		command->type = GCodeCommand::W1; // all W0 command futhers on will be handled as W1
 		elementInt = getElementInt(gcode, length, 2, "H", 1);
@@ -994,15 +1006,15 @@ ParsingGCodeResult StepperControl::parseGCodeWCommands(const char* gcode, const 
 			return ParsingGCodeResult::INVALID_ARGUMENT;
 #ifdef CONFIG_COMM_DEBUG
 		if (command->movementH != nullptr && command->movementT != nullptr)
-			ESP_LOGI(TAG, "W0 | H: %lld, T: %lld", command->movementH->val.time, command->movementT->val.time);
+			ESP_LOGI(TAG, "parseGCode| W0 | H: %ld, T: %ld", command->movementH->val.time, command->movementT->val.time);
 		else if (command->movementH != nullptr)
-			ESP_LOGI(TAG, "W0 | H: %lld", command->movementH->val.time);
+			ESP_LOGI(TAG, "parseGCode| W0 | H: %ld", command->movementH->val.time);
 		else if (command->movementT != nullptr)
-			ESP_LOGI(TAG, "W0 | T: %lld", command->movementT->val.time);
+			ESP_LOGI(TAG, "parseGCode| W0 | T: %ld", command->movementT->val.time);
 #endif /* CONFIG_COMM_DEBUG */
 	} else if (strncmp(gcode, "W1", 2) == 0) {
 #ifdef CONFIG_COMM_DEBUG
-		ESP_LOGI(TAG, "W1");
+		ESP_LOGI(TAG, "parseGCode| W1");
 #endif /* CONFIG_COMM_DEBUG */
 		command->type = GCodeCommand::W1;
 		elementInt = getElementInt(gcode, length, 2, "H", 1);
@@ -1022,11 +1034,11 @@ ParsingGCodeResult StepperControl::parseGCodeWCommands(const char* gcode, const 
 			return ParsingGCodeResult::INVALID_ARGUMENT;
 #ifdef CONFIG_COMM_DEBUG
 		if (command->movementH != nullptr && command->movementT != nullptr)
-			ESP_LOGI(TAG, "W1 | H: %lld, T: %lld", command->movementH->val.time, command->movementT->val.time);
+			ESP_LOGI(TAG, "parseGCode| W1 | H: %ld, T: %ld", command->movementH->val.time, command->movementT->val.time);
 		else if (command->movementH != nullptr)
-			ESP_LOGI(TAG, "W1 | H: %lld", command->movementH->val.time);
+			ESP_LOGI(TAG, "parseGCode| W1 | H: %ld", command->movementH->val.time);
 		else if (command->movementT != nullptr)
-			ESP_LOGI(TAG, "W1 | T: %lld", command->movementT->val.time);
+			ESP_LOGI(TAG, "parseGCode| W1 | T: %ld", command->movementT->val.time);
 #endif /* CONFIG_COMM_DEBUG */;
 	} else
 		return ParsingGCodeResult::INVALID_COMMAND;
@@ -1049,10 +1061,9 @@ ParsingGCodeResult StepperControl::parseGCodePCommands(const char* gcode, const 
 	int64_t elementInt = 0;
 	float elementFloat = 0;
 
-
 	if (strncmp(gcode, "P21", 3)) {
 #ifdef CONFIG_COMM_DEBUG
-		ESP_LOGI(TAG, "P21");
+		ESP_LOGI(TAG, "parseGCode| P21");
 #endif /* CONFIG_COMM_DEBUG */
 		command->type = GCodeCommand::P21;
 		if (programmingMode != ProgrammingMode::PROGRAMMING)
@@ -1070,16 +1081,16 @@ ParsingGCodeResult StepperControl::parseGCodePCommands(const char* gcode, const 
 			return ParsingGCodeResult::INVALID_ARGUMENT;
 	} else if (strncmp(gcode, "P22", 3)) {
 #ifdef CONFIG_COMM_DEBUG
-		ESP_LOGI(TAG, "P22");
+		ESP_LOGI(TAG, "parseGCode| P22");
 #endif /* CONFIG_COMM_DEBUG */
 		command->type = GCodeCommand::P22;
-		if (programmingMode != ProgrammingMode::PROGRAMMING){
+		if (programmingMode != ProgrammingMode::PROGRAMMING) {
 			return ParsingGCodeResult::COMMAND_BAD_CONTEXT;
 		}
 		activeProgram->forLoopCounter--;
 	} else if (strncmp(gcode, "P1", 2)) {
 #ifdef CONFIG_COMM_DEBUG
-		ESP_LOGI(TAG, "P1");
+		ESP_LOGI(TAG, "parseGCode| P1");
 #endif /* CONFIG_COMM_DEBUG */
 		command->type = GCodeCommand::COMMAND_TO_REMOVE;
 		if (programmingMode != ProgrammingMode::NO_PROGRAMM || activeProgram != nullptr)
@@ -1109,12 +1120,12 @@ ParsingGCodeResult StepperControl::parseGCodePCommands(const char* gcode, const 
 		steppers.stopNowStepper(stepperHalT);
 		steppers.stopNowStepper(stepperHalH);
 #ifdef CONFIG_COMM_DEBUG
-			ESP_LOGI(TAG, "P1 | Running program %s", activeProgram->name);
+		ESP_LOGI(TAG, "parseGCode| P1 | Running program %s", activeProgram->name);
 #endif /* CONFIG_COMM_DEBUG */
 
 	} else if (strncmp(gcode, "P2", 2)) {
 #ifdef CONFIG_COMM_DEBUG
-		ESP_LOGI(TAG, "P2");
+		ESP_LOGI(TAG, "parseGCode| P2");
 #endif /* CONFIG_COMM_DEBUG */
 		command->type = GCodeCommand::COMMAND_TO_REMOVE;
 		if (programmingMode != ProgrammingMode::NO_PROGRAMM || activeProgram != nullptr)
@@ -1135,12 +1146,12 @@ ParsingGCodeResult StepperControl::parseGCodePCommands(const char* gcode, const 
 			programms.erase(it);
 
 #ifdef CONFIG_COMM_DEBUG
-		ESP_LOGI(TAG, "P2 | Deleting program %s", name);
+		ESP_LOGI(TAG, "parseGCode| P2 | Deleting program %s", name);
 #endif /* CONFIG_COMM_DEBUG */
 
 	} else if (strncmp(gcode, "P90", 3)) {
 #ifdef CONFIG_COMM_DEBUG
-		ESP_LOGI(TAG, "P90");
+		ESP_LOGI(TAG, "parseGCode| P90");
 #endif /* CONFIG_COMM_DEBUG */
 		command->type = GCodeCommand::COMMAND_TO_REMOVE;
 		if (programmingMode != ProgrammingMode::NO_PROGRAMM || activeProgram != nullptr)
@@ -1161,7 +1172,7 @@ ParsingGCodeResult StepperControl::parseGCodePCommands(const char* gcode, const 
 			activeProgram->clean();
 			commandDestination = activeProgram->header;
 #ifdef CONFIG_COMM_DEBUG
-			ESP_LOGI(TAG, "P90 | Overwriting program %s", name);
+			ESP_LOGI(TAG, "parseGCode| P90 | Overwriting program %s", name);
 #endif			 /* CONFIG_COMM_DEBUG */
 		} else { // create new programm
 			gcode_programm_t newProgram;
@@ -1170,13 +1181,13 @@ ParsingGCodeResult StepperControl::parseGCodePCommands(const char* gcode, const 
 			activeProgram = &(programms.back());
 			commandDestination = activeProgram->header;
 #ifdef CONFIG_COMM_DEBUG
-			ESP_LOGI(TAG, "P90 | Creating program %s", name);
+			ESP_LOGI(TAG, "parseGCode| P90 | Creating program %s", name);
 #endif /* CONFIG_COMM_DEBUG */
 		}
 		programmingMode.store(ProgrammingMode::PROGRAMMING);
 	} else if (strncmp(gcode, "P91", 3)) {
 #ifdef CONFIG_COMM_DEBUG
-		ESP_LOGI(TAG, "P91");
+		ESP_LOGI(TAG, "parseGCode| P91");
 #endif /* CONFIG_COMM_DEBUG */
 		command->type = GCodeCommand::COMMAND_TO_REMOVE;
 		if (commandDestination != activeProgram->header || programmingMode != ProgrammingMode::PROGRAMMING)
@@ -1187,15 +1198,15 @@ ParsingGCodeResult StepperControl::parseGCodePCommands(const char* gcode, const 
 		commandDestination = activeProgram->main;
 	} else if (strncmp(gcode, "P29", 3)) {
 #ifdef CONFIG_COMM_DEBUG
-		ESP_LOGI(TAG, "P29");
-#endif																																																	/* CONFIG_COMM_DEBUG */
+		ESP_LOGI(TAG, "parseGCode| P29");
+#endif /* CONFIG_COMM_DEBUG */
 		command->type = GCodeCommand::COMMAND_TO_REMOVE;
 		if (commandDestination != activeProgram->header || programmingMode != ProgrammingMode::PROGRAMMING) // we can only declare looped command in the header
 			return ParsingGCodeResult::COMMAND_BAD_CONTEXT;
 		activeProgram->repeatIndefinitely = true;
 	} else if (strncmp(gcode, "P92", 3)) {
 #ifdef CONFIG_COMM_DEBUG
-		ESP_LOGI(TAG, "P92");
+		ESP_LOGI(TAG, "parseGCode| P92");
 #endif /* CONFIG_COMM_DEBUG */
 		command->type = GCodeCommand::COMMAND_TO_REMOVE;
 		if (programmingMode != ProgrammingMode::PROGRAMMING)
