@@ -54,7 +54,6 @@ void StepperControl::init()
 
 float StepperControl::getElementFloat(const char* str, const uint16_t length, const uint16_t startIndex, const char* matchString, const uint16_t elementLength)
 {
-	ESP_LOGI(TAG, "StepperControl | getElementFloat | start, matchString: %s, elementLength: %d", matchString, elementLength);
 	bool negative = false;
 	float toReturn = 0;
 	uint8_t decimal = 0;
@@ -508,7 +507,7 @@ void StepperControl::commandSchedulerTask(void* arg)
 				steppers.waitStepper(stepperHalH, command->movementH->val.time, SYNCHRONIZED);
 			}
 			if (command->movementT != nullptr) {
-				steppers.waitStepper(stepperHalH, command->movementT->val.time, SYNCHRONIZED);
+				steppers.waitStepper(stepperHalT, command->movementT->val.time, SYNCHRONIZED);
 			}
 #ifdef CONFIG_APP_DEBUG
 			if (command->movementH != nullptr && command->movementT != nullptr)
@@ -563,8 +562,9 @@ ParsingGCodeResult StepperControl::parseGCode(const char* gcode, const uint16_t 
 		break;
 	case 'P':
 		res = parseGCodePCommands(gcode, length, command);
+		break;
 	default:
-			res = ParsingGCodeResult::INVALID_COMMAND;
+		res = ParsingGCodeResult::INVALID_COMMAND;
 		break;
 	}
 
@@ -601,6 +601,14 @@ ParsingGCodeResult StepperControl::parseGCodeNonScheduledCommands(const char* gc
 #ifdef CONFIG_COMM_DEBUG
 		ESP_LOGI(TAG, "parseGCode | M80");
 #endif /* CONFIG_COMM_DEBUG */
+		gpio_set_level((gpio_num_t)CONFIG_STEPPER_H_PIN_EN, 0);
+		gpio_set_level((gpio_num_t)CONFIG_STEPPER_T_PIN_EN, 0);
+
+		return ParsingGCodeResult::SUCCESS;
+	} else if (strncmp(gcode, "M81", 3) == 0) { // power up high voltage supply
+#ifdef CONFIG_COMM_DEBUG
+		ESP_LOGI(TAG, "parseGCode | M81");
+#endif /* CONFIG_COMM_DEBUG */
 		activeProgram = nullptr;
 		programmingMode.store(ProgrammingMode::NO_PROGRAMM);
 		xSemaphoreTake(noProgrammQueueLock, (TickType_t)1000);
@@ -610,14 +618,6 @@ ParsingGCodeResult StepperControl::parseGCodeNonScheduledCommands(const char* gc
 		steppers.stopNowStepper(stepperHalT);
 		gpio_set_level((gpio_num_t)CONFIG_STEPPER_H_PIN_EN, 1);
 		gpio_set_level((gpio_num_t)CONFIG_STEPPER_T_PIN_EN, 1);
-
-		return ParsingGCodeResult::SUCCESS;
-	} else if (strncmp(gcode, "M81", 3) == 0) { // power up high voltage supply
-#ifdef CONFIG_COMM_DEBUG
-		ESP_LOGI(TAG, "parseGCode | M81");
-#endif /* CONFIG_COMM_DEBUG */
-		gpio_set_level((gpio_num_t)CONFIG_STEPPER_H_PIN_EN, 0);
-		gpio_set_level((gpio_num_t)CONFIG_STEPPER_T_PIN_EN, 0);
 		return ParsingGCodeResult::SUCCESS;
 	} else if (strncmp(gcode, "M82", 3) == 0) { // carefull stop
 #ifdef CONFIG_COMM_DEBUG
@@ -697,7 +697,6 @@ ParsingGCodeResult StepperControl::parseGCodeNonScheduledCommands(const char* gc
 #ifdef CONFIG_COMM_DEBUG
 		ESP_LOGI(TAG, "parseGCode| P0");
 #endif /* CONFIG_COMM_DEBUG */
-		return ParsingGCodeResult::NO_SUPPORT;
 		if (programmingMode != ProgrammingMode::RUN_PROGRAM)
 			return ParsingGCodeResult::INVALID_COMMAND;
 
@@ -864,27 +863,22 @@ ParsingGCodeResult StepperControl::parseGCodeMCommands(const char* gcode, const 
 		} else {
 			return ParsingGCodeResult::INVALID_ARGUMENT;
 		}
-
-		elementFloat = getElementFloat(gcode, length, 3, "SH", 2);
-		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT) {
-			if (command->movementH != nullptr)
-				command->movementH->rpm = elementFloat < CONFIG_STEPPER_MAX_SPEED ? elementFloat : CONFIG_STEPPER_MAX_SPEED;
-			else
+		if (command->movementH != nullptr){
+			elementFloat = getElementFloat(gcode, length, 3, "SH", 2);
+			if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT) {
+					command->movementH->rpm = elementFloat < CONFIG_STEPPER_MAX_SPEED ? elementFloat : CONFIG_STEPPER_MAX_SPEED;
+			} else {
 				return ParsingGCodeResult::INVALID_ARGUMENT;
-
-		} else {
-			return ParsingGCodeResult::INVALID_ARGUMENT;
+			}
 		}
 
-		elementFloat = getElementFloat(gcode, length, 3, "ST", 2);
-		if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT) {
-			if (command->movementT != nullptr)
-				command->movementT->rpm = elementFloat < CONFIG_STEPPER_MAX_SPEED ? elementFloat : CONFIG_STEPPER_MAX_SPEED;
-			else
+		if (command->movementT != nullptr){
+			elementFloat = getElementFloat(gcode, length, 3, "ST", 2);
+			if (elementFloat != GCODE_ELEMENT_INVALID_FLOAT) {
+					command->movementT->rpm = elementFloat < CONFIG_STEPPER_MAX_SPEED ? elementFloat : CONFIG_STEPPER_MAX_SPEED;
+			} else {
 				return ParsingGCodeResult::INVALID_ARGUMENT;
-
-		} else {
-			return ParsingGCodeResult::INVALID_ARGUMENT;
+			}
 		}
 #ifdef CONFIG_COMM_DEBUG
 		if (command->movementH != nullptr && command->movementT != nullptr)
@@ -1061,7 +1055,8 @@ ParsingGCodeResult StepperControl::parseGCodePCommands(const char* gcode, const 
 	int64_t elementInt = 0;
 	float elementFloat = 0;
 
-	if (strncmp(gcode, "P21", 3)) {
+
+	if (strncmp(gcode, "P21", 3) == 0) {
 #ifdef CONFIG_COMM_DEBUG
 		ESP_LOGI(TAG, "parseGCode| P21");
 #endif /* CONFIG_COMM_DEBUG */
@@ -1079,7 +1074,7 @@ ParsingGCodeResult StepperControl::parseGCodePCommands(const char* gcode, const 
 			command->movementH->val.iterations = elementInt;
 		} else
 			return ParsingGCodeResult::INVALID_ARGUMENT;
-	} else if (strncmp(gcode, "P22", 3)) {
+	} else if (strncmp(gcode, "P22", 3) == 0) {
 #ifdef CONFIG_COMM_DEBUG
 		ESP_LOGI(TAG, "parseGCode| P22");
 #endif /* CONFIG_COMM_DEBUG */
@@ -1088,7 +1083,7 @@ ParsingGCodeResult StepperControl::parseGCodePCommands(const char* gcode, const 
 			return ParsingGCodeResult::COMMAND_BAD_CONTEXT;
 		}
 		activeProgram->forLoopCounter--;
-	} else if (strncmp(gcode, "P1", 2)) {
+	} else if (strncmp(gcode, "P1", 2) == 0) {
 #ifdef CONFIG_COMM_DEBUG
 		ESP_LOGI(TAG, "parseGCode| P1");
 #endif /* CONFIG_COMM_DEBUG */
@@ -1123,7 +1118,7 @@ ParsingGCodeResult StepperControl::parseGCodePCommands(const char* gcode, const 
 		ESP_LOGI(TAG, "parseGCode| P1 | Running program %s", activeProgram->name);
 #endif /* CONFIG_COMM_DEBUG */
 
-	} else if (strncmp(gcode, "P2", 2)) {
+	} else if (strncmp(gcode, "P2", 2) == 0) {
 #ifdef CONFIG_COMM_DEBUG
 		ESP_LOGI(TAG, "parseGCode| P2");
 #endif /* CONFIG_COMM_DEBUG */
@@ -1149,7 +1144,7 @@ ParsingGCodeResult StepperControl::parseGCodePCommands(const char* gcode, const 
 		ESP_LOGI(TAG, "parseGCode| P2 | Deleting program %s", name);
 #endif /* CONFIG_COMM_DEBUG */
 
-	} else if (strncmp(gcode, "P90", 3)) {
+	} else if (strncmp(gcode, "P90", 3) == 0) {
 #ifdef CONFIG_COMM_DEBUG
 		ESP_LOGI(TAG, "parseGCode| P90");
 #endif /* CONFIG_COMM_DEBUG */
@@ -1185,7 +1180,7 @@ ParsingGCodeResult StepperControl::parseGCodePCommands(const char* gcode, const 
 #endif /* CONFIG_COMM_DEBUG */
 		}
 		programmingMode.store(ProgrammingMode::PROGRAMMING);
-	} else if (strncmp(gcode, "P91", 3)) {
+	} else if (strncmp(gcode, "P91", 3) == 0) {
 #ifdef CONFIG_COMM_DEBUG
 		ESP_LOGI(TAG, "parseGCode| P91");
 #endif /* CONFIG_COMM_DEBUG */
@@ -1196,7 +1191,7 @@ ParsingGCodeResult StepperControl::parseGCodePCommands(const char* gcode, const 
 			return ParsingGCodeResult::NON_CLOSED_LOOP;
 
 		commandDestination = activeProgram->main;
-	} else if (strncmp(gcode, "P29", 3)) {
+	} else if (strncmp(gcode, "P29", 3) == 0) {
 #ifdef CONFIG_COMM_DEBUG
 		ESP_LOGI(TAG, "parseGCode| P29");
 #endif /* CONFIG_COMM_DEBUG */
@@ -1204,7 +1199,7 @@ ParsingGCodeResult StepperControl::parseGCodePCommands(const char* gcode, const 
 		if (commandDestination != activeProgram->header || programmingMode != ProgrammingMode::PROGRAMMING) // we can only declare looped command in the header
 			return ParsingGCodeResult::COMMAND_BAD_CONTEXT;
 		activeProgram->repeatIndefinitely = true;
-	} else if (strncmp(gcode, "P92", 3)) {
+	} else if (strncmp(gcode, "P92", 3) == 0) {
 #ifdef CONFIG_COMM_DEBUG
 		ESP_LOGI(TAG, "parseGCode| P92");
 #endif /* CONFIG_COMM_DEBUG */
