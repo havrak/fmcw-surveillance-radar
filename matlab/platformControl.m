@@ -24,9 +24,10 @@ classdef platformControl < handle
 		hSerial;
 		programs;
 		currentProgramName;
-		timestamp double;
-		currPosHorz double;
-		currPosTilt double;
+		timestamp double = 0;
+		currPosHorz double = 0;
+		currPosTilt double = 0;
+        log cell = {};
 		
 	end
 	methods(Access=private)
@@ -70,10 +71,11 @@ classdef platformControl < handle
 				'HorizontalAlignment', 'left', ...
 				'String', '');
 
-			obj.hTextOut =  uicontrol('Style', 'text', ...
+			obj.hTextOut =  uicontrol('Style', 'edit', ...
 				'Parent', obj.hFig, ...
 				'Tag', 'ProgramDisplay', ...
-				'Max', 2, ...
+                'Min', 0, ...
+				'Max', 200, ...
 				'HorizontalAlignment', 'left', ...
 				'String', 'Platform serial output');
 
@@ -152,7 +154,6 @@ classdef platformControl < handle
 			obj.hBtnStore.Position = [10, 60, buttonPanelWidth - 30, buttonHeight]; % Fixed at the bottom of the panel
     
 			obj.hBtnClose.Position = [10, 10, buttonPanelWidth - 30, buttonHeight]; % Fixed at the bottom of the panel
-      
 
 		end
 
@@ -166,7 +167,7 @@ classdef platformControl < handle
 			end
 		end
 		
-		function  callbackQuickCommand(obj)
+		function callbackQuickCommand(obj)
 			value = get(obj.hEditProgram, 'String');
 			flush(obj.hSerial); 
 			writeline(obj.hSerial, value);
@@ -174,16 +175,27 @@ classdef platformControl < handle
 
 
 		function processIncommingData(obj, src)
-			line = char(readline(src));
-			if strcmp(line(1:2),'!P')
+		    line = readline(src);
+            if length(obj.log) > 200
+                obj.log(1) = [];
+            end
+
+			if strncmp(line,'!P',2)
 				vals = split(line(2:end), ',');
 				obj.timestamp = str2double(vals{1});
 				obj.currPosHorz = str2double(vals{1});
 				obj.currPosTilt = str2double(vals{1});
-			elseif strcmp(line(1:2),'!R')a
-				set(obj.hTextOut, 'Value', append(obj.hTextOut.Value + "\n" + line));
-			end
-
+                return;
+			elseif strncmp(line,'!R',2)
+                obj.log{end+1} = line;
+                 set(obj.hTextOut, 'String', obj.log);
+                return;
+            elseif obj.hPreferences.getPlatformDebug()
+                if(extract(line,1) == "I" || extract(line,1) == "W" || extract(line,1) == "E")
+				   obj.log(end+1) = line;
+                   set(obj.hTextOut, 'String', obj.log);
+                end
+            end
 		end
 
 		function newProgram(obj)
@@ -257,6 +269,7 @@ classdef platformControl < handle
 			fprintf('PlatformControl | platformControl | constructing object\n');
 			obj.hPreferences = hPreferences;
 			loadSavedPrograms(obj);
+           
 		end
 		
 		function endProcesses(obj)
@@ -275,7 +288,7 @@ classdef platformControl < handle
 			try 
 				fprintf("platFormControl | setupSerial | port: %s, baud: %f\n", port, baudrate)
 				obj.hSerial = serialport(port, baudrate, "Timeout", 5);
-				configureTerminator(obj.hSerial,"CR/LF");
+				configureTerminator(obj.hSerial,"LF");
 				flush(obj.hSerial);
 				fprintf("platFormControl | setupSerial | starting thread\n");			
 				configureCallback(obj.hSerial, "terminator", @(src, ~) obj.processIncommingData(src))

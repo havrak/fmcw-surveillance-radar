@@ -10,9 +10,10 @@ classdef preferences < handle
 		hDropRadarPort;         % uidropdown - radar serial port
 		hDropRadarBaudrate;     % uidropdown - radar serial baudrate 
 		hDropPlatformPort;      % uidropdown - platform serial port
-		hDropPlatformBaudrate;  % uidropdown - platofrm serial baudrate
-		hSwitchRadarHeader;
-		hEditRadarBandwith;           % uicontrol/edit - distance offset
+		hDropPlatformBaudrate;  % uidropdown - platform serial baudrate
+		hSwitchPlatformDebug;     % uiswitch - display debug messages from platform
+        hSwitchRadarHeader;     % uiswitch - pick between 122 and 24 GHz header
+		hEditRadarBandwith;     % uicontrol/edit - distance offset
 		
 		hEditOffsetD;           % uicontrol/edit - distance offset
 		hEditOffsetT;           % uicontrol/edit - angle offset tilt
@@ -32,11 +33,13 @@ classdef preferences < handle
 			obj.configStruct.radar.baudrate='0';
 			obj.configStruct.radar.header='';
 			obj.configStruct.radar.bandwidth='';
+
 			obj.configStruct.platform.port='none';
 			obj.configStruct.platform.baudrate='0';
 			obj.configStruct.platform.distanceOffset=0;
 			obj.configStruct.platform.angleOffsetT=0;
 			obj.configStruct.platform.angleOffsetH=0;
+            obj.configStruct.platform.debug=1;
 			
 			obj.configStruct.programs=[];
 
@@ -63,7 +66,7 @@ classdef preferences < handle
 
 		function showGUI(obj)
 			fprintf('prefrences | showGUI');
-			if isempty(obj.hFig)
+			if isempty(obj.hFig) | ~isvalid(obj.hFig)
 				constructGUI(obj);
 			end
 			set(obj.hFig, 'Visible', 'on');
@@ -100,6 +103,15 @@ classdef preferences < handle
 			% baudrate ... serial baudrate
 			port = obj.configStruct.radar.port;
 			baudrate = obj.configStruct.radar.baudrate;
+        end
+
+        function [debug] = getPlatformDebug(obj)
+			% getPlatformDebug: return 1 if debug from platform should be
+            % displayed
+			%
+			% Output:
+			% debug ... 0 or 1
+			debug = obj.configStruct.platform.debug
 		end
 
 	
@@ -243,23 +255,33 @@ classdef preferences < handle
 				'HorizontalAlignment', 'left');
 			
 			uilabel(obj.hFig, ...
-				'Position', [20, figSize(2)-240, 140, 25], ...
+				'Position', [20, figSize(2)-270, 140, 25], ...
 				'Text', 'Header frequency [GHz]: ');
 
 			uilabel(obj.hFig, ...
-				'Position', [20, figSize(2)-270, 140, 25], ...
+				'Position', [20, figSize(2)-300, 140, 25], ...
 				'Text', 'Header Bandwith [MHz]: ');
 
 			obj.hEditRadarBandwith = uicontrol('Style', 'edit', ...
 				'Parent',obj.hFig,  ...
-				'Position', [150, figSize(2)-270, 140, 25], ...
+				'Position', [150, figSize(2)-300, 140, 25], ...
 				'Max',1, ...
 				'String',"", ...
 				'HorizontalAlignment', 'left');
 
+            uilabel(obj.hFig, ...
+				'Position', [20, figSize(2)-240, 140, 25], ...
+				'Text', 'Platform debug: ');
+
 			obj.hSwitchRadarHeader=uiswitch('Parent', obj.hFig, ...
-				'Position', [180, figSize(2)-240, 140, 25], ...
+				'Position', [180, figSize(2)-270, 140, 25], ...
 				'Items', {'24', '122'}, ...
+				'Orientation', 'horizontal' ...
+				);
+
+            obj.hSwitchPlatformDebug=uiswitch('Parent', obj.hFig, ...
+				'Position', [180, figSize(2)-240, 140, 25], ...
+				'Items', {'On', 'Off'}, ...
 				'Orientation', 'horizontal' ...
 				);
 
@@ -276,6 +298,7 @@ classdef preferences < handle
 				'Max',1, ...
 				'String',"", ...
 				'HorizontalAlignment', 'left');
+
 			 
 		function reloadConfig(obj)
 			obj.loadConfig();
@@ -335,7 +358,13 @@ classdef preferences < handle
 			
 			if ismember(num2str(obj.configStruct.radar.header),obj.hSwitchRadarHeader.Items)
 				set(obj.hSwitchRadarHeader, 'Value', num2str(obj.configStruct.radar.header));
-			end
+            end
+
+            if(obj.configStruct.platform.debug == 1)
+                set(obj.hSwitchPlatformDebug, 'Value', 'On');
+            else
+                set(obj.hSwitchPlatformDebug, 'Value', 'Off');
+            end
 		end
 
 		function refreshSerial(obj)
@@ -348,8 +377,16 @@ classdef preferences < handle
 
 			err=false;
 			obj.configStruct.platform.baudrate=str2double(obj.hDropPlatformBaudrate.Value);
+            
+            disp(obj.hSwitchPlatformDebug.Value);
+            if(strcmp(obj.hSwitchPlatformDebug.Value,'On'))
+                obj.configStruct.platform.debug = 1;
+            else 
+                obj.configStruct.platform.debug = 0;
+            end
 			obj.configStruct.radar.baudrate=str2double(obj.hDropRadarBaudrate.Value);
 			obj.configStruct.radar.header=obj.hSwitchRadarHeader.Value;
+
 
 			tmp = get(obj.hEditOffsetD, 'String');
 			if isnan(str2double(tmp)) warndlg('Offset must be numerical');
