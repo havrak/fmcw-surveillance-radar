@@ -35,9 +35,9 @@ enum CommandType : uint8_t {
 	WAIT = 0x05,									// will wait for a given time
 };
 
-enum Direction : bool {
-	FORWARD = true,
-	BACKWARD = false,
+enum Direction : uint8_t {
+	FORWARD = 0,
+	BACKWARD = 1,
 };
 
 typedef struct {
@@ -47,11 +47,11 @@ typedef struct {
 		uint32_t time;       // time to wait in ms
 		uint32_t finishTime; // used in one situation: we are moving from spindle command to another command, spindle command is already stored in the previous command register but we need to know how much has the spindle traveled -- thus we store here the endtime.
 	} val;
-	float rpm;					// speed of the stepper
-	bool direction;			// true = forward, false = backward
-	bool complete;			// true upon completion of the command, used in correlation with event group
-	bool synchronized;	// true if the command is synchronized, if command is stored in prev pointer than used to indicate whether command has been proccessed by the application layer
-	uint64_t timestamp; // time of start of the execution
+	float rpm;					 // speed of the stepper
+	Direction direction; // 0 = forward, 1 = backward
+	bool complete;			 // true upon completion of the command, used in correlation with event group
+	bool synchronized;	 // true if the command is synchronized, if command is stored in prev pointer than used to indicate whether command has been proccessed by the application layer
+	uint64_t timestamp;  // time of start of the execution
 } stepper_hal_command_t;
 
 // these declaration unfortunately have to be here as esp compiler has problems with them being in a class

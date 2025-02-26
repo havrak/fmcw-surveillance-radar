@@ -175,13 +175,13 @@ void StepperHal::stepperTask(void* arg)
 
 			uint32_t period_ticks = (uint32_t)(3'000'000 / CONFIG_STEPPER_H_STEP_COUNT / stepperHal->stepperCommand->rpm); // Convert to timer ticks (as we are toggling on timer event we need to double the RPM)
 
-			gpio_set_level(stepperHal->stepperDirectionPin, stepperHal->stepperCommand->direction ? 1 : 0);
+			gpio_set_level(stepperHal->stepperDirectionPin, stepperHal->stepperCommand->direction);
 
 			// Reset and start pulse counter
 			switch (stepperHal->stepperCommand->type) {
 			case CommandType::STEPPER:
 #ifdef CONFIG_HAL_DEBUG
-				ESP_LOGI(TAG, "Stepper %s (STEPPER), period: %ld, steps: %ld", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "H" : "T", period_ticks, stepperHal->stepperCommand->val.steps);
+				ESP_LOGI(TAG, "Stepper %s (STEPPER), direction %d, period: %ld, steps: %ld", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "H" : "T", stepperHal->stepperCommand->direction, period_ticks, stepperHal->stepperCommand->val.steps);
 #endif
 				stepperHal->stepperCommand->timestamp = esp_timer_get_time();
 				stepperHal->stepperCommand->complete = false;
@@ -193,7 +193,7 @@ void StepperHal::stepperTask(void* arg)
 				break;
 			case CommandType::SPINDLE:
 #ifdef CONFIG_HAL_DEBUG
-				ESP_LOGI(TAG, "Stepper %s (SPINDLE), period: %ld", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "H" : "T", period_ticks);
+				ESP_LOGI(TAG, "Stepper %s (SPINDLE), direction %d, period: %ld", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "H" : "T", stepperHal->stepperCommand->direction, period_ticks);
 #endif
 				stepperHal->stepperCommand->timestamp = esp_timer_get_time();
 				stepperHal->stepperCommand->complete = false;
@@ -253,10 +253,10 @@ bool StepperHal::stepStepper(stepper_hal_struct_t* stepperHal, int16_t steps, fl
 	stepper_hal_command_t command = {
 		.type = steps == 0 ? CommandType::SKIP : CommandType::STEPPER,
 		.val = {
-				.steps = steps >= 0 ? (uint32_t)steps : ((uint32_t)-steps),
+				.steps = steps >= 0 ? (uint16_t)steps : ((uint16_t)-steps),
 		},
 		.rpm = rpm,
-		.direction = steps >= 0,
+		.direction = steps >= 0 ? Direction::FORWARD : Direction::BACKWARD,
 		.complete = false,
 		.synchronized = synchronized,
 	};
