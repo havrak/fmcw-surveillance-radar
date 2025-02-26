@@ -56,17 +56,20 @@ float StepperControl::getElementFloat(const char* str, const uint16_t length, co
 {
 	bool negative = false;
 	float toReturn = 0;
-	uint16_t iMatch = 0;
 	uint8_t decimal = 0;
 	for (uint16_t i = startIndex; i < length; i++) {
 		if (str[i] == matchString[0]) {
 			if (strncmp(str + i, matchString, elementLength) == 0) {
-				iMatch = i;
-				i += elementLength;
 
-				if (!(str[i] == ' ' || str[i] == '-' || (str[i] >= '0' && str[i] <= '9'))) {
+				// fix cases where matchString="T" will match "ST" and fail
+				if (str[i-1] >= 'A' && str[i-1] <= 'Z')
 					continue;
-				}
+
+				i += elementLength;
+				// fix cases where matchString="S" will match "ST" and fail
+				if (!(str[i] == ' ' || str[i] == '-' || (str[i] >= '0' && str[i] <= '9')))
+					continue;
+
 
 				while (str[i] == ' ' && i < length)
 					i++;
@@ -106,9 +109,15 @@ int32_t StepperControl::getElementInt(const char* str, const uint16_t length, co
 	for (uint16_t i = startIndex; i < length; i++) {
 		if (str[i] == matchString[0]) {
 			if (strncmp(str + i, matchString, elementLength) == 0) {
-				ESP_LOGI(TAG, "getElementInt | found matchString");
-				iMatch = i;
+
+				// fix cases where matchString="T" will match "ST" and fail
+				if (str[i-1] >= 'A' && str[i-1] <= 'Z')
+					continue;
+
 				i += elementLength;
+				// fix cases where matchString="S" will match "ST" and fail
+				if (!(str[i] == ' ' || str[i] == '-' || (str[i] >= '0' && str[i] <= '9')))
+					continue;
 
 				while (str[i] == ' ' && i < length)
 					i++;
@@ -123,15 +132,9 @@ int32_t StepperControl::getElementInt(const char* str, const uint16_t length, co
 						i++;
 						continue;
 					}
-					// return GCODE_ELEMENT_INVALID_INT;
-					goto falsePositiveInt;
+					return GCODE_ELEMENT_INVALID_INT;
 				}
-				ESP_LOGI(TAG, "getElementInt | returning %ld", negative ? -toReturn : toReturn);
 				return negative ? -toReturn : toReturn;
-			falsePositiveInt:
-				toReturn = 0;
-				negative = false;
-				i = iMatch;
 			}
 		}
 	}
@@ -651,35 +654,35 @@ ParsingGCodeResult StepperControl::parseGCodeNonScheduledCommands(const char* gc
 		gcode_command_movement_t* movementT = nullptr;
 		elementInt = getElementInt(gcode, length, 3, "H", 1);
 		if (elementInt != GCODE_ELEMENT_INVALID_INT) {
-			command->movementH = new gcode_command_movement_t();
-			command->movementH->val.steps = LIMIT_NUMBER(elementInt, INT16_MIN, INT16_MAX);
+			movementH = new gcode_command_movement_t();
+			movementH->val.steps = LIMIT_NUMBER(elementInt, INT16_MIN, INT16_MAX);
 		}
 
 		elementInt = getElementInt(gcode, length, 3, "T", 1);
 		if (elementInt != GCODE_ELEMENT_INVALID_INT) {
-			command->movementT = new gcode_command_movement_t();
-			command->movementT->val.steps = LIMIT_NUMBER(elementInt, INT16_MIN, INT16_MAX);
+			movementT = new gcode_command_movement_t();
+			movementT->val.steps = LIMIT_NUMBER(elementInt, INT16_MIN, INT16_MAX);
 		}
 
 		elementFloat = getElementFloat(gcode, length, 3, "S", 1);
 		if (!std::isnan(elementFloat)) {
-			if (command->movementH != nullptr)
-				command->movementH->rpm = LIMIT_NUMBER(elementFloat, 0, CONFIG_STEPPER_MAX_SPEED);
-			if (command->movementT != nullptr){
-				command->movementT->rpm = LIMIT_NUMBER(elementFloat, 0, CONFIG_STEPPER_MAX_SPEED);
+			if (movementH != nullptr)
+				movementH->rpm = LIMIT_NUMBER(elementFloat, 0, CONFIG_STEPPER_MAX_SPEED);
+			if (movementT != nullptr){
+				movementT->rpm = LIMIT_NUMBER(elementFloat, 0, CONFIG_STEPPER_MAX_SPEED);
 			}
 		}
 
 		elementFloat = getElementFloat(gcode, length, 3, "SH", 2);
-		if (!std::isnan(elementFloat) && command->movementH != nullptr)
-			command->movementH->rpm = LIMIT_NUMBER(elementFloat, 0, CONFIG_STEPPER_MAX_SPEED);
+		if (!std::isnan(elementFloat) && movementH != nullptr)
+			movementH->rpm = LIMIT_NUMBER(elementFloat, 0, CONFIG_STEPPER_MAX_SPEED);
 
 		elementFloat = getElementFloat(gcode, length, 3, "ST", 2);
-		if (!std::isnan(elementFloat) && command->movementT != nullptr){
-			command->movementT->rpm = LIMIT_NUMBER(elementFloat, 0, CONFIG_STEPPER_MAX_SPEED);
+		if (!std::isnan(elementFloat) && movementT != nullptr){
+			movementT->rpm = LIMIT_NUMBER(elementFloat, 0, CONFIG_STEPPER_MAX_SPEED);
 		}
 
-		if ((command->movementH != nullptr && command->movementH->rpm == NAN && command->movementH->val.steps !=0) || (command->movementT != nullptr && command->movementT->rpm == NAN && command->movementT->val.steps !=0))
+		if ((movementH != nullptr && movementH->rpm == NAN && movementH->val.steps !=0) || (movementT != nullptr && movementT->rpm == NAN && movementT->val.steps !=0))
 			return ParsingGCodeResult::INVALID_ARGUMENT;
 
 		if (movementH != nullptr && movementT != nullptr) {
@@ -1090,7 +1093,7 @@ ParsingGCodeResult StepperControl::parseGCodePCommands(const char* gcode, const 
 		if (programmingMode != ProgrammingMode::NO_PROGRAMM || activeProgram != nullptr)
 			return ParsingGCodeResult::NOT_PROCESSING_COMMANDS; // TODO: make sure this never arises
 
-		char name[20];
+		char name[PROG_NAME_MAX_LENGTH] = {};
 		uint16_t nameLength = 0;
 		bool out = getString(3, name, &nameLength);
 		if (!out)
@@ -1099,7 +1102,7 @@ ParsingGCodeResult StepperControl::parseGCodePCommands(const char* gcode, const 
 		// switch programmingMode, switch activeProgram
 		auto it = programms.begin();
 		for (; it != programms.end(); it++)
-			if (strncmp(it->name, name, 20) == 0)
+			if (strncmp(it->name, name, PROG_NAME_MAX_LENGTH) == 0)
 				break;
 
 		if (it == programms.end())
@@ -1125,14 +1128,14 @@ ParsingGCodeResult StepperControl::parseGCodePCommands(const char* gcode, const 
 		if (programmingMode != ProgrammingMode::NO_PROGRAMM || activeProgram != nullptr)
 			return ParsingGCodeResult::CODE_FAILURE; // TODO: make sure this never arises
 
-		char name[20];
+		char name[PROG_NAME_MAX_LENGTH]  = {};
 		uint16_t nameLength = 0;
 		bool out = getString(4, name, &nameLength);
 		if (!out)
 			return ParsingGCodeResult::INVALID_ARGUMENT;
 		auto it = programms.begin();
 		for (; it != programms.end(); it++)
-			if (strncmp(it->name, name, 20) == 0)
+			if (strncmp(it->name, name, PROG_NAME_MAX_LENGTH) == 0)
 				break;
 		if (it != programms.end()) { // programm with the same name exists so we will overwrite it
 			// -> if there is a program with the same name we will overwrite it
@@ -1144,7 +1147,7 @@ ParsingGCodeResult StepperControl::parseGCodePCommands(const char* gcode, const 
 #endif			 /* CONFIG_COMM_DEBUG */
 		} else { // create new programm
 			gcode_programm_t newProgram;
-			strncpy(newProgram.name, name, 20);
+			strncpy(newProgram.name, name, PROG_NAME_MAX_LENGTH);
 			programms.push_back(newProgram);
 			activeProgram = &(programms.back());
 			commandDestination = activeProgram->header;
@@ -1180,16 +1183,19 @@ ParsingGCodeResult StepperControl::parseGCodePCommands(const char* gcode, const 
 		if (programmingMode != ProgrammingMode::NO_PROGRAMM || activeProgram != nullptr)
 			return ParsingGCodeResult::NOT_PROCESSING_COMMANDS; // TODO: make sure this never arises
 
-		char name[20] = {};
+		char name[PROG_NAME_MAX_LENGTH] = {};
 		uint16_t nameLength = 0;
 		bool out = getString(3, name, &nameLength);
 		if (!out)
 			return ParsingGCodeResult::INVALID_ARGUMENT;
 
 		auto it = programms.begin();
-		for (; it != programms.end(); it++)
-			if (strncmp(it->name, name, 20) == 0)
+		for (; it != programms.end(); it++){
+			ESP_LOGI(TAG, "parseGCode| P2 | %s", it->name);
+
+			if (strncmp(it->name, name, PROG_NAME_MAX_LENGTH) == 0)
 				break;
+		}
 
 		if (it != programms.end())
 			programms.erase(it);

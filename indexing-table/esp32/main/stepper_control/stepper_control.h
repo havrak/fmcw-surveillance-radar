@@ -46,6 +46,8 @@
 
 #define port_TICK_PERIOD_US portTICK_PERIOD_MS * 1000
 
+#define PROG_NAME_MAX_LENGTH 24
+
 #define STEPPER1_MCPWM_UNIT MCPWM_UNIT_0
 #define STEPPER1_MCPWM_TIMER MCPWM_TIMER_0
 #define STEPPER2_MCPWM_UNIT MCPWM_UNIT_0
@@ -113,7 +115,7 @@ enum GCodeCommand : uint8_t {
 	M202, // disable limits 												DONE	DONE	DONE
 	P0,		// stop programm execution 								DONE	XXX		TODO
 	P1,		// start programm execution 							DONE	XXX		DONE
-	P2,		// delete program from memory 						DONE	XXX		TODO
+	P2,		// delete program from memory 						DONE	XXX		DONE
 	P90,	// start program declaration (header) 		DONE	XXX		DONE
 	P91,	// start program declaration (main body)	DONE	XXX		DONE
 	P92,	// end programm declaration 							DONE	XXX		DONE
@@ -168,7 +170,7 @@ typedef struct gcode_command_t {
 } gcode_command_t;
 
 typedef struct gcode_programm_t {
-	char name[32];
+	char name[PROG_NAME_MAX_LENGTH] = {};
 
 	std::vector<gcode_command_t*>* header = nullptr; // point to a list to save received programms in programming mode
 	// iterator to currect header command
