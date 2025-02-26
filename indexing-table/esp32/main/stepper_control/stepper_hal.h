@@ -73,6 +73,7 @@ typedef struct {
 		QueueHandle_t pcntQueue;
 		uint8_t stepperCompleteBit = 0;
 		gpio_num_t stepperDirectionPin = (gpio_num_t) 0;
+		uint16_t stepCount = 0;
 
 
 } stepper_hal_struct_t;

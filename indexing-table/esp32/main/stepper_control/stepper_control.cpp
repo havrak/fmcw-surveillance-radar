@@ -156,7 +156,7 @@ bool StepperControl::getElementString(const char* str, const uint16_t length, co
 int32_t StepperControl::moveStepperAbsolute(stepper_hal_struct_t* stepperHal, gcode_command_movement_t* movement, const stepper_operation_paramters_t* stepperOpPar, bool synchronized)
 {
 	if (stepperOpPar->stepsMax == GCODE_ELEMENT_INVALID_INT && stepperOpPar->stepsMin == GCODE_ELEMENT_INVALID_INT)
-		steppers.stepStepper(stepperHalH, ANGLE_DISTANCE(stepperOpPar->positionLastScheduled, movement->val.steps, stepperOpPar->stepCount), movement->rpm, synchronized);
+		steppers.stepStepper(stepperHalH, ANGLE_DISTANCE(stepperOpPar->positionLastScheduled, movement->val.steps, stepperHal->stepCount), movement->rpm, synchronized);
 	else if (stepperOpPar->stepsMax >= stepperOpPar->stepsMin) { // moving in interval <min, max>
 		if (movement->val.steps > stepperOpPar->stepsMax)
 			movement->val.steps = stepperOpPar->stepsMax;
@@ -165,9 +165,9 @@ int32_t StepperControl::moveStepperAbsolute(stepper_hal_struct_t* stepperHal, gc
 
 		// now we need to pick from clockwise or counterclockwise rotation, where one can possible go outside of the limits
 		if (stepperOpPar->positionLastScheduled < movement->val.steps)
-			steppers.stepStepper(stepperHal, ANGLE_DISTANCE_CLOCKWISE(stepperOpPar->positionLastScheduled, movement->val.steps, stepperOpPar->stepCount), movement->rpm, synchronized);
+			steppers.stepStepper(stepperHal, ANGLE_DISTANCE_CLOCKWISE(stepperOpPar->positionLastScheduled, movement->val.steps, stepperHal->stepCount), movement->rpm, synchronized);
 		else
-			steppers.stepStepper(stepperHal, ANGLE_DISTANCE_COUNTERCLOCKWISE(stepperOpPar->positionLastScheduled, movement->val.steps, stepperOpPar->stepCount), movement->rpm, synchronized);
+			steppers.stepStepper(stepperHal, ANGLE_DISTANCE_COUNTERCLOCKWISE(stepperOpPar->positionLastScheduled, movement->val.steps, stepperHal->stepCount), movement->rpm, synchronized);
 	} else { // moving in interval <0, max> U <min, stepCount>
 		uint32_t avg = (stepperOpPar->stepsMax + stepperOpPar->stepsMin) / 2;
 		if (movement->val.steps >= avg && movement->val.steps < stepperOpPar->stepsMin)
@@ -176,9 +176,9 @@ int32_t StepperControl::moveStepperAbsolute(stepper_hal_struct_t* stepperHal, gc
 			movement->val.steps = stepperOpPar->stepsMax;
 
 		bool fromInInterval1 = (stepperOpPar->positionLastScheduled >= 0 && stepperOpPar->positionLastScheduled <= stepperOpPar->stepsMax);
-		bool fromInInterval2 = (stepperOpPar->positionLastScheduled >= stepperOpPar->stepsMin && stepperOpPar->positionLastScheduled <= stepperOpPar->stepCount);
+		bool fromInInterval2 = (stepperOpPar->positionLastScheduled >= stepperOpPar->stepsMin && stepperOpPar->positionLastScheduled <= stepperHal->stepCount);
 		bool destInInterval1 = (movement->val.steps >= 0 && movement->val.steps <= stepperOpPar->stepsMax);
-		bool destInInterval2 = (movement->val.steps >= stepperOpPar->stepsMin && movement->val.steps <= stepperOpPar->stepCount);
+		bool destInInterval2 = (movement->val.steps >= stepperOpPar->stepsMin && movement->val.steps <= stepperHal->stepCount);
 
 		bool order = false;
 
@@ -193,9 +193,9 @@ int32_t StepperControl::moveStepperAbsolute(stepper_hal_struct_t* stepperHal, gc
 
 		// we need to calculete in which order steps and positionLastScheduled are
 		if (order)
-			steppers.stepStepper(stepperHal, ANGLE_DISTANCE_CLOCKWISE(stepperOpPar->positionLastScheduled, movement->val.steps, stepperOpPar->stepCount), movement->rpm, synchronized);
+			steppers.stepStepper(stepperHal, ANGLE_DISTANCE_CLOCKWISE(stepperOpPar->positionLastScheduled, movement->val.steps, stepperHal->stepCount), movement->rpm, synchronized);
 		else
-			steppers.stepStepper(stepperHal, ANGLE_DISTANCE_CLOCKWISE(stepperOpPar->positionLastScheduled, movement->val.steps, stepperOpPar->stepCount), movement->rpm, synchronized);
+			steppers.stepStepper(stepperHal, ANGLE_DISTANCE_CLOCKWISE(stepperOpPar->positionLastScheduled, movement->val.steps, stepperHal->stepCount), movement->rpm, synchronized);
 	}
 	return movement->val.steps;
 }
@@ -213,25 +213,22 @@ int32_t StepperControl::moveStepperRelative(stepper_hal_struct_t* stepperHal, gc
 		steppers.stepStepper(stepperHal, movement->val.steps, movement->rpm, synchronized);
 	} else { // moving in interval <0, max> U <min, stepCount>
 
-		int16_t maxStepsCCW = (stepperOpPar->positionLastScheduled >= stepperOpPar->stepsMin) ? -(stepperOpPar->positionLastScheduled - stepperOpPar->stepsMin) : -(stepperOpPar->positionLastScheduled + stepperOpPar->stepCount - stepperOpPar->stepsMin);
+		int16_t maxStepsCCW = (stepperOpPar->positionLastScheduled >= stepperOpPar->stepsMin) ? -(stepperOpPar->positionLastScheduled - stepperOpPar->stepsMin) : -(stepperOpPar->positionLastScheduled + stepperHal->stepCount - stepperOpPar->stepsMin);
 		// Calculate stepperOpPar->stepsMaximum allowable steps clockwise (positive)
-		int16_t maxStepsCW = (stepperOpPar->positionLastScheduled <= stepperOpPar->stepsMax) ? (stepperOpPar->stepsMax - stepperOpPar->positionLastScheduled) : (stepperOpPar->stepCount - stepperOpPar->positionLastScheduled + stepperOpPar->stepsMax);
+		int16_t maxStepsCW = (stepperOpPar->positionLastScheduled <= stepperOpPar->stepsMax) ? (stepperOpPar->stepsMax - stepperOpPar->positionLastScheduled) : (stepperHal->stepCount - stepperOpPar->positionLastScheduled + stepperOpPar->stepsMax);
 		if (movement->val.steps < maxStepsCCW)
 			movement->val.steps = maxStepsCCW;
 		else if (movement->val.steps > maxStepsCW)
 			movement->val.steps = maxStepsCW;
-
 		steppers.stepStepper(stepperHal, movement->val.steps, movement->rpm, synchronized);
 	}
-	return NORMALIZE_ANGLE(stepperOpPar->positionLastScheduled + movement->val.steps, stepperOpPar->stepCount);
+	return NORMALIZE_ANGLE(stepperOpPar->positionLastScheduled + movement->val.steps, stepperHal->stepCount);
 }
 
 void StepperControl::commandSchedulerTask(void* arg)
 {
 	stepper_operation_paramters_t stepperOpParH;
 	stepper_operation_paramters_t stepperOpParT;
-	stepperOpParH.stepCount = CONFIG_STEPPER_H_STEP_COUNT;
-	stepperOpParT.stepCount = CONFIG_STEPPER_T_STEP_COUNT;
 	Unit unit = Unit::STEPS; // only used in motorTask
 
 	gcode_command_t* command = nullptr; // NOTE: this is just hack so I don't have tu turn off -Werror=maybe-uninitialized
@@ -271,7 +268,7 @@ void StepperControl::commandSchedulerTask(void* arg)
 #endif
 				command = activeProgram->header->at(activeProgram->indexHeader);
 				activeProgram->indexHeader++;
-			} else if (activeProgram->indexMain == 0) { // header finished, switch to main
+			} else if (activeProgram->indexMain == 0 && activeProgram->indexMain != activeProgram->main->size()) { // header finished, switch to main
 #ifdef CONFIG_APP_DEBUG
 				ESP_LOGI(TAG, "commandSchedulerTask | CMD SOURCE: programm main (start)");
 #endif
