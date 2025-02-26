@@ -94,6 +94,7 @@ WARNING: DO NOT use this device without first reading the documentation. Command
 		* H - angle by/to rotate in horizontal plane
 		* ST<SPEED> - speed for tilt motor in tilt axis
 		* T - angle by/to rotate in tilt axis
+		* speed needs to be provided, if number of steps is set but speed is not ERR 2 is returned
 * spindle mode
 	* beware when using spindle in programming mode one can desynchronized two command queues, this "issue" will be fixed and is up to user to handle as there is no clear way to decipher user intentions in programm in order to prevent it
 	* M03:  Start spindle mode
@@ -106,6 +107,7 @@ WARNING: DO NOT use this device without first reading the documentation. Command
 		* H - stop spindle regime on horizontal axis
 		* T - stop spindle regime on tilt axis
 		* NOTE: spindle mode will also automatically end if stepper receives G0 command
+		* if no argument is present neither axis will be stopped
 * M201: set limits on steppers
 	* LH<ANGLE>: low limit on horizontal stepper
 	* HH<ANGLE>: high limit on horizontal Stepper
@@ -117,8 +119,6 @@ WARNING: DO NOT use this device without first reading the documentation. Command
 * M202: disable limits
 	* H - disable limits on horizontal stepper
 	* L - disable limits on tilt stepper
-
-
 
 ### Programming movements
 * device allows to preprogram sequence of movements that can be executed with one command, or looped continuously
@@ -163,16 +163,16 @@ WARNING: DO NOT use this device without first reading the documentation. Command
 
 | Command       | Mode                   | Description                                  |
 |---------------|------------------------|----------------------------------------------|
-| P1 1          | General -> Header dec  | start programming mode with programm id of 1 |
+| P90 prog      | General -> Header dec  | start programming mode with programm id of 1 |
 | G91           | Header dec             | set relative positioning                     |
 | G20           | Header dec             | set units to degrees                         |
 | G92           | Header dec             | set current position as home                 |
-| P98           | Header dec             | declare looped programm                      |
-| M03 SH120 H+  | Header dec -> Main dec | set horizontal motor to be in spindle mode   |
+| P29           | Header dec             | declare looped programm                      |
+| M03 SH6 H+    | Header dec -> Main dec | set horizontal motor to be in spindle mode   |
 | P91           | Main dec               | start declaration of main loop               |
 | G0 ST30 T100  | Main dec               | move tilt motor by 100 degrees at 30 rpm     |
 | G0 ST30 T-100 | Main dec               | move tilt motor by -100 degrees at 30 rpm    |
-| P99           | Main dec               | end programming                              |
+| P92           | Main dec               | end programming                              |
 
 
 ### Special advanced commands
@@ -202,14 +202,14 @@ WARNING: DO NOT use this device without first reading the documentation. Command
 	* upon receiving command from the host, device will send back an acknowledgement
 	* in case of an error reported please consult following table
 
-| Error code | Description                                                                                                                                                                |
-|------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 1          | command wasn't able to be decoded                                                                                                                                          |
-| 2          | command code is valid but it's arguments aren't                                                                                                                            |
-| 3          | command was processed, should be added to noProgrammQueue but we failed to get a lock                                                                                      |
-| 4          | command exists but isn't yet supported by the hardware                                                                                                                     |
-| 5          | we are either running homing or some programm thus new incoming commands will not be process                                                                               |
-| 6          | command might be fine but code runned into unexpected occurrence                                                                                                           |
-| 7          | specific error that can arise only when we are ending programming, indicated that program has unclosed for loop, it is recommended to delete whole program and start again |
-| 8          | command is not valid in current context                                                                                                                                    |
+| Error code | Description                                                                                             |
+|------------|---------------------------------------------------------------------------------------------------------|
+| 1          | command wasn't able to be decoded                                                                       |
+| 2          | command code is valid but it's arguments aren't                                                         |
+| 3          | command was processed, should be added to noProgrammQueue but we failed to get a lock                   |
+| 4          | command exists but isn't yet supported by the hardware                                                  |
+| 5          | we are either running homing or some programm thus new incoming commands will not be process            |
+| 6          | command might be fine but code runned into unexpected occurrence                                        |
+| 7          | indicated that program has unclosed for loop, it is recommended to delete whole program and start again |
+| 8          | command is not valid in current context                                                                 |
 

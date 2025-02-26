@@ -13,6 +13,7 @@
 #define STEPPER_CONTROL_H
 
 #include <atomic>
+#include <cmath>
 #include <driver/gpio.h>
 #include <esp32-hal-gpio.h>
 #include <esp_log.h>
@@ -20,28 +21,28 @@
 #include <freertos/event_groups.h>
 #include <freertos/queue.h>
 #include <freertos/task.h>
-#include <hal/gpio_hal.h>
-#include <queue>
-#include <list>
-#include <vector>
-#include <cmath>
-#include <stepper_hal.h>
 #include <functional>
+#include <hal/gpio_hal.h>
+#include <list>
+#include <queue>
+#include <stepper_hal.h>
+#include <vector>
 
 #define HOMING_DONE_BIT BIT2
 
+// #define INT16_MAX 32767
+// #define INT16_MIN -32768
+
 #define ANGLE_TO_STEPS(angle, steps_per_revolution) ((angle * steps_per_revolution / 360))
-#define STEPS_TO_ANGLE(step, steps_per_revolution) ((float) (step * 360. / steps_per_revolution))
+#define STEPS_TO_ANGLE(step, steps_per_revolution) ((float)(step * 360. / steps_per_revolution))
 #define ANGLE_DISTANCE(from, to, angleMax) ( \
-    (((to) - (from) + (angleMax)) % (angleMax) > (angleMax) / 2) ? \
-    ((to) - (from) + (angleMax)) % (angleMax) - (angleMax) : \
-    ((to) - (from) + (angleMax)) % (angleMax) \
-		) // only applies when no limits are set
+		(((to) - (from) + (angleMax)) % (angleMax) > (angleMax) / 2) ? ((to) - (from) + (angleMax)) % (angleMax) - (angleMax) : ((to) - (from) + (angleMax)) % (angleMax)) // only applies when no limits are set
 #define ANGLE_DISTANCE_COUNTERCLOCKWISE(from, to, angleMax) ((to) - (from) + (angleMax)) % (angleMax) - (angleMax)
 #define ANGLE_DISTANCE_CLOCKWISE(from, to, angleMax) ((to) - (from) + (angleMax)) % (angleMax)
+#define LIMIT_NUMBER(value, min, max) ((value) < (min) ? (min) : (value) > (max) ? (max) : (value))
 
 #define NORMALIZE_ANGLE(angle, angleMax) ((angle) < 0 ? ((angle) % (angleMax) + (angleMax)) % (angleMax) : (angle) % (angleMax))
-#define SYNCHRONIZED  (command->movementH != nullptr && command->movementT != nullptr)
+#define SYNCHRONIZED (command->movementH != nullptr && command->movementT != nullptr)
 
 #define port_TICK_PERIOD_US portTICK_PERIOD_MS * 1000
 
@@ -82,9 +83,9 @@ enum ParsingGCodeResult : uint8_t {
 	NOT_PROCESSING_COMMANDS = 5, // we are either running homing or some programm thus new incoming commands will not be process
 	CODE_FAILURE = 6,						 // command might be fine but code runned into unexpected occurrence
 	NON_CLOSED_LOOP = 7,				 // specific error that can arise only when we are ending programming, indicated that program has unclosed for loop, it is recommended to delete whole program and start again
-	COMMAND_BAD_CONTEXT = 8, 		 // command is not valid in current context
+	COMMAND_BAD_CONTEXT = 8,		 // command is not valid in current context
 
-	RESERVED = 0xFF, 					 // for internal use only
+	RESERVED = 0xFF, // for internal use only
 };
 
 // 1st status: 	DONE - commnad is parsed rom string
@@ -93,35 +94,34 @@ enum ParsingGCodeResult : uint8_t {
 // 2nd status:	DONE - command is implemented in MotorTask
 //							TODO - command is not yet implemented in MotorTask
 // 							XXX  - command is not handled by MotorTask at all
-// 3rd status: DONE  - command has been validated as working
-//						 TODO  - command needs to be validated
+// 3rd status: 	DONE - command has been validated as working
+//						 	TODO - command needs to be validated
 enum GCodeCommand : uint8_t {
-	//																						1st  2nd  3rd
-	M80, // turn on high voltage supply 					DONE XXX 	DONE
-	M81, // turn off high voltage supply 					DONE XXX 	DONE
-	G20, // set units to degrees 									DONE DONE DONE
-	G21, // set units to steps 										DONE DONE DONE
-	G90, // set absolute positioning 							DONE DONE DONE
-	G91, // set relative positioning 							DONE DONE DONE
-	G92, // set current position as home  				DONE DONE DONE
-	G28, // start homing routine 									DONE DONE TODO
-	G0,	 // move stepper 													DONE DONE TODO
-	M03, // start spindle 												DONE DONE TODO
-	M05, // stop spindle 													DONE DONE TODO
-	M201, // set limits 													DONE DONE DONE
-	M202, // disable limits 											DONE DONE DONE
-	P0,	 // stop programm execution 							DONE XXX	TODO
-	P1,	 // start programm execution 							DONE XXX	TODO
-	P2,	 // delete program from memory 						DONE XXX	TODO
-	P90, // start program declaration (header) 		DONE XXX 	TODO
-	P91, // start program declaration (main body) DONE XXX 	TODO
-	P92, // end programm declaration 							DONE XXX 	TODO
-	P21, // declare for loop start 								DONE DONE TODO
-	P22, // declare for loop end 									DONE DONE TODO
-	P29, // declare infinitely looped programm 		DONE XXX 	TODO
-	W0,	 // wait seconds 													DONE XXX 	TODO
-	W1,	 // wait milliseconds 										DONE TODO TODO
-
+	//																							1st  2nd  3rd
+	M80,	// turn on high voltage supply 						DONE	XXX 	DONE
+	M81,	// turn off high voltage supply 					DONE	XXX 	DONE
+	G20,	// set units to degrees 									DONE	DONE	DONE
+	G21,	// set units to steps 										DONE	DONE	DONE
+	G90,	// set absolute positioning 							DONE	DONE	DONE
+	G91,	// set relative positioning 							DONE	DONE	DONE
+	G92,	// set current position as home  					DONE	DONE	DONE
+	G28,	// start homing routine 									DONE	DONE	TODO
+	G0,		// move stepper 													DONE	DONE	DONE
+	M03,	// start spindle 													DONE	DONE	TODO
+	M05,	// stop spindle 													DONE	DONE	TODO
+	M201, // set limits 														DONE	DONE	DONE
+	M202, // disable limits 												DONE	DONE	DONE
+	P0,		// stop programm execution 								DONE	XXX		TODO
+	P1,		// start programm execution 							DONE	XXX		DONE
+	P2,		// delete program from memory 						DONE	XXX		TODO
+	P90,	// start program declaration (header) 		DONE	XXX		DONE
+	P91,	// start program declaration (main body)	DONE	XXX		DONE
+	P92,	// end programm declaration 							DONE	XXX		DONE
+	P21,	// declare for loop start 								DONE	DONE	TODO
+	P22,	// declare for loop end 									DONE	DONE	TODO
+	P29,	// declare infinitely looped programm 		DONE	XXX		TODO
+	W0,		// wait seconds 													DONE	XXX		DONE
+	W1,		// wait milliseconds 											DONE	DONE 	DONE
 
 	// clear stepper QUEUE
 	COMMAND_TO_REMOVE
@@ -130,12 +130,12 @@ enum GCodeCommand : uint8_t {
 // these structures will be stored as a programm declaration
 // needs to store
 // 	* time in case of wait ()
-typedef struct gcode_command_movement_t{
+typedef struct gcode_command_movement_t {
 	union {
-		int32_t time;			 // for wait
+		int32_t time;				 // for wait
 		Direction direction; // for spindle mode
 		int16_t steps;			 // for regural steps
-		uint32_t iterations;	 // for for loop
+		uint32_t iterations; // for for loop
 		struct {
 			float min;
 			float max;
@@ -143,11 +143,12 @@ typedef struct gcode_command_movement_t{
 	} val;
 	float rpm;
 
-	gcode_command_movement_t(){
+	gcode_command_movement_t()
+	{
 		// val.time = GCODE_ELEMENT_INVALID_INT;
 		val.limits.min = GCODE_ELEMENT_INVALID_INT;
 		val.limits.max = GCODE_ELEMENT_INVALID_INT;
-		rpm = CONFIG_STEPPER_DEFAULT_SPEED;
+		rpm = GCODE_ELEMENT_INVALID_FLOAT;
 	};
 } gcode_command_movement_t;
 
@@ -156,11 +157,12 @@ typedef struct gcode_command_t {
 	gcode_command_movement_t* movementH = nullptr; // filled in if command requires some action from steppers
 	gcode_command_movement_t* movementT = nullptr;
 
+
 	~gcode_command_t()
 	{
-		if(movementH != nullptr)
+		if (movementH != nullptr)
 			delete movementH;
-		if(movementT != nullptr)
+		if (movementT != nullptr)
 			delete movementT;
 	}
 } gcode_command_t;
@@ -176,9 +178,9 @@ typedef struct gcode_programm_t {
 	uint32_t indexHeader = 0;
 	uint32_t indexMain = 0;
 
-	uint32_t indexForLoop = 0; // index of for loop cycle
-	int16_t forLoopCounter = 0;										// will decrement on each for loop end, if 0 we wont jump back to for loop start on receiving P93
-																								// NOTE: remember to reset if we are repeating indefinitely
+	uint32_t indexForLoop = 0;	// index of for loop cycle
+	int16_t forLoopCounter = 0; // will decrement on each for loop end, if 0 we wont jump back to for loop start on receiving P93
+															// NOTE: remember to reset if we are repeating indefinitely
 
 	bool repeatIndefinitely = false; // main body will be repeated indefinitely
 
@@ -205,21 +207,20 @@ typedef struct gcode_programm_t {
 } gcode_programm_t;
 
 typedef struct {
-	uint32_t stepsMin = GCODE_ELEMENT_INVALID_INT;							 // minimum number of steps from home, we can allow multiple rotations possibly
-	uint32_t stepsMax = GCODE_ELEMENT_INVALID_INT;							 // maximum number of steps from home
+	uint32_t stepsMin = GCODE_ELEMENT_INVALID_INT; // minimum number of steps from home, we can allow multiple rotations possibly
+	uint32_t stepsMax = GCODE_ELEMENT_INVALID_INT; // maximum number of steps from home
 	int16_t stepCount = 0;
 	int64_t position = 0;
 	int32_t positionLastScheduled = 0;
 	PositioningMode positioningMode = PositioningMode::RELATIVE;
 } stepper_operation_paramters_t;
 
-
 /*
  * NOTE
  *
  *
  */
-class StepperControl{
+class StepperControl {
 	private:
 	// we will let used create as many programms as they want
 	// programm queue must be synchronized as it can be accessed both from parseGcode and motorTask functions
@@ -358,7 +359,6 @@ class StepperControl{
 	 */
 	ParsingGCodeResult parseGCodePCommands(const char* gcode, const uint16_t length, gcode_command_t* command);
 
-
 	public:
 	constexpr static char TAG[] = "StepperControl";
 
@@ -369,8 +369,7 @@ class StepperControl{
 	inline static SemaphoreHandle_t noProgrammQueueLock = NULL;
 
 	inline static EventGroupHandle_t homingEventGroup = NULL;
-	inline static gcode_programm_t* activeProgram = nullptr;	 // TODO -> static
-
+	inline static gcode_programm_t* activeProgram = nullptr; // TODO -> static
 
 	StepperControl();
 
