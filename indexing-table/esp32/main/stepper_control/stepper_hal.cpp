@@ -47,11 +47,36 @@ void StepperHal::initStepperTasks()
 	stepperHalH->stepperCommandPrev = new stepper_hal_command_t();
 	stepperHalT->stepperCommandPrev = new stepper_hal_command_t();
 
-	// xTaskCreate(stepperTask, "Stepper Task H", 2048, stepperHalH, 5,NULL);
+	xTaskCreate(stepperTask, "Stepper Task H", 2048, stepperHalH, 5,NULL);
 	xTaskCreate(stepperTask, "Stepper Task T", 2048, stepperHalT, 5, NULL);
 	ESP_LOGI(TAG, "Stepper tasks initialized");
 	xEventGroupClearBits(StepperHal::stepperEventGroup, STEPPER_COMPLETE_BIT_H);
 	xEventGroupClearBits(StepperHal::stepperEventGroup, STEPPER_COMPLETE_BIT_T);
+
+}
+
+void StepperHal::initTimers(){
+   stepperHalH->helperTimer = xTimerCreate(
+        "StepperTimerH",
+        1,  // Dummy period (overridden later)
+        pdFALSE,  // One-shot
+        (void*)stepperHalH,  // Pass self as timer ID
+        [](TimerHandle_t xTimer) {
+            // Set THIS stepper's bit when timer expires
+            xEventGroupSetBits(stepperEventGroup,STEPPER_COMPLETE_BIT_H);
+        }
+    );
+
+   stepperHalT->helperTimer = xTimerCreate(
+        "StepperTimerT",
+        1,  // Dummy period (overridden later)
+        pdFALSE,  // One-shot
+        (void*)stepperHalT,  // Pass self as timer ID
+        [](TimerHandle_t xTimer) {
+            // Set THIS stepper's bit when timer expires
+            xEventGroupSetBits(stepperEventGroup,STEPPER_COMPLETE_BIT_T);
+        }
+    );
 
 }
 
@@ -174,8 +199,8 @@ void StepperHal::stepperTask(void* arg)
 	stepper_hal_struct_t* stepperHal = (stepper_hal_struct_t*)arg;
 
 	ESP_LOGI(TAG, "Starting stepper task %d", uxQueueMessagesWaiting(stepperHal->commandQueue));
-
 	while (1) {
+		ESP_LOGI(TAG, "stepperTask | %s waiting for command, queue size: %d", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "H" : "T", uxQueueMessagesWaiting(stepperHal->commandQueue));
 		if (xQueueReceive(stepperHal->commandQueue, stepperHal->stepperCommand, portMAX_DELAY)) {
 			// if previous command was spindle, we are running a command that will change stepper movement we need to immediately set spindle regime end time
 			if (stepperHal->stepperCommandPrev->type == CommandType::SPINDLE && stepperHal->stepperCommand->type < CommandType::SKIP)
@@ -230,7 +255,7 @@ void StepperHal::stepperTask(void* arg)
 				ESP_LOGI(TAG, "stepperTask | %s (SKIP)", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "H" : "T");
 #endif
 				stepperHal->stepperCommand->complete = false;
-				if (stepperHal->stepperCommand->synchronized)
+				if (stepperHal->stepperCommand->synchronized) TODO
 					vTaskDelay(1); // NOTE: this is a hack to make sure that both steppers ill wait for each other
 				xEventGroupSetBits(StepperHal::stepperEventGroup, stepperHal->stepperCompleteBit);
 				break;
@@ -240,8 +265,11 @@ void StepperHal::stepperTask(void* arg)
 				ESP_LOGI(TAG, "stepperTask | %s (WAIT), time: %ld", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "H" : "T", stepperHal->stepperCommand->val.time);
 #endif
 				stepperHal->stepperCommand->complete = false;
+				// TODO min on synchronized
 				vTaskDelay(stepperHal->stepperCommand->val.time / portTICK_PERIOD_MS);
 				xEventGroupSetBits(StepperHal::stepperEventGroup, stepperHal->stepperCompleteBit);
+				// xTimerChangePeriod(stepperHal->helperTimer, stepperHal->stepperCommand->val.time / portTICK_PERIOD_MS, portMAX_DELAY);
+				// xTimerStart(stepperHal->helperTimer, 0);
 				break;
 			}
 			case CommandType::STOP: {
@@ -250,11 +278,13 @@ void StepperHal::stepperTask(void* arg)
 #endif
 				stepperHal->stepperCommand->complete = false;
 				mcpwm_timer_start_stop(stepperHal->timer, MCPWM_TIMER_START_STOP_FULL);
+				if (stepperHal->stepperCommand->synchronized) TODO
+					vTaskDelay(1); // NOTE: this is a hack to make sure that both steppers ill wait for each other
 				xEventGroupSetBits(StepperHal::stepperEventGroup, stepperHal->stepperCompleteBit);
 				break;
 			}
 			}
-			// TODO freeze execution until the bit is set
+			ESP_LOGI(TAG, "stepperTask | %s waiting for bits", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "H" : "T");
 			EventBits_t result = xEventGroupWaitBits(
 					stepperEventGroup,
 					(stepperHal->stepperCommand->synchronized) ? (STEPPER_COMPLETE_BIT_H | STEPPER_COMPLETE_BIT_T) : stepperHal->stepperCompleteBit,
@@ -273,7 +303,7 @@ void StepperHal::stepperTask(void* arg)
 			ESP_LOGI(TAG, "stepperTask | %s completed | pulse count: %d", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "H" : "T", pulseCount);
 #endif
 
-			if (stepperHal->stepperCommand->type < CommandType::STOP)
+			if (stepperHal->stepperCommand->type < CommandType::STOP) // SKIP, WAIT, STOP commands don't affect position so we can simply drop them
 				memcpy(stepperHal->stepperCommandPrev, stepperHal->stepperCommand, sizeof(stepper_hal_command_t));
 			stepperHal->stepperCommandPrev->synchronized = false;
 		}
@@ -305,7 +335,7 @@ bool StepperHal::waitStepper(stepper_hal_struct_t* stepperHal, uint32_t time, bo
 		.complete = false,
 		.synchronized = synchronized,
 	};
-	return xQueueSend(stepperHalH->commandQueue, &command, portMAX_DELAY) == pdTRUE;
+	return xQueueSend(stepperHal->commandQueue, &command, portMAX_DELAY) == pdTRUE;
 }
 
 bool StepperHal::spindleStepper(stepper_hal_struct_t* stepperHal, float rpm, Direction direction)

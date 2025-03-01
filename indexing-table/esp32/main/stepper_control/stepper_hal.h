@@ -60,13 +60,13 @@ typedef struct {
 		stepper_hal_command_t* stepperCommand;
 		stepper_hal_command_t* stepperCommandPrev;
 		QueueHandle_t commandQueue = NULL;
+    TimerHandle_t helperTimer;  // Add this
 
 		mcpwm_timer_handle_t timer = NULL;
 
 		mcpwm_oper_handle_t oper = NULL;
 		mcpwm_cmpr_handle_t comparator = NULL;
 		mcpwm_gen_handle_t generator = NULL;
-
 		// PCNT variables
 		pcnt_unit_handle_t pcntUnit = NULL;
 		pcnt_channel_handle_t pcntChan = NULL;
@@ -106,6 +106,11 @@ class StepperHal{
 		 * @brief initializes the PCNT
 		 */
 		void initPCNT();
+
+		/**
+		 * @brief initializes helper timers for the steppers
+		 */
+		void initTimers();
 
 
 		/**
