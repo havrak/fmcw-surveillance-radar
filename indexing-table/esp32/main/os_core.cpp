@@ -40,8 +40,8 @@ void OSCore::setup()
 	// Peripherals
 	// ------------------------------------------
 	ESP_LOGI(TAG, "setup | Peripherals");
-	stepperControl.init();
 	commEndpoint.setupComm();
+	stepperControl.init();
 	ESP_LOGI(TAG, "Device initialized");
 
 	// on first step there is some kind of initialization taking place making it much slower

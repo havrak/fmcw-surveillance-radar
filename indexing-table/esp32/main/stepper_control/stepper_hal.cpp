@@ -20,11 +20,13 @@ bool StepperHal::pcntOnReach(pcnt_unit_handle_t unit, const pcnt_watch_event_dat
 		ESP_ERROR_CHECK(pcnt_unit_remove_watch_point(stepperHalH->pcntUnit, stepperHalH->stepperCommand->val.steps));
 		xEventGroupSetBits(StepperHal::stepperEventGroup, STEPPER_COMPLETE_BIT_H);
 		mcpwm_timer_start_stop(stepperHalH->timer, MCPWM_TIMER_START_STOP_FULL); // won't stop until we tell it to
+		// pcnt_unit_stop(stepperHalH->pcntUnit);
 
 	} else if (unit == stepperHalT->pcntUnit) {
 		ESP_ERROR_CHECK(pcnt_unit_remove_watch_point(stepperHalT->pcntUnit, stepperHalT->stepperCommand->val.steps));
 		xEventGroupSetBits(StepperHal::stepperEventGroup, STEPPER_COMPLETE_BIT_T);
 		mcpwm_timer_start_stop(stepperHalT->timer, MCPWM_TIMER_START_STOP_FULL); // won't stop until we tell it to
+		// pcnt_unit_stop(stepperHalT->pcntUnit);
 	}
 	return true;
 }
@@ -45,9 +47,12 @@ void StepperHal::initStepperTasks()
 	stepperHalH->stepperCommandPrev = new stepper_hal_command_t();
 	stepperHalT->stepperCommandPrev = new stepper_hal_command_t();
 
-	xTaskCreate(stepperTask, "Stepper Task H", 2048, stepperHalH, 5,NULL);
+	// xTaskCreate(stepperTask, "Stepper Task H", 2048, stepperHalH, 5,NULL);
 	xTaskCreate(stepperTask, "Stepper Task T", 2048, stepperHalT, 5, NULL);
 	ESP_LOGI(TAG, "Stepper tasks initialized");
+	xEventGroupClearBits(StepperHal::stepperEventGroup, STEPPER_COMPLETE_BIT_H);
+	xEventGroupClearBits(StepperHal::stepperEventGroup, STEPPER_COMPLETE_BIT_T);
+
 }
 
 void StepperHal::initMCPWN()
@@ -155,7 +160,7 @@ void StepperHal::initPCNT()
 	ESP_LOGI(TAG, "clear pcnt unit");
 	ESP_ERROR_CHECK(pcnt_unit_clear_count(stepperHalH->pcntUnit));
 	ESP_ERROR_CHECK(pcnt_unit_clear_count(stepperHalT->pcntUnit));
-	ESP_LOGI(TAG, "start pcnt unit");
+	// ESP_LOGI(TAG, "start pcnt unit");
 	ESP_ERROR_CHECK(pcnt_unit_start(stepperHalH->pcntUnit));
 	ESP_ERROR_CHECK(pcnt_unit_start(stepperHalT->pcntUnit));
 
@@ -178,27 +183,37 @@ void StepperHal::stepperTask(void* arg)
 
 #ifdef CONFIG_HAL_DEBUG
 			ESP_LOGI(TAG, "stepperTask | %s starting task", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "H" : "T");
-			xEventGroupClearBits(StepperHal::stepperEventGroup, stepperHal->stepperCompleteBit);
+			// xEventGroupClearBits(StepperHal::stepperEventGroup, stepperHal->stepperCompleteBit);
 #endif
 			uint32_t period_ticks = (uint32_t)(3'000'000 / stepperHal->stepCount / stepperHal->stepperCommand->rpm); // Convert to timer ticks (as we are toggling on timer event we need to double the RPM)
 
 			gpio_set_level(stepperHal->stepperDirectionPin, stepperHal->stepperCommand->direction);
+			EventBits_t t = xEventGroupGetBits(StepperHal::stepperEventGroup);;
+			if(t & STEPPER_COMPLETE_BIT_H || t & STEPPER_COMPLETE_BIT_T)
+				ESP_LOGI(TAG, "stepperTask | completed T and H");
+			else if(t & STEPPER_COMPLETE_BIT_H)
+				ESP_LOGI(TAG, "stepperTask | completed H");
+			else if(t & STEPPER_COMPLETE_BIT_T)
+				ESP_LOGI(TAG, "stepperTask | completed T");
+			else
+				ESP_LOGI(TAG, "stepperTask | completed none");
 
 			// Reset and start pulse counter
 			switch (stepperHal->stepperCommand->type) {
-			case CommandType::STEPPER:
+			case CommandType::STEPPER: {
 #ifdef CONFIG_HAL_DEBUG
 				ESP_LOGI(TAG, "stepperTask | %s (STEPPER), direction %d, period: %ld, steps: %ld", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "H" : "T", stepperHal->stepperCommand->direction, period_ticks, stepperHal->stepperCommand->val.steps);
 #endif
 				stepperHal->stepperCommand->timestamp = esp_timer_get_time();
 				stepperHal->stepperCommand->complete = false;
-				ESP_ERROR_CHECK(pcnt_unit_add_watch_point(stepperHal->pcntUnit, stepperHal->stepperCommand->val.steps));
-				ESP_LOGI(TAG, "PCNT added watch point, %ld", stepperHal->stepperCommand->val.steps);
+				// pcnt_unit_start(stepperHal->pcntUnit);
 				ESP_ERROR_CHECK(pcnt_unit_clear_count(stepperHal->pcntUnit));
+				ESP_ERROR_CHECK(pcnt_unit_add_watch_point(stepperHal->pcntUnit, stepperHal->stepperCommand->val.steps));
 				ESP_ERROR_CHECK(mcpwm_timer_set_period(stepperHal->timer, period_ticks));
-				ESP_ERROR_CHECK(mcpwm_timer_start_stop(stepperHal->timer, MCPWM_TIMER_START_NO_STOP));
+				mcpwm_timer_start_stop(stepperHal->timer, MCPWM_TIMER_START_NO_STOP);
 				break;
-			case CommandType::SPINDLE:
+			}
+			case CommandType::SPINDLE: {
 #ifdef CONFIG_HAL_DEBUG
 				ESP_LOGI(TAG, "stepperTask | %s (SPINDLE), direction %d, period: %ld", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "H" : "T", stepperHal->stepperCommand->direction, period_ticks);
 #endif
@@ -209,7 +224,8 @@ void StepperHal::stepperTask(void* arg)
 				mcpwm_timer_start_stop(stepperHal->timer, MCPWM_TIMER_START_NO_STOP);
 				vTaskDelay(CONFIG_STEPPER_MIN_SPINDLE_TIME / portTICK_PERIOD_MS); // NOTE: necessary delay to make sure information about previous command is read, if not present it would significantly complicate code
 				break;
-			case CommandType::SKIP:
+			}
+			case CommandType::SKIP: {
 #ifdef CONFIG_HAL_DEBUG
 				ESP_LOGI(TAG, "stepperTask | %s (SKIP)", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "H" : "T");
 #endif
@@ -218,7 +234,8 @@ void StepperHal::stepperTask(void* arg)
 					vTaskDelay(1); // NOTE: this is a hack to make sure that both steppers ill wait for each other
 				xEventGroupSetBits(StepperHal::stepperEventGroup, stepperHal->stepperCompleteBit);
 				break;
-			case CommandType::WAIT:
+			}
+			case CommandType::WAIT: {
 #ifdef CONFIG_HAL_DEBUG
 				ESP_LOGI(TAG, "stepperTask | %s (WAIT), time: %ld", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "H" : "T", stepperHal->stepperCommand->val.time);
 #endif
@@ -226,7 +243,8 @@ void StepperHal::stepperTask(void* arg)
 				vTaskDelay(stepperHal->stepperCommand->val.time / portTICK_PERIOD_MS);
 				xEventGroupSetBits(StepperHal::stepperEventGroup, stepperHal->stepperCompleteBit);
 				break;
-			case CommandType::STOP:
+			}
+			case CommandType::STOP: {
 #ifdef CONFIG_HAL_DEBUG
 				ESP_LOGI(TAG, "stepperTask | %s (STOP)", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "H" : "T");
 #endif
@@ -235,17 +253,24 @@ void StepperHal::stepperTask(void* arg)
 				xEventGroupSetBits(StepperHal::stepperEventGroup, stepperHal->stepperCompleteBit);
 				break;
 			}
+			}
 			// TODO freeze execution until the bit is set
 			EventBits_t result = xEventGroupWaitBits(
 					stepperEventGroup,
 					(stepperHal->stepperCommand->synchronized) ? (STEPPER_COMPLETE_BIT_H | STEPPER_COMPLETE_BIT_T) : stepperHal->stepperCompleteBit,
-					pdTRUE, // TODO: need to verify this, should be fine according to https://forums.freertos.org/t/eventgroup-bit-clearing-when-multiple-tasks-wait-for-bit/7599
+					// pdTRUE, // TODO: need to verify this, should be fine according to https://forums.freertos.org/t/eventgroup-bit-clearing-when-multiple-tasks-wait-for-bit/7599
+					pdFALSE, // NOTE pdTRUE fine should be fine here (according to https://forums.freertos.org/t/eventgroup-bit-clearing-when-multiple-tasks-wait-for-bit/7599) But there are problems with synchronization of the two steppers while using it
 					pdTRUE,
 					portMAX_DELAY);
 
 			stepperHal->stepperCommand->complete = true;
+
+			xEventGroupClearBits(StepperHal::stepperEventGroup, stepperHal->stepperCompleteBit);
+
 #ifdef CONFIG_HAL_DEBUG
-			ESP_LOGI(TAG, "stepperTask | %s completed", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "H" : "T");
+			int pulseCount = 0;
+			pcnt_unit_get_count(stepperHal->pcntUnit, &pulseCount); // NOTE: should handle complete case and be more precies than calculating from time
+			ESP_LOGI(TAG, "stepperTask | %s completed | pulse count: %d", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "H" : "T", pulseCount);
 #endif
 
 			if (stepperHal->stepperCommand->type < CommandType::STOP)
@@ -283,7 +308,6 @@ bool StepperHal::waitStepper(stepper_hal_struct_t* stepperHal, uint32_t time, bo
 	return xQueueSend(stepperHalH->commandQueue, &command, portMAX_DELAY) == pdTRUE;
 }
 
-
 bool StepperHal::spindleStepper(stepper_hal_struct_t* stepperHal, float rpm, Direction direction)
 {
 	ESP_LOGI(TAG, "Spindle stepper %s, rpm: %f", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "H" : "T", rpm);
@@ -297,7 +321,6 @@ bool StepperHal::spindleStepper(stepper_hal_struct_t* stepperHal, float rpm, Dir
 	return xQueueSend(stepperHal->commandQueue, &command, portMAX_DELAY) == pdTRUE;
 }
 
-
 bool StepperHal::skipStepper(stepper_hal_struct_t* stepperHal, bool synchronized)
 {
 	stepper_hal_command_t command = {
@@ -307,7 +330,6 @@ bool StepperHal::skipStepper(stepper_hal_struct_t* stepperHal, bool synchronized
 	};
 	return xQueueSend(stepperHal->commandQueue, &command, portMAX_DELAY) == pdTRUE;
 }
-
 
 bool StepperHal::stopStepper(stepper_hal_struct_t* stepperHal, bool synchronized)
 {
@@ -319,31 +341,25 @@ bool StepperHal::stopStepper(stepper_hal_struct_t* stepperHal, bool synchronized
 	return xQueueSend(stepperHal->commandQueue, &command, portMAX_DELAY) == pdTRUE;
 }
 
-
-bool StepperHal::carefullStop()
+bool StepperHal::stopNowStepper(stepper_hal_struct_t* stepperHal)
 {
-	clearQueue(stepperHalH);
-	clearQueue(stepperHalT);
-	return stopStepper(stepperHalH) && stopStepper(stepperHalT);
-}
 
+	bool toRet = xQueueReset(stepperHal->commandQueue) == pdTRUE;
+	if(stepperHal->stepperCommand->complete) // there is no cleanup needed to be made
+		return toRet;
 
-bool StepperHal::clearQueue(stepper_hal_struct_t* stepperHal)
-{
+	mcpwm_timer_start_stop(stepperHal->timer, MCPWM_TIMER_START_STOP_FULL);
+
 	if (stepperHal->stepperCommand->type == CommandType::STEPPER) {
+		int pulseCount = 0;
+		pcnt_unit_get_count(stepperHal->pcntUnit, &pulseCount);
 		pcnt_unit_remove_watch_point(stepperHal->pcntUnit, stepperHal->stepperCommand->val.steps);
+		stepperHal->stepperCommand->val.steps = pulseCount;
 	}
-	return xQueueReset(stepperHal->commandQueue) == pdTRUE;
-}
-
-
-void StepperHal::stopNowStepper(stepper_hal_struct_t* stepperHal)
-{ // immediately stop generator, clear the queue and remove watchpoint
-	ESP_ERROR_CHECK(mcpwm_timer_start_stop(stepperHal->timer, MCPWM_TIMER_START_STOP_FULL));
-	clearQueue(stepperHal);
 	pcnt_unit_clear_count(stepperHal->pcntUnit);
-	xEventGroupSetBits(StepperHal::stepperEventGroup, stepperHal->stepperCompleteBit);
+	return toRet;
 }
+
 
 int64_t StepperHal::getStepsTraveledOfCurrentCommand(stepper_hal_struct_t* stepperHal)
 {
@@ -372,15 +388,16 @@ int64_t StepperHal::getStepsTraveledOfPrevCommand(stepper_hal_struct_t* stepperH
 	return 0;
 }
 
-
-
 uint8_t StepperHal::getQueueLength(stepper_hal_struct_t* stepperHal)
 {
 	return uxQueueMessagesWaiting(stepperHal->commandQueue);
 }
 
-bool StepperHal::peekQueue(stepper_hal_struct_t* stepperHal, stepper_hal_command_t* pointer)
+stepper_hal_command_t* StepperHal::peekQueue(stepper_hal_struct_t* stepperHal)
 {
-	return xQueuePeek(stepperHal->commandQueue, pointer, portMAX_DELAY) == pdTRUE;
+	stepper_hal_command_t* pointer = nullptr;
+	if(xQueuePeek(stepperHal->commandQueue, pointer, portMAX_DELAY) == pdTRUE)
+		return pointer;
+	else
+		return nullptr;
 }
-

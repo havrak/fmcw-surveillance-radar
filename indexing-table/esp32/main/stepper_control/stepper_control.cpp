@@ -47,8 +47,8 @@ void StepperControl::init()
 
 	steppers.waitStepper(stepperHalH, 10);
 	steppers.waitStepper(stepperHalT, 10);
-	steppers.stopStepper(stepperHalH);
-	steppers.stopStepper(stepperHalT);
+	// steppers.stopStepper(stepperHalH);
+	// steppers.stopStepper(stepperHalT);
 	xTaskCreate(StepperControl::commandSchedulerTask, "commandSchedulerTask", 4096, NULL, 5, &commandSchedulerTaskHandle);
 }
 
@@ -155,9 +155,15 @@ bool StepperControl::getElementString(const char* str, const uint16_t length, co
 
 int32_t StepperControl::moveStepperAbsolute(stepper_hal_struct_t* stepperHal, gcode_command_movement_t* movement, const stepper_operation_paramters_t* stepperOpPar, bool synchronized)
 {
-	if (stepperOpPar->stepsMax == GCODE_ELEMENT_INVALID_INT && stepperOpPar->stepsMin == GCODE_ELEMENT_INVALID_INT)
+	if (stepperOpPar->stepsMax == GCODE_ELEMENT_INVALID_INT && stepperOpPar->stepsMin == GCODE_ELEMENT_INVALID_INT){
+#ifdef CONFIG_APP_DEBUG
+		ESP_LOGI(TAG, "moveStepperAbsolute | %s no limits", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "H" : "T");
+#endif
 		steppers.stepStepper(stepperHalH, ANGLE_DISTANCE(stepperOpPar->positionLastScheduled, movement->val.steps, stepperHal->stepCount), movement->rpm, synchronized);
-	else if (stepperOpPar->stepsMax >= stepperOpPar->stepsMin) { // moving in interval <min, max>
+	}else if (stepperOpPar->stepsMax >= stepperOpPar->stepsMin) { // moving in interval <min, max>
+#ifdef CONFIG_APP_DEBUG
+		ESP_LOGI(TAG, "moveStepperAbsolute | %s in interval <min, max>", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "H" : "T");
+#endif
 		if (movement->val.steps > stepperOpPar->stepsMax)
 			movement->val.steps = stepperOpPar->stepsMax;
 		else if (movement->val.steps < stepperOpPar->stepsMin)
@@ -169,6 +175,9 @@ int32_t StepperControl::moveStepperAbsolute(stepper_hal_struct_t* stepperHal, gc
 		else
 			steppers.stepStepper(stepperHal, ANGLE_DISTANCE_COUNTERCLOCKWISE(stepperOpPar->positionLastScheduled, movement->val.steps, stepperHal->stepCount), movement->rpm, synchronized);
 	} else { // moving in interval <0, max> U <min, stepCount>
+#ifdef CONFIG_APP_DEBUG
+		ESP_LOGI(TAG, "moveStepperAbsolute | %s in interval <0, max> U <min, stepCount>", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "H" : "T");
+#endif
 		uint32_t avg = (stepperOpPar->stepsMax + stepperOpPar->stepsMin) / 2;
 		if (movement->val.steps >= avg && movement->val.steps < stepperOpPar->stepsMin)
 			movement->val.steps = stepperOpPar->stepsMin;
@@ -625,6 +634,11 @@ ParsingGCodeResult StepperControl::parseGCodeNonScheduledCommands(const char* gc
 		activeProgram = nullptr;
 		programmingMode.store(ProgrammingMode::NO_PROGRAMM);
 		xSemaphoreTake(noProgrammQueueLock, (TickType_t)1000);
+		while (!noProgrammQueue.empty()) {
+			gcode_command_t* c = noProgrammQueue.front();
+			noProgrammQueue.pop();
+			delete c;
+		}
 		noProgrammQueue = {};
 		xSemaphoreGive(noProgrammQueueLock);
 		steppers.stopNowStepper(stepperHalH);
@@ -639,9 +653,15 @@ ParsingGCodeResult StepperControl::parseGCodeNonScheduledCommands(const char* gc
 		activeProgram = nullptr;
 		programmingMode.store(ProgrammingMode::NO_PROGRAMM);
 		xSemaphoreTake(noProgrammQueueLock, (TickType_t)1000);
+		while (!noProgrammQueue.empty()) {
+			gcode_command_t* c = noProgrammQueue.front();
+			noProgrammQueue.pop();
+			delete c;
+		}
 		noProgrammQueue = {};
 		xSemaphoreGive(noProgrammQueueLock);
-		steppers.carefullStop();
+		steppers.stopNowStepper(stepperHalH);
+		steppers.stopNowStepper(stepperHalT);
 		return ParsingGCodeResult::SUCCESS;
 	} else if (strncmp(gcode, "G3", 2) == 0) { // override
 #ifdef CONFIG_COMM_DEBUG
@@ -1109,6 +1129,11 @@ ParsingGCodeResult StepperControl::parseGCodePCommands(const char* gcode, const 
 		activeProgram->reset(); // we never do cleanup on program end
 		programmingMode.store(ProgrammingMode::RUN_PROGRAM);
 		xSemaphoreTake(noProgrammQueueLock, (TickType_t)1000);
+		while (!noProgrammQueue.empty()) {
+			gcode_command_t* c = noProgrammQueue.front();
+			noProgrammQueue.pop();
+			delete c;
+		}
 		noProgrammQueue = {};
 		xSemaphoreGive(noProgrammQueueLock);
 		steppers.stopNowStepper(stepperHalT);
@@ -1243,7 +1268,9 @@ void StepperControl::endstopTHandler(void* arg)
 
 void StepperControl::home()
 {
+#ifdef CONFIG_APP_DEBUG
 	ESP_LOGI(TAG, "Home | Starting homing routine");
+#endif /* CONFIG_APP_DEBUG */
 	// stop the steppers
 	steppers.stopNowStepper(stepperHalH);
 	steppers.stopNowStepper(stepperHalT);
@@ -1264,14 +1291,16 @@ void StepperControl::home()
 			pdTRUE,
 			portMAX_DELAY);
 
+#ifdef CONFIG_APP_DEBUG
 	if (result & STEPPER_COMPLETE_BIT_H) {
 		ESP_LOGI(TAG, "Home | Horizontal stepper fast homed");
 	}
 	if (result & STEPPER_COMPLETE_BIT_T) {
 		ESP_LOGI(TAG, "Home | Tilt stepper fast homed");
 	}
+#endif /* CONFIG_APP_DEBUG */
 
-	steppers.stepStepper(stepperHalH, -20, 5, true); // we will trigger stop commands on endstops, this shouldn't bother us it will just schedule stops to run
+	steppers.stepStepper(stepperHalH, -20, 5, true);
 	steppers.stepStepper(stepperHalT, -20, 5, true);
 	// TODO
 
@@ -1285,15 +1314,18 @@ void StepperControl::home()
 			pdTRUE,
 			portMAX_DELAY);
 
+#ifdef CONFIG_APP_DEBUG
 	if (result & STEPPER_COMPLETE_BIT_H) {
 		ESP_LOGI(TAG, "Home | Horizontal stepper slow homed");
 	}
 	if (result & STEPPER_COMPLETE_BIT_T) {
 		ESP_LOGI(TAG, "Home | Tilt stepper slow homed");
 	}
+#endif /* CONFIG_APP_DEBUG */
 
-	// stepperOpParH.stepNumber.store(0); TODO
-	// stepperOpParT.stepNumber.store(0);
+	steppers.getStepsTraveledOfPrevCommand(stepperHalH);
+	steppers.getStepsTraveledOfPrevCommand(stepperHalT);
+
 
 	// cleanup
 	xEventGroupClearBits(homingEventGroup, HOMING_DONE_BIT);
