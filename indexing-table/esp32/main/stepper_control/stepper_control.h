@@ -28,8 +28,6 @@
 #include <stepper_hal.h>
 #include <vector>
 
-#define HOMING_DONE_BIT BIT2
-
 // #define INT16_MAX 32767
 // #define INT16_MIN -32768
 
@@ -360,6 +358,17 @@ class StepperControl {
 	 */
 	ParsingGCodeResult parseGCodePCommands(const char* gcode, const uint16_t length, gcode_command_t* command);
 
+	/**
+	 * @brief starts homing routine for H stepper
+	 */
+	void homeH();
+
+
+	/**
+	 * @brief starts homing routine for T stepper
+	 */
+	void homeT();
+
 	public:
 	constexpr static char TAG[] = "StepperControl";
 
@@ -385,7 +394,13 @@ class StepperControl {
 
 	void printLocation();
 
+	/**
+	 * @brief starts homing routine for both steppers
+	 *
+	 */
 	void home();
+
+
 };
 
 extern StepperControl stepperControl;

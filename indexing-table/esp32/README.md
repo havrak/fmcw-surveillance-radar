@@ -83,9 +83,15 @@ WARNING: DO NOT use this device without first reading the documentation. Command
 	* H - set relative positioning on horizontal axis
 	* T - set relative positioning on tilt axis
 	* if no argument is provided both axis are switched to relative positioning
-* G92: set current position as home
+* G92: set current position as 0
+	* H - set current position as 0 on horizontal axis
+	* T - set current position as 0 on tilt axis
+	* if no argument is provided both axis are set to 0
 	* NOTE: executes only when no other commands are queued in stepper queues
-* G28: move to home from current position
+* G28: auto home
+	* H - home horizontal axis
+	* T - home tilt axis
+	* if no argument is provided both axis are are homed
 * stepper mode
 	* only active if spindle mode is off
 	* G0: move to/by given angle/steps

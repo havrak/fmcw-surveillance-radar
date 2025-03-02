@@ -210,11 +210,12 @@ void StepperHal::stepperTask(void* arg)
 
 #ifdef CONFIG_HAL_DEBUG
 			// with synchronized commands neither of these if's should trigger
-			if(t & STEPPER_COMPLETE_BIT_H || t & STEPPER_COMPLETE_BIT_T)
+
+			if(stepperHal->stepperCommand->synchronized && t & STEPPER_COMPLETE_BIT_H && t & STEPPER_COMPLETE_BIT_T)
 				ESP_LOGE(TAG, "stepperTask | %s completed T and H", stepperSign);
-			else if(t & STEPPER_COMPLETE_BIT_H)
+			else if(stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_T && t & STEPPER_COMPLETE_BIT_H)
 				ESP_LOGE(TAG, "stepperTask | %s completed H", stepperSign);
-			else if(t & STEPPER_COMPLETE_BIT_T)
+			else if(stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H && t & STEPPER_COMPLETE_BIT_T)
 				ESP_LOGE(TAG, "stepperTask | %s completed T", stepperSign);
 #endif
 
