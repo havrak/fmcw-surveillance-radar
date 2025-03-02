@@ -61,7 +61,7 @@ classdef platformControl < handle
 				'Parent', obj.hFig, ...
 				'Tag', 'CommandField', ...
 				'HorizontalAlignment', 'left', ...
-				'Callback', @(src,event) obj.callbackQuickCommand());
+				'Callback', @(src,data) obj.callbackQuickCommand());
 
 
 			obj.hEditProgram = uicontrol('Style', 'edit', ...
@@ -138,8 +138,8 @@ classdef platformControl < handle
 			obj.hEditCommand.Position = [sidebarWidth + 20, height - 40, width - sidebarWidth - 30, 30];
 			displayWidth = width - sidebarWidth - 210;
 			
-			obj.hEditProgram.Position = [sidebarWidth + 20, 130, displayWidth, height-180];
-			obj.hTextOut.Position = [sidebarWidth + 20, 20, displayWidth, 100];
+			obj.hEditProgram.Position = [sidebarWidth + 20, 230, displayWidth, height-280];
+			obj.hTextOut.Position = [sidebarWidth + 20, 20, displayWidth, 200];
 			
 			buttonPanelWidth = 180;
 			obj.hPanelBtn.Position = [sidebarWidth + 30 + displayWidth, 20, buttonPanelWidth-10, height - 70];
@@ -159,7 +159,9 @@ classdef platformControl < handle
 
 		function loadProgram(obj)
 			% Callback for loading a program when selected from the sidebar
-			selected = obj.hListboxSidebar.Value; % Get selected index
+
+			fprintf('PlatformControl | loadProgram\n');
+            selected = obj.hListboxSidebar.Value; % Get selected index
 			fields = fieldnames(obj.programs); % Get fieldnames
 			if selected > 0 && selected <= numel(fields)
 				obj.currentProgramName = fields{selected};
@@ -168,17 +170,25 @@ classdef platformControl < handle
 		end
 		
 		function callbackQuickCommand(obj)
-			value = get(obj.hEditProgram, 'String');
-			flush(obj.hSerial); 
-			writeline(obj.hSerial, value);
-		end
+			value = append(get(obj.hEditCommand, 'String'));
+            set(obj.hEditCommand, 'String', '');
+            flush(obj.hSerial);
+		    writeline(obj.hSerial, value);
+        end
 
 
 		function processIncommingData(obj, src)
-		    line = readline(src);
+		    line = strtrim(readline(src));
+            if isempty(line)
+                return;
+            end
+            fprintf("Received %s\n", line);
+            
             if length(obj.log) > 200
                 obj.log(1) = [];
+                length(obj.log)
             end
+            
 
 			if strncmp(line,'!P',2)
 				vals = split(line(2:end), ',');
@@ -188,12 +198,16 @@ classdef platformControl < handle
                 return;
 			elseif strncmp(line,'!R',2)
                 obj.log{end+1} = line;
-                 set(obj.hTextOut, 'String', obj.log);
+                set(obj.hTextOut, 'String', obj.log);
                 return;
             elseif obj.hPreferences.getPlatformDebug()
                 if(extract(line,1) == "I" || extract(line,1) == "W" || extract(line,1) == "E")
-				   obj.log(end+1) = line;
+				   obj.log{end+1} = line;
                    set(obj.hTextOut, 'String', obj.log);
+                end
+                if contains(line, 'boot: ESP-IDF')
+                    disp("RESTART");
+                    obj.log = {};
                 end
             end
 		end
@@ -215,8 +229,17 @@ classdef platformControl < handle
 		function deleteProgram(obj)
 			fprintf('PlatformControl | deleteProgram\n');
 			obj.programs = rmfield(obj.programs, obj.currentProgramName);
-			set(obj.hListboxSidebar, 'String', fieldnames(obj.programs));
-		end
+			progs = fieldnames(obj.programs);
+            set(obj.hListboxSidebar, 'String', progs);
+            
+            if(isempty(progs))
+                obj.hEditProgram.String = "";
+            else
+                set(obj.hListboxSidebar, 'Value', 1);
+                obj.loadProgram();
+            end
+            
+         end
 
 		function storePrograms(obj)
 			fprintf('PlatformControl | storePrograms\n');
@@ -252,7 +275,7 @@ classdef platformControl < handle
 			writeline(obj.hSerial, "P90 "+obj.currentProgramName);
 			for i=1:numel(trimmed)
 				writeline(obj.hSerial, trimmed(i));
-				pause(0.002); % incomming buffer on esp32 is not infinit so we introduce a small delay
+				pause(0.002); % incommcaing buffer on esp32 is not infinit so we introduce a small delay
 			end
 
 			writeline(obj.hSerial, "P99");
@@ -273,7 +296,7 @@ classdef platformControl < handle
 		end
 		
 		function endProcesses(obj)
-			if ~isempty(obj.hSerial)
+			if ~isempty(obj.hSerial) 
 				configureCallback(obj.hSerial, "off");
 				delete(obj.hSerial)
 			end
@@ -288,7 +311,7 @@ classdef platformControl < handle
 			try 
 				fprintf("platFormControl | setupSerial | port: %s, baud: %f\n", port, baudrate)
 				obj.hSerial = serialport(port, baudrate, "Timeout", 5);
-				configureTerminator(obj.hSerial,"LF");
+				configureTerminator(obj.hSerial,"CR");
 				flush(obj.hSerial);
 				fprintf("platFormControl | setupSerial | starting thread\n");			
 				configureCallback(obj.hSerial, "terminator", @(src, ~) obj.processIncommingData(src))
@@ -301,7 +324,7 @@ classdef platformControl < handle
 		end
 
 		function showGUI(obj)
-			if isempty(obj.hFig) % closing should be also overwritten to hide
+		    if isempty(obj.hFig) | ~isvalid(obj.hFig)
 				constructGUI(obj);
 			end
 			set(obj.hFig, 'Visible', 'on');

@@ -574,13 +574,13 @@ void StepperControl::commandSchedulerTask(void* arg)
 
 ParsingGCodeResult StepperControl::parseGCode(const char* gcode, const uint16_t length)
 {
-#ifdef CONFIG_COMM_DEBUG
-	char* gcodeCopy = (char*)malloc(length + 1);
-	strncpy(gcodeCopy, gcode, length);
-	gcodeCopy[length] = '\0';
-	ESP_LOGI(TAG, "Received command: %s", gcodeCopy);
-	free(gcodeCopy);
-#endif /* CONFIG_COMM_DEBUG */
+// #ifdef CONFIG_COMM_DEBUG
+// 	char* gcodeCopy = (char*)malloc(length + 1);
+// 	strncpy(gcodeCopy, gcode, length);
+// 	gcodeCopy[length] = '\0';
+// 	ESP_LOGI(TAG, "Received command: %s", gcodeCopy);
+// 	free(gcodeCopy);
+// #endif /* CONFIG_COMM_DEBUG */
 
 	ParsingGCodeResult res = parseGCodeNonScheduledCommands(gcode, length);
 	if (res != ParsingGCodeResult::RESERVED)
@@ -723,6 +723,9 @@ ParsingGCodeResult StepperControl::parseGCodeNonScheduledCommands(const char* gc
 		}
 
 		if ((movementH != nullptr && movementH->rpm == NAN && movementH->val.steps != 0) || (movementT != nullptr && movementT->rpm == NAN && movementT->val.steps != 0))
+			return ParsingGCodeResult::INVALID_ARGUMENT;
+
+		if(command->movementH != nullptr && command->movementT != nullptr)
 			return ParsingGCodeResult::INVALID_ARGUMENT;
 
 		if (movementH != nullptr && movementT != nullptr) {
@@ -878,6 +881,9 @@ ParsingGCodeResult StepperControl::parseGCodeGCommands(const char* gcode, const 
 		}
 
 		if ((command->movementH != nullptr && command->movementH->rpm == NAN && command->movementH->val.steps != 0) || (command->movementT != nullptr && command->movementT->rpm == NAN && command->movementT->val.steps != 0))
+			return ParsingGCodeResult::INVALID_ARGUMENT;
+
+		if(command->movementH != nullptr && command->movementT != nullptr)
 			return ParsingGCodeResult::INVALID_ARGUMENT;
 
 #ifdef CONFIG_COMM_DEBUG

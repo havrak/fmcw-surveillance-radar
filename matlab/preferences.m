@@ -111,7 +111,7 @@ classdef preferences < handle
 			%
 			% Output:
 			% debug ... 0 or 1
-			debug = obj.configStruct.platform.debug
+			debug = obj.configStruct.platform.debug;
 		end
 
 	

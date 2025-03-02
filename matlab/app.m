@@ -89,7 +89,7 @@ classdef app < handle
 			obj.hBtnConnectPlatform = uicontrol('Style', 'pushbutton', ...
 				'Parent', obj.hPanelBtn, ...
 				'String', 'Platform Connect', ...
-				'Callback', @(src, event) obj.hPlatformControl.setupSerial(), ...
+				'Callback', @(src, event) obj.setupPlatform(), ...
 				'BackgroundColor', '#E57373');
 
 
@@ -102,6 +102,15 @@ classdef app < handle
 			set(obj.hFig, 'SizeChangedFcn', @(src, event) obj.resizeUI());
 
 		end
+
+        function setupPlatform(obj)
+			if obj.hPlatformControl.setupSerial()
+				set(obj.hBtnConnectPlatform, 'BackgroundColor', '#66BB6A');
+			else 
+				set(obj.hBtnConnectPlatform, 'BackgroundColor', '#E57373');
+			end
+
+    	end
 
 		function setupRadarSerial(obj)
 			if obj.hRadar.setupSerial()

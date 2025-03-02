@@ -38,6 +38,7 @@ void CommEndpoint::uartEvent(void* commEndpointInstance) // TODO pin to core 0
 				uart_read_bytes(UART_NUM_0, dtmp, event.size, portMAX_DELAY);
 
 				for (j = 0, j_prev = 0; j < event.size; j++) {
+					char c = dtmp[j];
 					if ((int)dtmp[j] == 13) {   // match carriage return
 						memcpy(buffer + i, dtmp + j_prev, LENGTH_TO_COPY(i, j - j_prev));
 						i += LENGTH_TO_COPY(i, j - j_prev);
@@ -49,13 +50,12 @@ void CommEndpoint::uartEvent(void* commEndpointInstance) // TODO pin to core 0
 
 
 						pointer = buffer + startIndex;
-						// ((CommEndpoint*) commEndpointInstance)->logRequestGCD(pointer, strlen(pointer));
 						ParsingGCodeResult result = stepperControl.parseGCode(pointer, strlen(pointer));
 						char response[12];
 						if(result == ParsingGCodeResult::SUCCESS)
-							sprintf(response, "!R OK\n");
+							sprintf(response, "!R OK\r");
 						else
-							sprintf(response, "!R ERR %d\n", result);
+							sprintf(response, "!R ERR %d\r", result);
 
 						uart_write_bytes(UART_NUM_0, response, strlen(response));
 
