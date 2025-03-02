@@ -42,20 +42,12 @@ void StepperControl::init()
 		ESP_LOGI(TAG, "JoPkaEndpoint | created lock");
 	}
 	// on first step there are some initializations taking place that make it much longer than the rest
-	steppers.stepStepper(stepperHalT, 2, 1, true);
-	steppers.stepStepper(stepperHalH, 2, 1, true);
-	steppers.stepStepper(stepperHalT, -2, 1, true);
-	steppers.stepStepper(stepperHalH, -2, 1, true);
-
-	steppers.waitStepper(stepperHalH, 10, true);
-	steppers.waitStepper(stepperHalT, 10, true);
-	steppers.stopStepper(stepperHalH);
-	steppers.stopStepper(stepperHalT);
-
-	// steppers.stepStepper(stepperHalH, 20, 1, true);
-	// steppers.skipStepper(stepperHalT, true);
-	// steppers.stepStepper(stepperHalT, 20, 1, true);
-	// steppers.stepStepper(stepperHalH, 20, 1, true);
+	steppers.stepStepper(stepperHalT, 1, 1, true);
+	steppers.stepStepper(stepperHalH, 1, 1, true);
+	steppers.stepStepper(stepperHalT, -1, 1, true);
+	steppers.stepStepper(stepperHalH, -1, 1, true);
+	steppers.stopStepper(stepperHalH, true);
+	steppers.stopStepper(stepperHalT, true);
 
 	xTaskCreate(StepperControl::commandSchedulerTask, "commandSchedulerTask", 4096, NULL, 5, &commandSchedulerTaskHandle);
 }
