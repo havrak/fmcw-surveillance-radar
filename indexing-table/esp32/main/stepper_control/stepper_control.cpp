@@ -45,7 +45,7 @@ void StepperControl::init()
 	steppers.stepStepper(stepperHalT, 1, 1, true);
 	steppers.stepStepper(stepperHalH, 1, 1, true);
 	steppers.stepStepper(stepperHalT, -1, 1, true);
-	steppers.stepStepper(stepperHalH, -1, 1, true);
+	steppers.stepStepper(stepperHalH, -1, true);
 	steppers.stopStepper(stepperHalH, true);
 	steppers.stopStepper(stepperHalT, true);
 
@@ -1290,22 +1290,10 @@ ParsingGCodeResult StepperControl::parseGCodePCommands(const char* gcode, const 
 	return ParsingGCodeResult::SUCCESS;
 }
 
-void StepperControl::endstopHHandler(void* arg)
+void StepperControl::endstopHandler()
 {
-	ESP_LOGI(TAG, "Endstop H triggered");
-	if (stepperControl.programmingMode == ProgrammingMode::HOMING) {
-		steppers.stopStepper(stepperHalH);
-		xEventGroupSetBits(StepperControl::homingEventGroup, STEPPER_COMPLETE_BIT_H);
-	}
-}
-
-void StepperControl::endstopTHandler(void* arg)
-{
-	ESP_LOGI(TAG, "Endstop T triggered");
-	if (stepperControl.programmingMode == ProgrammingMode::HOMING) {
-		steppers.stopStepper(stepperHalT);
-		xEventGroupSetBits(StepperControl::homingEventGroup, STEPPER_COMPLETE_BIT_T);
-	}
+	if (stepperControl.programmingMode == ProgrammingMode::HOMING)
+		xEventGroupSetBits(StepperControl::homingEventGroup, BIT0);
 }
 
 void StepperControl::home()
@@ -1324,15 +1312,16 @@ void StepperControl::homeH()
 	ESP_LOGI(TAG, "Home | Homing H axis");
 #endif /* CONFIG_APP_DEBUG */
 	// stop the steppers
+	xEventGroupClearBits(homingEventGroup, BIT0);
 	steppers.stopNowStepper(stepperHalH);
 	// attach interrupts
-	attachInterruptArg(CONFIG_STEPPER_H_PIN_ENDSTOP, StepperControl::endstopTHandler, NULL, CHANGE);
+	attachInterrupt(CONFIG_STEPPER_H_PIN_ENDSTOP, StepperControl::endstopHandler, CHANGE);
 
 	steppers.spindleStepper(stepperHalH, 10, Direction::FORWARD);
 
 	EventBits_t result = xEventGroupWaitBits(
 			homingEventGroup,
-			STEPPER_COMPLETE_BIT_H,
+			BIT0,
 			pdTRUE,
 			pdTRUE,
 			portMAX_DELAY);
@@ -1341,15 +1330,18 @@ void StepperControl::homeH()
 	ESP_LOGI(TAG, "Home | Horizontal stepper fast homed");
 #endif /* CONFIG_APP_DEBUG */
 
-	steppers.stepStepper(stepperHalH, -20, 5, true);
-	steppers.spindleStepper(stepperHalH, 5, Direction::FORWARD);
-
+	steppers.stepStepper(stepperHalH, -20, 10);
+	vTaskDelay(150);
+	xEventGroupClearBits(homingEventGroup, BIT0);
+	steppers.spindleStepper(stepperHalH, 4, Direction::FORWARD);
 	result = xEventGroupWaitBits(
 			homingEventGroup,
-			STEPPER_COMPLETE_BIT_H,
+			BIT0,
 			pdTRUE,
 			pdTRUE,
 			portMAX_DELAY);
+
+	steppers.stopStepper(stepperHalH);
 
 #ifdef CONFIG_APP_DEBUG
 	ESP_LOGI(TAG, "Home | Horizontal stepper slow homed");
@@ -1366,18 +1358,19 @@ void StepperControl::homeT()
 	ESP_LOGI(TAG, "Home | Homing T axis");
 #endif /* CONFIG_APP_DEBUG */
 	// stop the steppers
+	xEventGroupClearBits(homingEventGroup, BIT0);
 	steppers.stopNowStepper(stepperHalT);
 	// set the positioning mode to homing
 	programmingMode.store(ProgrammingMode::HOMING);
 
 	// attach interrupts
-	attachInterruptArg(CONFIG_STEPPER_T_PIN_ENDSTOP, StepperControl::endstopHHandler, NULL, CHANGE);
+	attachInterrupt(CONFIG_STEPPER_T_PIN_ENDSTOP, StepperControl::endstopHandler, CHANGE);
 
 	steppers.spindleStepper(stepperHalT, 10, Direction::FORWARD);
 
 	EventBits_t result = xEventGroupWaitBits(
 			homingEventGroup,
-			STEPPER_COMPLETE_BIT_T,
+			BIT0,
 			pdTRUE,
 			pdTRUE,
 			portMAX_DELAY);
@@ -1386,16 +1379,20 @@ void StepperControl::homeT()
 	ESP_LOGI(TAG, "Home | Tilt stepper fast homed");
 #endif /* CONFIG_APP_DEBUG */
 
-	steppers.stepStepper(stepperHalT, -20, 5, true);
-
-	steppers.spindleStepper(stepperHalT, 5, Direction::FORWARD);
+	steppers.stepStepper(stepperHalT, -20, 10);
+	vTaskDelay(150);
+	xEventGroupClearBits(homingEventGroup, BIT0);
+	steppers.spindleStepper(stepperHalT, 4, Direction::FORWARD);
 
 	result = xEventGroupWaitBits(
 			homingEventGroup,
-			STEPPER_COMPLETE_BIT_T,
+			BIT0,
 			pdTRUE,
 			pdTRUE,
 			portMAX_DELAY);
+
+	steppers.stopStepper(stepperHalT);
+
 
 #ifdef CONFIG_APP_DEBUG
 	ESP_LOGI(TAG, "Home | Tilt stepper slow homed");

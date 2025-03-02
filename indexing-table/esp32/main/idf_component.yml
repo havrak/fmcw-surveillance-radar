@@ -1,9 +1,5 @@
 ## IDF Component Manager Manifest File
 dependencies:
-  JoTioTech/fw-lib-esp32-hal:
-    path: "$HOME/prog/embedded/esp32-fw/fw-lib-esp32-hal"
-    # path: "."
-    # git: git@github.com:JoTioTech/fw-lib-esp32-hal.git
   ## Required IDF version
   idf:
     version: ">=4.1.0"

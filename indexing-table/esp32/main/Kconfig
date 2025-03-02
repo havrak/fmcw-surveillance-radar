@@ -22,7 +22,7 @@ help
 config COMM_RS232_BUFFER_SIZE
 int "COMM RS232 communication buffer Size"
 range 128 4096
-default 1024
+default 2048
 help
 	Size of the buffer for RS232
 

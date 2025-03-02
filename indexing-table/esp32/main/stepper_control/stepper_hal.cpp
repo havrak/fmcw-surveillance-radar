@@ -37,6 +37,8 @@ void StepperHal::initStepperTasks()
 	stepperHalT->stepperCompleteBit = STEPPER_COMPLETE_BIT_T;
 	stepperHalH->stepperDirectionPin = (gpio_num_t)CONFIG_STEPPER_H_PIN_DIR;
 	stepperHalT->stepperDirectionPin = (gpio_num_t)CONFIG_STEPPER_T_PIN_DIR;
+	pinMode(stepperHalH->stepperDirectionPin, OUTPUT);
+	pinMode(stepperHalT->stepperDirectionPin, OUTPUT);
 	stepperHalH->stepCount = CONFIG_STEPPER_H_STEP_COUNT;
 	stepperHalT->stepCount = CONFIG_STEPPER_T_STEP_COUNT;
 
@@ -213,9 +215,9 @@ void StepperHal::stepperTask(void* arg)
 
 			if(stepperHal->stepperCommand->synchronized && t & STEPPER_COMPLETE_BIT_H && t & STEPPER_COMPLETE_BIT_T)
 				ESP_LOGE(TAG, "stepperTask | %s completed T and H", stepperSign);
-			else if(stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_T && t & STEPPER_COMPLETE_BIT_H)
+			else if(stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H && t & STEPPER_COMPLETE_BIT_H)
 				ESP_LOGE(TAG, "stepperTask | %s completed H", stepperSign);
-			else if(stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H && t & STEPPER_COMPLETE_BIT_T)
+			else if(stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_T && t & STEPPER_COMPLETE_BIT_T)
 				ESP_LOGE(TAG, "stepperTask | %s completed T", stepperSign);
 #endif
 
@@ -239,7 +241,6 @@ void StepperHal::stepperTask(void* arg)
 #endif
 				stepperHal->stepperCommand->timestamp = esp_timer_get_time();
 				stepperHal->stepperCommand->complete = false;
-				xEventGroupSetBits(StepperHal::stepperEventGroup, stepperHal->stepperCompleteBit);
 				mcpwm_timer_set_period(stepperHal->timer, period_ticks);
 				mcpwm_timer_start_stop(stepperHal->timer, MCPWM_TIMER_START_NO_STOP);
 				xTimerChangePeriod(stepperHal->helperTimer, CONFIG_STEPPER_MIN_SPINDLE_TIME / portTICK_PERIOD_MS, portMAX_DELAY); // delay reading next command so that application layer has enough time to process previous command

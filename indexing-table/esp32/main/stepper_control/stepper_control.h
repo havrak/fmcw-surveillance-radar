@@ -241,15 +241,12 @@ class StepperControl {
 	 */
 	static void commandSchedulerTask(void* arg);
 
-	/**
-	 * callback activated when horizontal endstop is triggered
-	 */
-	static void endstopHHandler(void* arg);
 
 	/**
-	 * callback activated when vertical endstop is triggered
+	 * callback activated when endstop is triggered
+	 * as axis are homed independently we don't need two handlers
 	 */
-	static void endstopTHandler(void* arg);
+	static void endstopHandler();
 
 	/**
 	 * @brief moves stepper to absolute position

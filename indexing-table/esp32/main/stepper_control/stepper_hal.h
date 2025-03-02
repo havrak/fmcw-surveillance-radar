@@ -12,6 +12,7 @@
 #include <freertos/event_groups.h>
 #include <driver/mcpwm_prelude.h>
 #include <driver/gpio.h>
+#include <esp32-hal-gpio.h>
 #include <esp_log.h>
 #include <driver/pulse_cnt.h>
 #include <esp_timer.h>
