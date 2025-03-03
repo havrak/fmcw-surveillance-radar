@@ -182,7 +182,6 @@ classdef platformControl < handle
             if isempty(line)
                 return;
             end
-            fprintf("Received %s\n", line);
             
             if length(obj.log) > 200
                 obj.log(1) = [];
@@ -193,8 +192,9 @@ classdef platformControl < handle
 			if strncmp(line,'!P',2)
 				vals = split(line(2:end), ',');
 				obj.timestamp = str2double(vals{1});
-				obj.currPosHorz = str2double(vals{1});
-				obj.currPosTilt = str2double(vals{1});
+				obj.currPosHorz = str2double(vals{2});
+				obj.currPosTilt = str2double(vals{3});
+                fprintf("[%f, %f]", obj.currPosHorz, obj.currPosTilt)
                 return;
 			elseif strncmp(line,'!R',2)
                 obj.log{end+1} = line;
@@ -206,7 +206,6 @@ classdef platformControl < handle
                    set(obj.hTextOut, 'String', obj.log);
                 end
                 if contains(line, 'boot: ESP-IDF')
-                    disp("RESTART");
                     obj.log = {};
                 end
             end
@@ -274,11 +273,12 @@ classdef platformControl < handle
 			flush(obj.hSerial); 
 			writeline(obj.hSerial, "P90 "+obj.currentProgramName);
 			for i=1:numel(trimmed)
+                disp(trimmed(i));
 				writeline(obj.hSerial, trimmed(i));
-				pause(0.002); % incommcaing buffer on esp32 is not infinit so we introduce a small delay
+				pause(0.02); % incomming buffer on esp32 is not infinite so we introduce a small delay
 			end
 
-			writeline(obj.hSerial, "P99");
+			writeline(obj.hSerial, "P92");
 			flush(obj.hSerial); 
 
 

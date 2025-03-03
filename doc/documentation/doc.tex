@@ -197,13 +197,13 @@ In order to avoid aliasing the Nyquist-Shannon theorem must be satisfied thus li
 
 While sampling with frequency $f_\mathrm{s}$ we get $N =\mathrm{f}_\mathrm{s} T_\mathrm{ch}$ samples applying a DFT to the signal we get $N$ samples in spectrum with frequency resolution of
 \begin{equation}
-	\upDelta f_\mathrm{b} = \frac{f_\mathrm{s}}{N} = \frac{1}{T_{ch}}.
+	\Delta f_\mathrm{b} = \frac{f_\mathrm{s}}{N} = \frac{1}{T_{ch}}.
 	\label{eq:resolution}
 \end{equation}
 We can see that the resolution of spectrum is only inversely proportional to the chirp length and doesn't have any relation to sampling frequency \cite{jankiraman2018}.
-Now we can enter $\upDelta f_\mathrm{b}$ into (\ref{eq:distance3}) to get the minimal distance that can be measured as
+Now we can enter $\Delta f_\mathrm{b}$ into (\ref{eq:distance3}) to get the minimal distance that can be measured as
 \begin{equation}
-	\upDelta R = \frac{c_o}{2BW}
+	\Delta R = \frac{c_o}{2BW}
 	\label{eq:distance5min}
 \end{equation}
 Thus in order to increase resolution in range a wider bandwidth is needed.
@@ -248,7 +248,7 @@ This will lead to a so called range-Doppler map which on one axis contains infor
 
 Speed resolution is derived from a number of chirps $N$ we are analyzing and their length $T_{\mathrm{ch}}$ as
 \begin{equation}
-	\upDelta v = \frac{c_0}{2f_c} \frac{1}{NT_{\mathrm{ch}}}.
+	\Delta v = \frac{c_0}{2f_c} \frac{1}{NT_{\mathrm{ch}}}.
 	\label{eq:doppler3}
 \end{equation}
 On the other hand the increase in number of chirps will affect the distance measurement if the target movement speed is sufficiently high.
@@ -470,6 +470,8 @@ This data enables the user to make any mathematical corrections and properly int
 As the platform needs to transmit data from the rotating section to the stationary base, a slip ring is required.
 Due to the relatively low transmission speed of the radar and the absence of special requirements such as waterproofing, an affordable model, UH3899-01-0810 from Senring, was selected.
 This is a classical contact slip ring that features a dedicated USB~2.0 connection along with 8 additional signal wires, with an advertised insertion loss of less than 2~dB \cite{slipring}.
+More problematic than loss is cross talk between signal wires when stepper motor responsible for tilting the radar is running.
+USB~2.0 connection doesn't seem that effected, however endstop used for homing requires adding a low pass filter to its output to help with noise.
 
 Unfortunately, the manufacturer opted for a non-standard male-male USB~2.0 connection, requiring a female-female adapter to connect the radar to the slip ring.
 Additionally, when used with a poor-quality cable, the system exhibits signal integrity issues.

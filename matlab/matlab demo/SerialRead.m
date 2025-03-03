@@ -63,7 +63,7 @@ end
 
 triggerTimer = timer;
 triggerTimer.StartDelay = 5;
-triggerTimer.Period = 0.03;
+triggerTimer.Period = 0.04;
 triggerTimer.ExecutionMode = 'fixedSpacing';
 triggerTimer.UserData = 0;
 
@@ -131,17 +131,18 @@ while index <= N
 	DataQ = data(2:2:nData);
 
 
-	time(index) =  (posixtime(datetime('now'))-dataTimestamp) * 1000;
-	dataTimestamp = posixtime(datetime('now'));
+	% time(index) =  (posixtime(datetime('now'))-dataTimestamp) * 1000;
+	%dataTimestamp = posixtime(datetime('now'));
+    % fprintf("Data %f\n", time(index) )
 
-	% fftI = 20*log10(abs(fft(DataI)));
-	% fftQ= 20*log10(abs(fft(DataQ)));
-	% limI=floor((numel(fftI)/2));
-	% limQ=floor((numel(fftQ)/2));
-	% set(hLine2, 'XData', 1:2:nData, 'YData', DataI);
-	% set(hLine22, 'XData', 2:2:nData, 'YData', DataQ);
-	% set(hLine3, 'XData', 1:limI, 'YData', fftI(1:limI));
-	% set(hLine4, 'XData', 1:limQ, 'YData', fftQ(1:limQ));
+	fftI = 20*log10(abs(fft(DataI)));
+	fftQ= 20*log10(abs(fft(DataQ)));
+	limI=floor((numel(fftI)/2));
+	limQ=floor((numel(fftQ)/2));
+	set(hLine2, 'XData', 1:2:nData, 'YData', DataI);
+	set(hLine22, 'XData', 2:2:nData, 'YData', DataQ);
+	set(hLine3, 'XData', 1:limI, 'YData', fftI(1:limI));
+	set(hLine4, 'XData', 1:limQ, 'YData', fftQ(1:limQ));
 
 	index=index+1;
 end

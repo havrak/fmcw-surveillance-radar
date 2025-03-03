@@ -45,9 +45,10 @@ void StepperControl::init()
 	steppers.stepStepper(stepperHalT, 1, 1, true);
 	steppers.stepStepper(stepperHalH, 1, 1, true);
 	steppers.stepStepper(stepperHalT, -1, 1, true);
-	steppers.stepStepper(stepperHalH, -1, true);
+	steppers.stepStepper(stepperHalH, -1, 1, true);
 	steppers.stopStepper(stepperHalH, true);
 	steppers.stopStepper(stepperHalT, true);
+
 
 	xTaskCreate(StepperControl::commandSchedulerTask, "commandSchedulerTask", 4096, NULL, 5, &commandSchedulerTaskHandle);
 }
@@ -242,15 +243,20 @@ void StepperControl::commandSchedulerTask(void* arg)
 	gcode_command_t* command = nullptr; // NOTE: this is just hack so I don't have tu turn off -Werror=maybe-uninitialized
 
 	// checks order of from and dest when in union of intervals <0, min> U <max, stepCount>
+		uint8_t  tmp = 0;
 	// true if from comes before dest -> we need to move clockwise
 
 	while (true) {
 		stepperOpParH.position += steppers.getStepsTraveledOfPrevCommand(stepperHalH);
 		stepperOpParT.position += steppers.getStepsTraveledOfPrevCommand(stepperHalT);
 
-		// printf("!P %ld, %f, %f\n", esp_timer_get_time(), STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParH.position + steppers.getStepsTraveledOfCurrentCommand(stepperHalH), CONFIG_STEPPER_H_STEP_COUNT), CONFIG_STEPPER_H_STEP_COUNT), STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParT.position + steppers.getStepsTraveledOfCurrentCommand(stepperHalT), CONFIG_STEPPER_H_STEP_COUNT), CONFIG_STEPPER_H_STEP_COUNT));
-
+		tmp++;
+		if(tmp == 20){
+			tmp =0;
+			printf("!P %lld, %f, %f\n", esp_timer_get_time(), STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParH.position + steppers.getStepsTraveledOfCurrentCommand(stepperHalH), CONFIG_STEPPER_H_STEP_COUNT), CONFIG_STEPPER_H_STEP_COUNT), STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParT.position + steppers.getStepsTraveledOfCurrentCommand(stepperHalT), CONFIG_STEPPER_H_STEP_COUNT), CONFIG_STEPPER_H_STEP_COUNT));
+		}
 		// if queues are filled we will wait
+
 		if (steppers.getQueueLength(stepperHalH) == CONFIG_STEPPER_HAL_QUEUE_SIZE || steppers.getQueueLength(stepperHalT) == CONFIG_STEPPER_HAL_QUEUE_SIZE) {
 			vTaskDelay(20 / portTICK_PERIOD_MS);
 			continue;
@@ -298,6 +304,8 @@ void StepperControl::commandSchedulerTask(void* arg)
 #ifdef CONFIG_APP_DEBUG
 				ESP_LOGI(TAG, "commandSchedulerTask | CMD SOURCE: programm main (end)");
 #endif
+				steppers.stopStepper(stepperHalH);
+				steppers.stopStepper(stepperHalT);
 				activeProgram = nullptr;
 				programmingMode.store(ProgrammingMode::NO_PROGRAMM);
 			}
@@ -725,7 +733,7 @@ ParsingGCodeResult StepperControl::parseGCodeNonScheduledCommands(const char* gc
 		if ((movementH != nullptr && movementH->rpm == NAN && movementH->val.steps != 0) || (movementT != nullptr && movementT->rpm == NAN && movementT->val.steps != 0))
 			return ParsingGCodeResult::INVALID_ARGUMENT;
 
-		if(command->movementH != nullptr && command->movementT != nullptr)
+		if(movementH == nullptr && movementT == nullptr)
 			return ParsingGCodeResult::INVALID_ARGUMENT;
 
 		if (movementH != nullptr && movementT != nullptr) {
@@ -764,6 +772,8 @@ ParsingGCodeResult StepperControl::parseGCodeNonScheduledCommands(const char* gc
 			activeProgram->reset();
 			activeProgram = nullptr;
 		}
+		steppers.stopStepper(stepperHalH);
+		steppers.stopStepper(stepperHalT);
 #ifdef CONFIG_COMM_DEBUG
 		ESP_LOGI(TAG, "parseGCode| P0 | Device is in NO_PROGRAMM mode");
 #endif /* CONFIG_COMM_DEBUG */
@@ -883,7 +893,7 @@ ParsingGCodeResult StepperControl::parseGCodeGCommands(const char* gcode, const 
 		if ((command->movementH != nullptr && command->movementH->rpm == NAN && command->movementH->val.steps != 0) || (command->movementT != nullptr && command->movementT->rpm == NAN && command->movementT->val.steps != 0))
 			return ParsingGCodeResult::INVALID_ARGUMENT;
 
-		if(command->movementH != nullptr && command->movementT != nullptr)
+		if(command->movementH == nullptr && command->movementT == nullptr)
 			return ParsingGCodeResult::INVALID_ARGUMENT;
 
 #ifdef CONFIG_COMM_DEBUG
@@ -1193,8 +1203,10 @@ ParsingGCodeResult StepperControl::parseGCodePCommands(const char* gcode, const 
 		ESP_LOGI(TAG, "parseGCode| P90");
 #endif /* CONFIG_COMM_DEBUG */
 		command->type = GCodeCommand::COMMAND_TO_REMOVE;
-		if (programmingMode != ProgrammingMode::NO_PROGRAMM || activeProgram != nullptr)
+		if (programmingMode != ProgrammingMode::NO_PROGRAMM || activeProgram != nullptr){
+			ESP_LOGE(TAG, "parseGCode| P90 | programmingMode: %d, activeProgram: %p", programmingMode.load(), activeProgram);
 			return ParsingGCodeResult::CODE_FAILURE; // TODO: make sure this never arises
+		}
 
 		char name[PROG_NAME_MAX_LENGTH] = {};
 		uint16_t nameLength = 0;
@@ -1366,10 +1378,8 @@ void StepperControl::homeT()
 	// stop the steppers
 	xEventGroupClearBits(homingEventGroup, BIT0);
 	steppers.stopNowStepper(stepperHalT);
-	// set the positioning mode to homing
-	programmingMode.store(ProgrammingMode::HOMING);
-
 	// attach interrupts
+
 	attachInterrupt(CONFIG_STEPPER_T_PIN_ENDSTOP, StepperControl::endstopHandler, CHANGE);
 
 	steppers.spindleStepper(stepperHalT, 10, Direction::FORWARD);
@@ -1385,11 +1395,10 @@ void StepperControl::homeT()
 	ESP_LOGI(TAG, "Home | Tilt stepper fast homed");
 #endif /* CONFIG_APP_DEBUG */
 
-	steppers.stepStepper(stepperHalT, -20, 10);
-	vTaskDelay(150);
+	steppers.stepStepper(stepperHalT, -80, 20);
+	vTaskDelay(1000);
 	xEventGroupClearBits(homingEventGroup, BIT0);
-	steppers.spindleStepper(stepperHalT, 4, Direction::FORWARD);
-
+	steppers.spindleStepper(stepperHalT, 6, Direction::FORWARD);
 	result = xEventGroupWaitBits(
 			homingEventGroup,
 			BIT0,
@@ -1398,7 +1407,6 @@ void StepperControl::homeT()
 			portMAX_DELAY);
 
 	steppers.stopStepper(stepperHalT);
-
 
 #ifdef CONFIG_APP_DEBUG
 	ESP_LOGI(TAG, "Home | Tilt stepper slow homed");
