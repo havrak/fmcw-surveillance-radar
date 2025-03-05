@@ -44,7 +44,7 @@ enum Direction : uint8_t {
 typedef struct {
 	CommandType type;    // type of the command
 	union {
-		uint32_t steps;			 // number of steps to move to or time to wait in ms
+		int32_t steps;			 // number of steps to move to or time to wait in ms
 		uint32_t time;       // time to wait in ms
 		uint32_t finishTime; // used in one situation: we are moving from spindle command to another command, spindle command is already stored in the previous command register but we need to know how much has the spindle traveled -- thus we store here the endtime.
 	} val;

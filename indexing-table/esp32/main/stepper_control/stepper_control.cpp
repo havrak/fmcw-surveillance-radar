@@ -46,9 +46,6 @@ void StepperControl::init()
 	steppers.stepStepper(stepperHalH, 1, 1, true);
 	steppers.stepStepper(stepperHalT, -1, 1, true);
 	steppers.stepStepper(stepperHalH, -1, 1, true);
-	steppers.stopStepper(stepperHalH, true);
-	steppers.stopStepper(stepperHalT, true);
-
 
 	xTaskCreate(StepperControl::commandSchedulerTask, "commandSchedulerTask", 4096, NULL, 5, &commandSchedulerTaskHandle);
 }
@@ -243,7 +240,7 @@ void StepperControl::commandSchedulerTask(void* arg)
 	gcode_command_t* command = nullptr; // NOTE: this is just hack so I don't have tu turn off -Werror=maybe-uninitialized
 
 	// checks order of from and dest when in union of intervals <0, min> U <max, stepCount>
-		uint8_t  tmp = 0;
+	uint8_t  tmp = 0;
 	// true if from comes before dest -> we need to move clockwise
 
 	while (true) {
@@ -253,7 +250,11 @@ void StepperControl::commandSchedulerTask(void* arg)
 		tmp++;
 		if(tmp == 20){
 			tmp =0;
-			printf("!P %lld, %f, %f\n", esp_timer_get_time(), STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParH.position + steppers.getStepsTraveledOfCurrentCommand(stepperHalH), CONFIG_STEPPER_H_STEP_COUNT), CONFIG_STEPPER_H_STEP_COUNT), STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParT.position + steppers.getStepsTraveledOfCurrentCommand(stepperHalT), CONFIG_STEPPER_H_STEP_COUNT), CONFIG_STEPPER_H_STEP_COUNT));
+			int64_t travelledH = steppers.getStepsTraveledOfCurrentCommand(stepperHalH);
+			int64_t travelledT = steppers.getStepsTraveledOfCurrentCommand(stepperHalT);
+			ESP_LOGI(TAG, "H position %lld, H traveled %lld, T position %lld, T traveled %lld", stepperOpParH.position, travelledH, stepperOpParT.position, travelledT);
+			ESP_LOGI(TAG, "!P %lld, %f, %f\n", esp_timer_get_time()/1000, STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParH.position + travelledH, CONFIG_STEPPER_H_STEP_COUNT), CONFIG_STEPPER_H_STEP_COUNT), STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParT.position + travelledT, CONFIG_STEPPER_H_STEP_COUNT), CONFIG_STEPPER_H_STEP_COUNT));
+			// printf("!P %lld, %f, %f\n", esp_timer_get_time()/1000, STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParH.position + steppers.getStepsTraveledOfCurrentCommand(stepperHalH), CONFIG_STEPPER_H_STEP_COUNT), CONFIG_STEPPER_H_STEP_COUNT), STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParT.position + steppers.getStepsTraveledOfCurrentCommand(stepperHalT), CONFIG_STEPPER_H_STEP_COUNT), CONFIG_STEPPER_H_STEP_COUNT));
 		}
 		// if queues are filled we will wait
 
@@ -1062,14 +1063,14 @@ ParsingGCodeResult StepperControl::parseGCodeWCommands(const char* gcode, const 
 		command->type = GCodeCommand::W1; // all W0 command futhers on will be handled as W1
 		elementInt = getElementInt(gcode, length, 2, "H", 1);
 
-		if (elementInt != GCODE_ELEMENT_INVALID_INT || elementInt < 0) {
+		if (elementInt != GCODE_ELEMENT_INVALID_INT && elementInt < 0) {
 			command->movementH = new gcode_command_movement_t();
 			command->movementH->val.time = elementInt * 1000;
 		}
 
 		elementInt = getElementInt(gcode, length, 2, "T", 1);
 
-		if (elementInt != GCODE_ELEMENT_INVALID_INT || elementInt < 0) {
+		if (elementInt != GCODE_ELEMENT_INVALID_INT && elementInt < 0) {
 			command->movementT = new gcode_command_movement_t();
 			command->movementT->val.time = elementInt * 1000;
 		}
@@ -1088,14 +1089,14 @@ ParsingGCodeResult StepperControl::parseGCodeWCommands(const char* gcode, const 
 		command->type = GCodeCommand::W1;
 		elementInt = getElementInt(gcode, length, 2, "H", 1);
 
-		if (elementInt != GCODE_ELEMENT_INVALID_INT || elementInt < 0) {
+		if (elementInt != GCODE_ELEMENT_INVALID_INT && elementInt < 0) {
 			command->movementH = new gcode_command_movement_t();
 			command->movementH->val.time = elementInt;
 		}
 
 		elementInt = getElementInt(gcode, length, 2, "T", 1);
 
-		if (elementInt != GCODE_ELEMENT_INVALID_INT || elementInt < 0) {
+		if (elementInt != GCODE_ELEMENT_INVALID_INT && elementInt < 0) {
 			command->movementT = new gcode_command_movement_t();
 			command->movementT->val.time = elementInt;
 		}
