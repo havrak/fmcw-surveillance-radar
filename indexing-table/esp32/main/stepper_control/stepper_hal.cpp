@@ -388,14 +388,17 @@ bool StepperHal::stopNowStepper(stepper_hal_struct_t* stepperHal)
 
 int64_t StepperHal::getStepsTraveledOfCurrentCommand(stepper_hal_struct_t* stepperHal)
 {
-	if (stepperHal->stepperCommand->type == CommandType::STEPPER && !stepperHal->stepperCommand->complete) {
+	if(stepperHal->stepperCommand->complete)
+		return 0;
+
+	if (stepperHal->stepperCommand->type == CommandType::STEPPER) {
 		int pulseCount = 0;
 		pcnt_unit_get_count(stepperHal->pcntUnit, &pulseCount); // NOTE: should handle complete case and be more precies than calculating from time
 		return stepperHal->stepperCommand->direction ? -pulseCount : pulseCount;
 	} else if (stepperHal->stepperCommand->type == CommandType::SPINDLE) { // case for STEPPER_MIN_SPINDLE_TIME where stepper command is not yet copied into previous one
 		int64_t pulseCount = (esp_timer_get_time() - stepperHal->stepperCommand->timestamp) * stepperHal->stepperCommand->rpm / 60'000'000 * stepperHal->stepCount;
 		return stepperHal->stepperCommand->direction ? -pulseCount : pulseCount;
-	} else if (stepperHal->stepperCommandPrev->type == CommandType::SPINDLE) { // case for rest of the spindle movement (stepperCommand will usuals now be WAIT)
+	} else if (stepperHal->stepperCommandPrev->type == CommandType::SPINDLE && !stepperHal->stepperCommandPrev->complete) { // case for rest of the spindle movement (stepperCommand will usuals now be WAIT)
 		int64_t pulseCount = (esp_timer_get_time() - stepperHal->stepperCommandPrev->timestamp) * stepperHal->stepperCommandPrev->rpm / 60'000'000 * stepperHal->stepCount;
 		return stepperHal->stepperCommandPrev->direction ? -pulseCount : pulseCount;
 	}
@@ -408,7 +411,6 @@ int64_t StepperHal::getStepsTraveledOfPrevCommand(stepper_hal_struct_t* stepperH
 		return 0;
 	if (stepperHal->stepperCommandPrev->type == CommandType::STEPPER) {
 		stepperHal->stepperCommandPrev->synchronized = true;
-		ESP_LOGI(TAG, "getStepsTraveledOfPrevCommand | %s, steps: %ld", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "H" : "T", stepperHal->stepperCommandPrev->val.steps);
 		return stepperHal->stepperCommandPrev->direction ? -stepperHal->stepperCommandPrev->val.steps : stepperHal->stepperCommandPrev->val.steps;
 	} else if (stepperHal->stepperCommandPrev->type == CommandType::SPINDLE && stepperHal->stepperCommandPrev->complete) {
 		stepperHal->stepperCommandPrev->synchronized = true;

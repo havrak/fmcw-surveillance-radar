@@ -109,10 +109,11 @@ WARNING: DO NOT use this device without first reading the documentation. Command
 		* H<+/-> - start spin clockwise/anticlockwise
 		* ST<SPEED> - speed for tilt motor in tilt axis
 		* T<+/-> - start spin clockwise/anticlockwise
+		* NOTE: spindle will always spin at least for STEPPER_MIN_SPINDLE_TIME ms, thus theoretically to spin for N seconds would would have to substract STEPPER_MIN_SPINDLE_TIME from the time you want to spin, however timing here is quite finicky so correction probably will not secure exact number of steps
 	* M05:  Stop spindle spinning.
 		* H - stop spindle regime on horizontal axis
 		* T - stop spindle regime on tilt axis
-		* NOTE: spindle mode will also automatically end if stepper receives G0 command
+		* NOTE: spindle mode will also automatically end if stepper receives G0 command or if another M03 command is issued
 		* if no argument is present neither axis will be stopped
 * M201: set limits on steppers
 	* LH<ANGLE>: low limit on horizontal stepper

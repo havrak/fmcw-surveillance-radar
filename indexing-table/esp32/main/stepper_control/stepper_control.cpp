@@ -269,7 +269,7 @@ void StepperControl::commandSchedulerTask(void* arg)
 			if (xSemaphoreTake(noProgrammQueueLock, (TickType_t)1000) == pdTRUE) {
 				if (noProgrammQueue.size() > 0) {
 #ifdef CONFIG_APP_DEBUG
-					ESP_LOGI(TAG, "commandSchedulerTask | CMD SOURCE: no programm queue");
+					// ESP_LOGI(TAG, "commandSchedulerTask | CMD SOURCE: no programm queue");
 #endif
 					command = noProgrammQueue.front();
 					noProgrammQueue.pop();
@@ -279,31 +279,35 @@ void StepperControl::commandSchedulerTask(void* arg)
 		} else if (programmingMode == ProgrammingMode::RUN_PROGRAM) {
 			if (activeProgram->indexHeader != activeProgram->header->size()) { // running header
 #ifdef CONFIG_APP_DEBUG
-				ESP_LOGI(TAG, "commandSchedulerTask | CMD SOURCE: programm header");
+				// ESP_LOGI(TAG, "commandSchedulerTask | CMD SOURCE: programm header");
 #endif
 				command = activeProgram->header->at(activeProgram->indexHeader);
 				activeProgram->indexHeader++;
 			} else if (activeProgram->indexMain == 0 && activeProgram->indexMain != activeProgram->main->size()) { // header finished, switch to main
 #ifdef CONFIG_APP_DEBUG
-				ESP_LOGI(TAG, "commandSchedulerTask | CMD SOURCE: programm main (start)");
+				// ESP_LOGI(TAG, "commandSchedulerTask | CMD SOURCE: programm main (start)");
 #endif
 				command = activeProgram->main->at(0);
 				activeProgram->indexMain = 1;
 			} else if (activeProgram->indexMain != activeProgram->main->size()) { // running main
 #ifdef CONFIG_APP_DEBUG
-				ESP_LOGI(TAG, "commandSchedulerTask | CMD SOURCE: programm main");
+				// ESP_LOGI(TAG, "commandSchedulerTask | CMD SOURCE: programm main");
 #endif
 				command = activeProgram->main->at(activeProgram->indexMain);
 				activeProgram->indexMain++;
 			} else if (activeProgram->repeatIndefinitely) { // finished main but repeat indefinitely is on
 #ifdef CONFIG_APP_DEBUG
-				ESP_LOGI(TAG, "commandSchedulerTask | CMD SOURCE: programm main (repeat)");
+				// ESP_LOGI(TAG, "commandSchedulerTask | CMD SOURCE: programm main (repeat)");
 #endif
+				if(activeProgram->main->size() == 0){
+					vTaskDelay(20 / portTICK_PERIOD_MS);
+					continue;
+				}
 				command = activeProgram->main->at(0);
 				activeProgram->indexMain = 1;
 			} else { // finished main
 #ifdef CONFIG_APP_DEBUG
-				ESP_LOGI(TAG, "commandSchedulerTask | CMD SOURCE: programm main (end)");
+				// ESP_LOGI(TAG, "commandSchedulerTask | CMD SOURCE: programm main (end)");
 #endif
 				steppers.stopStepper(stepperHalH);
 				steppers.stopStepper(stepperHalT);
@@ -1063,14 +1067,14 @@ ParsingGCodeResult StepperControl::parseGCodeWCommands(const char* gcode, const 
 		command->type = GCodeCommand::W1; // all W0 command futhers on will be handled as W1
 		elementInt = getElementInt(gcode, length, 2, "H", 1);
 
-		if (elementInt != GCODE_ELEMENT_INVALID_INT && elementInt < 0) {
+		if (elementInt != GCODE_ELEMENT_INVALID_INT && elementInt > 0) {
 			command->movementH = new gcode_command_movement_t();
 			command->movementH->val.time = elementInt * 1000;
 		}
 
 		elementInt = getElementInt(gcode, length, 2, "T", 1);
 
-		if (elementInt != GCODE_ELEMENT_INVALID_INT && elementInt < 0) {
+		if (elementInt != GCODE_ELEMENT_INVALID_INT && elementInt > 0) {
 			command->movementT = new gcode_command_movement_t();
 			command->movementT->val.time = elementInt * 1000;
 		}
@@ -1089,14 +1093,14 @@ ParsingGCodeResult StepperControl::parseGCodeWCommands(const char* gcode, const 
 		command->type = GCodeCommand::W1;
 		elementInt = getElementInt(gcode, length, 2, "H", 1);
 
-		if (elementInt != GCODE_ELEMENT_INVALID_INT && elementInt < 0) {
+		if (elementInt != GCODE_ELEMENT_INVALID_INT && elementInt > 0) {
 			command->movementH = new gcode_command_movement_t();
 			command->movementH->val.time = elementInt;
 		}
 
 		elementInt = getElementInt(gcode, length, 2, "T", 1);
 
-		if (elementInt != GCODE_ELEMENT_INVALID_INT && elementInt < 0) {
+		if (elementInt != GCODE_ELEMENT_INVALID_INT && elementInt > 0) {
 			command->movementT = new gcode_command_movement_t();
 			command->movementT->val.time = elementInt;
 		}
