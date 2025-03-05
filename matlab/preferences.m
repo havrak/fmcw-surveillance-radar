@@ -133,6 +133,23 @@ classdef preferences < handle
 			bandwith = obj.configStruct.radar.bandwidth;
 		end
 
+		function [angleOffsetH, angleOffsetT, distanceOffset] = getPlatformParamters(obj)
+			% getPlatformParamters: return mounting paramters of the platform
+			% 
+			%
+			% Output:
+			% angleOffsetH ... horizontal angle at which radar is poiting straight 
+			% angleOffsetT ... angle at which radar is poiting straight (PCB is
+			% perpendicular to the ground)
+			% distanceOffset ... distance from axis of rotation to the center of
+			% radar PCB
+
+
+			distanceOffset =  obj.configStruct.platform.distanceOffset;
+			angleOffsetT = obj.configStruct.platform.angleOffsetT;
+			angleOffsetH = obj.configStruct.platform.angleOffsetH;
+		end
+
 		function storeConfig(obj)
 				struct2ini(obj.configFilePath, obj.configStruct);
 		end

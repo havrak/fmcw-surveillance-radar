@@ -17,18 +17,20 @@ classdef platformControl < handle
 		hBtnClose;             % uicontrol/pushBtn - close figure
 		hLabelCommand;         % uilabel - quck commnad lable
 		hTextOut;              % uicontrol/text - output from platfrom
-		
-		                   
-		% OTHER VARS% 
+
+
+		% OTHER VARS%
 		hPreferences preferences;
 		hSerial;
 		programs;
 		currentProgramName;
-		timestamp double = 0;
-		currPosHorz double = 0;
-		currPosTilt double = 0;
-        log cell = {};
-		
+		bufferSize double = 200;
+		positionTimes;     % Array of timestamps (seconds since start)
+		positionHorz;      % Array of horizontal positions
+		positionTilt;      % Array of tilt positions
+		log cell = {};
+		startTime double;
+
 	end
 	methods(Access=private)
 		function loadSavedPrograms(obj)
@@ -74,7 +76,7 @@ classdef platformControl < handle
 			obj.hTextOut =  uicontrol('Style', 'edit', ...
 				'Parent', obj.hFig, ...
 				'Tag', 'ProgramDisplay', ...
-                'Min', 0, ...
+				'Min', 0, ...
 				'Max', 200, ...
 				'HorizontalAlignment', 'left', ...
 				'String', 'Platform serial output');
@@ -83,7 +85,7 @@ classdef platformControl < handle
 				'Title', 'Actions', ...
 				'Tag', 'ButtonPanel', ...
 				'Units', 'pixels');
-			
+
 			obj.hBtnNew = uicontrol('Style', 'pushbutton', ...
 				'Parent', obj.hPanelBtn, ...
 				'String', 'New Program', ...
@@ -115,9 +117,9 @@ classdef platformControl < handle
 				'Callback', @(src, event) obj.startProgram());
 
 			obj.hBtnClose = uicontrol('Style', 'pushbutton', ...
-                'Parent', obj.hPanelBtn, ...
-                'String', 'Close', ...
-                'Callback', @(src, event) set(obj.hFig, 'Visible', 'off'));
+				'Parent', obj.hPanelBtn, ...
+				'String', 'Close', ...
+				'Callback', @(src, event) set(obj.hFig, 'Visible', 'off'));
 			obj.resizeUI();
 
 			fprintf('PlatformControl | constructGUI | GUI constructed\n');
@@ -137,10 +139,10 @@ classdef platformControl < handle
 			obj.hLabelCommand.Position = [10, height-40, sidebarWidth, 30];
 			obj.hEditCommand.Position = [sidebarWidth + 20, height - 40, width - sidebarWidth - 30, 30];
 			displayWidth = width - sidebarWidth - 210;
-			
+
 			obj.hEditProgram.Position = [sidebarWidth + 20, 230, displayWidth, height-280];
 			obj.hTextOut.Position = [sidebarWidth + 20, 20, displayWidth, 200];
-			
+
 			buttonPanelWidth = 180;
 			obj.hPanelBtn.Position = [sidebarWidth + 30 + displayWidth, 20, buttonPanelWidth-10, height - 70];
 			buttonHeight = 40;
@@ -150,9 +152,9 @@ classdef platformControl < handle
 			obj.hBtnDelete.Position = [10, height - 90 - 3 * (buttonHeight + spacing), buttonPanelWidth - 30, buttonHeight];
 			obj.hBtnUpload.Position = [10, height - 90 - 4 * (buttonHeight + spacing), buttonPanelWidth - 30, buttonHeight];
 			obj.hBtnStart.Position = [10, height - 90 - 5 * (buttonHeight + spacing), buttonPanelWidth - 30, buttonHeight];
-		
+
 			obj.hBtnStore.Position = [10, 60, buttonPanelWidth - 30, buttonHeight]; % Fixed at the bottom of the panel
-    
+
 			obj.hBtnClose.Position = [10, 10, buttonPanelWidth - 30, buttonHeight]; % Fixed at the bottom of the panel
 
 		end
@@ -161,54 +163,62 @@ classdef platformControl < handle
 			% Callback for loading a program when selected from the sidebar
 
 			fprintf('PlatformControl | loadProgram\n');
-            selected = obj.hListboxSidebar.Value; % Get selected index
+			selected = obj.hListboxSidebar.Value; % Get selected index
 			fields = fieldnames(obj.programs); % Get fieldnames
 			if selected > 0 && selected <= numel(fields)
 				obj.currentProgramName = fields{selected};
 				obj.hEditProgram.String = sprintf(obj.programs.(obj.currentProgramName)); % sprintf will execute line breaks
 			end
 		end
-		
+
 		function callbackQuickCommand(obj)
 			value = append(get(obj.hEditCommand, 'String'));
-            set(obj.hEditCommand, 'String', '');
-            flush(obj.hSerial);
-		    writeline(obj.hSerial, value);
-        end
+			set(obj.hEditCommand, 'String', '');
+			flush(obj.hSerial);
+			writeline(obj.hSerial, value);
+		end
 
 
 		function processIncommingData(obj, src)
-		    line = strtrim(readline(src));
-            if isempty(line)
-                return;
-            end
-            
-            if length(obj.log) > 200
-                obj.log(1) = [];
-                length(obj.log)
-            end
-            
+			line = strtrim(readline(src));
+			if isempty(line)
+				return;
+			end
+
+			if length(obj.log) > 200
+				obj.log(1) = [];
+			end
+
 
 			if strncmp(line,'!P',2)
+				[angleOffsetH, angleOffsetT, ~] = obj.hPreferences.getPlatformParamters();
 				vals = split(line(2:end), ',');
-				obj.timestamp = str2double(vals{1});
-				obj.currPosHorz = str2double(vals{2});
-				obj.currPosTilt = str2double(vals{3});
-                fprintf("[%f, %f]", obj.currPosHorz, obj.currPosTilt)
-                return;
+				obj.positionTimes(end+1) = currentTime;
+				obj.positionHorz(end+1) = str2double(vals{2})-angleOffsetH;
+				obj.positionTilt(end+1) = str2double(vals{2})-angleOffsetT;
+
+				fprintf("[%f, %f]", obj.positionHorz(end), obj.positionTilt(end));
+
+				if length(obj.positionTimes) > obj.bufferSize
+					obj.positionTimes(1) = [];
+					obj.positionHorz(1) = [];
+					obj.positionTilt(1) = [];
+				end
+
+				return;
 			elseif strncmp(line,'!R',2)
-                obj.log{end+1} = line;
-                set(obj.hTextOut, 'String', obj.log);
-                return;
-            elseif obj.hPreferences.getPlatformDebug()
-                if(extract(line,1) == "I" || extract(line,1) == "W" || extract(line,1) == "E")
-				   obj.log{end+1} = line;
-                   set(obj.hTextOut, 'String', obj.log);
-                end
-                if contains(line, 'boot: ESP-IDF')
-                    obj.log = {};
-                end
-            end
+				obj.log{end+1} = line;
+				set(obj.hTextOut, 'String', obj.log);
+				return;
+			elseif obj.hPreferences.getPlatformDebug()
+				if startsWith(line, ["I", "W", "E"])
+					obj.log{end+1} = line;
+					set(obj.hTextOut, 'String', obj.log);
+				end
+				if contains(line, 'boot: ESP-IDF')
+					obj.log = {};
+				end
+			end
 		end
 
 		function newProgram(obj)
@@ -229,16 +239,16 @@ classdef platformControl < handle
 			fprintf('PlatformControl | deleteProgram\n');
 			obj.programs = rmfield(obj.programs, obj.currentProgramName);
 			progs = fieldnames(obj.programs);
-            set(obj.hListboxSidebar, 'String', progs);
-            
-            if(isempty(progs))
-                obj.hEditProgram.String = "";
-            else
-                set(obj.hListboxSidebar, 'Value', 1);
-                obj.loadProgram();
-            end
-            
-         end
+			set(obj.hListboxSidebar, 'String', progs);
+
+			if(isempty(progs))
+				obj.hEditProgram.String = "";
+			else
+				set(obj.hListboxSidebar, 'Value', 1);
+				obj.loadProgram();
+			end
+
+		end
 
 		function storePrograms(obj)
 			fprintf('PlatformControl | storePrograms\n');
@@ -257,7 +267,7 @@ classdef platformControl < handle
 
 		function startProgram(obj)
 			fprintf('PlatformControl | startProgram\n');
-			flush(obj.hSerial); 
+			flush(obj.hSerial);
 			writeline(obj.hSerial, "M82"); % stop current move
 			writeline(obj.hSerial, "G28"); % home steppers
 			writeline(obj.hSerial, "G92"); % set home to current location
@@ -269,17 +279,17 @@ classdef platformControl < handle
 			% Empty callback for Upload Program button
 			value = get(obj.hEditProgram, 'String');
 			trimmed = (strtrim(string(value)));
-			% -> call to send 
-			flush(obj.hSerial); 
+			% -> call to send
+			flush(obj.hSerial);
 			writeline(obj.hSerial, "P90 "+obj.currentProgramName);
 			for i=1:numel(trimmed)
-                disp(trimmed(i));
+				disp(trimmed(i));
 				writeline(obj.hSerial, trimmed(i));
 				pause(0.02); % incomming buffer on esp32 is not infinite so we introduce a small delay
 			end
 
 			writeline(obj.hSerial, "P92");
-			flush(obj.hSerial); 
+			flush(obj.hSerial);
 
 
 		end
@@ -288,43 +298,76 @@ classdef platformControl < handle
 
 	methods(Access=public)
 
-		function obj = platformControl(hPreferences)
+		function obj = platformControl(hPreferences, startTime)
 			fprintf('PlatformControl | platformControl | constructing object\n');
 			obj.hPreferences = hPreferences;
+			obj.startTime = startTime;
 			loadSavedPrograms(obj);
-           
+
 		end
-		
+
 		function endProcesses(obj)
-			if ~isempty(obj.hSerial) 
+			if ~isempty(obj.hSerial)
 				configureCallback(obj.hSerial, "off");
 				delete(obj.hSerial)
 			end
 		end
 
 		function status = setupSerial(obj)
-		if ~isempty(obj.hSerial)
+			if ~isempty(obj.hSerial)
 				configureCallback(obj.hSerial, "off");
 				delete(obj.hSerial)
 			end
 			[port, baudrate] = obj.hPreferences.getConnectionPlatform();
-			try 
+			try
 				fprintf("platFormControl | setupSerial | port: %s, baud: %f\n", port, baudrate)
 				obj.hSerial = serialport(port, baudrate, "Timeout", 5);
 				configureTerminator(obj.hSerial,"CR");
 				flush(obj.hSerial);
-				fprintf("platFormControl | setupSerial | starting thread\n");			
+				fprintf("platFormControl | setupSerial | starting thread\n");
 				configureCallback(obj.hSerial, "terminator", @(src, ~) obj.processIncommingData(src))
 				status = true;
 			catch ME
 				fprintf("platFormControl | setupSerial | Failed to setup serial")
 				status = false;
 			end
+		end
 
+		function [vec] = getSpeedVector(obj, timeMin, timeMax)
+			[timestamps, phi, theta] = obj.getPositionsInInterval(timeMin, timeMax);
+			[~,~, r] = obj.hPreferences.getPlatformParamters();
+
+			[x,y,z] = sph2cart(phi/180*pi, theta/180*pi-pi, r);
+			
+		end
+
+		function [timestamps, horizontal, tilt] = getPositionsInInterval(obj, timeMin, timeMax)
+			% Find the indices of the closest timestamps to timeMin and timeMax
+			[~, idxMin] = min(abs(obj.positionTimes - timeMin));
+			[~, idxMax] = min(abs(obj.positionTimes - timeMax));
+
+			% Ensure startIdx <= endIdx to handle cases where timeMin > timeMax
+			startIdx = min(idxMin, idxMax);
+			endIdx = max(idxMin, idxMax);
+
+			% Extract the data within the determined interval
+			timestamps = obj.positionTimes(startIdx:endIdx);
+			horizontal = obj.positionHorz(startIdx:endIdx);
+			tilt = obj.positionTilt(startIdx:endIdx);
+		end
+
+		function [horz, tilt] = getPositionAtTime(obj, time)
+			% Retrieve the closest platform position for a given timestamp
+			if isempty(obj.positionTimes)
+				error('No position data available.');
+			end
+			[~, idx] = min(abs(obj.positionTimes - time));
+			horz = obj.positionHorz(idx);
+			tilt = obj.positionTilt(idx);
 		end
 
 		function showGUI(obj)
-		    if isempty(obj.hFig) | ~isvalid(obj.hFig)
+			if isempty(obj.hFig) | ~isvalid(obj.hFig)
 				constructGUI(obj);
 			end
 			set(obj.hFig, 'Visible', 'on');

@@ -1,0 +1,43 @@
+# Programs
+
+## Spindle + Tilt
+
+```
+P90 prog
+G91
+G21
+G28
+G92
+G0 T40 S10
+P29
+M03 SH6 H+
+P91
+G0 ST15 T-60
+G0 ST15 T60
+P92
+P1 prog
+```
+
+G0 H10 T10 SH30 S10
+G0 H10 SH30
+G0 ST30 T100
+
+
+P90 prog
+G0 ST10 T1000
+G0 ST10 T-1000
+P92
+P1 prog
+
+G0 SH2 H-50
+
+P90 prog
+G92
+M03 SH2 H+
+W1 H15000
+M05 H
+P29
+P91
+P92
+P1 prog
+

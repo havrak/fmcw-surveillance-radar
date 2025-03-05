@@ -10,6 +10,7 @@ classdef radar < handle
 		dataQ;
 		oldBuf;
 		samples = 256;
+        startTime double;
 	end
 
 	methods (Access=private)
@@ -133,9 +134,10 @@ classdef radar < handle
 	end
 
 	methods (Access = public)
-			function obj = radar(hPreferences)
+			function obj = radar(hPreferences, startTime)
 			fprintf('Radar | radar | constructing object\n');
 			obj.hPreferences = hPreferences;
+            obj.startTime = startTime;
 		end
 		
 		function endProcesses(obj)

@@ -21,9 +21,10 @@ classdef app < handle
 	methods(Access=private)
 		function obj = app()
 			obj.constructGUI();
+            time = tic; % establish common time base, call to get unix timestamp si rather lengthy
 			obj.hPreferences = preferences();
-			obj.hPlatformControl = platformControl(obj.hPreferences);
-			obj.hRadar = radar(obj.hPreferences);
+			obj.hPlatformControl = platformControl(obj.hPreferences, time); 
+			obj.hRadar = radar(obj.hPreferences, time);
 		end
 
 
