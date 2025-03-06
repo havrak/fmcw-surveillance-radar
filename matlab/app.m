@@ -15,26 +15,28 @@ classdef app < handle
 		hTask;
 
 		hFig;
-    hToolbar;
+		hToolbar;
 	end
 
 	methods(Access=private)
 		function obj = app()
 			obj.constructGUI();
-            time = tic; % establish common time base, call to get unix timestamp si rather lengthy
+			time = tic; % establish common time base, call to get unix timestamp si rather lengthy
 			obj.hPreferences = preferences();
-			obj.hPlatformControl = platformControl(obj.hPreferences, time); 
+			obj.hPlatformControl = platformControl(obj.hPreferences, time);
 			obj.hRadar = radar(obj.hPreferences, time);
 		end
 
 
 		function shutdown(obj)
+			% shutdown: safely stops all app processes
 			fprintf("App | shutdown\n")
 			obj.hRadar.endProcesses();
 			obj.hPlatformControl.endProcesses();
 		end
 
 		function constructGUI(obj)
+			% constructGUI: initializes all GUI elements
 			figSize = [1200, 800];
 			screenSize = get(groot, 'ScreenSize');
 			obj.hFig = uifigure('Name', 'FMCW', ...
@@ -55,7 +57,7 @@ classdef app < handle
 			uipushtool(obj.hToolbar, ...
 				'TooltipString', 'Preferences', ...
 				'ClickedCallback', @(~,~) obj.hPreferences.showGUI(), ...
-				 'CData', ptImage); % Example icon
+				'CData', ptImage); % Example icon
 
 			[img,map] = imread(fullfile(matlabroot,...
 				'toolbox','matlab','icons','tool_rotate_3d.gif'));
@@ -64,7 +66,7 @@ classdef app < handle
 			uipushtool(obj.hToolbar, ...
 				'TooltipString', 'Platform', ...
 				'ClickedCallback', @(~,~) obj.hPlatformControl.showGUI(), ...
-				 'CData', ptImage); % Example icon
+				'CData', ptImage); % Example icon
 
 
 			[img,map] = imread(fullfile(matlabroot,...
@@ -75,7 +77,7 @@ classdef app < handle
 				'TooltipString', 'Help', ...
 				'CData', ptImage);
 
-				obj.hPanelBtn = uipanel('Parent', obj.hFig, ...
+			obj.hPanelBtn = uipanel('Parent', obj.hFig, ...
 				'Title', 'Actions', ...
 				'Tag', 'ButtonPanel', ...
 				'Units', 'pixels');
@@ -90,7 +92,7 @@ classdef app < handle
 			obj.hBtnConnectPlatform = uicontrol('Style', 'pushbutton', ...
 				'Parent', obj.hPanelBtn, ...
 				'String', 'Platform Connect', ...
-				'Callback', @(src, event) obj.setupPlatform(), ...
+				'Callback', @(src, event) obj.setupPlatformSerial(), ...
 				'BackgroundColor', '#E57373');
 
 
@@ -104,25 +106,33 @@ classdef app < handle
 
 		end
 
-        function setupPlatform(obj)
+		function setupPlatform(obj)
+			% setupPlatformSerial: attempts to connec to the platform
+			% if successfull it will change bg color of connect button
+			
 			if obj.hPlatformControl.setupSerial()
 				set(obj.hBtnConnectPlatform, 'BackgroundColor', '#66BB6A');
-			else 
+			else
 				set(obj.hBtnConnectPlatform, 'BackgroundColor', '#E57373');
 			end
 
-    	end
+		end
 
 		function setupRadarSerial(obj)
+			% setupRadarSerial: attempts to connec to the radar
+			% if successfull it will change bg color of connect button
 			if obj.hRadar.setupSerial()
 				set(obj.hBtnConnectRadar, 'BackgroundColor', '#66BB6A');
-			else 
+			else
 				set(obj.hBtnConnectRadar, 'BackgroundColor', '#E57373');
 			end
 
 		end
 
 		function resizeUI(obj)
+			% resizeUI: resizes GUI to fit current window size
+			% called on change of size of the main figure
+
 			figPos = get(obj.hFig, 'Position');
 			width = figPos(3);
 			height = figPos(4);
@@ -146,6 +156,7 @@ classdef app < handle
 	methods(Static=true)
 
 		function handle=getInstance()
+			% getInstance: access method to app's singleton instance
 			persistent instanceStatic;
 			if isempty(instanceStatic) || (~isempty(instanceStatic.hToolbar) && ~isvalid(instanceStatic.hToolbar))
 				fprintf('App | getInstance | Creating new instance\n');

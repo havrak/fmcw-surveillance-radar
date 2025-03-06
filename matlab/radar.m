@@ -16,7 +16,8 @@ classdef radar < handle
 	methods (Access=private)
 
 		function processIncommingData(obj,src)
-
+			% processIncommingData: reads next line on serial and parses the data
+			
 			buf = fgets(src);
 			process = [obj.oldBuf buf];
 			if length(process) ~= (4*obj.samples+11)
@@ -44,6 +45,11 @@ classdef radar < handle
 		
 
 		function sysConfig = generateSystemConfig(obj)
+			% generateSystemConfig: generate system config command for the radar
+			%
+			% OUTPUT:
+			% sysConfig ... hex string to be sent to the radar
+
 			SelfTrigDelay='000';  % 0 ms delay
 			reserved='0';
 			LOG='0';              % MAG 0 log | 1-linear
@@ -82,6 +88,11 @@ classdef radar < handle
 		end
 
 		function basebandCommand = generateBasebandCommand(obj)
+			% generateBasebandCommand: generate baseband config command for the radar
+			%
+			% OUTPUT:
+			% basebandCommand ... hex string to be sent to the radar
+
 			WIN='0';              % windowing before FFT
 			FIR='0';              % FIR filter 0-of | 1-on
 			DC='1';               % DCcancel 1-on | 0-off
@@ -112,6 +123,12 @@ classdef radar < handle
 		end
 
 		function frontendCommand = generateFrontendCommand(obj)
+			% generateBasebandCommand: generate frontend config command for the radar
+			% command gets current frontend type from preferences
+			%
+			% OUTPUT:
+			% frontendCommand ... hex string to be sent to the radar
+
 			FreqReserved='00000000000';
 			if obj.hPreferences.getRadarHeaderType() == 122 
 				fprintf("radar | frontendCommand | setting frontend to 122 GHz\n");
@@ -126,21 +143,45 @@ classdef radar < handle
 		end
 
 		function pllCommand = generatePLLCommand(obj)
+			% generatePLLCommand: generate PLL config command for the radar
+			% desired bandwith is read from preferences
+			%
+			% OUTPUT:
+			% pllCommand ... hex string to be sent to the radar
+
 			bandwidth=dec2hex(obj.hPreferences.getRadarBandwidth()/2);
 			pllCommand=append('!P0000',bandwidth);
 			disp(pllCommand);
-    end
+		end
+		
+		function configureRadar(obj)
+			flush(obj.hSerial); writeline(obj.hSerial, obj.generateSystemConfig());
+			flush(obj.hSerial); writeline(obj.hSerial, obj.generateBasebandCommand());
+			flush(obj.hSerial); writeline(obj.hSerial, obj.generateFrontendCommand());
+			flush(obj.hSerial); writeline(obj.hSerial, obj.generatePLLCommand());
+			flush(obj.hSerial); 
+		end
 
 	end
 
 	methods (Access = public)
-			function obj = radar(hPreferences, startTime)
+		
+		function obj = radar(hPreferences, startTime)
+			% radar: constructor for the radar class 
+			%
+			% INPUT:
+			% hPreferences ... handle to preferences object 
+			% startTime ... output of tic command, timestamp to which all others
+			% are calculated from
+
 			fprintf('Radar | radar | constructing object\n');
 			obj.hPreferences = hPreferences;
             obj.startTime = startTime;
 		end
 		
 		function endProcesses(obj)
+			% endProcesses: safely stops all class processes
+
 			if ~isempty(obj.hSerial)
 				configureCallback(obj.hSerial, "off");
 				delete(obj.hSerial)
@@ -148,6 +189,11 @@ classdef radar < handle
 		end
 		
 		function status = setupSerial(obj)
+			% setupSerial: establish serial connection to the platform
+			%
+			% OUTPUT:
+			% status ... true if connection was established
+
 			if ~isempty(obj.hSerial)
 				configureCallback(obj.hSerial, "off");
 				delete(obj.hSerial)
@@ -166,16 +212,6 @@ classdef radar < handle
 				fprintf("Radar | setupSerial | Failed to setup serial")
 				status = false;
 			end
-
-			end
-
-
-		function configureRadar(obj)
-			flush(obj.hSerial); writeline(obj.hSerial, obj.generateSystemConfig());
-			flush(obj.hSerial); writeline(obj.hSerial, obj.generateBasebandCommand());
-			flush(obj.hSerial); writeline(obj.hSerial, obj.generateFrontendCommand());
-			flush(obj.hSerial); writeline(obj.hSerial, obj.generatePLLCommand());
-			flush(obj.hSerial); 
 		end
 	end
 end

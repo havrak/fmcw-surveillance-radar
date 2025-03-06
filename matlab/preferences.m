@@ -1,6 +1,6 @@
 classdef preferences < handle
 	properties (Access = public)
-		
+
 		% GUI %
 		hFig;                   % uifugre - main figure
 		hBtnApply;              % uibutton - check validity
@@ -8,18 +8,18 @@ classdef preferences < handle
 		hBtnRefresh;            % uibutton - refresh serial
 		hBtnReload;             % uibutton - reload config from file
 		hDropRadarPort;         % uidropdown - radar serial port
-		hDropRadarBaudrate;     % uidropdown - radar serial baudrate 
+		hDropRadarBaudrate;     % uidropdown - radar serial baudrate
 		hDropPlatformPort;      % uidropdown - platform serial port
 		hDropPlatformBaudrate;  % uidropdown - platform serial baudrate
 		hSwitchPlatformDebug;     % uiswitch - display debug messages from platform
-        hSwitchRadarHeader;     % uiswitch - pick between 122 and 24 GHz header
+		hSwitchRadarHeader;     % uiswitch - pick between 122 and 24 GHz header
 		hEditRadarBandwith;     % uicontrol/edit - distance offset
-		
+
 		hEditOffsetD;           % uicontrol/edit - distance offset
 		hEditOffsetT;           % uicontrol/edit - angle offset tilt
 		hEditOffsetH;           % uicontrol/edit - angle offset horizontal
 
-		% OTHER VARS % 
+		% OTHER VARS %
 		availableBaudrates = [ 9600 19200 115200 230400 1000000];
 		configStruct;
 		configFilePath;
@@ -28,6 +28,7 @@ classdef preferences < handle
 	methods(Access = public)
 
 		function obj = preferences()
+			% preferences: constructor for preferences class
 
 			obj.configStruct.radar.port='none';
 			obj.configStruct.radar.baudrate='0';
@@ -39,8 +40,8 @@ classdef preferences < handle
 			obj.configStruct.platform.distanceOffset=0;
 			obj.configStruct.platform.angleOffsetT=0;
 			obj.configStruct.platform.angleOffsetH=0;
-            obj.configStruct.platform.debug=1;
-			
+			obj.configStruct.platform.debug=1;
+
 			obj.configStruct.programs=[];
 
 			if isunix
@@ -60,12 +61,11 @@ classdef preferences < handle
 			obj.configFilePath=fullfile(path, "fmcw.conf");
 
 			obj.loadConfig();
-
-
 		end
 
 		function showGUI(obj)
-			fprintf('prefrences | showGUI');
+			% showGUI: displays generated GUI that is hidden 
+
 			if isempty(obj.hFig) | ~isvalid(obj.hFig)
 				constructGUI(obj);
 			end
@@ -103,18 +103,18 @@ classdef preferences < handle
 			% baudrate ... serial baudrate
 			port = obj.configStruct.radar.port;
 			baudrate = obj.configStruct.radar.baudrate;
-        end
+		end
 
-        function [debug] = getPlatformDebug(obj)
+		function [debug] = getPlatformDebug(obj)
 			% getPlatformDebug: return 1 if debug from platform should be
-            % displayed
+			% displayed
 			%
 			% Output:
 			% debug ... 0 or 1
 			debug = obj.configStruct.platform.debug;
 		end
 
-	
+
 		function header = getRadarHeaderType(obj)
 			% getRadarHeaderType: return header used on the radar
 			% radar
@@ -135,10 +135,10 @@ classdef preferences < handle
 
 		function [angleOffsetH, angleOffsetT, distanceOffset] = getPlatformParamters(obj)
 			% getPlatformParamters: return mounting paramters of the platform
-			% 
+			%
 			%
 			% Output:
-			% angleOffsetH ... horizontal angle at which radar is poiting straight 
+			% angleOffsetH ... horizontal angle at which radar is poiting straight
 			% angleOffsetT ... angle at which radar is poiting straight (PCB is
 			% perpendicular to the ground)
 			% distanceOffset ... distance from axis of rotation to the center of
@@ -151,10 +151,14 @@ classdef preferences < handle
 		end
 
 		function storeConfig(obj)
-				struct2ini(obj.configFilePath, obj.configStruct);
+			%storeConfig: stores current config to file
+
+			struct2ini(obj.configFilePath, obj.configStruct);
 		end
 
 		function loadConfig(obj)
+			% loadConfig: loads config from file to internal structure
+
 			fprintf('Prefernces | loadConfig | loading config\n');
 			if ~isfile(obj.configFilePath)
 				return;
@@ -164,7 +168,7 @@ classdef preferences < handle
 			list=cat(2, 'none', serialportlist);
 			% not everything might be present in the read struct
 			sections = fieldnames(obj.configStruct);
-			
+
 			for k=1:length(sections)
 				section = char(sections(k));
 
@@ -196,7 +200,7 @@ classdef preferences < handle
 					end
 
 					% check for devices ports
-						if numel(strfind(item, 'port')) ~=0 && ~any(list == struct.(section).(item))
+					if numel(strfind(item, 'port')) ~=0 && ~any(list == struct.(section).(item))
 						fprintf('Prefernces | loadConfig | Port in config not found\n');
 						struct.(section).(item) = list(1);
 						continue;
@@ -207,14 +211,16 @@ classdef preferences < handle
 			end
 
 			fprintf('Prefernces | loadConfig | config loaded\n');
-			
-	
+
+
 		end
 
 	end
 	methods (Access = private)
 
 		function constructGUI(obj)
+			% constructGUI: initializes all GUI elements
+
 			fprintf('Preferences | constructGUI | starting gui constructions');
 			figSize = [500, 500];
 			screenSize = get(groot, 'ScreenSize');
@@ -255,7 +261,7 @@ classdef preferences < handle
 			uilabel(obj.hFig, ...
 				'Position', [20, figSize(2)-140, 140, 25], ...
 				'Text', 'Platform offset [mm]:');
-			
+
 			uilabel(obj.hFig, ...
 				'Position', [20, figSize(2)-170, 140, 25], ...
 				'Text', 'Tilt offset [deg]:');
@@ -263,14 +269,14 @@ classdef preferences < handle
 			uilabel(obj.hFig, ...
 				'Position', [20, figSize(2)-200, 140, 25], ...
 				'Text', 'Horizontal offset [deg]:');
-			
+
 			obj.hEditOffsetD=uicontrol('Style', 'edit', ...
 				'Parent',obj.hFig,  ...
 				'Position', [150, figSize(2)-140, 140, 25], ...
 				'Max',1, ...
 				'String',"", ...
 				'HorizontalAlignment', 'left');
-			
+
 			uilabel(obj.hFig, ...
 				'Position', [20, figSize(2)-270, 140, 25], ...
 				'Text', 'Header frequency [GHz]: ');
@@ -286,7 +292,7 @@ classdef preferences < handle
 				'String',"", ...
 				'HorizontalAlignment', 'left');
 
-            uilabel(obj.hFig, ...
+			uilabel(obj.hFig, ...
 				'Position', [20, figSize(2)-240, 140, 25], ...
 				'Text', 'Platform debug: ');
 
@@ -296,7 +302,7 @@ classdef preferences < handle
 				'Orientation', 'horizontal' ...
 				);
 
-            obj.hSwitchPlatformDebug=uiswitch('Parent', obj.hFig, ...
+			obj.hSwitchPlatformDebug=uiswitch('Parent', obj.hFig, ...
 				'Position', [180, figSize(2)-240, 140, 25], ...
 				'Items', {'On', 'Off'}, ...
 				'Orientation', 'horizontal' ...
@@ -316,39 +322,41 @@ classdef preferences < handle
 				'String',"", ...
 				'HorizontalAlignment', 'left');
 
-			 
-		function reloadConfig(obj)
-			obj.loadConfig();
-			obj.configToGUI();
-		end
 
-		obj.hBtnReload = uibutton(obj.hFig, ...
+			function reloadConfig(obj)
+				obj.loadConfig();
+				obj.configToGUI();
+			end
+
+			obj.hBtnReload = uibutton(obj.hFig, ...
 				'Text', 'Reload', ...
 				'Position', [figSize(1)-300, figSize(2)-480, 80, 25], ...
 				'ButtonPushedFcn', @(src,event) reloadConfig(obj) );
-			
+
 			obj.hBtnRefresh = uibutton(obj.hFig, ...
 				'Text', 'Refresh', ...
 				'Position', [375, figSize(2)-85, 80, 25], ...
 				'ButtonPushedFcn', @(src,event) obj.refreshSerial());
-			
+
 			obj.hBtnApply = uibutton(obj.hFig, ...
 				'Text', 'Apply', ...
 				'Position', [figSize(1)-200, figSize(2)-480, 80, 25], ...
 				'ButtonPushedFcn',  @(src, event)obj.apply() );
-			
+
 			obj.hBtnClose = uibutton(obj.hFig, ...
 				'Text', 'Close', ...
 				'Position', [figSize(1)-100, figSize(2)-480, 80, 25], ...
 				'ButtonPushedFcn',@(src,event) set(obj.hFig, 'Visible', 'off'));
-			
+
 			obj.configToGUI();
 
 		end
-		
-		
+
+
 		function configToGUI(obj)
-		
+			% configToGUI: sets values of GUI elements to correspond to
+			% those saved in internal config structure
+
 			list=cat(2, 'none', serialportlist);
 
 			if any(list == obj.configStruct.platform.port)
@@ -358,7 +366,7 @@ classdef preferences < handle
 			if any(list == obj.configStruct.radar.port)
 				set(obj.hDropRadarPort, 'Value', obj.configStruct.radar.port);
 			end
-			
+
 			if any(obj.availableBaudrates == obj.configStruct.platform.baudrate)
 				set(obj.hDropPlatformBaudrate, 'Value', num2str(obj.configStruct.platform.baudrate));
 			end
@@ -370,37 +378,41 @@ classdef preferences < handle
 			set(obj.hEditOffsetD, 'String', obj.configStruct.platform.distanceOffset);
 			set(obj.hEditOffsetT, 'String', obj.configStruct.platform.angleOffsetT);
 			set(obj.hEditOffsetH, 'String', obj.configStruct.platform.angleOffsetH);
-			
+
 			set(obj.hEditRadarBandwith, 'String', obj.configStruct.radar.bandwidth);
-			
+
 			if ismember(num2str(obj.configStruct.radar.header),obj.hSwitchRadarHeader.Items)
 				set(obj.hSwitchRadarHeader, 'Value', num2str(obj.configStruct.radar.header));
-            end
+			end
 
-            if(obj.configStruct.platform.debug == 1)
-                set(obj.hSwitchPlatformDebug, 'Value', 'On');
-            else
-                set(obj.hSwitchPlatformDebug, 'Value', 'Off');
-            end
+			if(obj.configStruct.platform.debug == 1)
+				set(obj.hSwitchPlatformDebug, 'Value', 'On');
+			else
+				set(obj.hSwitchPlatformDebug, 'Value', 'Off');
+			end
 		end
 
 		function refreshSerial(obj)
+			% refreshSerial: refreshes list of available serial ports
+
 			list=cat(2, 'none', serialportlist);
 			set(obj.hDropPlatformPort, 'Items', list);
 			set(obj.hDropPlatformBaudrate, 'Items', list);
 		end
 
-		function apply(obj)
+		function  processConfig(obj)
+			% processConfig: gathers all values from GUI elements and stores them
+			% into config structure
 
 			err=false;
 			obj.configStruct.platform.baudrate=str2double(obj.hDropPlatformBaudrate.Value);
-            
-            disp(obj.hSwitchPlatformDebug.Value);
-            if(strcmp(obj.hSwitchPlatformDebug.Value,'On'))
-                obj.configStruct.platform.debug = 1;
-            else 
-                obj.configStruct.platform.debug = 0;
-            end
+
+			disp(obj.hSwitchPlatformDebug.Value);
+			if(strcmp(obj.hSwitchPlatformDebug.Value,'On'))
+				obj.configStruct.platform.debug = 1;
+			else
+				obj.configStruct.platform.debug = 0;
+			end
 			obj.configStruct.radar.baudrate=str2double(obj.hDropRadarBaudrate.Value);
 			obj.configStruct.radar.header=obj.hSwitchRadarHeader.Value;
 
@@ -418,12 +430,12 @@ classdef preferences < handle
 			tmp = get(obj.hEditOffsetH, 'String');
 			if isnan(str2double(tmp)) warndlg('Offset must be numerical');
 			else obj.configStruct.platform.angleOffsetH=tmp;
-			end			
+			end
 
 			tmp = get(obj.hEditRadarBandwith, 'String');
 			if isnan(str2double(tmp)) warndlg('Bandwidth must be numerical');
 			else obj.configStruct.radar.bandwidth=tmp;
-			end	
+			end
 
 			if strcmp(obj.hDropPlatformPort.Value,obj.hDropRadarPort.Value) == 1 && obj.hDropRadarPort.Value ~= "none"
 				err=true;
@@ -447,111 +459,111 @@ end
 
 
 function struct2ini(filename,Structure)
-	%==========================================================================
-	% Author:      Dirk Lohse ( dirklohse@web.de )
-	% Version:     0.1a
-	% Last change: 2008-11-13
-	%==========================================================================
-	%
-	% struct2ini converts a given structure into an ini-file.
-	% It's the opposite to Andriy Nych's ini2struct. Only
-	% creating an ini-file is implemented. To modify an existing
-	% file load it with ini2struct.m from:
-	%       Andriy Nych ( nych.andriy@gmail.com )
-	% change the structure and write it with struct2ini.
-	%
-	% Open file, or create new file, for writing
-	% discard existing contents, if any.
-	fid = fopen(filename,'w');
-	sections = fieldnames(Structure);                     % returns the sections
-	for k=1:length(sections)
-		section = char(sections(k));
+%==========================================================================
+% Author:      Dirk Lohse ( dirklohse@web.de )
+% Version:     0.1a
+% Last change: 2008-11-13
+%==========================================================================
+%
+% struct2ini converts a given structure into an ini-file.
+% It's the opposite to Andriy Nych's ini2struct. Only
+% creating an ini-file is implemented. To modify an existing
+% file load it with ini2struct.m from:
+%       Andriy Nych ( nych.andriy@gmail.com )
+% change the structure and write it with struct2ini.
+%
+% Open file, or create new file, for writing
+% discard existing contents, if any.
+fid = fopen(filename,'w');
+sections = fieldnames(Structure);                     % returns the sections
+for k=1:length(sections)
+	section = char(sections(k));
 
-		fprintf(fid,'\n[%s]\n',section);
+	fprintf(fid,'\n[%s]\n',section);
 
-		member_struct = Structure.(section);
-		if ~isempty(member_struct)
-			member_names = fieldnames(member_struct);
-			for j=1:length(member_names)
-				member_name = char(member_names(j));
-				member_value = Structure.(section).(member_name);
-				if isnumeric(member_value)
-					member_value=num2str(member_value);
-				end
+	member_struct = Structure.(section);
+	if ~isempty(member_struct)
+		member_names = fieldnames(member_struct);
+		for j=1:length(member_names)
+			member_name = char(member_names(j));
+			member_value = Structure.(section).(member_name);
+			if isnumeric(member_value)
+				member_value=num2str(member_value);
+			end
 
-				fprintf(fid,'%s=%s\n',member_name,member_value); % output member name and value
+			fprintf(fid,'%s=%s\n',member_name,member_value); % output member name and value
 
-			end % for-END (Members)
-		end % if-END
-	end % for-END (sections)
-	fclose(fid);
+		end % for-END (Members)
+	end % if-END
+end % for-END (sections)
+fclose(fid);
 
 end
 
 
 function Result = ini2struct(filename)
-	%==========================================================================
-	% Author: Andriy Nych ( nych.andriy@gmail.com )
-	% Version:        733341.4155741782200
-	%==========================================================================
-	%
-	% INI = ini2struct(filename)
-	%
-	% This function parses INI file filename and returns it as a structure with
-	% section names and keys as fields.
-	%
-	% sections from INI file are returned as fields of INI structure.
-	% Each fiels (section of INI file) in turn is structure.
-	% It's fields are variables from the corrPlatformonding section of the INI file.
-	%
-	% If INI file contains "oprhan" variables at the beginning, they will be
-	% added as fields to INI structure.
-	%
-	% Lines starting with ';' and '#' are ignored (comments).
-	%
-	% See example below for more information.
-	%
-	% Usually, INI files allow to put spaces and numbers in section names
-	% without restrictions as long as section name is between '[' and ']'.
-	% It makes people crazy to convert them to valid Matlab variables.
-	% For this purpose Matlab provides GENVARNAME function, which does
-	%  "Construct a valid MATLAB variable name from a given candidate".
-	% See 'help genvarname' for more information.
-	%
-	% The INI2STRUCT function uses the GENVARNAME to convert strange INI
-	% file string into valid Matlab field names.
-	%
-	Result = [];
-	CurrMainField = '';
-	f = fopen(filename,'r');
-	while ~feof(f)
-		s = strtrim(fgetl(f));
-		if isempty(s)
-			continue;
+%==========================================================================
+% Author: Andriy Nych ( nych.andriy@gmail.com )
+% Version:        733341.4155741782200
+%==========================================================================
+%
+% INI = ini2struct(filename)
+%
+% This function parses INI file filename and returns it as a structure with
+% section names and keys as fields.
+%
+% sections from INI file are returned as fields of INI structure.
+% Each fiels (section of INI file) in turn is structure.
+% It's fields are variables from the corrPlatformonding section of the INI file.
+%
+% If INI file contains "oprhan" variables at the beginning, they will be
+% added as fields to INI structure.
+%
+% Lines starting with ';' and '#' are ignored (comments).
+%
+% See example below for more information.
+%
+% Usually, INI files allow to put spaces and numbers in section names
+% without restrictions as long as section name is between '[' and ']'.
+% It makes people crazy to convert them to valid Matlab variables.
+% For this purpose Matlab provides GENVARNAME function, which does
+%  "Construct a valid MATLAB variable name from a given candidate".
+% See 'help genvarname' for more information.
+%
+% The INI2STRUCT function uses the GENVARNAME to convert strange INI
+% file string into valid Matlab field names.
+%
+Result = [];
+CurrMainField = '';
+f = fopen(filename,'r');
+while ~feof(f)
+	s = strtrim(fgetl(f));
+	if isempty(s)
+		continue;
+	end
+	if (s(1)==';') || (s(1)=='#')
+		continue;
+	end
+	if ( s(1)=='[' ) && (s(end)==']' )
+		CurrMainField = genvarname(s(2:end-1));
+		Result.(CurrMainField) = [];
+	else
+		[par,val] = strtok(s, '=');
+		val = CleanValue(val);
+
+		if ~isnan(str2double(val))
+			val=str2double(val);
 		end
-		if (s(1)==';') || (s(1)=='#')
-			continue;
-		end
-		if ( s(1)=='[' ) && (s(end)==']' )
-			CurrMainField = genvarname(s(2:end-1));
-			Result.(CurrMainField) = [];
+
+		if ~isempty(CurrMainField)
+			Result.(CurrMainField).(genvarname(par)) = val;
 		else
-			[par,val] = strtok(s, '=');
-			val = CleanValue(val);
-
-			if ~isnan(str2double(val))
-				val=str2double(val);
-			end
-
-			if ~isempty(CurrMainField)
-				Result.(CurrMainField).(genvarname(par)) = val;
-			else
-				Result.(genvarname(par)) = val;
-			end
+			Result.(genvarname(par)) = val;
 		end
 	end
-	fclose(f);
-	return;
+end
+fclose(f);
+return;
 	function res = CleanValue(s)
 		res = strtrim(s);
 		if strcmpi(res(1),'=')

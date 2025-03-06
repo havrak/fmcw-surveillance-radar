@@ -33,14 +33,10 @@ classdef platformControl < handle
 
 	end
 	methods(Access=private)
-		function loadSavedPrograms(obj)
-			obj.programs = obj.hPreferences.getPrograms(); % might need to replace \n with ;
-			fprintf('PlatformControl | loadSavedPrograms | loaded programs:\n');
-			disp (obj.programs)
-		end
 
 		function constructGUI(obj)
-			fprintf('PlatformControl | constructGUI | starting GUI constructions\n');
+			% constructGUI: initializes all GUI elements
+
 			figSize = [800, 600];
 			screenSize = get(groot, 'ScreenSize');
 			obj.hFig = figure('Name', 'Platform Control', ...
@@ -130,6 +126,9 @@ classdef platformControl < handle
 		end
 
 		function resizeUI(obj)
+			% resizeUI: resizes GUI to fit current window size
+			% called on change of size of the main figure
+
 			figPos = get(obj.hFig, 'Position');
 			width = figPos(3);
 			height = figPos(4);
@@ -160,7 +159,8 @@ classdef platformControl < handle
 		end
 
 		function loadProgram(obj)
-			% Callback for loading a program when selected from the sidebar
+			% loadProgram: loads transcript of program picked in sidebar to the
+			% main editor window
 
 			fprintf('PlatformControl | loadProgram\n');
 			selected = obj.hListboxSidebar.Value; % Get selected index
@@ -172,6 +172,9 @@ classdef platformControl < handle
 		end
 
 		function callbackQuickCommand(obj)
+			% callbackQuickCommand: sends value of quick command text fiedl to
+			% the platform over serial
+
 			value = append(get(obj.hEditCommand, 'String'));
 			set(obj.hEditCommand, 'String', '');
 			flush(obj.hSerial);
@@ -180,6 +183,8 @@ classdef platformControl < handle
 
 
 		function processIncommingData(obj, src)
+			% processIncommingData: reads next line on serial and parses the data
+
 			line = strtrim(readline(src));
 			if isempty(line)
 				return;
@@ -222,9 +227,9 @@ classdef platformControl < handle
 		end
 
 		function newProgram(obj)
-			% Empty callback for Delete Program button
+			% newProgram: opens dialog for user to enter name of new program and
+			% than opens it in editor window
 
-			fprintf('PlatformControl | newProgram\n');
 			userInput = inputdlg('Enter new program name', 'Create new Program', [1 50], "");
 			name = userInput{1,1};
 			disp(~isempty(name))
@@ -236,7 +241,8 @@ classdef platformControl < handle
 		end
 
 		function deleteProgram(obj)
-			fprintf('PlatformControl | deleteProgram\n');
+			% deleteProgram: deletes currently picked program 
+
 			obj.programs = rmfield(obj.programs, obj.currentProgramName);
 			progs = fieldnames(obj.programs);
 			set(obj.hListboxSidebar, 'String', progs);
@@ -251,13 +257,17 @@ classdef platformControl < handle
 		end
 
 		function storePrograms(obj)
-			fprintf('PlatformControl | storePrograms\n');
+			% storePrograms: store program in permanent configuration file
+			% with aid of preferences class
+
 			obj.hPreferences.setPrograms(obj.programs);
 			obj.hPreferences.storeConfig();
 		end
 
 		function saveProgram(obj)
-			fprintf('PlatformControl | saveProgram\n');
+			% saveProgram: saves content of editor window to internal structure
+			% if not executed program description will not be the one stored
+			
 			value = get(obj.hEditProgram, 'String');
 			trimmed = (strtrim(string(value)));
 			tosave = strjoin(trimmed, "\n");
@@ -266,16 +276,22 @@ classdef platformControl < handle
 		end
 
 		function startProgram(obj)
-			fprintf('PlatformControl | startProgram\n');
+			% startProgram: starts picked program on the platform
+			% before starting platform is stopped, homed
+
 			flush(obj.hSerial);
 			writeline(obj.hSerial, "M82"); % stop current move
+			writeline(obj.hSerial, "M81"); % enable stepper drivers
 			writeline(obj.hSerial, "G28"); % home steppers
 			writeline(obj.hSerial, "G92"); % set home to current location
 			writeline(obj.hSerial, "P1 "+obj.currentProgramName);
 			flush(obj.hSerial);
 		end
 
-		function uploadProgram(obj)
+		function uploadProgram(obj) 
+			% uploadProgram: upload program to the platform
+			% P90 and P92 commands are automatically added
+
 			% Empty callback for Upload Program button
 			value = get(obj.hEditProgram, 'String');
 			trimmed = (strtrim(string(value)));
@@ -290,8 +306,6 @@ classdef platformControl < handle
 
 			writeline(obj.hSerial, "P92");
 			flush(obj.hSerial);
-
-
 		end
 
 	end
@@ -299,14 +313,21 @@ classdef platformControl < handle
 	methods(Access=public)
 
 		function obj = platformControl(hPreferences, startTime)
-			fprintf('PlatformControl | platformControl | constructing object\n');
+			% platformControl: constructor for the platformControl class
+			%
+			% INPUT:
+			% hPreferences ... handle to preferences object 
+			% startTime ... output of tic command, timestamp to which all others
+			% are calculated from
+
 			obj.hPreferences = hPreferences;
 			obj.startTime = startTime;
-			loadSavedPrograms(obj);
-
+			obj.programs = obj.hPreferences.getPrograms();
 		end
 
 		function endProcesses(obj)
+			% endProcesses: safely stops all class processes 
+
 			if ~isempty(obj.hSerial)
 				configureCallback(obj.hSerial, "off");
 				delete(obj.hSerial)
@@ -314,6 +335,11 @@ classdef platformControl < handle
 		end
 
 		function status = setupSerial(obj)
+			% setupSerial: establish serial connection to the platform
+			%
+			% OUTPUT:
+			% status ... true if connection was established
+
 			if ~isempty(obj.hSerial)
 				configureCallback(obj.hSerial, "off");
 				delete(obj.hSerial)
@@ -341,23 +367,39 @@ classdef platformControl < handle
 			
 		end
 
-		function [timestamps, horizontal, tilt] = getPositionsInInterval(obj, timeMin, timeMax)
-			% Find the indices of the closest timestamps to timeMin and timeMax
+		function [timestamps, horz, tilt] = getPositionsInInterval(obj, timeMin, timeMax)
+			% getPositionsInInterval: returns lits of position logs that fall
+			% within a given time interval in both cases timestamps closest is
+			% chosen
+			%
+			% INPUTS:
+			% timeMin ... lower bound of the interval 
+			% timeMax ... upper bound of the interval 
+			% 
+			% OUTPUT:
+			% timestamps ... vector of timestamps for positions
+			% horz ... vector of horizontal angles 
+			% tilt ... vector of tilt angles
+
 			[~, idxMin] = min(abs(obj.positionTimes - timeMin));
 			[~, idxMax] = min(abs(obj.positionTimes - timeMax));
-
-			% Ensure startIdx <= endIdx to handle cases where timeMin > timeMax
 			startIdx = min(idxMin, idxMax);
 			endIdx = max(idxMin, idxMax);
-
-			% Extract the data within the determined interval
 			timestamps = obj.positionTimes(startIdx:endIdx);
-			horizontal = obj.positionHorz(startIdx:endIdx);
+			horz = obj.positionHorz(startIdx:endIdx);
 			tilt = obj.positionTilt(startIdx:endIdx);
 		end
 
 		function [horz, tilt] = getPositionAtTime(obj, time)
-			% Retrieve the closest platform position for a given timestamp
+			% getPositionAtTime: retrieve the closest platform position for a given timestamp
+			%
+			% INPUT:
+			% time ... wanted timestmap of data
+			%
+			% OUTPUT:
+			% horz ... angle in horizotnal axis
+			% tilt .. angle in tilt axis
+			       
 			if isempty(obj.positionTimes)
 				error('No position data available.');
 			end
@@ -367,6 +409,7 @@ classdef platformControl < handle
 		end
 
 		function showGUI(obj)
+			% showGUI: displays generated GUI that is hidden 
 			if isempty(obj.hFig) | ~isvalid(obj.hFig)
 				constructGUI(obj);
 			end
