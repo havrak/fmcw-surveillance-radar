@@ -297,28 +297,42 @@ It is likely that the data are somehow averaged to improve the SNR of the report
 As only $N_\mathrm{samples}$ are reported by the radar but according to manufacturer provided equation (\ref{eq:sampling}) each ramp should be sampled with that number of samples.
 Additionally, due to the devkit's limited computational resources, the radar does not emit a continuous sawtooth waveform but rather a segmented one \cite{sidarPRO}.
 
+Unfortunately whole devkit is clearly designed primarily for range detection with little to no regard payed for speed measurement.
+Aside from need to turn of averaging of the ramps radar doesn't maintain constant intervals between chirps.
+This is the case even when relying on manual triggering of the radar, relying on self trigger yields even worse results.
+Not to mention radar doesn't provide any information about timing.
+
+When measuring reporting interval with 20~ms trigger radar achieved average time of 20.5~ms with standard deviation of 1.3~ms.
+However from time to time they were outlier when report came in only after 30~ms in worst case or 16~ms in best case measured on 5000 samples.
+In order to rule out that the problem isn't only in reporting output signal from the radar was captured by Rohde \& Schwarz FSW26 Signal and Spectrum Analyzer.
+By analyzing some 40 samples, measured with same triggering interval of 20~ms, the average time between chirps was 20.7~ms with standard deviation of 0.7876~ms.
+
+Unfortunately radar truly doesn't maintain constant intervals between chirps which severely limits accuracy of speed measurement.
+In addition trying to establish relation between when a chirp was broadcasted and when data were received would be quite challenging.
+Thus all processing estimates that chirp was broadcasted shortly after last data were received.
+
+
 \section{Outline of Chosen Configuration }
 
 
 For the purpose of this project, the devkit was configured to output raw data from the 12-bit ADC in the form of in-phase and quadrature components of the signal.
 This allows for a more detailed analysis of the radar system and enables the implementation of custom signal processing algorithms.
 For these reasons, the default windowing and undocumented filtering was also disabled.
+As for trigger as previously stated self trigger isn't that consistent and thus manual trigger sent over UART was used.
 
 After configuration of the output regimes, it is necessary to find the correct balance between the number of ramps, samples, and sampling frequency.
 Since the radar will be in motion, frequent updates are crucial to ensure accurate reporting.
 Faster updates allow for higher platform speeds or make it possible to use neighboring samples to aid in evaluation of current one (As the angular distance between them remains relatively small.).
 
-Reducing the number of ramps slightly improves the update rate, but the effect is minimal—decreasing the number of ramps from 16 to 1 results in only an 11~\% increase in reporting speed.
-Similarly, changes in sampling frequency yield only minor improvements.
-The only parameter that significantly impacts the update rate is the number of samples—halving the number of samples leads to an approximately 50~\% increase in speed.
-This is with the sampling frequency adjusted for optimal SNR (close to 1~ms).
-Even then, reports are received roughly every 60ms (for 256 samples), and the maximum detection range is more than halved.
+Even with irregular chirp intervals rough speed estimation can still be done.
+As deviation isn't that large the error of using standard FFT should still be within acceptable limits.
+If not there is the possibility of easily swapping to non uniform DFT and basing chirp intervals in reporting intervals.
+For any speed estimation to be possible however the number of ramps withing a group must be fixed at one.
+As any averaging would destroy information about doppler shift.
 
-
-Another parameter that requires consideration in rotary applications is AGC.
+Another parameter to consider in relation to rotary application is AGC.
 Using it adds two additional ramps that are used solely to set gain value but it also can lead to inconsistent weights of values between two neighboring data sets.
-Tough former only introduces a small slowdown but the letter could be a problem.
-Especially since radar doesn't really report change in AGC value.
+Former only introduces a small slowdown but the letter could be a problematic, especially since radar doesn't really report change in AGC value.
 Thus its safest to turn AGC off and set the gain manually depending on how the readings appear in post processing.
 
 It is also important to note that the radar system is not well-suited for on-the-fly configuration changes.
@@ -327,7 +341,7 @@ As a result, commonly used techniques such as alternating chirp slope or frequen
 
 Regarding the output format, the radar system supports two options: binary and TSV.
 Since the output speed does not differ significantly between the two, the primary deciding factor is the ease and speed of parsing.
-Even though MATLAB is not particularly optimized for parsing binary data, it still processes binary output approximately 40% faster than human-readable TSV data.
+Even though MATLAB is not particularly optimized for parsing binary data, it still processes binary output approximately 40\% faster than human-readable TSV data.
 
 \section{24~GHz Header}
 

@@ -38,13 +38,12 @@ end
 
 fprintf("Data loaded\n");
 
-figure;
 timeWindow = 150e-3; 
 step = round(timeWindow / segLen / 10);
 idx = time < timeWindow; 
 
 figure;
-imagesc(frequencies/1e6, time(idx)*1e3, spectrograms(idx, :)); 
+imagesc(frequencies/1e6, time(:)*1e3, spectrograms(:, :)); 
 axis xy;
 colormap(jet); 
 colorbar; 
@@ -54,21 +53,42 @@ title('Waterfall Diagram');
 
 
 %% Processing
-figure;
+%figure;
 
-axis xy;
-colormap(jet); 
-colorbar; 
-xlabel('Frequency (MHz)');
-ylabel('Time (ms)');
-title('Waterfall Diagram');
+%axis xy;
+%colormap(jet); 
+%colorbar; 
+%xlabel('Frequency (MHz)');
+%ylabel('Time (ms)');
+%title('Waterfall Diagram');
 
+% frequenciesRange = frequencies < 24.0005e9 & frequencies > 23.999e9;
+% specStart=spectrograms(:, frequenciesRange);
+% specStart(specStart < -40) = 0;
+% imagesc(frequencies(frequenciesRange,:)/1e6, time(:)*1e3, specStart(:, :)); 
 
+[~, index24] = min(abs(frequencies-24e9));
 
+spec24Ghz=spectrograms(:, index24);
+spec24Ghz(spec24Ghz < -36) = 0;
 
-frequenciesRange = frequencies < 24.0005e9 & frequencies > 23.999e9;
+[psk, locs] = findpeaks(spec24Ghz);
+prev = locs(1);
 
-specStart=spectrograms(:, frequenciesRange);
-specStart(specStart < -40) = 0;
+diffs = [];
 
-imagesc(frequencies(frequenciesRange,:)/1e6, time(:)*1e3, specStart(:, :)); 
+small = 0;
+for i=2:length(locs)
+	diff = (locs(i) - prev)*82e-3;
+	if diff < 1
+		%small = small+diff;
+	else
+		fprintf("Time diff: %f\n", diff+small);
+		diffs(end+1) = diff+small;
+		small =0;
+	end
+	prev = locs(i);
+end
+
+mean(diffs)
+std(diffs)
