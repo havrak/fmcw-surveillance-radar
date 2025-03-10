@@ -9,14 +9,16 @@ classdef app < handle
 
 
 		% OTHER VARS%
-		hPreferences preferences
-		hPlatformControl platformControl
+		hPreferences preferences;
+		hPlatformControl platformControl;
+		hDataProcessor dataProcessor;
 		hRadar;
 		hTask;
 
 		hFig;
 		hToolbar;
 	end
+
 
 	methods(Access=private)
 		function obj = app()
@@ -25,6 +27,7 @@ classdef app < handle
 			obj.hPreferences = preferences();
 			obj.hPlatformControl = platformControl(obj.hPreferences, time);
 			obj.hRadar = radar(obj.hPreferences, time);
+			obj.hDataProcessor = dataProcessor(obj.hRadar, obj.hPlatformControl);
 		end
 
 

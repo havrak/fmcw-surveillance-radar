@@ -32,6 +32,10 @@ classdef platformControl < handle
 		startTime double;
 
 	end
+
+	events
+		platformPositionChanged; % notify on position change
+	end
 	methods(Access=private)
 
 		function constructGUI(obj)

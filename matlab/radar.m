@@ -5,12 +5,21 @@ classdef radar < handle
 		hSerial;
 		processData = true;
 
-		dataTimestamp;
-		dataI;
-		dataQ;
-		oldBuf;
+		oldBuf = [];
 		samples = 256;
-        startTime double;
+    startTime double;
+		triggerTimer;
+		
+	  bufferI = [];              % Circular buffer for I
+    bufferQ = [];              % Circular buffer for Q
+    bufferTime = [];           % Circular buffer for timestamps
+    bufferSize = 100;          % Max buffer size
+    writeIdx = 1;              % Index for next write
+   end
+
+
+	events 
+		newDataAvailable
 	end
 
 	methods (Access=private)
@@ -19,7 +28,13 @@ classdef radar < handle
 			% processIncommingData: reads next line on serial and parses the data
 			
 			buf = fgets(src);
+
+			if(length(buf) == 40)
+				return;
+			end
+
 			process = [obj.oldBuf buf];
+			
 			if length(process) ~= (4*obj.samples+11)
 				if length(process) > (4*obj.samples+11)
 					obj.oldBuf = [];
@@ -36,11 +51,14 @@ classdef radar < handle
 			dataCount = process(9)*256+process(8);
 			tmp = process(11:2:(9+dataCount*2)) * 256 + process(10:2:(9+dataCount*2));
 			data = typecast(uint16(tmp), 'int16');
-			nData = numel(data);
-			obj.dataI = data(1:2:nData);
-			obj.dataQ = data(2:2:nData);
-			fprintf("Time elapsed: %f ms\n", (posixtime(datetime('now'))-obj.dataTimestamp) * 1000);
-			obj.dataTimestamp = posixtime(datetime('now'));
+			
+
+			obj.bufferI(obj.writeIdx) = data(1:2:nData);
+      obj.bufferQ(obj.writeIdx) = data(2:2:nData);
+      obj.bufferTime(obj.writeIdx) = toc(obj.startTime);
+            
+      obj.writeIdx = mod(obj.writeIdx, obj.bufferSize) + 1;
+      notify(obj, 'NewDataAvailable');
 		end
 		
 
@@ -208,6 +226,14 @@ classdef radar < handle
 				fprintf("radar | setupSerial | starting thread\n");			
 				configureCallback(obj.hSerial, "terminator", @(src, ~) obj.processIncommingData(src))
 				status = true;
+
+				obj.triggerTimer = timer;
+				obj.triggerTimer.StartDelay = 5;
+				obj.triggerTimer.Period = 0.04;
+				obj.triggerTimer.ExecutionMode = 'fixedSpacing';
+				obj.triggerTimer.UserData = 0;
+				obj.triggerTimer.TimerFcn = @(~,~) writeline(obj.hSerial, '!N');
+				start(obj.triggerTimer);
 			catch ME
 				fprintf("Radar | setupSerial | Failed to setup serial")
 				status = false;
