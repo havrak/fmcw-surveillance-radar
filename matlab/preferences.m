@@ -21,8 +21,8 @@ classdef preferences < handle
 		hDropRadarSamples       % number of FFT samples for chirp
 		hSwitchRadarHeader;     % uiswitch - pick between 122 and 24 GHz header
 		hEditRadarBandwith;     % uicontrol/edit - distance offset
-		hEditMainLobeWidthT;
-		hEditMainLobeWidthH;
+		hEditRadPatternT;
+		hEditRadPatternH;
 
 
 		% OTHER VARS %
@@ -39,16 +39,15 @@ classdef preferences < handle
 			% preferences: constructor for preferences class
 
 			obj.configStruct.radar.port='none';
-			obj.configStruct.radar.baudrate=availableBaudrates(1);
+			obj.configStruct.radar.baudrate=obj.availableBaudrates(1);
 			obj.configStruct.radar.header='';
 			obj.configStruct.radar.bandwidth='';
 			obj.configStruct.radar.samples=128;
-
-			obj.configStruct.platform.mainLobeWidthH=0;
-			obj.configStruct.platform.mainLobeWidthT=0;
+			obj.configStruct.radar.radPatternH=0;
+			obj.configStruct.radar.radPatternT=0;
 
 			obj.configStruct.platform.port='none';
-			obj.configStruct.platform.baudrate=availableBaudrates(1);
+			obj.configStruct.platform.baudrate=obj.availableBaudrates(1);
 			obj.configStruct.platform.distanceOffset=0;
 			obj.configStruct.platform.angleOffsetT=0;
 			obj.configStruct.platform.angleOffsetH=0;
@@ -134,6 +133,13 @@ classdef preferences < handle
 			% Output:
 			% header ... either 122 or 24
 			header = obj.configStruct.radar.header;
+		end
+
+		function [radPatterH, radPatterT] = getRadarRadiationParamters(obj)
+
+			radPatterH = obj.configStruct.radar.radPatternH;
+			radPatterT = obj.configStruct.radar.radPatternT;
+
 		end
 
 		function bandwith = getRadarBandwidth(obj)
@@ -379,7 +385,7 @@ classdef preferences < handle
 				'Position', [20, figSize(2)-radarConfigOffset-110, 140, 25], ...
 				'Text', 'Lobe width H: ');
 
-			obj.hEditMainLobeWidthH = uicontrol('Style', 'edit', ...
+			obj.hEditRadPatternH = uicontrol('Style', 'edit', ...
 				'Parent',obj.hFig,  ...
 				'Position', [150, figSize(2)-radarConfigOffset-110, 140, 25], ...
 				'Max',1, ...
@@ -387,9 +393,9 @@ classdef preferences < handle
 				'HorizontalAlignment', 'left');
 
 			uilabel(obj.hFig, ...
-				'Position', [20, figSize(2)-radarConfigOffset-110, 140, 25], ...
+				'Position', [20, figSize(2)-radarConfigOffset-140, 140, 25], ...
 				'Text', 'Lobe width T: ');
-			obj.hEditMainLobeWidthT = uicontrol('Style', 'edit', ...
+			obj.hEditRadPatternT = uicontrol('Style', 'edit', ...
 				'Parent',obj.hFig,  ...
 				'Position', [150, figSize(2)-radarConfigOffset-140, 140, 25], ...
 				'Max',1, ...
@@ -454,6 +460,7 @@ classdef preferences < handle
 			set(obj.hEditOffsetT, 'String', obj.configStruct.platform.angleOffsetT);
 			set(obj.hEditOffsetH, 'String', obj.configStruct.platform.angleOffsetH);
 
+
 			if(obj.configStruct.platform.debug == 1)
 				set(obj.hSwitchPlatformDebug, 'Value', 'On');
 			else
@@ -463,6 +470,9 @@ classdef preferences < handle
 			%% Radar config
 
 			set(obj.hEditRadarBandwith, 'String', obj.configStruct.radar.bandwidth);
+
+			set(obj.hEditRadPatternH, 'String', obj.configStruct.radar.radPatternH);
+			set(obj.hEditRadPatternT, 'String', obj.configStruct.radar.radPatternT);
 
 			if any(obj.availableSamples == obj.configStruct.radar.samples)
 				set(obj.hDropRadarSamples, 'Value', num2str(obj.configStruct.radar.samples))
@@ -521,7 +531,16 @@ classdef preferences < handle
 			%% Radar config
 
 			obj.configStruct.radar.samples=str2double(obj.hDropRadarSamples.Value);
+	
+			tmp = get(obj.hEditRadPatternH, 'String');
+			if isnan(str2double(tmp)) warndlg('Lobe width must be numerical');
+			else obj.configStruct.radar.radPatternH=tmp;
+			end
 
+			tmp = get(obj.hEditRadPatternT, 'String');
+			if isnan(str2double(tmp)) warndlg('Lobe width must be numerical');
+			else obj.configStruct.radar.radPatternT=tmp;
+			end
 
 			tmp = get(obj.hEditRadarBandwith, 'String');
 			if isnan(str2double(tmp)) warndlg('Bandwidth must be numerical');

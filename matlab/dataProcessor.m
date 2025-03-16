@@ -20,6 +20,7 @@ classdef dataProcessor < handle
 			if isempty(obj.parallelPool)
 				obj.parallelPool = parpool(1); % Start pool with 1 worker
 			end
+			[radPatterH, radPatterT] = preferencesObj.getRadarRadiationParamters(obj);
 			obj.hRadarCube = radarDataCube();
 
 			addlistener(radarObj, 'newDataAvailable', @(~,~) obj.onNewDataAvailable());

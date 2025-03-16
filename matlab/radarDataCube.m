@@ -4,6 +4,8 @@ classdef radarDataCube < handle
         TiltBins = -10:1:30       % 1° resolution 
         RangeAzimuthDoppler       % 4D matrix [Azimuth x Tilt x (Fast time x Slow Time)]
         AntennaPattern            % Weighting matrix [Azimuth x Tilt]
+				radPatterH
+				radPatterT
     end
 
     methods
@@ -38,6 +40,7 @@ classdef radarDataCube < handle
         end
 
         function pattern = generateAntennaPattern(obj)
+					 % For now we model radiation pattern as 2D gaussian function
             azSigma = 3 / (sqrt(8*log(2))); 
             tiltSigma = 3 / (sqrt(8*log(2)));
             [azMesh, tiltMesh] = meshgrid(obj.AzimuthBins, obj.TiltBins);
