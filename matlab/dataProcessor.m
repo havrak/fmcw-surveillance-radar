@@ -1,62 +1,83 @@
 classdef dataProcessor < handle
 	properties
-		hRadar                  % Radar object
-		hPlatform               % Platform object
-		parallelPool            % Parallel pool handle
-		future                  % Asynchronous task handle
-		isProcessing = false    % Flag to prevent overlap
+		hRadar radar              % Radar object
+		hPlatform platform        % Platform object
+		hPreferences preferences  % Preferences object
+		parallelPool              % Parallel pool handle
+		isProcessing = false      % Flag to prevent overlap
+		hRadarBuffer radarBuffer; %
+		hDataCube radarDataCube;  % RadarDataCube instance
+
 		readIdx = 0;
 	end
 
 	methods
-		function obj = dataProcessor(radarObj, platformObj)
+		function obj = dataProcessor(radarObj, platformObj, preferencesObj)
 			obj.hRadar = radarObj;
 			obj.hPlatform = platformObj;
+			obj.hPreferences = preferencesObj;
 			obj.parallelPool = gcp('nocreate'); % Start parallel pool
 			if isempty(obj.parallelPool)
 				obj.parallelPool = parpool(1); % Start pool with 1 worker
 			end
+			obj.hRadarCube = radarDataCube();
 
-			 addlistener(radarObj, 'newDataAvailable', @(~,~) obj.onNewDataAvailable());
+			addlistener(radarObj, 'newDataAvailable', @(~,~) obj.onNewDataAvailable());
 		end
 
 		function onNewDataAvailable(obj)
 			% Called automatically when radar data arrives
-			% TODO: add chirp to buffer -> run processing on buffer 
+			% TODO: add chirp to buffer -> run processing on buffer
 			% on addition to chirps processing will also get data about positions
 
-
 			%
-			if ~obj.isProcessing
-				obj.isProcessing = true; % Lock processing
+			% if ~obj.isProcessing
+			%	obj.isProcessing = true; % Lock processing
 
-				I = obj.hRadar.bufferI(obj.readIdx);
-				Q = obj.hRadar.bufferQ(obj.readIdx);
-				timestamp = obj.hRadar.bufferTime(obj.readIdx);
+			obj.hRadarBuffer.addChirp(obj.hRadar.bufferI(obj.readIdx), ...
+				obj.hRadar.bufferQ(obj.readIdx), ...
+				obj.hRadar.bufferTime(obj.readIdx));
 
-				obj.future = parfeval(obj.parallelPool, ...
-					@obj.backgroundProcess, 3, I, Q, timestamp);
+			[batchRangeFFTs, batchTimes] = obj.hRadarBuffer.getSlidingBatch();
+			[posTimes, horz, tilt] = obj.hPlatform.getPositionsInInterval(min(batchTimes), max(batchTimes));
 
-				afterAll(obj.future, @(varargin) obj.postProcess(varargin{:}), 0);
-			end
 
+			future = parfeval(obj.parallelPool, ...
+				@DataProcessor.processBatch, 5, ...
+				batchRangeFFTs, batchTimes, posTimes, horz, tilt);
+
+			afterAll(future, @(varargin) obj.mergeResults(varargin{:}), 0);
 		end
 
-		function backgroundProcess(~, I, Q, t)
-			% here run generic processing that will be agnostic to visualization
-			% method
-			% pair data with positions, run CFAR
-			sig = I + 1i*Q;
 
-			end
-
-		function postProcess(obj, readIdx)
-			% run CFAR, do visiaulization every once in a while
+		function [horz, tilt, rangeProfile, dopplerProfile] = ...
+			processBatch(batchRangeFFTs, batchTimes, posTimes, posHorz, posTilt)
+			% Check platform dynamics
 			
-			obj.hRadar.readIdx = mod(readIdx, obj.hRadar.bufferSize) + 1;
-			obj.isProcessing = false;
+			dt = diff(posTimes);
+			dHorz = diff(posHorz)./dt;
+			dTilt = diff(posTilt)./dt;
+			
+			if any(abs(dHorz) > 3) || any(abs(dTilt) > 1) % Thresholds (deg/s)
+				error('Platform movement too fast');
+			end
 
-			% Update plots  
+			% Interpolate angles to chirp timestamps
+			% interp1(posTimes, posHorz, batchTimes, 'linear', 'extrap');
+			% interp1(posTimes, posTilt, batchTimes, 'linear', 'extrap');
+
+			% Compute Doppler FFT (using cached Range FFTs)
+			dopplerProfile = fftshift(fft(batchRangeFFTs, [], 1), 2);
+
+			% Use latest sample's angles for output
+			rangeProfile = batchRangeFFTs(end, :);
+			horz = posHorz(end);
+			tilt = posTilt(end);
 		end
+
+		function mergeResults(obj, azimuth, tilt, rangeProfile, dopplerProfile)
+			obj.hDataCube.addData(azimuth, tilt, rangeProfile, dopplerProfile);
+
+			end
 	end
 end

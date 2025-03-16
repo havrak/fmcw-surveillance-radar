@@ -1,17 +1,13 @@
 classdef radarDataCube < handle
     properties
-        AzimuthBins = 0:1:360    % 1° resolution (customize)
-        TiltBins = -10:1:30       % 1° resolution (customize)
-        RangeBins                 % Derived from FFT
-        DopplerBins               % Derived from Doppler FFT
-        RangeAzimuthDoppler       % 4D matrix [Azimuth x Tilt x Range x Doppler]
+        AzimuthBins = 0:1:360     % 1° resolution 
+        TiltBins = -10:1:30       % 1° resolution 
+        RangeAzimuthDoppler       % 4D matrix [Azimuth x Tilt x (Fast time x Slow Time)]
         AntennaPattern            % Weighting matrix [Azimuth x Tilt]
     end
 
     methods
         function obj = radarDataCube(numRangeBins, numDopplerBins)
-            obj.RangeBins = 1:numRangeBins;
-            obj.DopplerBins = 1:numDopplerBins;
             obj.RangeAzimuthDoppler = zeros(...
                 length(obj.AzimuthBins), ...
                 length(obj.TiltBins), ...
@@ -36,15 +32,14 @@ classdef radarDataCube < handle
                     weight = azWeights(az) * tiltWeights(tl);
                     obj.RangeAzimuthDoppler(az, tl, :, :) = ...
                         obj.RangeAzimuthDoppler(az, tl, :, :) + ...
-                        weight * (rangeProfile' * dopplerProfile);
+                        (weight * rangeProfile') * dopplerProfile; % Weight range profile, don't weight doppler profile
                 end
             end
         end
 
         function pattern = generateAntennaPattern(obj)
-            % Example: Gaussian beam pattern (3° beamwidth)
-            azSigma = 3 / (2*sqrt(2*log(2))); % Convert to std
-            tiltSigma = 3 / (2*sqrt(2*log(2)));
+            azSigma = 3 / (sqrt(8*log(2))); 
+            tiltSigma = 3 / (sqrt(8*log(2)));
             [azMesh, tiltMesh] = meshgrid(obj.AzimuthBins, obj.TiltBins);
             pattern = exp(-0.5*( (azMesh/azSigma).^2 + (tiltMesh/tiltSigma).^2 ));
         end

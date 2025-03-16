@@ -7,20 +7,28 @@ classdef preferences < handle
 		hBtnClose;              % uibutton - close window
 		hBtnRefresh;            % uibutton - refresh serial
 		hBtnReload;             % uibutton - reload config from file
+
 		hDropRadarPort;         % uidropdown - radar serial port
 		hDropRadarBaudrate;     % uidropdown - radar serial baudrate
 		hDropPlatformPort;      % uidropdown - platform serial port
 		hDropPlatformBaudrate;  % uidropdown - platform serial baudrate
-		hSwitchPlatformDebug;     % uiswitch - display debug messages from platform
-		hSwitchRadarHeader;     % uiswitch - pick between 122 and 24 GHz header
-		hEditRadarBandwith;     % uicontrol/edit - distance offset
 
+		hSwitchPlatformDebug;   % uiswitch - display debug messages from platform
 		hEditOffsetD;           % uicontrol/edit - distance offset
 		hEditOffsetT;           % uicontrol/edit - angle offset tilt
 		hEditOffsetH;           % uicontrol/edit - angle offset horizontal
 
+		hDropRadarSamples       % number of FFT samples for chirp
+		hSwitchRadarHeader;     % uiswitch - pick between 122 and 24 GHz header
+		hEditRadarBandwith;     % uicontrol/edit - distance offset
+		hEditMainLobeWidthT;
+		hEditMainLobeWidthH;
+
+
 		% OTHER VARS %
 		availableBaudrates = [ 9600 19200 115200 230400 1000000];
+		availableSamples = [32 64 128 256 512 1024 2048 ];
+		availableSamplesStr = ['000' '001' '010' '011' '100' '101' '110'];
 		configStruct;
 		configFilePath;
 	end
@@ -31,12 +39,16 @@ classdef preferences < handle
 			% preferences: constructor for preferences class
 
 			obj.configStruct.radar.port='none';
-			obj.configStruct.radar.baudrate='0';
+			obj.configStruct.radar.baudrate=availableBaudrates(1);
 			obj.configStruct.radar.header='';
 			obj.configStruct.radar.bandwidth='';
+			obj.configStruct.radar.samples=128;
+
+			obj.configStruct.platform.mainLobeWidthH=0;
+			obj.configStruct.platform.mainLobeWidthT=0;
 
 			obj.configStruct.platform.port='none';
-			obj.configStruct.platform.baudrate='0';
+			obj.configStruct.platform.baudrate=availableBaudrates(1);
 			obj.configStruct.platform.distanceOffset=0;
 			obj.configStruct.platform.angleOffsetT=0;
 			obj.configStruct.platform.angleOffsetH=0;
@@ -64,7 +76,7 @@ classdef preferences < handle
 		end
 
 		function showGUI(obj)
-			% showGUI: displays generated GUI that is hidden 
+			% showGUI: displays generated GUI that is hidden
 
 			if isempty(obj.hFig) | ~isvalid(obj.hFig)
 				constructGUI(obj);
@@ -131,6 +143,16 @@ classdef preferences < handle
 			% Output:
 			% header ... either 122 or 24
 			bandwith = obj.configStruct.radar.bandwidth;
+		end
+
+		function samples = getRadarSamples(obj)
+			% getRadarSamples: return number of samples, value in format
+			% required by radar protocol
+			%
+			% Output:
+			% samples ... string with binary
+
+			samples = obj.availableSamplesStr(obj.availableSamples==obj.configStruct.radar.samples);
 		end
 
 		function [angleOffsetH, angleOffsetT, distanceOffset] = getPlatformParamters(obj)
@@ -221,6 +243,10 @@ classdef preferences < handle
 		function constructGUI(obj)
 			% constructGUI: initializes all GUI elements
 
+			platformConfigOffset = 140;
+			radarConfigOffset = 270;
+
+
 			fprintf('Preferences | constructGUI | starting gui constructions');
 			figSize = [500, 500];
 			screenSize = get(groot, 'ScreenSize');
@@ -231,8 +257,11 @@ classdef preferences < handle
 				'Resize', 'off', ...
 				'Visible', 'off');
 
+			%% Serial config
+			uilabel(obj.hFig, 'Position', [20, figSize(2)-50, 140, 25], 'Text', 'SERIAL CONFIG', 'FontWeight','bold');
 			uilabel(obj.hFig, 'Position', [150, figSize(2)-50, 140, 25], 'Text', 'Baudrate');
 			uilabel(obj.hFig, 'Position', [240, figSize(2)-50, 140, 25], 'Text', 'Port' );
+
 			uilabel(obj.hFig, ...
 				'Position', [20, figSize(2)-100, 140, 25], ...
 				'Text', 'Radar serial setting:');
@@ -258,70 +287,114 @@ classdef preferences < handle
 				'Position', [240, figSize(2)-70, 120, 25], ...
 				'Items', list);
 
+
+			obj.hBtnRefresh = uibutton(obj.hFig, ...
+				'Text', 'Refresh', ...
+				'Position', [375, figSize(2)-85, 80, 25], ...
+				'ButtonPushedFcn', @(src,event) obj.refreshSerial());
+
+
+			%% PlatformConfig
+			uilabel(obj.hFig, 'Position', [20, figSize(2)-platformConfigOffset, 140, 25], 'Text', 'PLATFORM CONFIG', 'FontWeight','bold');
+
+			% Distance offset
 			uilabel(obj.hFig, ...
-				'Position', [20, figSize(2)-140, 140, 25], ...
+				'Position', [20, figSize(2)-platformConfigOffset-20, 140, 25], ...
 				'Text', 'Platform offset [mm]:');
-
-			uilabel(obj.hFig, ...
-				'Position', [20, figSize(2)-170, 140, 25], ...
-				'Text', 'Tilt offset [deg]:');
-
-			uilabel(obj.hFig, ...
-				'Position', [20, figSize(2)-200, 140, 25], ...
-				'Text', 'Horizontal offset [deg]:');
-
 			obj.hEditOffsetD=uicontrol('Style', 'edit', ...
 				'Parent',obj.hFig,  ...
-				'Position', [150, figSize(2)-140, 140, 25], ...
+				'Position', [150, figSize(2)-platformConfigOffset-20, 140, 25], ...
 				'Max',1, ...
 				'String',"", ...
 				'HorizontalAlignment', 'left');
 
+			% Tilt offset
 			uilabel(obj.hFig, ...
-				'Position', [20, figSize(2)-270, 140, 25], ...
-				'Text', 'Header frequency [GHz]: ');
+				'Position', [20, figSize(2)-platformConfigOffset-50, 140, 25], ...
+				'Text', 'Tilt offset [deg]:');
 
-			uilabel(obj.hFig, ...
-				'Position', [20, figSize(2)-300, 140, 25], ...
-				'Text', 'Header Bandwith [MHz]: ');
-
-			obj.hEditRadarBandwith = uicontrol('Style', 'edit', ...
+			obj.hEditOffsetT=uicontrol('Style', 'edit', ...
 				'Parent',obj.hFig,  ...
-				'Position', [150, figSize(2)-300, 140, 25], ...
+				'Position', [150, figSize(2)-platformConfigOffset-50, 140, 25], ...
+				'Max',1, ...
+				'String',"", ...
+				'HorizontalAlignment', 'left');
+
+			% Horz offset
+			uilabel(obj.hFig, ...
+				'Position', [20, figSize(2)-platformConfigOffset-80, 140, 25], ...
+				'Text', 'Horizontal offset [deg]:');
+
+			obj.hEditOffsetH=uicontrol('Style', 'edit', ...
+				'Parent',obj.hFig,  ...
+				'Position', [150, figSize(2)-platformConfigOffset-80, 140, 25], ...
 				'Max',1, ...
 				'String',"", ...
 				'HorizontalAlignment', 'left');
 
 			uilabel(obj.hFig, ...
-				'Position', [20, figSize(2)-240, 140, 25], ...
+				'Position', [20, figSize(2)-platformConfigOffset-110, 140, 25], ...
 				'Text', 'Platform debug: ');
 
+			obj.hSwitchPlatformDebug=uiswitch('Parent', obj.hFig, ...
+				'Position', [180, figSize(2)-platformConfigOffset-110, 140, 25], ...
+				'Items', {'On', 'Off'}, ...
+				'Orientation', 'horizontal');
+
+			%% Radar setting
+
+			uilabel(obj.hFig, 'Position', [20, figSize(2)-radarConfigOffset, 140, 25], 'Text', 'RADAR CONFIG', 'FontWeight','bold');
+
+			uilabel(obj.hFig, ...
+				'Position', [20, figSize(2)-radarConfigOffset-20, 140, 25], ...
+				'Text', 'Radar frequency [GHz]: ');
+
 			obj.hSwitchRadarHeader=uiswitch('Parent', obj.hFig, ...
-				'Position', [180, figSize(2)-270, 140, 25], ...
+				'Position', [180, figSize(2)-radarConfigOffset-20, 140, 25], ...
 				'Items', {'24', '122'}, ...
 				'Orientation', 'horizontal' ...
 				);
 
-			obj.hSwitchPlatformDebug=uiswitch('Parent', obj.hFig, ...
-				'Position', [180, figSize(2)-240, 140, 25], ...
-				'Items', {'On', 'Off'}, ...
-				'Orientation', 'horizontal' ...
-				);
+			uilabel(obj.hFig, ...
+				'Position', [20, figSize(2)-radarConfigOffset-50, 140, 25], ...
+				'Text', 'Radar Bandwith [MHz]: ');
 
-			obj.hEditOffsetT=uicontrol('Style', 'edit', ...
+			obj.hEditRadarBandwith = uicontrol('Style', 'edit', ...
 				'Parent',obj.hFig,  ...
-				'Position', [150, figSize(2)-170, 140, 25], ...
+				'Position', [150, figSize(2)-radarConfigOffset-50, 140, 25], ...
 				'Max',1, ...
 				'String',"", ...
 				'HorizontalAlignment', 'left');
 
-			obj.hEditOffsetH=uicontrol('Style', 'edit', ...
+
+			uilabel(obj.hFig, ...
+				'Position', [20, figSize(2)-radarConfigOffset-80, 140, 25], ...
+				'Text', 'Chirp samples: ');
+
+			obj.hDropRadarSamples = uidropdown(obj.hFig, ...
+				'Position', [150, figSize(2)-radarConfigOffset-80, 80, 25], ...
+				'Items', {'32' '64' '128' '256' '512' '1024' '2048'});
+
+			uilabel(obj.hFig, ...
+				'Position', [20, figSize(2)-radarConfigOffset-110, 140, 25], ...
+				'Text', 'Lobe width H: ');
+
+			obj.hEditMainLobeWidthH = uicontrol('Style', 'edit', ...
 				'Parent',obj.hFig,  ...
-				'Position', [150, figSize(2)-200, 140, 25], ...
+				'Position', [150, figSize(2)-radarConfigOffset-110, 140, 25], ...
 				'Max',1, ...
 				'String',"", ...
 				'HorizontalAlignment', 'left');
 
+			uilabel(obj.hFig, ...
+				'Position', [20, figSize(2)-radarConfigOffset-110, 140, 25], ...
+				'Text', 'Lobe width T: ');
+			obj.hEditMainLobeWidthT = uicontrol('Style', 'edit', ...
+				'Parent',obj.hFig,  ...
+				'Position', [150, figSize(2)-radarConfigOffset-140, 140, 25], ...
+				'Max',1, ...
+				'String',"", ...
+				'HorizontalAlignment', 'left');
 
 			function reloadConfig(obj)
 				obj.loadConfig();
@@ -333,15 +406,11 @@ classdef preferences < handle
 				'Position', [figSize(1)-300, figSize(2)-480, 80, 25], ...
 				'ButtonPushedFcn', @(src,event) reloadConfig(obj) );
 
-			obj.hBtnRefresh = uibutton(obj.hFig, ...
-				'Text', 'Refresh', ...
-				'Position', [375, figSize(2)-85, 80, 25], ...
-				'ButtonPushedFcn', @(src,event) obj.refreshSerial());
 
 			obj.hBtnApply = uibutton(obj.hFig, ...
 				'Text', 'Apply', ...
 				'Position', [figSize(1)-200, figSize(2)-480, 80, 25], ...
-				'ButtonPushedFcn',  @(src, event)obj.apply() );
+				'ButtonPushedFcn',  @(src, event)obj.processConfig() );
 
 			obj.hBtnClose = uibutton(obj.hFig, ...
 				'Text', 'Close', ...
@@ -357,8 +426,10 @@ classdef preferences < handle
 			% configToGUI: sets values of GUI elements to correspond to
 			% those saved in internal config structure
 
-			list=cat(2, 'none', serialportlist);
 
+
+			%% Serial config
+			list=cat(2, 'none', serialportlist);
 			if any(list == obj.configStruct.platform.port)
 				set(obj.hDropPlatformPort, 'Value', obj.configStruct.platform.port);
 			end
@@ -366,6 +437,7 @@ classdef preferences < handle
 			if any(list == obj.configStruct.radar.port)
 				set(obj.hDropRadarPort, 'Value', obj.configStruct.radar.port);
 			end
+
 
 			if any(obj.availableBaudrates == obj.configStruct.platform.baudrate)
 				set(obj.hDropPlatformBaudrate, 'Value', num2str(obj.configStruct.platform.baudrate));
@@ -375,21 +447,32 @@ classdef preferences < handle
 				set(obj.hDropRadarBaudrate, 'Value', num2str(obj.configStruct.radar.baudrate));
 			end
 
+			%% Platform config
+
+
 			set(obj.hEditOffsetD, 'String', obj.configStruct.platform.distanceOffset);
 			set(obj.hEditOffsetT, 'String', obj.configStruct.platform.angleOffsetT);
 			set(obj.hEditOffsetH, 'String', obj.configStruct.platform.angleOffsetH);
-
-			set(obj.hEditRadarBandwith, 'String', obj.configStruct.radar.bandwidth);
-
-			if ismember(num2str(obj.configStruct.radar.header),obj.hSwitchRadarHeader.Items)
-				set(obj.hSwitchRadarHeader, 'Value', num2str(obj.configStruct.radar.header));
-			end
 
 			if(obj.configStruct.platform.debug == 1)
 				set(obj.hSwitchPlatformDebug, 'Value', 'On');
 			else
 				set(obj.hSwitchPlatformDebug, 'Value', 'Off');
 			end
+
+			%% Radar config
+
+			set(obj.hEditRadarBandwith, 'String', obj.configStruct.radar.bandwidth);
+
+			if any(obj.availableSamples == obj.configStruct.radar.samples)
+				set(obj.hDropRadarSamples, 'Value', num2str(obj.configStruct.radar.samples))
+			end
+
+			if ismember(num2str(obj.configStruct.radar.header),obj.hSwitchRadarHeader.Items)
+				set(obj.hSwitchRadarHeader, 'Value', num2str(obj.configStruct.radar.header));
+			end
+
+
 		end
 
 		function refreshSerial(obj)
@@ -404,6 +487,7 @@ classdef preferences < handle
 			% processConfig: gathers all values from GUI elements and stores them
 			% into config structure
 
+			%% Serial config
 			err=false;
 			obj.configStruct.platform.baudrate=str2double(obj.hDropPlatformBaudrate.Value);
 
@@ -416,7 +500,7 @@ classdef preferences < handle
 			obj.configStruct.radar.baudrate=str2double(obj.hDropRadarBaudrate.Value);
 			obj.configStruct.radar.header=obj.hSwitchRadarHeader.Value;
 
-
+			%% Platform config
 			tmp = get(obj.hEditOffsetD, 'String');
 			if isnan(str2double(tmp)) warndlg('Offset must be numerical');
 			else obj.configStruct.platform.distanceOffset=tmp;
@@ -431,6 +515,13 @@ classdef preferences < handle
 			if isnan(str2double(tmp)) warndlg('Offset must be numerical');
 			else obj.configStruct.platform.angleOffsetH=tmp;
 			end
+
+
+
+			%% Radar config
+
+			obj.configStruct.radar.samples=str2double(obj.hDropRadarSamples.Value);
+
 
 			tmp = get(obj.hEditRadarBandwith, 'String');
 			if isnan(str2double(tmp)) warndlg('Bandwidth must be numerical');

@@ -11,7 +11,7 @@ classdef app < handle
 		% OTHER VARS%
 		hPreferences preferences;
 		hPlatformControl platformControl;
-		hDataProcessor dataProcessor;
+		% hDataProcessor dataProcessor;
 		hRadar;
 		hTask;
 
@@ -27,7 +27,7 @@ classdef app < handle
 			obj.hPreferences = preferences();
 			obj.hPlatformControl = platformControl(obj.hPreferences, time);
 			obj.hRadar = radar(obj.hPreferences, time);
-			obj.hDataProcessor = dataProcessor(obj.hRadar, obj.hPlatformControl);
+			% obj.hDataProcessor = dataProcessor(obj.hRadar, obj.hPlatformControl, obj.hPreferences);
 		end
 
 
