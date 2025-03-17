@@ -1,7 +1,7 @@
 classdef dataProcessor < handle
 	properties
 		hRadar radar              % Radar object
-		hPlatform platform        % Platform object
+		hPlatform platformControl % Platform object
 		hPreferences preferences  % Preferences object
 		parallelPool              % Parallel pool handle
 		isProcessing = false      % Flag to prevent overlap
@@ -11,19 +11,54 @@ classdef dataProcessor < handle
 		readIdx = 0;
 	end
 
-	methods
-		function obj = dataProcessor(radarObj, platformObj, preferencesObj)
-			obj.hRadar = radarObj;
-			obj.hPlatform = platformObj;
-			obj.hPreferences = preferencesObj;
-			obj.parallelPool = gcp('nocreate'); % Start parallel pool
-			if isempty(obj.parallelPool)
-				obj.parallelPool = parpool(1); % Start pool with 1 worker
-			end
-			[radPatterH, radPatterT] = preferencesObj.getRadarRadiationParamters(obj);
-			obj.hRadarCube = radarDataCube();
+	methods(Access=private)
+		function [horz, tilt, rangeProfile, dopplerProfile] = ...
+				processBatch(batchRangeFFTs, batchTimes, posTimes, posHorz, posTilt)
 
-			addlistener(radarObj, 'newDataAvailable', @(~,~) obj.onNewDataAvailable());
+			% Allow only small movement changes (deg/s)
+			dt = diff(posTimes);
+			dHorz = gradient(posHorz, dt);
+			dTilt = gradient(posTilt, dt);
+			lowBoundIndex = 1;
+
+			for i=length(dHorz):-1:1
+				if any(abs(dHorz) > 3) || any(abs(dTilt) > 1)
+					break;
+				end
+				lowBoundIndex=i;
+			end
+
+			batchRangeFFTs(1:lowBoundIndex) = [];
+			batchTimes(1:lowBoundIndex) = [];
+
+
+			timeDeltas = diff(batchTimes);
+			meanInterval = mean(timeDeltas);
+
+			% Check uniformity of sampling (20% threshold)
+			maxDeviation = max(abs(timeDeltas - meanInterval)) / meanInterval;
+			useNUFFT = maxDeviation > 0.2;
+
+			if useNUFFT
+				% USE FFT
+			else
+				% Regular FFT for uniform sampling
+				dopplerProfile = fftshift(fft(batchRangeFFTs, [], 1), 1);
+			end
+
+
+			% Decimate/Interpolate spectrum to fit 16 slots
+
+			% Compute Doppler FFT (using cached Range FFTs)
+			% Use latest sample's angles for output
+			rangeProfile = batchRangeFFTs(end, :);
+			horz = posHorz(end);
+			tilt = posTilt(end);
+		end
+
+		function mergeResults(obj, azimuth, tilt, rangeProfile, dopplerProfile)
+			obj.hDataCube.addData(azimuth, tilt, rangeProfile, dopplerProfile);
+
 		end
 
 		function onNewDataAvailable(obj)
@@ -49,36 +84,32 @@ classdef dataProcessor < handle
 
 			afterAll(future, @(varargin) obj.mergeResults(varargin{:}), 0);
 		end
+	end
 
-
-		function [horz, tilt, rangeProfile, dopplerProfile] = ...
-			processBatch(batchRangeFFTs, batchTimes, posTimes, posHorz, posTilt)
-			% Check platform dynamics
-			
-			dt = diff(posTimes);
-			dHorz = diff(posHorz)./dt;
-			dTilt = diff(posTilt)./dt;
-			
-			if any(abs(dHorz) > 3) || any(abs(dTilt) > 1) % Thresholds (deg/s)
-				error('Platform movement too fast');
+	methods(Access=public)
+		function obj = dataProcessor(radarObj, platformObj, preferencesObj)
+			obj.hRadar = radarObj;
+			obj.hPlatform = platformObj;
+			obj.hPreferences = preferencesObj;
+			obj.parallelPool = gcp('nocreate'); % Start parallel pool
+			if isempty(obj.parallelPool)
+				obj.parallelPool = parpool(1); % Start pool with 1 worker
 			end
+			[radPatterH, radPatterT] = preferencesObj.getRadarRadiationParamters();
+			[samples, ~, ~ ] = preferencesObj.getRadarBasebandParameters();
+			obj.hDataCube = radarDataCube(samples, 32, radPatterH, radPatterT);
 
-			% Interpolate angles to chirp timestamps
-			% interp1(posTimes, posHorz, batchTimes, 'linear', 'extrap');
-			% interp1(posTimes, posTilt, batchTimes, 'linear', 'extrap');
-
-			% Compute Doppler FFT (using cached Range FFTs)
-			dopplerProfile = fftshift(fft(batchRangeFFTs, [], 1), 2);
-
-			% Use latest sample's angles for output
-			rangeProfile = batchRangeFFTs(end, :);
-			horz = posHorz(end);
-			tilt = posTilt(end);
+			addlistener(radarObj, 'newDataAvailable', @(~,~) obj.onNewDataAvailable());
 		end
 
-		function mergeResults(obj, azimuth, tilt, rangeProfile, dopplerProfile)
-			obj.hDataCube.addData(azimuth, tilt, rangeProfile, dopplerProfile);
 
-			end
+
+		function endProcesses(obj)
+			% endProcesses: safely stops all class processes
+			delete(obj.parallelPool);
+		end
+
+
+
 	end
 end

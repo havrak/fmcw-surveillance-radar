@@ -29,7 +29,7 @@ classdef platformControl < handle
 		positionHorz;      % Array of horizontal positions
 		positionTilt;      % Array of tilt positions
 		log cell = {};
-		startTime double;
+		startTime uint64;
 
 	end
 

@@ -18,17 +18,20 @@ classdef preferences < handle
 		hEditOffsetT;           % uicontrol/edit - angle offset tilt
 		hEditOffsetH;           % uicontrol/edit - angle offset horizontal
 
-		hDropRadarSamples       % number of FFT samples for chirp
+		hDropRadarSample       % number of FFT samples for chirp
 		hSwitchRadarHeader;     % uiswitch - pick between 122 and 24 GHz header
 		hEditRadarBandwith;     % uicontrol/edit - distance offset
 		hEditRadPatternT;
 		hEditRadPatternH;
+		hEditTriggerPeriod;    
+		hDropRadarADC;
 
 
 		% OTHER VARS %
 		availableBaudrates = [ 9600 19200 115200 230400 1000000];
 		availableSamples = [32 64 128 256 512 1024 2048 ];
-		availableSamplesStr = ['000' '001' '010' '011' '100' '101' '110'];
+		availableADC = [2571 2400 2118 1800 1125 487 186 59]
+		binaryMap = ['000'; '001'; '010'; '011'; '100'; '101'; '110'; '111'];
 		configStruct;
 		configFilePath;
 	end
@@ -41,10 +44,12 @@ classdef preferences < handle
 			obj.configStruct.radar.port='none';
 			obj.configStruct.radar.baudrate=obj.availableBaudrates(1);
 			obj.configStruct.radar.header='';
-			obj.configStruct.radar.bandwidth='';
+			obj.configStruct.radar.bandwidth=0;
 			obj.configStruct.radar.samples=128;
 			obj.configStruct.radar.radPatternH=0;
 			obj.configStruct.radar.radPatternT=0;
+			obj.configStruct.radar.adc=obj.availableADC(1);
+			obj.configStruct.radar.trigger=0;
 
 			obj.configStruct.platform.port='none';
 			obj.configStruct.platform.baudrate=obj.availableBaudrates(1);
@@ -52,6 +57,7 @@ classdef preferences < handle
 			obj.configStruct.platform.angleOffsetT=0;
 			obj.configStruct.platform.angleOffsetH=0;
 			obj.configStruct.platform.debug=1;
+			
 
 			obj.configStruct.programs=[];
 
@@ -126,8 +132,8 @@ classdef preferences < handle
 		end
 
 
-		function header = getRadarHeaderType(obj)
-			% getRadarHeaderType: return header used on the radar
+		function header = getRadarFrontend(obj)
+			% getRadarFrontend: return header used on the radar
 			% radar
 			%
 			% Output:
@@ -136,10 +142,12 @@ classdef preferences < handle
 		end
 
 		function [radPatterH, radPatterT] = getRadarRadiationParamters(obj)
-
 			radPatterH = obj.configStruct.radar.radPatternH;
 			radPatterT = obj.configStruct.radar.radPatternT;
+		end
 
+		function period = getRadarTriggerPeriod(obj)
+			period = obj.configStruct.radar.trigger;
 		end
 
 		function bandwith = getRadarBandwidth(obj)
@@ -147,18 +155,21 @@ classdef preferences < handle
 			% radar
 			%
 			% Output:
-			% header ... either 122 or 24
+			% bandwidth ... number in MHz
 			bandwith = obj.configStruct.radar.bandwidth;
 		end
 
-		function samples = getRadarSamples(obj)
-			% getRadarSamples: return number of samples, value in format
-			% required by radar protocol
+		function [samplesReg, samplesBin, adc ] = getRadarBasebandParameters(obj)
+			% getRadarSamples: return number of samples will take and ADC
+			% setting. Both in binary format to be pasted into baseband command
 			%
 			% Output:
-			% samples ... string with binary
-
-			samples = obj.availableSamplesStr(obj.availableSamples==obj.configStruct.radar.samples);
+			% samplesReg ... number of samples
+			% samplesBin ... string with binary
+			% adc ... string with binary
+			samplesReg = obj.configStruct.radar.samples;
+			samplesBin = obj.binaryMap(obj.availableSamples==obj.configStruct.radar.samples, :);
+			adc = obj.binaryMap(obj.availableADC == obj.configStruct.radar.adc, :);
 		end
 
 		function [angleOffsetH, angleOffsetT, distanceOffset] = getPlatformParamters(obj)
@@ -221,7 +232,8 @@ classdef preferences < handle
 						continue;
 					end
 					% check for baudrate
-					if numel(strfind(item, 'baudrate')) ~=0 && ~any(obj.availableBaudrates == struct.(section).(item))
+					
+					if (numel(strfind(item, 'baudrate')) ~=0) && (~any(obj.availableBaudrates == struct.(section).(item)))
 						fprintf('Prefernces | loadConfig | Unsupported baudrate wrong in config file\n');
 						struct.(section).(item) = obj.availableBaudrates(1);
 						continue;
@@ -254,7 +266,7 @@ classdef preferences < handle
 
 
 			fprintf('Preferences | constructGUI | starting gui constructions');
-			figSize = [500, 500];
+			figSize = [500, 700];
 			screenSize = get(groot, 'ScreenSize');
 			obj.hFig = uifigure('Name','Preferences', ...
 				'Position', [(screenSize(3:4) - figSize)/2, figSize], ...
@@ -377,27 +389,47 @@ classdef preferences < handle
 				'Position', [20, figSize(2)-radarConfigOffset-80, 140, 25], ...
 				'Text', 'Chirp samples: ');
 
-			obj.hDropRadarSamples = uidropdown(obj.hFig, ...
+			obj.hDropRadarSample = uidropdown(obj.hFig, ...
 				'Position', [150, figSize(2)-radarConfigOffset-80, 80, 25], ...
 				'Items', {'32' '64' '128' '256' '512' '1024' '2048'});
-
+			
 			uilabel(obj.hFig, ...
 				'Position', [20, figSize(2)-radarConfigOffset-110, 140, 25], ...
+				'Text', 'ADC ClkDiv [MS/s]: ');
+
+			obj.hDropRadarADC = uidropdown(obj.hFig, ...
+				'Position', [150, figSize(2)-radarConfigOffset-110, 80, 25], ...
+				'Items', {'2571' '2400' '2118' '1800' '1125' '487' '186' '59'});
+			
+			
+			uilabel(obj.hFig, ...
+				'Position', [20, figSize(2)-radarConfigOffset-140, 140, 25], ...
 				'Text', 'Lobe width H: ');
 
 			obj.hEditRadPatternH = uicontrol('Style', 'edit', ...
 				'Parent',obj.hFig,  ...
-				'Position', [150, figSize(2)-radarConfigOffset-110, 140, 25], ...
+				'Position', [150, figSize(2)-radarConfigOffset-140, 140, 25], ...
 				'Max',1, ...
 				'String',"", ...
 				'HorizontalAlignment', 'left');
 
 			uilabel(obj.hFig, ...
-				'Position', [20, figSize(2)-radarConfigOffset-140, 140, 25], ...
+				'Position', [20, figSize(2)-radarConfigOffset-170, 170, 25], ...
 				'Text', 'Lobe width T: ');
 			obj.hEditRadPatternT = uicontrol('Style', 'edit', ...
 				'Parent',obj.hFig,  ...
-				'Position', [150, figSize(2)-radarConfigOffset-140, 140, 25], ...
+				'Position', [150, figSize(2)-radarConfigOffset-170, 170, 25], ...
+				'Max',1, ...
+				'String',"", ...
+				'HorizontalAlignment', 'left');
+
+			uilabel(obj.hFig, ...
+				'Position', [20, figSize(2)-radarConfigOffset-200, 140, 25], ...
+				'Text', 'Trigger period [ms]:');
+
+			obj.hEditTriggerPeriod = uicontrol('Style', 'edit', ...
+				'Parent',obj.hFig,  ...
+				'Position', [150, figSize(2)-radarConfigOffset-200, 170, 25], ...
 				'Max',1, ...
 				'String',"", ...
 				'HorizontalAlignment', 'left');
@@ -409,18 +441,18 @@ classdef preferences < handle
 
 			obj.hBtnReload = uibutton(obj.hFig, ...
 				'Text', 'Reload', ...
-				'Position', [figSize(1)-300, figSize(2)-480, 80, 25], ...
+				'Position', [figSize(1)-300, 40, 80, 25], ...
 				'ButtonPushedFcn', @(src,event) reloadConfig(obj) );
 
 
 			obj.hBtnApply = uibutton(obj.hFig, ...
 				'Text', 'Apply', ...
-				'Position', [figSize(1)-200, figSize(2)-480, 80, 25], ...
+				'Position', [figSize(1)-200, 40, 80, 25], ...
 				'ButtonPushedFcn',  @(src, event)obj.processConfig() );
 
 			obj.hBtnClose = uibutton(obj.hFig, ...
 				'Text', 'Close', ...
-				'Position', [figSize(1)-100, figSize(2)-480, 80, 25], ...
+				'Position', [figSize(1)-100, 40, 80, 25], ...
 				'ButtonPushedFcn',@(src,event) set(obj.hFig, 'Visible', 'off'));
 
 			obj.configToGUI();
@@ -473,9 +505,15 @@ classdef preferences < handle
 
 			set(obj.hEditRadPatternH, 'String', obj.configStruct.radar.radPatternH);
 			set(obj.hEditRadPatternT, 'String', obj.configStruct.radar.radPatternT);
+			set(obj.hEditTriggerPeriod, 'String', obj.configStruct.radar.trigger);
 
 			if any(obj.availableSamples == obj.configStruct.radar.samples)
-				set(obj.hDropRadarSamples, 'Value', num2str(obj.configStruct.radar.samples))
+				set(obj.hDropRadarSample, 'Value', num2str(obj.configStruct.radar.samples))
+			end
+
+			if any(obj.availableADC == obj.configStruct.radar.adc)
+
+				set(obj.hDropRadarADC, 'Value', num2str(obj.configStruct.radar.adc))
 			end
 
 			if ismember(num2str(obj.configStruct.radar.header),obj.hSwitchRadarHeader.Items)
@@ -490,7 +528,7 @@ classdef preferences < handle
 
 			list=cat(2, 'none', serialportlist);
 			set(obj.hDropPlatformPort, 'Items', list);
-			set(obj.hDropPlatformBaudrate, 'Items', list);
+			set(obj.hDropRadarPort, 'Items', list);
 		end
 
 		function  processConfig(obj)
@@ -513,38 +551,45 @@ classdef preferences < handle
 			%% Platform config
 			tmp = get(obj.hEditOffsetD, 'String');
 			if isnan(str2double(tmp)) warndlg('Offset must be numerical');
-			else obj.configStruct.platform.distanceOffset=tmp;
+			else obj.configStruct.platform.distanceOffset=str2double(tmp);
 			end
 
 			tmp = get(obj.hEditOffsetT, 'String');
 			if isnan(str2double(tmp)) warndlg('Offset must be numerical');
-			else obj.configStruct.platform.angleOffsetT=tmp;
+			else obj.configStruct.platform.angleOffsetT=str2double(tmp);
 			end
 
 			tmp = get(obj.hEditOffsetH, 'String');
 			if isnan(str2double(tmp)) warndlg('Offset must be numerical');
-			else obj.configStruct.platform.angleOffsetH=tmp;
+			else obj.configStruct.platform.angleOffsetH=str2double(tmp);
 			end
 
 
 
 			%% Radar config
 
-			obj.configStruct.radar.samples=str2double(obj.hDropRadarSamples.Value);
+			obj.configStruct.radar.samples=str2double(obj.hDropRadarSample.Value);
+			obj.configStruct.radar.adc=str2double(obj.hDropRadarADC.Value);
 	
 			tmp = get(obj.hEditRadPatternH, 'String');
 			if isnan(str2double(tmp)) warndlg('Lobe width must be numerical');
-			else obj.configStruct.radar.radPatternH=tmp;
+			else obj.configStruct.radar.radPatternH=str2double(tmp);
 			end
 
 			tmp = get(obj.hEditRadPatternT, 'String');
 			if isnan(str2double(tmp)) warndlg('Lobe width must be numerical');
-			else obj.configStruct.radar.radPatternT=tmp;
+			else obj.configStruct.radar.radPatternT=str2double(tmp);
 			end
+				
+			tmp = get(obj.hEditTriggerPeriod, 'String');
+			if (isnan(str2double(tmp)) || any(tmp <0)) warndlg('Trigger period must be numerical');
+			else obj.configStruct.radar.trigger=str2double(tmp);
+			end
+
 
 			tmp = get(obj.hEditRadarBandwith, 'String');
 			if isnan(str2double(tmp)) warndlg('Bandwidth must be numerical');
-			else obj.configStruct.radar.bandwidth=tmp;
+			else obj.configStruct.radar.bandwidth=str2double(tmp);
 			end
 
 			if strcmp(obj.hDropPlatformPort.Value,obj.hDropRadarPort.Value) == 1 && obj.hDropRadarPort.Value ~= "none"

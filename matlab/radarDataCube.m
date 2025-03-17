@@ -9,14 +9,14 @@ classdef radarDataCube < handle
     end
 
     methods
-        function obj = radarDataCube(numRangeBins, numDopplerBins)
+			function obj = radarDataCube(numRangeBins, numDopplerBins, radPatternH, radPatternT)
             obj.RangeAzimuthDoppler = zeros(...
                 length(obj.AzimuthBins), ...
                 length(obj.TiltBins), ...
                 numRangeBins, ...
                 numDopplerBins ...
             );
-            obj.AntennaPattern = obj.generateAntennaPattern();
+            obj.AntennaPattern = obj.generateAntennaPattern(radPatternH, radPatternT);
         end
 
         function addData(obj, azimuth, tilt, rangeProfile, dopplerProfile)
@@ -39,10 +39,10 @@ classdef radarDataCube < handle
             end
         end
 
-        function pattern = generateAntennaPattern(obj)
+				function pattern = generateAntennaPattern(obj, radPatternH, radPatternT)
 					 % For now we model radiation pattern as 2D gaussian function
-            azSigma = 3 / (sqrt(8*log(2))); 
-            tiltSigma = 3 / (sqrt(8*log(2)));
+            azSigma = radPatternH / (sqrt(8*log(2))); 
+            tiltSigma = radPatternT / (sqrt(8*log(2)));
             [azMesh, tiltMesh] = meshgrid(obj.AzimuthBins, obj.TiltBins);
             pattern = exp(-0.5*( (azMesh/azSigma).^2 + (tiltMesh/tiltSigma).^2 ));
         end

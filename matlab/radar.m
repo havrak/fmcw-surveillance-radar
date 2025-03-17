@@ -7,11 +7,11 @@ classdef radar < handle
 
 		oldBuf = [];
 		samples = 256;
-    startTime double;
+    startTime uint64;
 		triggerTimer;
 		
-	  bufferI = [];              % Circular buffer for I
-    bufferQ = [];              % Circular buffer for Q
+	  bufferI;              % Circular buffer for I
+    bufferQ;              % Circular buffer for Q
     bufferTime = [];           % Circular buffer for timestamps
     bufferSize = 100;          % Max buffer size
     writeIdx = 1;              % Index for next write
@@ -28,11 +28,9 @@ classdef radar < handle
 			% processIncommingData: reads next line on serial and parses the data
 			
 			buf = fgets(src);
-
 			if(length(buf) == 40)
 				return;
 			end
-
 			process = [obj.oldBuf buf];
 			
 			if length(process) ~= (4*obj.samples+11)
@@ -53,12 +51,13 @@ classdef radar < handle
 			data = typecast(uint16(tmp), 'int16');
 			
 
-			obj.bufferI(obj.writeIdx) = data(1:2:nData);
-      obj.bufferQ(obj.writeIdx) = data(2:2:nData);
+			obj.bufferI(obj.writeIdx, :) = data(1:2:length(data));
+      obj.bufferQ(obj.writeIdx, :) = data(2:2:length(data));
       obj.bufferTime(obj.writeIdx) = toc(obj.startTime);
             
       obj.writeIdx = mod(obj.writeIdx, obj.bufferSize) + 1;
-      notify(obj, 'NewDataAvailable');
+			fprintf("NEW DATA\n");
+      % notify(obj, 'NewDataAvailable');
 		end
 		
 
@@ -79,7 +78,7 @@ classdef radar < handle
 			gain='00';            % 00-8dB | 10-21dB | 10-43dB | 11-56dB
 			SER2='1';             % usb connect 0-off | 1-on
 			SER1='0';             % wifi 0-off | 1-on
-			SLF='1';              % 0-ext trig mode | 1-standard
+			SLF='0';              % 0-ext trig mode | 1-standard
 			PRE='0';              % pretrigger 
 			
 			% data frames sent to PC
@@ -121,21 +120,14 @@ classdef radar < handle
 			AVERAGEn='00';        % n FFTs averaged range 0-3
 			FFTsize='000';        % 000-32,64,128...,111-2048
 			DOWNsample='000';     % downsampling factor 000-0,1,2,4,8..111-64
+			RAMPS='000';          % ramps per measurement
 			
-			RAMPS='100';          % ramps per measurement
-			
-			
-			if obj.samples == 512
-				%512 (tr ~ 0.53)
-				NofSAMPLES='100';   % samples per measurement
-				ADCclkDIV='100';    % sampling freq
-			elseif obj.samples == 256
-				% 256 (tr ~ 0.7)
-				NofSAMPLES='011';   % samples per measurement
-				ADCclkDIV='100';    % sampling freq
-			end
+			[samplesReg, samplesBin, adc] = obj.hPreferences.getRadarBasebandParameters();
+			obj.samples = samplesReg;
+			obj.bufferI=zeros(obj.bufferSize, obj.samples);
+			obj.bufferQ=zeros(obj.bufferSize, obj.samples);
 
-			baseband=append(WIN,FIR,DC,CFAR,CFARthreshold,CFARsize,CFARgrd,AVERAGEn,FFTsize,DOWNsample,RAMPS,NofSAMPLES,ADCclkDIV);
+			baseband=append(WIN,FIR,DC,CFAR,CFARthreshold,CFARsize,CFARgrd,AVERAGEn,FFTsize,DOWNsample,RAMPS,samplesBin,adc);
 			basebandHEX=bin2hex(baseband);
 			basebandCommand=append('!B',basebandHEX);
 		end
@@ -148,7 +140,7 @@ classdef radar < handle
 			% frontendCommand ... hex string to be sent to the radar
 
 			FreqReserved='00000000000';
-			if obj.hPreferences.getRadarHeaderType() == 122 
+			if obj.hPreferences.getRadarFrontend() == 122 
 				fprintf("radar | frontendCommand | setting frontend to 122 GHz\n");
 				OperatingFreq='001110101001100011000';
 			else 
@@ -167,7 +159,10 @@ classdef radar < handle
 			% OUTPUT:
 			% pllCommand ... hex string to be sent to the radar
 
-			bandwidth=dec2hex(obj.hPreferences.getRadarBandwidth()/2);
+			bandwidth = obj.hPreferences.getRadarBandwidth();
+			disp(bandwidth)
+			disp(double(bandwidth)/2)
+			bandwidth=dec2hex(bandwidth);
 			pllCommand=append('!P0000',bandwidth);
 			disp(pllCommand);
 		end
@@ -194,7 +189,8 @@ classdef radar < handle
 
 			fprintf('Radar | radar | constructing object\n');
 			obj.hPreferences = hPreferences;
-            obj.startTime = startTime;
+      obj.startTime = startTime;
+			bufferTime = zeros(obj.bufferSize);
 		end
 		
 		function endProcesses(obj)
@@ -203,6 +199,7 @@ classdef radar < handle
 			if ~isempty(obj.hSerial)
 				configureCallback(obj.hSerial, "off");
 				delete(obj.hSerial)
+				stop(obj.triggerTimer);
 			end
 		end
 		
@@ -217,7 +214,7 @@ classdef radar < handle
 				delete(obj.hSerial)
 			end
 			[port, baudrate] = obj.hPreferences.getConnectionRadar();
-			try 
+			%try 
 				fprintf("radar | setupSerial | port: %s, baud: %f\n", port, baudrate)
 				obj.hSerial = serialport(port, baudrate, "Timeout", 5);
 				configureTerminator(obj.hSerial,"CR/LF");
@@ -228,16 +225,16 @@ classdef radar < handle
 				status = true;
 
 				obj.triggerTimer = timer;
-				obj.triggerTimer.StartDelay = 5;
-				obj.triggerTimer.Period = 0.04;
+				obj.triggerTimer.StartDelay = 4;
+				obj.triggerTimer.Period = obj.hPreferences.getRadarTriggerPeriod()/1000;
 				obj.triggerTimer.ExecutionMode = 'fixedSpacing';
 				obj.triggerTimer.UserData = 0;
 				obj.triggerTimer.TimerFcn = @(~,~) writeline(obj.hSerial, '!N');
 				start(obj.triggerTimer);
-			catch ME
-				fprintf("Radar | setupSerial | Failed to setup serial")
-				status = false;
-			end
+			%catch ME
+			%	fprintf("Radar | setupSerial | Failed to setup serial")
+			%	status = false;
+			%end
 		end
 	end
 end
