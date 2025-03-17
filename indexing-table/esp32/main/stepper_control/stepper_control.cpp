@@ -577,6 +577,15 @@ void StepperControl::commandSchedulerTask(void* arg)
 				steppers.waitStepper(stepperHalT, command->movementT->val.time, SYNCHRONIZED);
 			}
 			break;
+		case GCodeCommand::W3:
+#ifdef CONFIG_APP_DEBUG
+			if (command->movementT != nullptr)
+				ESP_LOGI(TAG, "commandSchedulerTask | W1 | T");
+#endif
+			if (command->movementT != nullptr) {
+				vTaskDelay(command->movementT->val.time / portTICK_PERIOD_MS);
+			}
+			break;
 		default:
 			break;
 		}
@@ -1112,6 +1121,21 @@ ParsingGCodeResult StepperControl::parseGCodeWCommands(const char* gcode, const 
 			ESP_LOGI(TAG, "parseGCode| W1 | H: %ld", command->movementH->val.time);
 		else if (command->movementT != nullptr)
 			ESP_LOGI(TAG, "parseGCode| W1 | T: %ld", command->movementT->val.time);
+#endif /* CONFIG_COMM_DEBUG */;
+	} else if (strncmp(gcode, "W3", 2) == 0) {
+#ifdef CONFIG_COMM_DEBUG
+		ESP_LOGI(TAG, "parseGCode| W3");
+#endif /* CONFIG_COMM_DEBUG */
+		command->type = GCodeCommand::W3;
+		elementInt = getElementInt(gcode, length, 2, "T", 1);
+
+		if (elementInt != GCODE_ELEMENT_INVALID_INT && elementInt > 0) {
+			command->movementT = new gcode_command_movement_t();
+			command->movementT->val.time = elementInt;
+		}
+#ifdef CONFIG_COMM_DEBUG
+		if (command->movementT != nullptr)
+			ESP_LOGI(TAG, "parseGCode| W3 | T: %ld", command->movementT->val.time);
 #endif /* CONFIG_COMM_DEBUG */;
 	} else
 		return ParsingGCodeResult::INVALID_COMMAND;

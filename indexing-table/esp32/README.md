@@ -199,6 +199,9 @@ WARNING: DO NOT use this device without first reading the documentation. Command
 	* H - angle by/to rotate in horizontal plane
 	* ST<SPEED> - speed for tilt motor in tilt axis
 	* T - angle by/to rotate in tilt axis
+* W3: wait in application layer
+	* T<TIME> - time to wait for in ms
+	* pauses execution in application layer
 
 
 

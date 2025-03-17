@@ -105,13 +105,13 @@ enum GCodeCommand : uint8_t {
 	G90,	// set absolute positioning 							DONE	DONE	DONE
 	G91,	// set relative positioning 							DONE	DONE	DONE
 	G92,	// set current position as home  					DONE	DONE	DONE
-	G28,	// start homing routine 									DONE	DONE	TODO
+	G28,	// start homing routine 									DONE	DONE	DONE
 	G0,		// move stepper 													DONE	DONE	DONE
-	M03,	// start spindle 													DONE	DONE	TODO
-	M05,	// stop spindle 													DONE	DONE	TODO
+	M03,	// start spindle 													DONE	DONE	DONE
+	M05,	// stop spindle 													DONE	DONE	DONE
 	M201, // set limits 														DONE	DONE	DONE
 	M202, // disable limits 												DONE	DONE	DONE
-	P0,		// stop programm execution 								DONE	XXX		TODO
+	P0,		// stop programm execution 								DONE	XXX		DONE
 	P1,		// start programm execution 							DONE	XXX		DONE
 	P2,		// delete program from memory 						DONE	XXX		DONE
 	P90,	// start program declaration (header) 		DONE	XXX		DONE
@@ -119,9 +119,10 @@ enum GCodeCommand : uint8_t {
 	P92,	// end programm declaration 							DONE	XXX		DONE
 	P21,	// declare for loop start 								DONE	DONE	TODO
 	P22,	// declare for loop end 									DONE	DONE	TODO
-	P29,	// declare infinitely looped programm 		DONE	XXX		TODO
+	P29,	// declare infinitely looped programm 		DONE	XXX		DONE
 	W0,		// wait seconds 													DONE	XXX		DONE
 	W1,		// wait milliseconds 											DONE	DONE 	DONE
+	W3,   // wait in application layer 							DONE	XXX 	DONE
 
 	// clear stepper QUEUE
 	COMMAND_TO_REMOVE
