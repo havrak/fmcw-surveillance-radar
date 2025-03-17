@@ -56,8 +56,7 @@ classdef radar < handle
       obj.bufferTime(obj.writeIdx) = toc(obj.startTime);
             
       obj.writeIdx = mod(obj.writeIdx, obj.bufferSize) + 1;
-			fprintf("NEW DATA\n");
-      % notify(obj, 'NewDataAvailable');
+      notify(obj, 'newDataAvailable');
 		end
 		
 
@@ -160,8 +159,6 @@ classdef radar < handle
 			% pllCommand ... hex string to be sent to the radar
 
 			bandwidth = obj.hPreferences.getRadarBandwidth();
-			disp(bandwidth)
-			disp(double(bandwidth)/2)
 			bandwidth=dec2hex(bandwidth);
 			pllCommand=append('!P0000',bandwidth);
 			disp(pllCommand);

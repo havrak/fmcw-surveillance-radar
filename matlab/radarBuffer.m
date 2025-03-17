@@ -14,14 +14,12 @@ classdef radarBuffer < handle
         end
 
         function addChirp(obj, I, Q, timestamp)
-            % Slide the buffer: Overwrite oldest entry with new chirp
             obj.FFTData(obj.currentIdx, :) = fft(I + 1j*Q);
             obj.timestamps(obj.currentIdx) = timestamp;
             obj.currentIdx = mod(obj.currentIdx, obj.bufferSize) + 1;
         end
 
         function [batchFFTs, batchTimes] = getSlidingBatch(obj)
-            % Retrieve the latest contiguous batch of size bufferSize
             idxs = mod((obj.currentIdx-1 : obj.currentIdx+obj.bufferSize-2), obj.bufferSize) + 1;
             batchFFTs = obj.FFTData(idxs, :);
             batchTimes = obj.timestamps(idxs);

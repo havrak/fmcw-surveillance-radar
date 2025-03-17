@@ -23,17 +23,24 @@ classdef preferences < handle
 		hEditRadarBandwith;     % uicontrol/edit - distance offset
 		hEditRadPatternT;
 		hEditRadPatternH;
-		hEditTriggerPeriod;    
+		hEditTriggerPeriod;
 		hDropRadarADC;
+
+		hDropVisualization;
 
 
 		% OTHER VARS %
 		availableBaudrates = [ 9600 19200 115200 230400 1000000];
 		availableSamples = [32 64 128 256 512 1024 2048 ];
-		availableADC = [2571 2400 2118 1800 1125 487 186 59]
+		availableADC = [2571 2400 2118 1800 1125 487 186 59];
+		availableVisualization = {'Range-Azimuth', 'Range-Doppler'};
 		binaryMap = ['000'; '001'; '010'; '011'; '100'; '101'; '110'; '111'];
 		configStruct;
 		configFilePath;
+	end
+
+	events
+		newConfigEvent
 	end
 
 	methods(Access = public)
@@ -57,7 +64,9 @@ classdef preferences < handle
 			obj.configStruct.platform.angleOffsetT=0;
 			obj.configStruct.platform.angleOffsetH=0;
 			obj.configStruct.platform.debug=1;
-			
+
+			obj.configStruct.processing.visualization=obj.availableVisualization(1);
+
 
 			obj.configStruct.programs=[];
 
@@ -232,7 +241,7 @@ classdef preferences < handle
 						continue;
 					end
 					% check for baudrate
-					
+
 					if (numel(strfind(item, 'baudrate')) ~=0) && (~any(obj.availableBaudrates == struct.(section).(item)))
 						fprintf('Prefernces | loadConfig | Unsupported baudrate wrong in config file\n');
 						struct.(section).(item) = obj.availableBaudrates(1);
@@ -262,8 +271,8 @@ classdef preferences < handle
 			% constructGUI: initializes all GUI elements
 
 			platformConfigOffset = 140;
-			radarConfigOffset = 270;
-
+			radarConfigOffset = 280;
+			processingOffset = 520;
 
 			fprintf('Preferences | constructGUI | starting gui constructions');
 			figSize = [500, 700];
@@ -392,7 +401,7 @@ classdef preferences < handle
 			obj.hDropRadarSample = uidropdown(obj.hFig, ...
 				'Position', [150, figSize(2)-radarConfigOffset-80, 80, 25], ...
 				'Items', {'32' '64' '128' '256' '512' '1024' '2048'});
-			
+
 			uilabel(obj.hFig, ...
 				'Position', [20, figSize(2)-radarConfigOffset-110, 140, 25], ...
 				'Text', 'ADC ClkDiv [MS/s]: ');
@@ -400,8 +409,8 @@ classdef preferences < handle
 			obj.hDropRadarADC = uidropdown(obj.hFig, ...
 				'Position', [150, figSize(2)-radarConfigOffset-110, 80, 25], ...
 				'Items', {'2571' '2400' '2118' '1800' '1125' '487' '186' '59'});
-			
-			
+
+
 			uilabel(obj.hFig, ...
 				'Position', [20, figSize(2)-radarConfigOffset-140, 140, 25], ...
 				'Text', 'Lobe width H: ');
@@ -434,6 +443,20 @@ classdef preferences < handle
 				'String',"", ...
 				'HorizontalAlignment', 'left');
 
+			%% Processing settings
+
+
+			uilabel(obj.hFig, 'Position', [20, figSize(2)-processingOffset, 240, 25], 'Text', 'VISUALIZATION CONFIG', 'FontWeight','bold');
+
+			uilabel(obj.hFig, ...
+				'Position', [20, figSize(2)-processingOffset-20, 140, 25], ...
+				'Text', 'Visualization:');
+
+			obj.hDropVisualization = uidropdown(obj.hFig, ...
+				'Position', [150, figSize(2)-processingOffset-20, 200, 25], ...
+				'Items', obj.availableVisualization);
+
+			%% Buttons
 			function reloadConfig(obj)
 				obj.loadConfig();
 				obj.configToGUI();
@@ -520,7 +543,11 @@ classdef preferences < handle
 				set(obj.hSwitchRadarHeader, 'Value', num2str(obj.configStruct.radar.header));
 			end
 
+			%% Processing config
 
+			if any(matches(obj.configStruct.processing.visualization,obj.availableVisualization))
+				set(obj.hDropVisualization, 'Value', obj.configStruct.processing.visualization);
+			end
 		end
 
 		function refreshSerial(obj)
@@ -545,8 +572,16 @@ classdef preferences < handle
 			else
 				obj.configStruct.platform.debug = 0;
 			end
-			obj.configStruct.radar.baudrate=str2double(obj.hDropRadarBaudrate.Value);
-			obj.configStruct.radar.header=obj.hSwitchRadarHeader.Value;
+
+			if strcmp(obj.hDropPlatformPort.Value,obj.hDropRadarPort.Value) == 1 && obj.hDropRadarPort.Value ~= "none"
+				err=true;
+				uialert(obj.hFig, 'Both serial ports are same', 'Serial port', 'icon', 'error');
+			else
+				obj.configStruct.platform.port=obj.hDropPlatformPort.Value;
+				obj.configStruct.radar.port=obj.hDropRadarPort.Value;
+			end
+
+
 
 			%% Platform config
 			tmp = get(obj.hEditOffsetD, 'String');
@@ -568,9 +603,12 @@ classdef preferences < handle
 
 			%% Radar config
 
+			obj.configStruct.radar.baudrate=str2double(obj.hDropRadarBaudrate.Value);
+			obj.configStruct.radar.header=obj.hSwitchRadarHeader.Value;
 			obj.configStruct.radar.samples=str2double(obj.hDropRadarSample.Value);
 			obj.configStruct.radar.adc=str2double(obj.hDropRadarADC.Value);
-	
+
+
 			tmp = get(obj.hEditRadPatternH, 'String');
 			if isnan(str2double(tmp)) warndlg('Lobe width must be numerical');
 			else obj.configStruct.radar.radPatternH=str2double(tmp);
@@ -580,7 +618,7 @@ classdef preferences < handle
 			if isnan(str2double(tmp)) warndlg('Lobe width must be numerical');
 			else obj.configStruct.radar.radPatternT=str2double(tmp);
 			end
-				
+
 			tmp = get(obj.hEditTriggerPeriod, 'String');
 			if (isnan(str2double(tmp)) || any(tmp <0)) warndlg('Trigger period must be numerical');
 			else obj.configStruct.radar.trigger=str2double(tmp);
@@ -592,13 +630,9 @@ classdef preferences < handle
 			else obj.configStruct.radar.bandwidth=str2double(tmp);
 			end
 
-			if strcmp(obj.hDropPlatformPort.Value,obj.hDropRadarPort.Value) == 1 && obj.hDropRadarPort.Value ~= "none"
-				err=true;
-				uialert(obj.hFig, 'Both serial ports are same', 'Serial port', 'icon', 'error');
-			else
-				obj.configStruct.platform.port=obj.hDropPlatformPort.Value;
-				obj.configStruct.radar.port=obj.hDropRadarPort.Value;
-			end
+			%% Processing
+
+			obj.configStruct.processing.visualization = obj.hDropVisualization.Value;
 
 			if ~err
 				uialert(obj.hFig, 'Config applied', 'Config', 'icon', 'info', 'CloseFcn','uiresume(gcbf)');
@@ -607,6 +641,7 @@ classdef preferences < handle
 			end
 
 			storeConfig(obj);
+			notify(obj, 'newConfigEvent');
 		end
 	end
 end

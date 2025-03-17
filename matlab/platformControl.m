@@ -392,6 +392,7 @@ classdef platformControl < handle
 			timestamps = obj.positionTimes(startIdx:endIdx);
 			horz = obj.positionHorz(startIdx:endIdx);
 			tilt = obj.positionTilt(startIdx:endIdx);
+
 		end
 
 		function [horz, tilt] = getPositionAtTime(obj, time)

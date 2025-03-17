@@ -4,6 +4,7 @@ classdef app < handle
 		hPanelBtn              % uipanel - panel to group buttons
 		hBtnConnectRadar;      % uicontrol/pushBtn - new program
 		hBtnConnectPlatform;   % uicontrol/pushBtn - delete a program
+		hPanelView;
 		hBtnConnectPlatformS;
 		hTextTelemetry;        % uicontrol/text - basic telemetry
 
@@ -27,7 +28,7 @@ classdef app < handle
 			obj.hPreferences = preferences();
 			obj.hPlatformControl = platformControl(obj.hPreferences, time);
 			obj.hRadar = radar(obj.hPreferences, time);
-			obj.hDataProcessor = dataProcessor(obj.hRadar, obj.hPlatformControl, obj.hPreferences);
+			obj.hDataProcessor = dataProcessor(obj.hRadar, obj.hPlatformControl, obj.hPreferences, obj.hPanelView);
 		end
 
 
@@ -52,6 +53,8 @@ classdef app < handle
 				'AutoResizeChildren', 'off', ...
 				'DeleteFcn',@(~,~) obj.shutdown());
 
+
+			obj.hPanelView = uipanel(obj.hFig, 'Title','Radar view');
 			obj.hToolbar = uitoolbar(obj.hFig);
 
 			[img,map] = imread(fullfile(matlabroot,...
@@ -143,7 +146,7 @@ classdef app < handle
 
 			displayWidth = width - 180;
 
-			obj.hTextTelemetry.Position = [10, 20, displayWidth-20, 200];
+			obj.hTextTelemetry.Position = [10, 20, displayWidth-20, 100];
 
 			buttonPanelWidth = 180;
 			obj.hPanelBtn.Position = [displayWidth, 20, buttonPanelWidth-10, height - 30];
@@ -151,7 +154,7 @@ classdef app < handle
 			spacing = 10;
 			obj.hBtnConnectPlatform.Position = [10, height - 50 - buttonHeight - spacing, buttonPanelWidth - 30, buttonHeight];
 			obj.hBtnConnectRadar.Position = [10, height - 50 - 2 * (buttonHeight + spacing), buttonPanelWidth - 30, buttonHeight];
-
+			obj.hPanelView.Position = [10, 130, width-200, height-140];
 		end
 
 	end
