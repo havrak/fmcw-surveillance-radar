@@ -11,26 +11,29 @@ classdef dataProcessor < handle
 
 		hImage;
 		hAxes;
+		currentDisplayMethod;
 
 		readIdx = 1;
 		radarBufferSize = 100;
+		speedBins = 16;
+		currentVisualizationStyle = '';
 	end
 
 	methods(Static, Access=private)
 
-	
+
 		function [horz, tilt, rangeProfile, dopplerProfile] = ...
-				processBatch(batchRangeFFTs, batchTimes, posTimes, posHorz, posTilt)
+				processBatch(batchRangeFFTs, batchTimes, posTimes, posHorz, posTilt, speedBins)
 
 			if(isempty(posTimes)) % NOTE just for testing
-				posHorz = [0];
-				posTilt = [0];
-				posTimes = [0];
-			
+				posHorz = 0;
+				posTilt = 0;
+				posTimes = 0;
+
 			end
 			fid = fopen('processing.txt', 'a+');
 			fprintf(fid, "New batch\n");
-			
+
 
 			% Allow only small movement changes (deg/s)
 			dt = diff(posTimes);
@@ -40,7 +43,7 @@ classdef dataProcessor < handle
 
 			for i=length(dHorz):-1:1
 				% stop on fast change
-				if any(abs(dHorz) > 5) || any(abs(dTilt) > 10) 
+				if any(abs(dHorz) > 5) || any(abs(dTilt) > 10)
 					break;
 				end
 				% TODO stop on accumulated distance (if radar moved too much we
@@ -49,11 +52,11 @@ classdef dataProcessor < handle
 			end
 
 			if lowBoundIndex ~= 1
-				% we need to find closes timestamp in batchTimes 
+				% we need to find closes timestamp in batchTimes
 				[~, idxMin] = min(abs(batchTimes - posTimes(lowBoundIndex)));
 				batchRangeFFTs(1:idxMin) = [];
 				batchTimes(1:idxMin) = [];
-				fprintf(fid, "Restricting spectrum count due to too fast movement")
+				fprintf(fid, "Restricting spectrum count due to too fast movement");
 			end
 
 
@@ -69,9 +72,9 @@ classdef dataProcessor < handle
 				% USE FFT
 				fprintf(fid, "ugly timing detected\n");
 			end
-			%else
-				% Regular FFT for uniform sampling
-			dopplerProfile = fftshift(fft(batchRangeFFTs, [], 1), 1);
+			% else
+			% Regular FFT for uniform sampling
+			dopplerProfile = fftshift(fft(batchRangeFFTs, 16, 1), 1);
 			%end
 
 
@@ -80,7 +83,11 @@ classdef dataProcessor < handle
 			% Compute Doppler FFT (using cached Range FFTs)
 			% Use latest sample's angles for output
 			rangeProfile = batchRangeFFTs(end, :);
-			horz = posHorz(end);
+			if posHorz(end) > 180
+				horz = posHorz(end)-360;
+			else
+				horz = posHorz(end);
+			end
 			tilt = posTilt(end);
 			fclose(fid);
 
@@ -95,10 +102,35 @@ classdef dataProcessor < handle
 			obj.isProcessing = false;
 
 			% Draw range azimuth
-			data = obj.hDataCube.RangeAzimuth(:, 10, :);
-			obj.hImage.CData = data;
-			drawnow limitrate;
+			if strcmp(obj.currentVisualizationStyle,'Range-Azimuth')
+				data = sum(obj.hDataCube.RangeAzimuth,4);
+				data = data(:, 10, :);
+				obj.hImage.CData = data;
+				drawnow limitrate;
+			end
 
+		end
+
+		function onNewConfigAvailable(obj)
+			% TODO Deinitilize variables
+
+			[radPatterH, radPatterT] = obj.hPreferences.getRadarRadiationParamters();
+			[samples, ~, ~ ] = obj.hPreferences.getRadarBasebandParameters();
+
+			obj.speedBins = obj.hPreferences.getProcessingSpeedBins();
+			visual=obj.hPreferences.getProcessingVisualization();
+			
+			obj.hDataCube = radarDataCube(samples, obj.speedBins, radPatterH, radPatterT);
+			obj.hRadarBuffer = radarBuffer(32, samples);
+			
+			
+			if strcmp(visual, 'Range-Azimuth')
+				fprintf("dataProcessor | onNewConfigAvailable | visualizing as azimuth-range map.\n")
+				% this will requite deinitialization of previous visualization
+				obj.currentVisualizationStyle = 'Range-Azimuth';
+				obj.initializeARDisplay();
+			end
+			java.lang.System.gc();
 		end
 
 		function onNewDataAvailable(obj)
@@ -117,37 +149,43 @@ classdef dataProcessor < handle
 			%	obj.isProcessing = true; % Lock processing
 			[batchRangeFFTs, batchTimes] = obj.hRadarBuffer.getSlidingBatch();
 			[posTimes, horz, tilt] = obj.hPlatform.getPositionsInInterval(min(batchTimes), max(batchTimes));
-		
+
 			disp("Launching parfeval");
 			future = parfeval(obj.parallelPool, ...
 				@dataProcessor.processBatch, 4, ...
-				batchRangeFFTs, batchTimes, posTimes, horz, tilt);
-			
-			
+				batchRangeFFTs, batchTimes, posTimes, horz, tilt, obj.speedBins);
+
+
 			afterAll(future, @(varargin) obj.mergeResults(varargin{:}), 0);
 			%end
 		end
+		
+		function deinitializeDisplay(obj)
+			if ~isempty(obj.hAxes)
+				delete(obj.hAxes);
+				delete(obj.hImage);
+			end
+		end
+		function initializeARDisplay(obj)
+			obj.hAxes = axes('Parent', obj.hPanel, ...
+				'Units', 'normalized', ...
+				'Position', [0 0 1 1]);
 
-		   function initializeARDisplay(obj)
-            obj.hAxes = axes('Parent', obj.hPanel, ...
-                          'Units', 'normalized', ...
-                          'Position', [0 0 1 1]);
-            
-						[samples, ~, ~ ] = obj.hPreferences.getRadarBasebandParameters();
-            initialData = zeros(360, samples);
-            shiftedData = fftshift(initialData, 2);
-            
-            obj.hImage = imagesc(obj.hAxes, ...
-                obj.hDataCube.AzimuthBins, ...
-                1:samples, shiftedData);
-            
-            axis(obj.hAxes, 'xy');
-            xlabel(obj.hAxes, 'Azimuth (degrees)');
-            ylabel(obj.hAxes, 'Range (bin)');
-            title(obj.hAxes, 'Azimuth-Range Map');
-            colormap(obj.hAxes, 'jet');
-            colorbar(obj.hAxes);
-			 end
+			[samples, ~, ~ ] = obj.hPreferences.getRadarBasebandParameters();
+			initialData = zeros(360, samples);
+			shiftedData = fftshift(initialData, 2);
+
+			obj.hImage = imagesc(obj.hAxes, ...
+				obj.hDataCube.AzimuthBins, ...
+				1:samples, shiftedData);
+
+			axis(obj.hAxes, 'xy');
+			xlabel(obj.hAxes, 'Azimuth (degrees)');
+			ylabel(obj.hAxes, 'Range (bin)');
+			title(obj.hAxes, 'Azimuth-Range Map');
+			colormap(obj.hAxes, 'jet');
+			colorbar(obj.hAxes);
+		end
 
 	end
 
@@ -162,18 +200,13 @@ classdef dataProcessor < handle
 			end
 
 			% TODO -> move some of these paramters to be updateable on the fly
-			[radPatterH, radPatterT] = preferencesObj.getRadarRadiationParamters();
-			[samples, ~, ~ ] = preferencesObj.getRadarBasebandParameters();
-			obj.hDataCube = radarDataCube(samples, 32, radPatterH, radPatterT);
-			obj.hRadarBuffer = radarBuffer(32, samples);
 			obj.hPanel = panelObj;
 
-			obj.initializeARDisplay();
+			obj.onNewConfigAvailable();
 
 			addlistener(radarObj, 'newDataAvailable', @(~,~) obj.onNewDataAvailable());
+			addlistener(preferencesObj, 'newConfigEvent', @(~,~) obj.onNewConfigAvailable());
 		end
-
-
 
 
 		function endProcesses(obj)

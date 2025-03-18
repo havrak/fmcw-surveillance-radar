@@ -1,5 +1,5 @@
 classdef preferences < handle
-	properties (Access = public)
+	properties (Access = private)
 
 		% GUI %
 		hFig;                   % uifugre - main figure
@@ -26,14 +26,16 @@ classdef preferences < handle
 		hEditTriggerPeriod;
 		hDropRadarADC;
 
-		hDropVisualization;
+		hDropProVisualization;
+		hEditProSpeedBins;
 
 
 		% OTHER VARS %
 		availableBaudrates = [ 9600 19200 115200 230400 1000000];
 		availableSamples = [32 64 128 256 512 1024 2048 ];
 		availableADC = [2571 2400 2118 1800 1125 487 186 59];
-		availableVisualization = {'Range-Azimuth', 'Range-Doppler'};
+		availableVisualization = {'Range-Azimuth', 'Range-Doppler', 'Target-2D', 'Target-3D'};
+		
 		binaryMap = ['000'; '001'; '010'; '011'; '100'; '101'; '110'; '111'];
 		configStruct;
 		configFilePath;
@@ -66,6 +68,7 @@ classdef preferences < handle
 			obj.configStruct.platform.debug=1;
 
 			obj.configStruct.processing.visualization=obj.availableVisualization(1);
+			obj.configStruct.processing.maxSpeedBins=0;
 
 
 			obj.configStruct.programs=[];
@@ -108,6 +111,14 @@ classdef preferences < handle
 
 		function setPrograms(obj, programs)
 			obj.configStruct.programs = programs;
+		end
+
+		function visualization =  getProcessingVisualization(obj)
+			visualization = obj.configStruct.processing.visualization;
+		end
+
+		function speedBins = getProcessingSpeedBins(obj)
+			speedBins = obj.configStruct.processing.maxSpeedBins;
 		end
 
 		function [port, baudrate] = getConnectionPlatform(obj)
@@ -452,9 +463,22 @@ classdef preferences < handle
 				'Position', [20, figSize(2)-processingOffset-20, 140, 25], ...
 				'Text', 'Visualization:');
 
-			obj.hDropVisualization = uidropdown(obj.hFig, ...
+			obj.hDropProVisualization = uidropdown(obj.hFig, ...
 				'Position', [150, figSize(2)-processingOffset-20, 200, 25], ...
 				'Items', obj.availableVisualization);
+
+			uilabel(obj.hFig, ...
+				'Position', [20, figSize(2)-processingOffset-50, 170, 25], ...
+				'Text', 'Speed resolution:');
+
+			obj.hEditProSpeedBins = uicontrol('Style', 'edit', ...
+				'Parent',obj.hFig,  ...
+				'Position', [150, figSize(2)-processingOffset-50, 170, 25], ...
+				'Max',1, ...
+				'String',"", ...
+				'HorizontalAlignment', 'left');
+
+			
 
 			%% Buttons
 			function reloadConfig(obj)
@@ -546,8 +570,11 @@ classdef preferences < handle
 			%% Processing config
 
 			if any(matches(obj.configStruct.processing.visualization,obj.availableVisualization))
-				set(obj.hDropVisualization, 'Value', obj.configStruct.processing.visualization);
+				set(obj.hDropProVisualization, 'Value', obj.configStruct.processing.visualization);
 			end
+
+			set(obj.hEditProSpeedBins, 'String', obj.configStruct.processing.maxSpeedBins);
+		
 		end
 
 		function refreshSerial(obj)
@@ -632,12 +659,17 @@ classdef preferences < handle
 
 			%% Processing
 
-			obj.configStruct.processing.visualization = obj.hDropVisualization.Value;
+			obj.configStruct.processing.visualization = obj.hDropProVisualization.Value;
 
 			if ~err
 				uialert(obj.hFig, 'Config applied', 'Config', 'icon', 'info', 'CloseFcn','uiresume(gcbf)');
 				uiwait(gcbf);
 				set(obj.hFig, 'Visible', 'off');
+			end
+			
+			tmp = get(obj.hEditProSpeedBins, 'String');
+			if isnan(str2double(tmp)) warndlg('Bandwidth must be numerical');
+			else obj.configStruct.processing.maxSpeedBins=str2double(tmp);
 			end
 
 			storeConfig(obj);

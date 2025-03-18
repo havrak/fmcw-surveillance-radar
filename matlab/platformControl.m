@@ -1,12 +1,14 @@
 classdef platformControl < handle
 	%properties (SetAccess = private, GetAccess=public)
-	properties (Access = public)
+	properties (Access = private)
 
 		% GUI %
 		hFig;                  % uifigure - main figure
 		hListboxSidebar;       % listbox - sidebar with different programs
 		hEditCommand;          % uicontrol/edit - text field for commands
-		hEditProgram;          % uicontrol/edit - large text field for program declaration
+		hEditProgramHeader;          % uicontrol/edit - large text field for program declaration
+		hEditProgramMain;          % uicontrol/edit - large text field for program declaration
+		
 		hPanelBtn              % uipanel - panel to group buttons
 		hBtnNew;               % uicontrol/pushBtn - new program
 		hBtnDelete;            % uicontrol/pushBtn - delete a program
@@ -66,7 +68,14 @@ classdef platformControl < handle
 				'Callback', @(src,data) obj.callbackQuickCommand());
 
 
-			obj.hEditProgram = uicontrol('Style', 'edit', ...
+			obj.hEditProgramHeader = uicontrol('Style', 'edit', ...
+				'Parent', obj.hFig, ...
+				'Tag', 'ProgramDisplay', ...
+				'Max', 2, ...
+				'HorizontalAlignment', 'left', ...
+				'String', '');
+
+			obj.hEditProgramMain = uicontrol('Style', 'edit', ...
 				'Parent', obj.hFig, ...
 				'Tag', 'ProgramDisplay', ...
 				'Max', 2, ...
@@ -143,7 +152,9 @@ classdef platformControl < handle
 			obj.hEditCommand.Position = [sidebarWidth + 20, height - 40, width - sidebarWidth - 30, 30];
 			displayWidth = width - sidebarWidth - 210;
 
-			obj.hEditProgram.Position = [sidebarWidth + 20, 230, displayWidth, height-280];
+			obj.hEditProgramHeader.Position = [sidebarWidth + 20, height-200, displayWidth, 150];
+			obj.hEditProgramMain.Position = [sidebarWidth + 20, 230, displayWidth, height-440];
+			
 			obj.hTextOut.Position = [sidebarWidth + 20, 20, displayWidth, 200];
 
 			buttonPanelWidth = 180;
@@ -171,8 +182,23 @@ classdef platformControl < handle
 			fields = fieldnames(obj.programs); % Get fieldnames
 			if selected > 0 && selected <= numel(fields)
 				obj.currentProgramName = fields{selected};
-				obj.hEditProgram.String = sprintf(obj.programs.(obj.currentProgramName)); % sprintf will execute line breaks
-			end
+				text = split(obj.programs.(obj.currentProgramName), 'P91\n');
+				disp(obj.currentProgramName);
+				if(numel(text) > 2)
+					fprintf("TODO ERROR");
+				elseif numel(text) == 1
+					obj.hEditProgramHeader.String = sprintf(text{1}); % sprintf will execute line breaks
+					obj.hEditProgramMain.String="";
+				else
+					disp(text);
+					disp(text{1});
+					disp(text{2});
+
+					obj.hEditProgramHeader.String = sprintf(text{1}); % sprintf will execute line breaks
+					obj.hEditProgramMain.String = sprintf(text{2}); % sprintf will execute line breaks
+			
+				end
+				end
 		end
 
 		function callbackQuickCommand(obj)
@@ -252,7 +278,7 @@ classdef platformControl < handle
 			set(obj.hListboxSidebar, 'String', progs);
 
 			if(isempty(progs))
-				obj.hEditProgram.String = "";
+				obj.hEditProgramHeader.String = "";
 			else
 				set(obj.hListboxSidebar, 'Value', 1);
 				obj.loadProgram();
@@ -272,9 +298,15 @@ classdef platformControl < handle
 			% saveProgram: saves content of editor window to internal structure
 			% if not executed program description will not be the one stored
 			
-			value = get(obj.hEditProgram, 'String');
-			trimmed = (strtrim(string(value)));
-			tosave = strjoin(trimmed, "\n");
+			valueHeader = get(obj.hEditProgramHeader, 'String');
+			trimmedHeader = (strtrim(string(valueHeader)));
+			tosaveHeader = strjoin(trimmedHeader, "\n");
+
+			valueMain = get(obj.hEditProgramMain, 'String');
+			trimmedMain = (strtrim(string(valueMain)));
+			tosaveMain = strjoin(trimmedMain, "\n");
+			tosave =append(tosaveHeader, "P91\n",tosaveMain);
+
 			disp (tosave);
 			obj.programs.(obj.currentProgramName) = tosave;
 		end
@@ -297,14 +329,23 @@ classdef platformControl < handle
 			% P90 and P92 commands are automatically added
 
 			% Empty callback for Upload Program button
-			value = get(obj.hEditProgram, 'String');
-			trimmed = (strtrim(string(value)));
+		
 			% -> call to send
 			flush(obj.hSerial);
 			writeline(obj.hSerial, "P90 "+obj.currentProgramName);
-			for i=1:numel(trimmed)
-				disp(trimmed(i));
-				writeline(obj.hSerial, trimmed(i));
+			valueHeader = get(obj.hEditProgramHeader, 'String');
+			trimmedHeader = (strtrim(string(valueHeader)));
+			for i=1:numel(trimmedHeader)
+				disp(trimmedHeader(i));
+				writeline(obj.hSerial, trimmedHeader(i));
+				pause(0.02); % incomming buffer on esp32 is not infinite so we introduce a small delay
+			end
+			writeline(obj.hSerial, "P91");
+			valueMain = get(obj.hEditProgramMain, 'String');
+			trimmedMain = (strtrim(string(valueMain)));
+			for i=1:numel(trimmedMain)
+				disp(trimmedMain(i));
+				writeline(obj.hSerial, trimmedMain(i));
 				pause(0.02); % incomming buffer on esp32 is not infinite so we introduce a small delay
 			end
 

@@ -44,8 +44,6 @@ void StepperControl::init()
 	// on first step there are some initializations taking place that make it much longer than the rest
 	steppers.stepStepper(stepperHalT, 1, 1, true);
 	steppers.stepStepper(stepperHalH, 1, 1, true);
-	steppers.stepStepper(stepperHalT, -1, 1, true);
-	steppers.stepStepper(stepperHalH, -1, 1, true);
 
 	xTaskCreate(StepperControl::commandSchedulerTask, "commandSchedulerTask", 4096, NULL, 5, &commandSchedulerTaskHandle);
 }
@@ -256,6 +254,8 @@ void StepperControl::commandSchedulerTask(void* arg)
 		// 	ESP_LOGI(TAG, "H position %lld, H traveled %lld, T position %lld, T traveled %lld", stepperOpParH.position, travelledH, stepperOpParT.position, travelledT);
 		// 	ESP_LOGI(TAG, "!P %lld, %f, %f\n", esp_timer_get_time()/1000, STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParH.position + travelledH, CONFIG_STEPPER_H_STEP_COUNT), CONFIG_STEPPER_H_STEP_COUNT), STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParT.position + travelledT, CONFIG_STEPPER_H_STEP_COUNT), CONFIG_STEPPER_H_STEP_COUNT));
 		// }
+
+
 		printf("!P %lld, %f, %f\n", esp_timer_get_time()/1000, STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParH.position + steppers.getStepsTraveledOfCurrentCommand(stepperHalH), CONFIG_STEPPER_H_STEP_COUNT), CONFIG_STEPPER_H_STEP_COUNT), STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParT.position + steppers.getStepsTraveledOfCurrentCommand(stepperHalT), CONFIG_STEPPER_T_STEP_COUNT), CONFIG_STEPPER_T_STEP_COUNT));
 		// if queues are filled we will wait
 
@@ -1271,7 +1271,7 @@ ParsingGCodeResult StepperControl::parseGCodePCommands(const char* gcode, const 
 		ESP_LOGI(TAG, "parseGCode| P91");
 #endif /* CONFIG_COMM_DEBUG */
 		command->type = GCodeCommand::COMMAND_TO_REMOVE;
-		if (commandDestination != activeProgram->header || programmingMode != ProgrammingMode::PROGRAMMING)
+		if (programmingMode != ProgrammingMode::PROGRAMMING || commandDestination != activeProgram->header)
 			return ParsingGCodeResult::COMMAND_BAD_CONTEXT;
 		if (activeProgram->header->size() == 0)
 			return ParsingGCodeResult::NON_CLOSED_LOOP;
@@ -1282,7 +1282,7 @@ ParsingGCodeResult StepperControl::parseGCodePCommands(const char* gcode, const 
 		ESP_LOGI(TAG, "parseGCode| P29");
 #endif /* CONFIG_COMM_DEBUG */
 		command->type = GCodeCommand::COMMAND_TO_REMOVE;
-		if (commandDestination != activeProgram->header || programmingMode != ProgrammingMode::PROGRAMMING) // we can only declare looped command in the header
+		if (programmingMode != ProgrammingMode::PROGRAMMING || commandDestination != activeProgram->header) // we can only declare looped command in the header
 			return ParsingGCodeResult::COMMAND_BAD_CONTEXT;
 		activeProgram->repeatIndefinitely = true;
 	} else if (strncmp(gcode, "P2", 2) == 0) {
