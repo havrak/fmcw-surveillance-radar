@@ -22,7 +22,7 @@ classdef dataProcessor < handle
 	methods(Static, Access=private)
 
 
-		function [horz, tilt, rangeProfile, dopplerProfile] = ...
+		function [horz, tilt, rangeProfile, rangeDoppler] = ...
 				processBatch(batchRangeFFTs, batchTimes, posTimes, posHorz, posTilt, speedBins)
 	
 			%fid = fopen('processing.txt', 'a+');
@@ -76,7 +76,7 @@ classdef dataProcessor < handle
 			end
 			% else
 			% Regular FFT for uniform sampling
-			dopplerProfile = fftshift(fft(batchRangeFFTs, 16, 1), 1);
+			rangeDoppler = fftshift(fft(batchRangeFFTs, 16, 1), 1);
 			%end
 
 
@@ -91,16 +91,18 @@ classdef dataProcessor < handle
 				horz = posHorz(end);
 			end
 			tilt = posTilt(end);
+
+			fprintf("Dimensions Fast time: %f, Slow time %f\n", length(rangeProfile), length(dopplerProfile))
 			% fclose(fid);
 
 		end
 	end
 
 	methods(Access=private)
-		function mergeResults(obj, azimuth, tilt, rangeProfile, dopplerProfile)
+		function mergeResults(obj, azimuth, tilt, rangeProfile, rangeDoppler)
 			fprintf("Processing ended\n");
 			disp(azimuth)
-			obj.hDataCube.addData(azimuth, tilt, rangeProfile, dopplerProfile);
+			obj.hDataCube.addData(azimuth, tilt, rangeProfile, rangeDoppler);
 			obj.isProcessing = false;
 
 			% Draw range azimuth
@@ -143,8 +145,8 @@ classdef dataProcessor < handle
 
 
 
-			obj.hRadarBuffer.addChirp(obj.hRadar.bufferI(obj.readIdx), ...
-				obj.hRadar.bufferQ(obj.readIdx), ...
+			obj.hRadarBuffer.addChirp(obj.hRadar.bufferI(obj.readIdx, :), ...
+				obj.hRadar.bufferQ(obj.readIdx, :), ...
 				obj.hRadar.bufferTime(obj.readIdx));
 			obj.readIdx =  mod(obj.readIdx, obj.radarBufferSize) + 1;
 

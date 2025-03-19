@@ -20,7 +20,7 @@ classdef radarDataCube < handle
 			size(obj.antennaPattern)
 		end
 
-		function addData(obj, azimuth, tilt, rangeProfile, dopplerProfile)
+		function addData(obj, azimuth, tilt, rangeProfile, rangeDoppler)
 			[~, azIdx] = min(abs(obj.azimuthBins - azimuth));
 			[~, tiltIdx] = min(abs(obj.tiltBins - tilt));
 
@@ -35,7 +35,8 @@ classdef radarDataCube < handle
 			azPatternIndex = 1;
 			tiltPatterIndex=tiltIdx-floor(size(obj.antennaPattern, 1)/2)-limitTlMin+1;
 			disp(tiltPatterIndex);
-			
+			matrix =   rangeDoppler;
+			size(matrix)
 			size(obj.rangeAzimuthDoppler)
 			size(obj.antennaPattern)
 			for az = limitAzMin:limitAzMax
@@ -44,9 +45,10 @@ classdef radarDataCube < handle
 					
 					fprintf("Starting applying pattern from: horz: %f tilt: %f", azPatternIndex, tiltPatterIndex);
 					weight = obj.antennaPattern(tiltPatterIndex,azPatternIndex);
-					obj.rangeAzimuthDoppler(az, tl, :, :) = ...
-						obj.rangeAzimuthDoppler(az, tl, :, :) + ...
-					weight * (rangeProfile' * dopplerProfile); % Weight range profile, don't weight doppler profile
+					%updateFrom=
+					%obj.rangeAzimuthDoppler(az, tl, :, :) = ...
+					%	obj.rangeAzimuthDoppler(az, tl, :, :) + ...
+					%weight * (rangeProfile' * dopplerProfile); % Weight range profile, don't weight doppler profile
 					tiltPatterIndex= tiltPatterIndex+1;
 				end
 				azPatternIndex= azPatternIndex+1;
