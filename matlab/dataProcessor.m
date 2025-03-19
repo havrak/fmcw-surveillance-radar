@@ -24,23 +24,25 @@ classdef dataProcessor < handle
 
 		function [horz, tilt, rangeProfile, dopplerProfile] = ...
 				processBatch(batchRangeFFTs, batchTimes, posTimes, posHorz, posTilt, speedBins)
+	
+			%fid = fopen('processing.txt', 'a+');
+			fprintf("-------------------\nNew batch\n");
+
 
 			if(isempty(posTimes)) % NOTE just for testing
+				fprintf("ERRR");
 				posHorz = 0;
 				posTilt = 0;
-				posTimes = 0;
+				posTimes = [0 0];
 
 			end
-			fid = fopen('processing.txt', 'a+');
-			fprintf(fid, "New batch\n");
-
-
+		
 			% Allow only small movement changes (deg/s)
 			dt = diff(posTimes);
 			dHorz = gradient(posHorz, dt);
 			dTilt = gradient(posTilt, dt);
 			lowBoundIndex = length(dHorz);
-
+			
 			for i=length(dHorz):-1:1
 				% stop on fast change
 				if any(abs(dHorz) > 5) || any(abs(dTilt) > 10)
@@ -56,7 +58,7 @@ classdef dataProcessor < handle
 				[~, idxMin] = min(abs(batchTimes - posTimes(lowBoundIndex)));
 				batchRangeFFTs(1:idxMin) = [];
 				batchTimes(1:idxMin) = [];
-				fprintf(fid, "Restricting spectrum count due to too fast movement");
+				fprintf("Restricting spectrum count due to too fast movement");
 			end
 
 
@@ -70,7 +72,7 @@ classdef dataProcessor < handle
 
 			if useNUFFT
 				% USE FFT
-				fprintf(fid, "ugly timing detected\n");
+				fprintf("ugly timing detected\n");
 			end
 			% else
 			% Regular FFT for uniform sampling
@@ -89,7 +91,7 @@ classdef dataProcessor < handle
 				horz = posHorz(end);
 			end
 			tilt = posTilt(end);
-			fclose(fid);
+			% fclose(fid);
 
 		end
 	end
@@ -124,16 +126,17 @@ classdef dataProcessor < handle
 			obj.hRadarBuffer = radarBuffer(32, samples);
 			
 			
-			if strcmp(visual, 'Range-Azimuth')
+			if strcmp(visual, 'Range-Azimuth') && ~strcmp(obj.currentVisualizationStyle, 'Range-Azimuth')
 				fprintf("dataProcessor | onNewConfigAvailable | visualizing as azimuth-range map.\n")
 				% this will requite deinitialization of previous visualization
 				obj.currentVisualizationStyle = 'Range-Azimuth';
+				% obj.deinitializeDisplay();
 				obj.initializeARDisplay();
 			end
 			java.lang.System.gc();
 		end
 
-		function onNewDataAvailable(obj)
+		function onNewDataAvailable(obj) 
 			% Called automatically when radar data arrives
 			% TODO: add chirp to buffer -> run processing on buffer
 			% on addition to chirps processing will also get data about positions
@@ -151,12 +154,14 @@ classdef dataProcessor < handle
 			[posTimes, horz, tilt] = obj.hPlatform.getPositionsInInterval(min(batchTimes), max(batchTimes));
 
 			disp("Launching parfeval");
-			future = parfeval(obj.parallelPool, ...
-				@dataProcessor.processBatch, 4, ...
-				batchRangeFFTs, batchTimes, posTimes, horz, tilt, obj.speedBins);
+			%future = parfeval(obj.parallelPool, ...
+			%	@dataProcessor.processBatch, 4, ...
+			%	batchRangeFFTs, batchTimes, posTimes, horz, tilt, obj.speedBins);
 
+			[azimuth, tilt, rangeProfile, dopplerProfile] = dataProcessor.processBatch(batchRangeFFTs, batchTimes, posTimes, horz, tilt, obj.speedBins);
+			obj.mergeResults(azimuth, tilt, rangeProfile, dopplerProfile);
 
-			afterAll(future, @(varargin) obj.mergeResults(varargin{:}), 0);
+			%afterAll(future, @(varargin) obj.mergeResults(varargin{:}), 0);
 			%end
 		end
 		
@@ -167,16 +172,20 @@ classdef dataProcessor < handle
 			end
 		end
 		function initializeARDisplay(obj)
+			panelPos = get(obj.hPanel, 'Position');
+			width = panelPos(3);
+			height = panelPos(4);
+
 			obj.hAxes = axes('Parent', obj.hPanel, ...
 				'Units', 'normalized', ...
-				'Position', [0 0 1 1]);
+				'Position', [0.1 0.1 0.8 0.8]);
 
 			[samples, ~, ~ ] = obj.hPreferences.getRadarBasebandParameters();
 			initialData = zeros(360, samples);
 			shiftedData = fftshift(initialData, 2);
 
 			obj.hImage = imagesc(obj.hAxes, ...
-				obj.hDataCube.AzimuthBins, ...
+				obj.hDataCube.azimuthBins, ...
 				1:samples, shiftedData);
 
 			axis(obj.hAxes, 'xy');
@@ -194,12 +203,16 @@ classdef dataProcessor < handle
 			obj.hRadar = radarObj;
 			obj.hPlatform = platformObj;
 			obj.hPreferences = preferencesObj;
-			obj.parallelPool = gcp('nocreate'); % Start parallel pool
-			if isempty(obj.parallelPool)
-				obj.parallelPool = parpool(4); % Start pool with 1 worker
-			end
+			fprintf("dataProcessor | dataProcessor | starting paraller pool\n");
+			
+			% XXX
+			%obj.parallelPool = gcp('nocreate'); % Start parallel pool
+			%if isempty(obj.parallelPool)
+			%	obj.parallelPool = parpool(4); % Start pool with 1 worker
+			%end
 
 			% TODO -> move some of these paramters to be updateable on the fly
+			fprintf("dataProcessor | dataProcessor |  starting gui\n");
 			obj.hPanel = panelObj;
 
 			obj.onNewConfigAvailable();

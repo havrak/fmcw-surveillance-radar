@@ -26,6 +26,11 @@ extern "C" void app_main(void)
 	stepperControl.init();
 	vTaskDelay(1000 / portTICK_PERIOD_MS);
 	stepperControl.parseGCode("G92", 3);
+
+
+
+
+	// DELETE
 	stepperControl.parseGCode("P90 xxxx", 14);
 	stepperControl.parseGCode("G91", 3);
 	stepperControl.parseGCode("G21",3);
@@ -34,7 +39,6 @@ extern "C" void app_main(void)
 	stepperControl.parseGCode("M03 SH6 H+",10);
 	stepperControl.parseGCode("P91", 3);
 	stepperControl.parseGCode("P92", 3);
-
-	// OSCore::init();
+	stepperControl.parseGCode("P1 xxxx", 7);
 }
 

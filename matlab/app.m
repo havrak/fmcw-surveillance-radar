@@ -113,7 +113,7 @@ classdef app < handle
 
 		end
 
-		function setupPlatform(obj)
+		function setupPlatformSerial(obj)
 			% setupPlatformSerial: attempts to connec to the platform
 			% if successfull it will change bg color of connect button
 			

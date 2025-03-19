@@ -227,12 +227,12 @@ classdef platformControl < handle
 
 			if strncmp(line,'!P',2)
 				[angleOffsetH, angleOffsetT, ~] = obj.hPreferences.getPlatformParamters();
-				vals = split(line(2:end), ',');
-				obj.positionTimes(end+1) = currentTime;
+				tmp = char(line);
+				vals = strtrim(split(tmp(3:end), ','));
+				
+				obj.positionTimes(end+1) = toc(obj.startTime);
 				obj.positionHorz(end+1) = str2double(vals{2})-angleOffsetH;
-				obj.positionTilt(end+1) = str2double(vals{2})-angleOffsetT;
-
-				fprintf("[%f, %f]", obj.positionHorz(end), obj.positionTilt(end));
+				obj.positionTilt(end+1) = str2double(vals{3})-angleOffsetT;
 
 				if length(obj.positionTimes) > obj.bufferSize
 					obj.positionTimes(1) = [];
