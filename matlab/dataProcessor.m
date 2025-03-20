@@ -30,7 +30,6 @@ classdef dataProcessor < handle
 
 
 			if(isempty(posTimes)) % NOTE just for testing
-				fprintf("ERRR");
 				posHorz = 0;
 				posTilt = 0;
 				posTimes = [0 0];
@@ -76,7 +75,9 @@ classdef dataProcessor < handle
 			end
 			% else
 			% Regular FFT for uniform sampling
-			rangeDoppler = fftshift(fft(batchRangeFFTs, 16, 1), 1);
+			%rangeDoppler = abs(fftshift(fft(batchRangeFFTs, 16, 1), 1)');
+
+			rangeDoppler = abs(fft(batchRangeFFTs, 16, 1))';
 			%end
 
 
@@ -92,7 +93,7 @@ classdef dataProcessor < handle
 			end
 			tilt = posTilt(end);
 
-			fprintf("Dimensions Fast time: %f, Slow time %f\n", length(rangeProfile), length(dopplerProfile))
+			fprintf("Dimensions Fast time: %f, Slow time %f\n", length(rangeProfile), length(rangeDoppler))
 			% fclose(fid);
 
 		end
@@ -107,9 +108,9 @@ classdef dataProcessor < handle
 
 			% Draw range azimuth
 			if strcmp(obj.currentVisualizationStyle,'Range-Azimuth')
-				data = sum(obj.hDataCube.RangeAzimuth,4);
-				data = data(:, 10, :);
-				obj.hImage.CData = data;
+				data = sum(obj.hDataCube.rangeAzimuthDoppler,4);
+				toDraw(:,:) = data(:,20, :);
+				obj.hImage.CData = toDraw';
 				drawnow limitrate;
 			end
 
@@ -155,7 +156,6 @@ classdef dataProcessor < handle
 			[batchRangeFFTs, batchTimes] = obj.hRadarBuffer.getSlidingBatch();
 			[posTimes, horz, tilt] = obj.hPlatform.getPositionsInInterval(min(batchTimes), max(batchTimes));
 
-			disp("Launching parfeval");
 			%future = parfeval(obj.parallelPool, ...
 			%	@dataProcessor.processBatch, 4, ...
 			%	batchRangeFFTs, batchTimes, posTimes, horz, tilt, obj.speedBins);
@@ -184,18 +184,18 @@ classdef dataProcessor < handle
 
 			[samples, ~, ~ ] = obj.hPreferences.getRadarBasebandParameters();
 			initialData = zeros(360, samples);
-			shiftedData = fftshift(initialData, 2);
-
+			%initialData = [zeros(120, samples) ones(120, samples) zeros(120, samples)];
+		
 			obj.hImage = imagesc(obj.hAxes, ...
 				obj.hDataCube.azimuthBins, ...
-				1:samples, shiftedData);
+				1:samples, initialData);
+			%axis(obj.hAxes, 'xy');
 
-			axis(obj.hAxes, 'xy');
 			xlabel(obj.hAxes, 'Azimuth (degrees)');
 			ylabel(obj.hAxes, 'Range (bin)');
 			title(obj.hAxes, 'Azimuth-Range Map');
 			colormap(obj.hAxes, 'jet');
-			colorbar(obj.hAxes);
+			%colorbar(obj.hAxes);
 		end
 
 	end
