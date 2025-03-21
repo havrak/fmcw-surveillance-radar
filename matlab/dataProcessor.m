@@ -77,15 +77,27 @@ classdef dataProcessor < handle
 			% Regular FFT for uniform sampling
 			%rangeDoppler = abs(fftshift(fft(batchRangeFFTs, 16, 1), 1)');
 
-			rangeDoppler = abs(fft(batchRangeFFTs, 16, 1))';
+			%  rangeDoppler = abs(fft(batchRangeFFTs, speedBins, 1))';
+			
 			%end
+
+			% 
+			
+			
 
 
 			% TODO Decimate/Interpolate spectrum to fit 16 slots
 
 			% Compute Doppler FFT (using cached Range FFTs)
 			% Use latest sample's angles for output
-			rangeProfile = batchRangeFFTs(end, :);
+			rangeProfile = abs(batchRangeFFTs(end, :));
+
+			% DEMO Range map slow
+
+			rangeDoppler = repmat(rangeProfile, [8 1])';
+
+			%
+
 			if posHorz(end) > 180
 				horz = posHorz(end)-360;
 			else
@@ -189,7 +201,8 @@ classdef dataProcessor < handle
 			obj.hImage = imagesc(obj.hAxes, ...
 				obj.hDataCube.azimuthBins, ...
 				1:samples, initialData);
-			%axis(obj.hAxes, 'xy');
+			
+			axis(obj.hAxes, 'xy');
 
 			xlabel(obj.hAxes, 'Azimuth (degrees)');
 			ylabel(obj.hAxes, 'Range (bin)');

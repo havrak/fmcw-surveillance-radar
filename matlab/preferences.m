@@ -25,6 +25,7 @@ classdef preferences < handle
 		hEditRadPatternH;
 		hEditTriggerPeriod;
 		hDropRadarADC;
+		hTextRampTime;
 
 		hDropProVisualization;
 		hEditProSpeedBins;
@@ -34,9 +35,10 @@ classdef preferences < handle
 		availableBaudrates = [ 9600 19200 115200 230400 1000000];
 		availableSamples = [32 64 128 256 512 1024 2048 ];
 		availableADC = [2571 2400 2118 1800 1125 487 186 59];
+
 		availableVisualization = {'Range-Azimuth', 'Range-Doppler', 'Target-2D', 'Target-3D'};
-		
 		binaryMap = ['000'; '001'; '010'; '011'; '100'; '101'; '110'; '111'];
+		adcSamplingTime = [14 15 17 20 32 74 194 614];
 		configStruct;
 		configFilePath;
 	end
@@ -207,6 +209,20 @@ classdef preferences < handle
 			distanceOffset =  obj.configStruct.platform.distanceOffset;
 			angleOffsetT = obj.configStruct.platform.angleOffsetT;
 			angleOffsetH = obj.configStruct.platform.angleOffsetH;
+		end
+
+
+
+		function time = getRampTime(obj)
+			samples = obj.configStruct.radar.samples;
+			adc = obj.adcSamplingTime(obj.configStruct.radar.adc == obj.availableADC);
+			time = adc*(samples+85)/36e3;
+			
+		end
+
+		function binWidth = getDistanceBinWidth(obj)
+			binWidth = physconst('LightSpeed')*(obj.configStruct.radar.samples+85) ...
+			/(2*obj.configStruct.radar.bandwidth*obj.configStruct.radar.samples);
 		end
 
 		function storeConfig(obj)
@@ -409,6 +425,17 @@ classdef preferences < handle
 				'Position', [20, figSize(2)-radarConfigOffset-80, 140, 25], ...
 				'Text', 'Chirp samples: ');
 
+				uilabel(obj.hFig, ...
+				'Position', [250, figSize(2)-radarConfigOffset-95, 140, 25], ...
+				'Text', 'Chirp time [ms]: ');
+
+			obj.hTextRampTime = uicontrol('Style', 'text', ...
+				'Parent',obj.hFig,  ...
+				'Position', [350, figSize(2)-radarConfigOffset-100, 170, 25], ...
+				'Max',1, ...
+				'String',"Time", ...
+				'HorizontalAlignment', 'left');
+
 			obj.hDropRadarSample = uidropdown(obj.hFig, ...
 				'Position', [150, figSize(2)-radarConfigOffset-80, 80, 25], ...
 				'Items', {'32' '64' '128' '256' '512' '1024' '2048'});
@@ -507,6 +534,7 @@ classdef preferences < handle
 		end
 
 
+
 		function configToGUI(obj)
 			% configToGUI: sets values of GUI elements to correspond to
 			% those saved in internal config structure
@@ -566,7 +594,9 @@ classdef preferences < handle
 			if ismember(num2str(obj.configStruct.radar.header),obj.hSwitchRadarHeader.Items)
 				set(obj.hSwitchRadarHeader, 'Value', num2str(obj.configStruct.radar.header));
 			end
-
+			
+			time = obj.getRampTime();
+			set(obj.hTextRampTime, 'String', time);
 			%% Processing config
 
 			if any(matches(obj.configStruct.processing.visualization,obj.availableVisualization))
@@ -575,6 +605,7 @@ classdef preferences < handle
 
 			set(obj.hEditProSpeedBins, 'String', obj.configStruct.processing.maxSpeedBins);
 		
+			
 		end
 
 		function refreshSerial(obj)
@@ -657,6 +688,10 @@ classdef preferences < handle
 			else obj.configStruct.radar.bandwidth=str2double(tmp);
 			end
 
+
+			time = obj.getRampTime();
+			set(obj.hTextRampTime, 'String', time);
+
 			%% Processing
 
 			obj.configStruct.processing.visualization = obj.hDropProVisualization.Value;
@@ -664,7 +699,7 @@ classdef preferences < handle
 			if ~err
 				uialert(obj.hFig, 'Config applied', 'Config', 'icon', 'info', 'CloseFcn','uiresume(gcbf)');
 				uiwait(gcbf);
-				set(obj.hFig, 'Visible', 'off');
+				% XXX set(obj.hFig, 'Visible', 'off');
 			end
 			
 			tmp = get(obj.hEditProSpeedBins, 'String');
