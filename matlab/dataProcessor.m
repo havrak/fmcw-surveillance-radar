@@ -16,35 +16,45 @@ classdef dataProcessor < handle
 		readIdx = 1;
 		radarBufferSize = 100;
 		speedBins = 16;
+		calcSpeed = 0;
 		currentVisualizationStyle = '';
 	end
 
 	methods(Static, Access=private)
 
 
-		function [horz, tilt, rangeProfile, rangeDoppler] = ...
-				processBatch(batchRangeFFTs, batchTimes, posTimes, posHorz, posTilt, speedBins)
-	
+		function [yaw, pitch, rangeProfile, rangeDoppler, movementMask] = ...
+				processBatch(batchRangeFFTs, batchTimes, posTimes, posYaw, posPitch, speedBins, calcSpeed)
+
+			rangeProfile = abs(batchRangeFFTs(end, :));
+
 			%fid = fopen('processing.txt', 'a+');
 			fprintf("-------------------\nNew batch\n");
 
+			if ~calcSpeed % Lets keep common processing regardless if we compute or don't compute speed
+				rangeDoppler = [zeros(128, speedBins-1); rangeProfile'  ];
+
+				yaw = abs(mod(posYaw(end)+180, 360))-180;
+				pitch = posPitch(end);
+				return;
+			end
+
 
 			if(isempty(posTimes)) % NOTE just for testing
-				posHorz = 0;
-				posTilt = 0;
+				posYaw = 0;
+				posPitch = 0;
 				posTimes = [0 0];
-
 			end
-		
+
 			% Allow only small movement changes (deg/s)
 			dt = diff(posTimes);
-			dHorz = gradient(posHorz, dt);
-			dTilt = gradient(posTilt, dt);
-			lowBoundIndex = length(dHorz);
-			
-			for i=length(dHorz):-1:1
+			dYaw = gradient(posYaw, dt);
+			dPitch = gradient(posPitch, dt);
+			lowBoundIndex = length(dYaw);
+
+			for i=length(dYaw):-1:1
 				% stop on fast change
-				if any(abs(dHorz) > 5) || any(abs(dTilt) > 10)
+				if any(abs(dYaw) > 5) || any(abs(dPitch) > 10)
 					break;
 				end
 				% TODO stop on accumulated distance (if radar moved too much we
@@ -61,7 +71,6 @@ classdef dataProcessor < handle
 			end
 
 
-
 			timeDeltas = diff(batchTimes);
 			meanInterval = mean(timeDeltas);
 
@@ -76,34 +85,18 @@ classdef dataProcessor < handle
 			% else
 			% Regular FFT for uniform sampling
 			%rangeDoppler = abs(fftshift(fft(batchRangeFFTs, 16, 1), 1)');
-
-			%  rangeDoppler = abs(fft(batchRangeFFTs, speedBins, 1))';
-			
+			  rangeDoppler = abs(fft(batchRangeFFTs, speedBins, 1))';
 			%end
-
-			% 
-			
-			
 
 
 			% TODO Decimate/Interpolate spectrum to fit 16 slots
 
-			% Compute Doppler FFT (using cached Range FFTs)
-			% Use latest sample's angles for output
 			rangeProfile = abs(batchRangeFFTs(end, :));
 
-			% DEMO Range map slow
 
-			rangeDoppler = repmat(rangeProfile, [8 1])';
 
-			%
-
-			if posHorz(end) > 180
-				horz = posHorz(end)-360;
-			else
-				horz = posHorz(end);
-			end
-			tilt = posTilt(end);
+			yaw = abs(mod(posYaw(end)+180, 360))-180;
+			pitch = posPitch(end);
 
 			fprintf("Dimensions Fast time: %f, Slow time %f\n", length(rangeProfile), length(rangeDoppler))
 			% fclose(fid);
@@ -112,13 +105,13 @@ classdef dataProcessor < handle
 	end
 
 	methods(Access=private)
-		function mergeResults(obj, azimuth, tilt, rangeProfile, rangeDoppler)
+		function mergeResults(obj, yaw, pitch, rangeProfile, rangeDoppler)
 			fprintf("Processing ended\n");
-			disp(azimuth)
-			obj.hDataCube.addData(azimuth, tilt, rangeProfile, rangeDoppler);
+			disp(yaw)
+			obj.hDataCube.addData(yaw, pitch, rangeProfile, rangeDoppler);
 			obj.isProcessing = false;
 
-			% Draw range azimuth
+			% Draw range yaw
 			if strcmp(obj.currentVisualizationStyle,'Range-Azimuth')
 				data = sum(obj.hDataCube.rangeAzimuthDoppler,4);
 				toDraw(:,:) = data(:,20, :);
@@ -134,15 +127,15 @@ classdef dataProcessor < handle
 			[radPatterH, radPatterT] = obj.hPreferences.getRadarRadiationParamters();
 			[samples, ~, ~ ] = obj.hPreferences.getRadarBasebandParameters();
 
-			obj.speedBins = obj.hPreferences.getProcessingSpeedBins();
+			[obj.speedBins, obj.calcSpeed]= obj.hPreferences.getProcessingSpeedParamters();
 			visual=obj.hPreferences.getProcessingVisualization();
-			
+
 			obj.hDataCube = radarDataCube(samples, obj.speedBins, radPatterH, radPatterT);
 			obj.hRadarBuffer = radarBuffer(32, samples);
-			
-			
+
+
 			if strcmp(visual, 'Range-Azimuth') && ~strcmp(obj.currentVisualizationStyle, 'Range-Azimuth')
-				fprintf("dataProcessor | onNewConfigAvailable | visualizing as azimuth-range map.\n")
+				fprintf("dataProcessor | onNewConfigAvailable | visualizing as yaw-range map.\n")
 				% this will requite deinitialization of previous visualization
 				obj.currentVisualizationStyle = 'Range-Azimuth';
 				% obj.deinitializeDisplay();
@@ -151,7 +144,7 @@ classdef dataProcessor < handle
 			java.lang.System.gc();
 		end
 
-		function onNewDataAvailable(obj) 
+		function onNewDataAvailable(obj)
 			% Called automatically when radar data arrives
 			% TODO: add chirp to buffer -> run processing on buffer
 			% on addition to chirps processing will also get data about positions
@@ -166,19 +159,19 @@ classdef dataProcessor < handle
 			% if ~obj.isProcessing
 			%	obj.isProcessing = true; % Lock processing
 			[batchRangeFFTs, batchTimes] = obj.hRadarBuffer.getSlidingBatch();
-			[posTimes, horz, tilt] = obj.hPlatform.getPositionsInInterval(min(batchTimes), max(batchTimes));
+			[posTimes, yaw, pitch] = obj.hPlatform.getPositionsInInterval(min(batchTimes), max(batchTimes));
 
 			%future = parfeval(obj.parallelPool, ...
 			%	@dataProcessor.processBatch, 4, ...
-			%	batchRangeFFTs, batchTimes, posTimes, horz, tilt, obj.speedBins);
+			%	batchRangeFFTs, batchTimes, posTimes, yaw, pitch, obj.speedBins);
 
-			[azimuth, tilt, rangeProfile, dopplerProfile] = dataProcessor.processBatch(batchRangeFFTs, batchTimes, posTimes, horz, tilt, obj.speedBins);
-			obj.mergeResults(azimuth, tilt, rangeProfile, dopplerProfile);
+			[yaw, pitch, rangeProfile, dopplerProfile] = dataProcessor.processBatch(batchRangeFFTs, batchTimes, posTimes, yaw, pitch, obj.speedBins, obj.calcSpeed);
+			obj.mergeResults(yaw, pitch, rangeProfile, dopplerProfile);
 
 			%afterAll(future, @(varargin) obj.mergeResults(varargin{:}), 0);
 			%end
 		end
-		
+
 		function deinitializeDisplay(obj)
 			if ~isempty(obj.hAxes)
 				delete(obj.hAxes);
@@ -196,19 +189,17 @@ classdef dataProcessor < handle
 
 			[samples, ~, ~ ] = obj.hPreferences.getRadarBasebandParameters();
 			initialData = zeros(360, samples);
-			%initialData = [zeros(120, samples) ones(120, samples) zeros(120, samples)];
-		
+
 			obj.hImage = imagesc(obj.hAxes, ...
-				obj.hDataCube.azimuthBins, ...
+				obj.hDataCube.yawBins, ...
 				1:samples, initialData);
-			
+
 			axis(obj.hAxes, 'xy');
 
 			xlabel(obj.hAxes, 'Azimuth (degrees)');
 			ylabel(obj.hAxes, 'Range (bin)');
 			title(obj.hAxes, 'Azimuth-Range Map');
 			colormap(obj.hAxes, 'jet');
-			%colorbar(obj.hAxes);
 		end
 
 	end
@@ -219,7 +210,7 @@ classdef dataProcessor < handle
 			obj.hPlatform = platformObj;
 			obj.hPreferences = preferencesObj;
 			fprintf("dataProcessor | dataProcessor | starting paraller pool\n");
-			
+
 			% XXX
 			%obj.parallelPool = gcp('nocreate'); % Start parallel pool
 			%if isempty(obj.parallelPool)

@@ -8,7 +8,7 @@ classdef platformControl < handle
 		hEditCommand;          % uicontrol/edit - text field for commands
 		hEditProgramHeader;          % uicontrol/edit - large text field for program declaration
 		hEditProgramMain;          % uicontrol/edit - large text field for program declaration
-		
+
 		hPanelBtn              % uipanel - panel to group buttons
 		hBtnNew;               % uicontrol/pushBtn - new program
 		hBtnDelete;            % uicontrol/pushBtn - delete a program
@@ -27,9 +27,9 @@ classdef platformControl < handle
 		programs;
 		currentProgramName;
 		bufferSize double = 200;
-		positionTimes;     % Array of timestamps (seconds since start)
-		positionHorz;      % Array of horizontal positions
-		positionTilt;      % Array of tilt positions
+		positionTimes;      % Array of timestamps (seconds since start)
+		positionYaw;        % Array of yaw positions
+		positionPitch;      % Array of pitch positions
 		log cell = {};
 		startTime uint64;
 
@@ -59,7 +59,10 @@ classdef platformControl < handle
 				'String', fieldnames(obj.programs), ...
 				'Callback', @(src, event) obj.loadProgram());
 
-			obj.hLabelCommand = uilabel('Parent', obj.hFig, 'Text', 'QUICK COMMAND:', 'FontWeight', 'bold', 'FontSize', 16);
+			obj.hLabelCommand = uilabel('Parent', obj.hFig, ...
+				'Text', 'QUICK COMMAND:', ...
+				'FontWeight', 'bold', ...
+				'FontSize', 16);
 
 			obj.hEditCommand = uicontrol('Style', 'edit', ...
 				'Parent', obj.hFig, ...
@@ -133,7 +136,7 @@ classdef platformControl < handle
 
 			fprintf('PlatformControl | constructGUI | GUI constructed\n');
 
-			set(obj.hFig, 	'SizeChangedFcn', @(src, event) obj.resizeUI());
+			set(obj.hFig,		'SizeChangedFcn', @(src, event) obj.resizeUI());
 
 			loadProgram(obj);
 		end
@@ -154,7 +157,7 @@ classdef platformControl < handle
 
 			obj.hEditProgramHeader.Position = [sidebarWidth + 20, height-200, displayWidth, 150];
 			obj.hEditProgramMain.Position = [sidebarWidth + 20, 230, displayWidth, height-440];
-			
+
 			obj.hTextOut.Position = [sidebarWidth + 20, 20, displayWidth, 200];
 
 			buttonPanelWidth = 180;
@@ -196,9 +199,9 @@ classdef platformControl < handle
 
 					obj.hEditProgramHeader.String = sprintf(text{1}); % sprintf will execute line breaks
 					obj.hEditProgramMain.String = sprintf(text{2}); % sprintf will execute line breaks
-			
+
 				end
-				end
+			end
 		end
 
 		function callbackQuickCommand(obj)
@@ -229,15 +232,15 @@ classdef platformControl < handle
 				[angleOffsetH, angleOffsetT, ~] = obj.hPreferences.getPlatformParamters();
 				tmp = char(line);
 				vals = strtrim(split(tmp(3:end), ','));
-				
+
 				obj.positionTimes(end+1) = toc(obj.startTime);
-				obj.positionHorz(end+1) = str2double(vals{2})-angleOffsetH;
-				obj.positionTilt(end+1) = str2double(vals{3})-angleOffsetT;
+				obj.positionYaw(end+1) = str2double(vals{2})-angleOffsetH;
+				obj.positionPitch(end+1) = str2double(vals{3})-angleOffsetT;
 
 				if length(obj.positionTimes) > obj.bufferSize
 					obj.positionTimes(1) = [];
-					obj.positionHorz(1) = [];
-					obj.positionTilt(1) = [];
+					obj.positionYaw(1) = [];
+					obj.positionPitch(1) = [];
 				end
 
 				return;
@@ -271,7 +274,7 @@ classdef platformControl < handle
 		end
 
 		function deleteProgram(obj)
-			% deleteProgram: deletes currently picked program 
+			% deleteProgram: deletes currently picked program
 
 			obj.programs = rmfield(obj.programs, obj.currentProgramName);
 			progs = fieldnames(obj.programs);
@@ -297,7 +300,7 @@ classdef platformControl < handle
 		function saveProgram(obj)
 			% saveProgram: saves content of editor window to internal structure
 			% if not executed program description will not be the one stored
-			
+
 			valueHeader = get(obj.hEditProgramHeader, 'String');
 			trimmedHeader = (strtrim(string(valueHeader)));
 			tosaveHeader = strjoin(trimmedHeader, "\n");
@@ -324,12 +327,12 @@ classdef platformControl < handle
 			flush(obj.hSerial);
 		end
 
-		function uploadProgram(obj) 
+		function uploadProgram(obj)
 			% uploadProgram: upload program to the platform
 			% P90 and P92 commands are automatically added
 
 			% Empty callback for Upload Program button
-		
+
 			% -> call to send
 			flush(obj.hSerial);
 			writeline(obj.hSerial, "P90 "+obj.currentProgramName);
@@ -361,7 +364,7 @@ classdef platformControl < handle
 			% platformControl: constructor for the platformControl class
 			%
 			% INPUT:
-			% hPreferences ... handle to preferences object 
+			% hPreferences ... handle to preferences object
 			% startTime ... output of tic command, timestamp to which all others
 			% are calculated from
 
@@ -371,7 +374,7 @@ classdef platformControl < handle
 		end
 
 		function endProcesses(obj)
-			% endProcesses: safely stops all class processes 
+			% endProcesses: safely stops all class processes
 
 			if ~isempty(obj.hSerial)
 				configureCallback(obj.hSerial, "off");
@@ -405,57 +408,57 @@ classdef platformControl < handle
 		end
 
 		function [vec] = getSpeedVector(obj, timeMin, timeMax)
-			[timestamps, phi, theta] = obj.getPositionsInInterval(timeMin, timeMax);
+			[timestamps, yaw, pitch] = obj.getPositionsInInterval(timeMin, timeMax);
 			[~,~, r] = obj.hPreferences.getPlatformParamters();
 
-			[x,y,z] = sph2cart(phi/180*pi, theta/180*pi-pi, r);
-			
+			[x,y,z] = sph2cart(yaw/180*pi, pitch/180*pi-pi, r);
+
 		end
 
-		function [timestamps, horz, tilt] = getPositionsInInterval(obj, timeMin, timeMax)
+		function [timestamps, yaw, pitch] = getPositionsInInterval(obj, timeMin, timeMax)
 			% getPositionsInInterval: returns lits of position logs that fall
 			% within a given time interval in both cases timestamps closest is
 			% chosen
 			%
 			% INPUTS:
-			% timeMin ... lower bound of the interval 
-			% timeMax ... upper bound of the interval 
-			% 
+			% timeMin ... lower bound of the interval
+			% timeMax ... upper bound of the interval
+			%
 			% OUTPUT:
 			% timestamps ... vector of timestamps for positions
-			% horz ... vector of horizontal angles 
-			% tilt ... vector of tilt angles
+			% yaw ... vector yaw angles
+			% pitch ... vector of pitch angles
 
 			[~, idxMin] = min(abs(obj.positionTimes - timeMin));
 			[~, idxMax] = min(abs(obj.positionTimes - timeMax));
 			startIdx = min(idxMin, idxMax);
 			endIdx = max(idxMin, idxMax);
 			timestamps = obj.positionTimes(startIdx:endIdx);
-			horz = obj.positionHorz(startIdx:endIdx);
-			tilt = obj.positionTilt(startIdx:endIdx);
+			yaw = obj.positionYaw(startIdx:endIdx);
+			pitch = obj.positionPitch(startIdx:endIdx);
 
 		end
 
-		function [horz, tilt] = getPositionAtTime(obj, time)
+		function [yaw, pitch] = getPositionAtTime(obj, time)
 			% getPositionAtTime: retrieve the closest platform position for a given timestamp
 			%
 			% INPUT:
 			% time ... wanted timestmap of data
 			%
 			% OUTPUT:
-			% horz ... angle in horizotnal axis
-			% tilt .. angle in tilt axis
-			       
+			% yaw ... yaw angle [0, 360]
+			% pitch .. pitch angle [-90, 90]
+
 			if isempty(obj.positionTimes)
 				error('No position data available.');
 			end
 			[~, idx] = min(abs(obj.positionTimes - time));
-			horz = obj.positionHorz(idx);
-			tilt = obj.positionTilt(idx);
+			yaw = obj.positionYaw(idx);
+			pitch = obj.positionPitch(idx);
 		end
 
 		function showGUI(obj)
-			% showGUI: displays generated GUI that is hidden 
+			% showGUI: displays generated GUI that is hidden
 			if isempty(obj.hFig) | ~isvalid(obj.hFig)
 				constructGUI(obj);
 			end

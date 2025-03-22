@@ -15,20 +15,21 @@ classdef preferences < handle
 
 		hSwitchPlatformDebug;   % uiswitch - display debug messages from platform
 		hEditOffsetD;           % uicontrol/edit - distance offset
-		hEditOffsetT;           % uicontrol/edit - angle offset tilt
-		hEditOffsetH;           % uicontrol/edit - angle offset horizontal
+		hEditOffsetP;           % uicontrol/edit - angle offset pitch
+		hEditOffsetY;           % uicontrol/edit - angle offset yaw
 
 		hDropRadarSample       % number of FFT samples for chirp
 		hSwitchRadarHeader;     % uiswitch - pick between 122 and 24 GHz header
 		hEditRadarBandwith;     % uicontrol/edit - distance offset
-		hEditRadPatternT;
-		hEditRadPatternH;
+		hEditRadPatternPitch;
+		hEditRadPatternYaw;
 		hEditTriggerPeriod;
 		hDropRadarADC;
 		hTextRampTime;
 
 		hDropProVisualization;
 		hEditProSpeedBins;
+		hCheckProCalcSpeed;
 
 
 		% OTHER VARS %
@@ -57,20 +58,21 @@ classdef preferences < handle
 			obj.configStruct.radar.header='';
 			obj.configStruct.radar.bandwidth=0;
 			obj.configStruct.radar.samples=128;
-			obj.configStruct.radar.radPatternH=0;
-			obj.configStruct.radar.radPatternT=0;
+			obj.configStruct.radar.radPatternYaw=0;
+			obj.configStruct.radar.radPatternPitch=0;
 			obj.configStruct.radar.adc=obj.availableADC(1);
 			obj.configStruct.radar.trigger=0;
 
 			obj.configStruct.platform.port='none';
 			obj.configStruct.platform.baudrate=obj.availableBaudrates(1);
-			obj.configStruct.platform.distanceOffset=0;
-			obj.configStruct.platform.angleOffsetT=0;
-			obj.configStruct.platform.angleOffsetH=0;
+			obj.configStruct.platform.offsetDistance=0;
+			obj.configStruct.platform.offsetPitch=0;
+			obj.configStruct.platform.offsetYaw=0;
 			obj.configStruct.platform.debug=1;
 
 			obj.configStruct.processing.visualization=obj.availableVisualization(1);
 			obj.configStruct.processing.maxSpeedBins=0;
+			obj.configStruct.processing.calcspeed = 1;
 
 
 			obj.configStruct.programs=[];
@@ -119,7 +121,8 @@ classdef preferences < handle
 			visualization = obj.configStruct.processing.visualization;
 		end
 
-		function speedBins = getProcessingSpeedBins(obj)
+		function [calcSpeed, speedBins] = getProcessingSpeedParamters(obj)
+			calcSpeed = 	obj.configStruct.processing.calcspeed;
 			speedBins = obj.configStruct.processing.maxSpeedBins;
 		end
 
@@ -163,9 +166,9 @@ classdef preferences < handle
 			header = obj.configStruct.radar.header;
 		end
 
-		function [radPatterH, radPatterT] = getRadarRadiationParamters(obj)
-			radPatterH = obj.configStruct.radar.radPatternH;
-			radPatterT = obj.configStruct.radar.radPatternT;
+		function [radPatterYaw, radPatterPitch] = getRadarRadiationParamters(obj)
+			radPatterYaw = obj.configStruct.radar.radPatternYaw;
+			radPatterPitch = obj.configStruct.radar.radPatternPitch;
 		end
 
 		function period = getRadarTriggerPeriod(obj)
@@ -194,21 +197,19 @@ classdef preferences < handle
 			adc = obj.binaryMap(obj.availableADC == obj.configStruct.radar.adc, :);
 		end
 
-		function [angleOffsetH, angleOffsetT, distanceOffset] = getPlatformParamters(obj)
+		function [offsetYaw, offsetPitch, offsetDistance] = getPlatformParamters(obj)
 			% getPlatformParamters: return mounting paramters of the platform
 			%
 			%
 			% Output:
-			% angleOffsetH ... horizontal angle at which radar is poiting straight
-			% angleOffsetT ... angle at which radar is poiting straight (PCB is
-			% perpendicular to the ground)
-			% distanceOffset ... distance from axis of rotation to the center of
+			% offsetYaw ... yaw angle at which radar is poiting straight
+			% offsetPitch ... pitch angle at which radar is poiting straight (PCB is perpendicular to the ground)
+			% offsetDistance ... distance from axis of rotation to the center of
 			% radar PCB
 
-
-			distanceOffset =  obj.configStruct.platform.distanceOffset;
-			angleOffsetT = obj.configStruct.platform.angleOffsetT;
-			angleOffsetH = obj.configStruct.platform.angleOffsetH;
+			offsetDistance =  obj.configStruct.platform.offsetDistance;
+			offsetPitch = obj.configStruct.platform.offsetPitch;
+			offsetYaw = obj.configStruct.platform.offsetYaw;
 		end
 
 
@@ -217,7 +218,7 @@ classdef preferences < handle
 			samples = obj.configStruct.radar.samples;
 			adc = obj.adcSamplingTime(obj.configStruct.radar.adc == obj.availableADC);
 			time = adc*(samples+85)/36e3;
-			
+
 		end
 
 		function binWidth = getDistanceBinWidth(obj)
@@ -362,24 +363,24 @@ classdef preferences < handle
 				'String',"", ...
 				'HorizontalAlignment', 'left');
 
-			% Tilt offset
+			% Pitch offset
 			uilabel(obj.hFig, ...
 				'Position', [20, figSize(2)-platformConfigOffset-50, 140, 25], ...
-				'Text', 'Tilt offset [deg]:');
+				'Text', 'Pitch offset [deg]:');
 
-			obj.hEditOffsetT=uicontrol('Style', 'edit', ...
+			obj.hEditOffsetP=uicontrol('Style', 'edit', ...
 				'Parent',obj.hFig,  ...
 				'Position', [150, figSize(2)-platformConfigOffset-50, 140, 25], ...
 				'Max',1, ...
 				'String',"", ...
 				'HorizontalAlignment', 'left');
 
-			% Horz offset
+			% Yaw offset
 			uilabel(obj.hFig, ...
 				'Position', [20, figSize(2)-platformConfigOffset-80, 140, 25], ...
-				'Text', 'Horizontal offset [deg]:');
+				'Text', 'Yaw offset [deg]:');
 
-			obj.hEditOffsetH=uicontrol('Style', 'edit', ...
+			obj.hEditOffsetY=uicontrol('Style', 'edit', ...
 				'Parent',obj.hFig,  ...
 				'Position', [150, figSize(2)-platformConfigOffset-80, 140, 25], ...
 				'Max',1, ...
@@ -451,9 +452,9 @@ classdef preferences < handle
 
 			uilabel(obj.hFig, ...
 				'Position', [20, figSize(2)-radarConfigOffset-140, 140, 25], ...
-				'Text', 'Lobe width H: ');
+				'Text', 'Lobe width yaw: ');
 
-			obj.hEditRadPatternH = uicontrol('Style', 'edit', ...
+			obj.hEditRadPatternYaw = uicontrol('Style', 'edit', ...
 				'Parent',obj.hFig,  ...
 				'Position', [150, figSize(2)-radarConfigOffset-140, 140, 25], ...
 				'Max',1, ...
@@ -462,8 +463,8 @@ classdef preferences < handle
 
 			uilabel(obj.hFig, ...
 				'Position', [20, figSize(2)-radarConfigOffset-170, 170, 25], ...
-				'Text', 'Lobe width T: ');
-			obj.hEditRadPatternT = uicontrol('Style', 'edit', ...
+				'Text', 'Lobe width pitch: ');
+			obj.hEditRadPatternPitch = uicontrol('Style', 'edit', ...
 				'Parent',obj.hFig,  ...
 				'Position', [150, figSize(2)-radarConfigOffset-170, 170, 25], ...
 				'Max',1, ...
@@ -505,7 +506,11 @@ classdef preferences < handle
 				'String',"", ...
 				'HorizontalAlignment', 'left');
 
-			
+			obj.hCheckProCalcSpeed = uicheckbox('Parent', obj.hFig, ...
+				'Position',[250, figSize(2)-processingOffset-50, 170, 25], ...
+				"Text","Calculate Speed");
+
+
 
 			%% Buttons
 			function reloadConfig(obj)
@@ -563,9 +568,9 @@ classdef preferences < handle
 			%% Platform config
 
 
-			set(obj.hEditOffsetD, 'String', obj.configStruct.platform.distanceOffset);
-			set(obj.hEditOffsetT, 'String', obj.configStruct.platform.angleOffsetT);
-			set(obj.hEditOffsetH, 'String', obj.configStruct.platform.angleOffsetH);
+			set(obj.hEditOffsetD, 'String', obj.configStruct.platform.offsetDistance);
+			set(obj.hEditOffsetP, 'String', obj.configStruct.platform.offsetPitch);
+			set(obj.hEditOffsetY, 'String', obj.configStruct.platform.offsetYaw);
 
 
 			if(obj.configStruct.platform.debug == 1)
@@ -578,8 +583,8 @@ classdef preferences < handle
 
 			set(obj.hEditRadarBandwith, 'String', obj.configStruct.radar.bandwidth);
 
-			set(obj.hEditRadPatternH, 'String', obj.configStruct.radar.radPatternH);
-			set(obj.hEditRadPatternT, 'String', obj.configStruct.radar.radPatternT);
+			set(obj.hEditRadPatternYaw, 'String', obj.configStruct.radar.radPatternYaw);
+			set(obj.hEditRadPatternPitch, 'String', obj.configStruct.radar.radPatternPitch);
 			set(obj.hEditTriggerPeriod, 'String', obj.configStruct.radar.trigger);
 
 			if any(obj.availableSamples == obj.configStruct.radar.samples)
@@ -594,7 +599,7 @@ classdef preferences < handle
 			if ismember(num2str(obj.configStruct.radar.header),obj.hSwitchRadarHeader.Items)
 				set(obj.hSwitchRadarHeader, 'Value', num2str(obj.configStruct.radar.header));
 			end
-			
+
 			time = obj.getRampTime();
 			set(obj.hTextRampTime, 'String', time);
 			%% Processing config
@@ -604,8 +609,9 @@ classdef preferences < handle
 			end
 
 			set(obj.hEditProSpeedBins, 'String', obj.configStruct.processing.maxSpeedBins);
-		
-			
+
+			set(obj.hCheckProCalcSpeed, 'Value', obj.configStruct.processing.calcspeed);
+
 		end
 
 		function refreshSerial(obj)
@@ -644,17 +650,17 @@ classdef preferences < handle
 			%% Platform config
 			tmp = get(obj.hEditOffsetD, 'String');
 			if isnan(str2double(tmp)) warndlg('Offset must be numerical');
-			else obj.configStruct.platform.distanceOffset=str2double(tmp);
+			else obj.configStruct.platform.offsetDistance=str2double(tmp);
 			end
 
-			tmp = get(obj.hEditOffsetT, 'String');
+			tmp = get(obj.hEditOffsetP, 'String');
 			if isnan(str2double(tmp)) warndlg('Offset must be numerical');
-			else obj.configStruct.platform.angleOffsetT=str2double(tmp);
+			else obj.configStruct.platform.offsetPitch=str2double(tmp);
 			end
 
-			tmp = get(obj.hEditOffsetH, 'String');
+			tmp = get(obj.hEditOffsetY, 'String');
 			if isnan(str2double(tmp)) warndlg('Offset must be numerical');
-			else obj.configStruct.platform.angleOffsetH=str2double(tmp);
+			else obj.configStruct.platform.offsetYaw=str2double(tmp);
 			end
 
 
@@ -667,14 +673,14 @@ classdef preferences < handle
 			obj.configStruct.radar.adc=str2double(obj.hDropRadarADC.Value);
 
 
-			tmp = get(obj.hEditRadPatternH, 'String');
+			tmp = get(obj.hEditRadPatternYaw, 'String');
 			if isnan(str2double(tmp)) warndlg('Lobe width must be numerical');
-			else obj.configStruct.radar.radPatternH=str2double(tmp);
+			else obj.configStruct.radar.radPatternYaw=str2double(tmp);
 			end
 
-			tmp = get(obj.hEditRadPatternT, 'String');
+			tmp = get(obj.hEditRadPatternPitch, 'String');
 			if isnan(str2double(tmp)) warndlg('Lobe width must be numerical');
-			else obj.configStruct.radar.radPatternT=str2double(tmp);
+			else obj.configStruct.radar.radPatternPitch=str2double(tmp);
 			end
 
 			tmp = get(obj.hEditTriggerPeriod, 'String');
@@ -701,11 +707,13 @@ classdef preferences < handle
 				uiwait(gcbf);
 				% XXX set(obj.hFig, 'Visible', 'off');
 			end
-			
+
 			tmp = get(obj.hEditProSpeedBins, 'String');
 			if isnan(str2double(tmp)) warndlg('Bandwidth must be numerical');
 			else obj.configStruct.processing.maxSpeedBins=str2double(tmp);
 			end
+
+			obj.configStruct.processing.calcspeed = obj.hCheckProCalcSpeed.Value;
 
 			storeConfig(obj);
 			notify(obj, 'newConfigEvent');
