@@ -8,49 +8,49 @@
 #include "stepper_hal.h"
 
 StepperHal steppers = StepperHal();
-stepper_hal_struct_t* stepperHalH = new stepper_hal_struct_t();
-stepper_hal_struct_t* stepperHalT = new stepper_hal_struct_t();
+stepper_hal_struct_t* stepperHalYaw = new stepper_hal_struct_t();
+stepper_hal_struct_t* stepperHalPitch = new stepper_hal_struct_t();
 
 #include "driver/uart.h"
 
 bool StepperHal::pcntOnReach(pcnt_unit_handle_t unit, const pcnt_watch_event_data_t* edata, void* user_ctx)
 {
 	// uart_write_bytes(UART_NUM_0, "PCNT reached\n", 13);
-	if (unit == stepperHalH->pcntUnit) {
-		ESP_ERROR_CHECK(pcnt_unit_remove_watch_point(stepperHalH->pcntUnit, stepperHalH->stepperCommand->val.steps));
+	if (unit == stepperHalYaw->pcntUnit) {
+		ESP_ERROR_CHECK(pcnt_unit_remove_watch_point(stepperHalYaw->pcntUnit, stepperHalYaw->stepperCommand->val.steps));
 		xEventGroupSetBits(StepperHal::stepperEventGroup, STEPPER_COMPLETE_BIT_H);
-		mcpwm_timer_start_stop(stepperHalH->timer, MCPWM_TIMER_START_STOP_FULL); // won't stop until we tell it to
-																																						 // pcnt_unit_stop(stepperHalH->pcntUnit);
+		mcpwm_timer_start_stop(stepperHalYaw->timer, MCPWM_TIMER_START_STOP_FULL); // won't stop until we tell it to
+																																						 // pcnt_unit_stop(stepperHalYaw->pcntUnit);
 
-	} else if (unit == stepperHalT->pcntUnit) {
-		ESP_ERROR_CHECK(pcnt_unit_remove_watch_point(stepperHalT->pcntUnit, stepperHalT->stepperCommand->val.steps));
+	} else if (unit == stepperHalPitch->pcntUnit) {
+		ESP_ERROR_CHECK(pcnt_unit_remove_watch_point(stepperHalPitch->pcntUnit, stepperHalPitch->stepperCommand->val.steps));
 		xEventGroupSetBits(StepperHal::stepperEventGroup, STEPPER_COMPLETE_BIT_T);
-		mcpwm_timer_start_stop(stepperHalT->timer, MCPWM_TIMER_START_STOP_FULL); // won't stop until we tell it to
-																																						 // pcnt_unit_stop(stepperHalT->pcntUnit);
+		mcpwm_timer_start_stop(stepperHalPitch->timer, MCPWM_TIMER_START_STOP_FULL); // won't stop until we tell it to
+																																						 // pcnt_unit_stop(stepperHalPitch->pcntUnit);
 	}
 	return true;
 }
 
 void StepperHal::initStepperTasks()
 {
-	stepperHalH->stepperCompleteBit = STEPPER_COMPLETE_BIT_H;
-	stepperHalT->stepperCompleteBit = STEPPER_COMPLETE_BIT_T;
-	stepperHalH->stepperDirectionPin = (gpio_num_t)CONFIG_STEPPER_H_PIN_DIR;
-	stepperHalT->stepperDirectionPin = (gpio_num_t)CONFIG_STEPPER_T_PIN_DIR;
-	pinMode(stepperHalH->stepperDirectionPin, OUTPUT);
-	pinMode(stepperHalT->stepperDirectionPin, OUTPUT);
-	stepperHalH->stepCount = CONFIG_STEPPER_H_STEP_COUNT;
-	stepperHalT->stepCount = CONFIG_STEPPER_T_STEP_COUNT;
+	stepperHalYaw->stepperCompleteBit = STEPPER_COMPLETE_BIT_H;
+	stepperHalPitch->stepperCompleteBit = STEPPER_COMPLETE_BIT_T;
+	stepperHalYaw->stepperDirectionPin = (gpio_num_t)CONFIG_STEPPER_Y_PIN_DIR;
+	stepperHalPitch->stepperDirectionPin = (gpio_num_t)CONFIG_STEPPER_P_PIN_DIR;
+	pinMode(stepperHalYaw->stepperDirectionPin, OUTPUT);
+	pinMode(stepperHalPitch->stepperDirectionPin, OUTPUT);
+	stepperHalYaw->stepCount = CONFIG_STEPPER_Y_STEP_COUNT;
+	stepperHalPitch->stepCount = CONFIG_STEPPER_P_STEP_COUNT;
 
-	stepperHalH->commandQueue = xQueueCreate(CONFIG_STEPPER_HAL_QUEUE_SIZE, sizeof(stepper_hal_command_t));
-	stepperHalT->commandQueue = xQueueCreate(CONFIG_STEPPER_HAL_QUEUE_SIZE, sizeof(stepper_hal_command_t));
-	stepperHalH->stepperCommand = new stepper_hal_command_t(); // Don't really know why we need it, but
-	stepperHalT->stepperCommand = new stepper_hal_command_t();
-	stepperHalH->stepperCommandPrev = new stepper_hal_command_t();
-	stepperHalT->stepperCommandPrev = new stepper_hal_command_t();
+	stepperHalYaw->commandQueue = xQueueCreate(CONFIG_STEPPER_YAL_QUEUE_SIZE, sizeof(stepper_hal_command_t));
+	stepperHalPitch->commandQueue = xQueueCreate(CONFIG_STEPPER_YAL_QUEUE_SIZE, sizeof(stepper_hal_command_t));
+	stepperHalYaw->stepperCommand = new stepper_hal_command_t(); // Don't really know why we need it, but
+	stepperHalPitch->stepperCommand = new stepper_hal_command_t();
+	stepperHalYaw->stepperCommandPrev = new stepper_hal_command_t();
+	stepperHalPitch->stepperCommandPrev = new stepper_hal_command_t();
 
-	xTaskCreate(stepperTask, "Stepper Task H", 2048, stepperHalH, 5, NULL);
-	xTaskCreate(stepperTask, "Stepper Task T", 2048, stepperHalT, 5, NULL);
+	xTaskCreate(stepperTask, "Stepper Task H", 2048, stepperHalYaw, 5, NULL);
+	xTaskCreate(stepperTask, "Stepper Task T", 2048, stepperHalPitch, 5, NULL);
 	ESP_LOGI(TAG, "Stepper tasks initialized");
 	xEventGroupClearBits(StepperHal::stepperEventGroup, STEPPER_COMPLETE_BIT_H);
 	xEventGroupClearBits(StepperHal::stepperEventGroup, STEPPER_COMPLETE_BIT_T);
@@ -58,21 +58,21 @@ void StepperHal::initStepperTasks()
 
 void StepperHal::initTimers()
 {
-	stepperHalH->helperTimer = xTimerCreate(
+	stepperHalYaw->helperTimer = xTimerCreate(
 			"StepperTimerH",
 			1,									// Dummy period (overridden later)
 			pdFALSE,						// One-shot
-			(void*)stepperHalH, // Pass self as timer ID
+			(void*)stepperHalYaw, // Pass self as timer ID
 			[](TimerHandle_t xTimer) {
 				// Set THIS stepper's bit when timer expires
 				xEventGroupSetBits(stepperEventGroup, STEPPER_COMPLETE_BIT_H);
 			});
 
-	stepperHalT->helperTimer = xTimerCreate(
+	stepperHalPitch->helperTimer = xTimerCreate(
 			"StepperTimerT",
 			1,									// Dummy period (overridden later)
 			pdFALSE,						// One-shot
-			(void*)stepperHalT, // Pass self as timer ID
+			(void*)stepperHalPitch, // Pass self as timer ID
 			[](TimerHandle_t xTimer) {
 				// Set THIS stepper's bit when timer expires
 				xEventGroupSetBits(stepperEventGroup, STEPPER_COMPLETE_BIT_T);
@@ -84,24 +84,24 @@ void StepperHal::initMCPWN()
 	// Configure MCPWM timer for stepper 1
 	stepperEventGroup = xEventGroupCreate();
 
-	mcpwm_timer_config_t timerH_config = {
+	mcpwm_timer_config_t timerYawConfig = {
 		.group_id = 0,
 		.clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
 		.resolution_hz = 100000, // 0.1 MHz resolution
 		.count_mode = MCPWM_TIMER_COUNT_MODE_UP,
 		.period_ticks = 1000, // Will adjust for RPM
 	};
-	mcpwm_new_timer(&timerH_config, &stepperHalH->timer);
+	mcpwm_new_timer(&timerYawConfig, &stepperHalYaw->timer);
 
 	// Configure MCPWM timer for stepper 2
-	mcpwm_timer_config_t timerT_config = {
+	mcpwm_timer_config_t timerPitchConfig = {
 		.group_id = 0,
 		.clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
 		.resolution_hz = 100000,
 		.count_mode = MCPWM_TIMER_COUNT_MODE_UP,
 		.period_ticks = 1000,
 	};
-	mcpwm_new_timer(&timerT_config, &stepperHalT->timer);
+	mcpwm_new_timer(&timerPitchConfig, &stepperHalPitch->timer);
 
 	// Set up MCPWM operator for each stepper
 	mcpwm_operator_config_t operatorConfig = {
@@ -109,12 +109,12 @@ void StepperHal::initMCPWN()
 		.intr_priority = 0, // as opposed to RMT this will possibly be bothered by other interrupts
 	};
 	// operator_config.group_id =0;
-	ESP_ERROR_CHECK(mcpwm_new_operator(&operatorConfig, &stepperHalH->oper));
-	ESP_ERROR_CHECK(mcpwm_new_operator(&operatorConfig, &stepperHalT->oper));
+	ESP_ERROR_CHECK(mcpwm_new_operator(&operatorConfig, &stepperHalYaw->oper));
+	ESP_ERROR_CHECK(mcpwm_new_operator(&operatorConfig, &stepperHalPitch->oper));
 
 	// Connect the operators to timers
-	ESP_ERROR_CHECK(mcpwm_operator_connect_timer(stepperHalH->oper, stepperHalH->timer));
-	ESP_ERROR_CHECK(mcpwm_operator_connect_timer(stepperHalT->oper, stepperHalT->timer));
+	ESP_ERROR_CHECK(mcpwm_operator_connect_timer(stepperHalYaw->oper, stepperHalYaw->timer));
+	ESP_ERROR_CHECK(mcpwm_operator_connect_timer(stepperHalPitch->oper, stepperHalPitch->timer));
 
 	// Set up comparator and generator for each stepper
 	mcpwm_comparator_config_t comparator_config = {
@@ -123,21 +123,21 @@ void StepperHal::initMCPWN()
 				.update_cmp_on_tez = true,
 		},
 	};
-	ESP_ERROR_CHECK(mcpwm_new_comparator(stepperHalH->oper, &comparator_config, &stepperHalH->comparator));
-	ESP_ERROR_CHECK(mcpwm_new_comparator(stepperHalT->oper, &comparator_config, &stepperHalT->comparator));
+	ESP_ERROR_CHECK(mcpwm_new_comparator(stepperHalYaw->oper, &comparator_config, &stepperHalYaw->comparator));
+	ESP_ERROR_CHECK(mcpwm_new_comparator(stepperHalPitch->oper, &comparator_config, &stepperHalPitch->comparator));
 
 	mcpwm_generator_config_t generator_config;
-	generator_config.gen_gpio_num = CONFIG_STEPPER_H_PIN_STEP;
-	ESP_ERROR_CHECK(mcpwm_new_generator(stepperHalH->oper, &generator_config, &stepperHalH->generator));
-	generator_config.gen_gpio_num = CONFIG_STEPPER_T_PIN_STEP;
-	ESP_ERROR_CHECK(mcpwm_new_generator(stepperHalT->oper, &generator_config, &stepperHalT->generator));
+	generator_config.gen_gpio_num = CONFIG_STEPPER_Y_PIN_STEP;
+	ESP_ERROR_CHECK(mcpwm_new_generator(stepperHalYaw->oper, &generator_config, &stepperHalYaw->generator));
+	generator_config.gen_gpio_num = CONFIG_STEPPER_P_PIN_STEP;
+	ESP_ERROR_CHECK(mcpwm_new_generator(stepperHalPitch->oper, &generator_config, &stepperHalPitch->generator));
 
 	// Configure the generator actions - toggle on timer event
-	ESP_ERROR_CHECK(mcpwm_generator_set_action_on_timer_event(stepperHalH->generator, MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, MCPWM_TIMER_EVENT_EMPTY, MCPWM_GEN_ACTION_TOGGLE)));
-	ESP_ERROR_CHECK(mcpwm_generator_set_action_on_timer_event(stepperHalT->generator, MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, MCPWM_TIMER_EVENT_EMPTY, MCPWM_GEN_ACTION_TOGGLE)));
+	ESP_ERROR_CHECK(mcpwm_generator_set_action_on_timer_event(stepperHalYaw->generator, MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, MCPWM_TIMER_EVENT_EMPTY, MCPWM_GEN_ACTION_TOGGLE)));
+	ESP_ERROR_CHECK(mcpwm_generator_set_action_on_timer_event(stepperHalPitch->generator, MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, MCPWM_TIMER_EVENT_EMPTY, MCPWM_GEN_ACTION_TOGGLE)));
 
-	ESP_ERROR_CHECK(mcpwm_timer_enable(stepperHalH->timer));
-	ESP_ERROR_CHECK(mcpwm_timer_enable(stepperHalT->timer));
+	ESP_ERROR_CHECK(mcpwm_timer_enable(stepperHalYaw->timer));
+	ESP_ERROR_CHECK(mcpwm_timer_enable(stepperHalPitch->timer));
 
 	ESP_LOGI(TAG, "MCPWM initialized");
 }
@@ -150,43 +150,43 @@ void StepperHal::initPCNT()
 		.high_limit = 32767,
 		.intr_priority = 0,
 	};
-	ESP_ERROR_CHECK(pcnt_new_unit(&unitConfig, &stepperHalT->pcntUnit));
-	ESP_ERROR_CHECK(pcnt_new_unit(&unitConfig, &stepperHalH->pcntUnit));
+	ESP_ERROR_CHECK(pcnt_new_unit(&unitConfig, &stepperHalPitch->pcntUnit));
+	ESP_ERROR_CHECK(pcnt_new_unit(&unitConfig, &stepperHalYaw->pcntUnit));
 
 	ESP_LOGI(TAG, "set glitch filter");
 	pcnt_glitch_filter_config_t filterConfig = {
 		.max_glitch_ns = 1000,
 	};
-	ESP_ERROR_CHECK(pcnt_unit_set_glitch_filter(stepperHalH->pcntUnit, &filterConfig));
-	ESP_ERROR_CHECK(pcnt_unit_set_glitch_filter(stepperHalT->pcntUnit, &filterConfig));
+	ESP_ERROR_CHECK(pcnt_unit_set_glitch_filter(stepperHalYaw->pcntUnit, &filterConfig));
+	ESP_ERROR_CHECK(pcnt_unit_set_glitch_filter(stepperHalPitch->pcntUnit, &filterConfig));
 
 	pcnt_chan_config_t channelConfig;
-	channelConfig.edge_gpio_num = (gpio_num_t)CONFIG_STEPPER_H_PIN_SENSE;
-	ESP_ERROR_CHECK(pcnt_new_channel(stepperHalH->pcntUnit, &channelConfig, &stepperHalH->pcntChan));
-	channelConfig.edge_gpio_num = (gpio_num_t)CONFIG_STEPPER_T_PIN_SENSE;
-	ESP_ERROR_CHECK(pcnt_new_channel(stepperHalT->pcntUnit, &channelConfig, &stepperHalT->pcntChan));
+	channelConfig.edge_gpio_num = (gpio_num_t)CONFIG_STEPPER_Y_PIN_SENSE;
+	ESP_ERROR_CHECK(pcnt_new_channel(stepperHalYaw->pcntUnit, &channelConfig, &stepperHalYaw->pcntChan));
+	channelConfig.edge_gpio_num = (gpio_num_t)CONFIG_STEPPER_P_PIN_SENSE;
+	ESP_ERROR_CHECK(pcnt_new_channel(stepperHalPitch->pcntUnit, &channelConfig, &stepperHalPitch->pcntChan));
 
-	ESP_ERROR_CHECK(pcnt_channel_set_edge_action(stepperHalH->pcntChan, PCNT_CHANNEL_EDGE_ACTION_INCREASE, PCNT_CHANNEL_EDGE_ACTION_HOLD)); // increase on rising edge, hold on falling
-	ESP_ERROR_CHECK(pcnt_channel_set_edge_action(stepperHalT->pcntChan, PCNT_CHANNEL_EDGE_ACTION_INCREASE, PCNT_CHANNEL_EDGE_ACTION_HOLD)); // increase on rising edge, hold on falling
+	ESP_ERROR_CHECK(pcnt_channel_set_edge_action(stepperHalYaw->pcntChan, PCNT_CHANNEL_EDGE_ACTION_INCREASE, PCNT_CHANNEL_EDGE_ACTION_HOLD)); // increase on rising edge, hold on falling
+	ESP_ERROR_CHECK(pcnt_channel_set_edge_action(stepperHalPitch->pcntChan, PCNT_CHANNEL_EDGE_ACTION_INCREASE, PCNT_CHANNEL_EDGE_ACTION_HOLD)); // increase on rising edge, hold on falling
 
 	pcnt_event_callbacks_t cbs = {
 		.on_reach = StepperHal::pcntOnReach,
 	};
 
-	stepperHalH->pcntQueue = xQueueCreate(10, sizeof(int));
-	stepperHalT->pcntQueue = xQueueCreate(10, sizeof(int));
-	ESP_ERROR_CHECK(pcnt_unit_register_event_callbacks(stepperHalH->pcntUnit, &cbs, stepperHalH->pcntQueue));
-	ESP_ERROR_CHECK(pcnt_unit_register_event_callbacks(stepperHalT->pcntUnit, &cbs, stepperHalT->pcntQueue));
+	stepperHalYaw->pcntQueue = xQueueCreate(10, sizeof(int));
+	stepperHalPitch->pcntQueue = xQueueCreate(10, sizeof(int));
+	ESP_ERROR_CHECK(pcnt_unit_register_event_callbacks(stepperHalYaw->pcntUnit, &cbs, stepperHalYaw->pcntQueue));
+	ESP_ERROR_CHECK(pcnt_unit_register_event_callbacks(stepperHalPitch->pcntUnit, &cbs, stepperHalPitch->pcntQueue));
 
 	ESP_LOGI(TAG, "enable pcnt unit");
-	ESP_ERROR_CHECK(pcnt_unit_enable(stepperHalH->pcntUnit));
-	ESP_ERROR_CHECK(pcnt_unit_enable(stepperHalT->pcntUnit));
+	ESP_ERROR_CHECK(pcnt_unit_enable(stepperHalYaw->pcntUnit));
+	ESP_ERROR_CHECK(pcnt_unit_enable(stepperHalPitch->pcntUnit));
 	ESP_LOGI(TAG, "clear pcnt unit");
-	ESP_ERROR_CHECK(pcnt_unit_clear_count(stepperHalH->pcntUnit));
-	ESP_ERROR_CHECK(pcnt_unit_clear_count(stepperHalT->pcntUnit));
+	ESP_ERROR_CHECK(pcnt_unit_clear_count(stepperHalYaw->pcntUnit));
+	ESP_ERROR_CHECK(pcnt_unit_clear_count(stepperHalPitch->pcntUnit));
 	// ESP_LOGI(TAG, "start pcnt unit");
-	ESP_ERROR_CHECK(pcnt_unit_start(stepperHalH->pcntUnit));
-	ESP_ERROR_CHECK(pcnt_unit_start(stepperHalT->pcntUnit));
+	ESP_ERROR_CHECK(pcnt_unit_start(stepperHalYaw->pcntUnit));
+	ESP_ERROR_CHECK(pcnt_unit_start(stepperHalPitch->pcntUnit));
 
 	ESP_LOGI(TAG, "MCPWM initialized");
 }
@@ -194,7 +194,7 @@ void StepperHal::initPCNT()
 void StepperHal::stepperTask(void* arg)
 {
 	stepper_hal_struct_t* stepperHal = (stepper_hal_struct_t*)arg;
-	const char* stepperSign = stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "H" : "T";
+	const char* stepperSign = stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "Y" : "P";
 	while (1) {
 		if (xQueueReceive(stepperHal->commandQueue, stepperHal->stepperCommand, portMAX_DELAY)) {
 			// if previous command was spindle, we are running a command that will change stepper movement we need to immediately set spindle regime end time
@@ -216,11 +216,11 @@ void StepperHal::stepperTask(void* arg)
 			// with synchronized commands neither of these if's should trigger
 
 			if (stepperHal->stepperCommand->synchronized && t & STEPPER_COMPLETE_BIT_H && t & STEPPER_COMPLETE_BIT_T)
-				ESP_LOGE(TAG, "stepperTask | %s completed T and H", stepperSign);
+				ESP_LOGE(TAG, "stepperTask | %s completed Y and P", stepperSign);
 			else if (stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H && t & STEPPER_COMPLETE_BIT_H)
-				ESP_LOGE(TAG, "stepperTask | %s completed H", stepperSign);
+				ESP_LOGE(TAG, "stepperTask | %s completed Y", stepperSign);
 			else if (stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_T && t & STEPPER_COMPLETE_BIT_T)
-				ESP_LOGE(TAG, "stepperTask | %s completed T", stepperSign);
+				ESP_LOGE(TAG, "stepperTask | %s completed P", stepperSign);
 #endif
 
 			// Reset and start pulse counter

@@ -6,10 +6,10 @@ Configuration of the device is done primarily with Kconfig under esp-idf. While 
 
 # Constants
 * these parameters are defined in Kconfig and will require recompilation of the firmware to change
-* STEPPER_H_STEP_COUNT, STEPPER_T_STEP_COUNT - number of steps in a single rotation on horizontal and tilt axis
+* STEPPER_Y_STEP_COUNT, STEPPER_P_STEP_COUNT - number of steps in a single rotation on horizontal and pitch
 	* number includes any microstepping and down/up gearing
-* STEPPER_H_PIN_DIR, STEPPER_H_PIN_STEP, STEPPER_T_PIN_DIR, STEPPER_T_PIN_STEP - pins used for direction and step signals
-* STEPPER_H_PIN_ENDSTOP, STEPPER_T_PIN_ENDSTOP - pins used for endstop signals
+* STEPPER_Y_PIN_DIR, STEPPER_Y_PIN_STEP, STEPPER_P_PIN_DIR, STEPPER_P_PIN_STEP - pins used for direction and step signals
+* STEPPER_Y_PIN_ENDSTOP, STEPPER_P_PIN_ENDSTOP - pins used for endstop signals
 * STEPPER_MAX_SPEED - maximum speed in rpm
 * STEPPER_DEFAULT_SPEED - default speed in rpm
 * STEPPER_MIN_SPINDLE_TIME - minimum time in ms between two steps in spindle Mode
@@ -69,63 +69,63 @@ Configuration of the device is done primarily with Kconfig under esp-idf. While 
 WARNING: DO NOT use this device without first reading the documentation. Commands might have similar names and structures as in common G-code but their behavior can be radically different as this device has rather specific requirements.
 
 ## Motor control
-* axis descriptors: H for horizontal rotation, T for tilt
+* axis descriptors: Y for yaw (horizontal) and P for pitch (tilt)
 * M80: turn on high voltage power supply
 * M81: turn off high voltage power supply
 * G20: set units to degrees
 * G21: set units to steps
 * G90: absolute positioning
-	* H - set absolute positioning on horizontal axis
-	* T - set absolute positioning on tilt axis
+	* Y - set absolute positioning on yaw
+	* P - set absolute positioning on pitch
 	* NOTE: absolute positioning is not available in spindle mode, if you issue a M03 command to stepper in absolute positioning mode, it will be automatically switched to relative positioning and throw an error
 	* if no argument is provided both axis are switched to relative positioning
 * G91: sets relative positioning
-	* H - set relative positioning on horizontal axis
-	* T - set relative positioning on tilt axis
+	* Y - set relative positioning on yaw
+	* P - set relative positioning on pitch
 	* if no argument is provided both axis are switched to relative positioning
 * G92: set current position as 0
-	* H - set current position as 0 on horizontal axis
-	* T - set current position as 0 on tilt axis
+	* Y - set current position as 0 on yaw
+	* P - set current position as 0 on pitch
 	* if no argument is provided both axis are set to 0
 	* NOTE: executes only when no other commands are queued in stepper queues
 * G28: auto home
-	* H - home horizontal axis
-	* T - home tilt axis
+	* Y - home yaw
+	* P - home pitch
 	* if no argument is provided both axis are are homed
 * stepper mode
 	* only active if spindle mode is off
 	* G0: move to/by given angle/steps
 		* S<SPEED> - fallback speed
-		* SH<SPEED> - speed for motor in horizontal plane
-		* H - angle by/to rotate in horizontal plane
-		* ST<SPEED> - speed for tilt motor in tilt axis
-		* T - angle by/to rotate in tilt axis
+		* SY<SPEED> - speed for yaw motor
+		* Y - angle by/to rotate in yaw
+		* SP<SPEED> - speed for pitch motor
+		* P - angle by/to rotate in pitch
 		* speed needs to be provided, if number of steps is set but speed is not ERR 2 is returned
 * spindle mode
 	* beware when using spindle in programming mode one can desynchronized two command queues, this "issue" will be fixed and is up to user to handle as there is no clear way to decipher user intentions in programm in order to prevent it
 	* M03:  Start spindle mode
 		* S<SPEED> - fallback speed
-		* SH<SPEED> - speed for motor in horizontal plane
-		* H<+/-> - start spin clockwise/anticlockwise
-		* ST<SPEED> - speed for tilt motor in tilt axis
-		* T<+/-> - start spin clockwise/anticlockwise
+		* SY<SPEED> - speed for yaw motor
+		* Y<+/-> - start spin with yaw motor clockwise/anticlockwise
+		* SP<SPEED> - speed for pitch motor
+		* P<+/-> - start spin pitch motor clockwise/anticlockwise
 		* NOTE: spindle will always spin at least for STEPPER_MIN_SPINDLE_TIME ms, thus theoretically to spin for N seconds would would have to substract STEPPER_MIN_SPINDLE_TIME from the time you want to spin, however timing here is quite finicky so correction probably will not secure exact number of steps
 	* M05:  Stop spindle spinning.
-		* H - stop spindle regime on horizontal axis
-		* T - stop spindle regime on tilt axis
+		* Y - stop spindle regime on yaw
+		* P - stop spindle regime on pitch
 		* NOTE: spindle mode will also automatically end if stepper receives G0 command or if another M03 command is issued
 		* if no argument is present neither axis will be stopped
 * M201: set limits on steppers
-	* LH<ANGLE>: low limit on horizontal stepper
-	* HH<ANGLE>: high limit on horizontal Stepper
-	* LT<ANGLE>: low limit on tilt stepper
-	* HT<ANGLE>: high limit on tilt stepper
+	* LY<ANGLE>: low limit on yaw
+	* HY<ANGLE>: high limit on horizontal Stepper
+	* LP<ANGLE>: low limit on pitch
+	* HP<ANGLE>: high limit on pitch
 	* ANGLE is given in degrees if unit is set to degrees (0-360), otherwise in steps (0-STEP_COUNT)
 	* either no limits are placed on axis or both limits are placed, if user tries to impose just one limit whole axis will not be processed
 	* NOTE: keep in mind that if limits are imposed and current postion is not within them, you will have to get the device within limits in one G0 command
 * M202: disable limits
-	* H - disable limits on horizontal stepper
-	* L - disable limits on tilt stepper
+	* Y - disable limits on yaw
+	* L - disable limits on pitch
 
 ### Programming movements
 * device allows to preprogram sequence of movements that can be executed with one command, or looped continuously
@@ -159,11 +159,11 @@ WARNING: DO NOT use this device without first reading the documentation. Command
 * P29: declares looped programm, these programs will loop indefinitely until stopped
 	* NOTE: only applicable in header declaration
 * W0: wait command (seconds)
-	* H<TIME> - wait on horizontal stepper
-	* T<TIME> - wait on tilt stepper
+	* Y<TIME> - wait on yaw
+	* P<TIME> - wait on pitch
 * W1: wait command (milliseconds)
-	* H<TIME> - wait on horizontal stepper
-	* T<TIME> - wait on tilt stepper
+	* Y<TIME> - wait on yaw
+	* P<TIME> - wait on pitch
 
 
 #### Example of programming
@@ -175,10 +175,10 @@ WARNING: DO NOT use this device without first reading the documentation. Command
 | G20           | Header dec             | set units to degrees                         |
 | G92           | Header dec             | set current position as home                 |
 | P29           | Header dec             | declare looped programm                      |
-| M03 SH6 H+    | Header dec -> Main dec | set horizontal motor to be in spindle mode   |
+| M03 SY6 Y+    | Header dec -> Main dec | set yaw to be in spindle mode   |
 | P91           | Main dec               | start declaration of main loop               |
-| G0 ST30 T100  | Main dec               | move tilt motor by 100 degrees at 30 rpm     |
-| G0 ST30 T-100 | Main dec               | move tilt motor by -100 degrees at 30 rpm    |
+| G0 SP30 P100  | Main dec               | move pitch by 100 degrees at 30 rpm     |
+| G0 SP30 P-100 | Main dec               | move pitch by -100 degrees at 30 rpm    |
 | P92           | Main dec               | end programming                              |
 
 
@@ -195,10 +195,10 @@ WARNING: DO NOT use this device without first reading the documentation. Command
 	* NOTE: all values are interpreted as steps
 	* NOTE: if M82 is issued beforehand than G3 command should not lead to invalidation of current position
 	* S<SPEED> - fallback speed
-	* SH<SPEED> - speed for motor in horizontal plane
-	* H - angle by/to rotate in horizontal plane
-	* ST<SPEED> - speed for tilt motor in tilt axis
-	* T - angle by/to rotate in tilt axis
+	* SY<SPEED> - speed for yaw
+	* Y - angle by/to rotate in yaw
+	* SP<SPEED> - speed for pitch
+	* P - angle by/to rotate in pitch
 * W3: wait in application layer
 	* T<TIME> - time to wait for in ms
 	* pauses execution in application layer

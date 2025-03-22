@@ -40,7 +40,7 @@
 #define LIMIT_NUMBER(value, min, max) ((value) < (min) ? (min) : (value) > (max) ? (max) : (value))
 
 #define NORMALIZE_ANGLE(angle, angleMax) ((angle) < 0 ? ((angle) % (angleMax) + (angleMax)) % (angleMax) : (angle) % (angleMax))
-#define SYNCHRONIZED (command->movementH != nullptr && command->movementT != nullptr)
+#define SYNCHRONIZED (command->movementYaw != nullptr && command->movementPitch != nullptr)
 
 #define port_TICK_PERIOD_US portTICK_PERIOD_MS * 1000
 
@@ -155,16 +155,16 @@ typedef struct gcode_command_movement_t {
 
 typedef struct gcode_command_t {
 	GCodeCommand type;
-	gcode_command_movement_t* movementH = nullptr; // filled in if command requires some action from steppers
-	gcode_command_movement_t* movementT = nullptr;
+	gcode_command_movement_t* movementYaw = nullptr; // filled in if command requires some action from steppers
+	gcode_command_movement_t* movementPitch = nullptr;
 
 
 	~gcode_command_t()
 	{
-		if (movementH != nullptr)
-			delete movementH;
-		if (movementT != nullptr)
-			delete movementT;
+		if (movementYaw != nullptr)
+			delete movementYaw;
+		if (movementPitch != nullptr)
+			delete movementPitch;
 	}
 } gcode_command_t;
 
@@ -357,15 +357,15 @@ class StepperControl {
 	ParsingGCodeResult parseGCodePCommands(const char* gcode, const uint16_t length, gcode_command_t* command);
 
 	/**
-	 * @brief starts homing routine for H stepper
+	 * @brief starts homing routine for yaw
 	 */
-	void homeH();
+	void homeYaw();
 
 
 	/**
-	 * @brief starts homing routine for T stepper
+	 * @brief starts homing routine for pitch
 	 */
-	void homeT();
+	void homePitch();
 
 	public:
 	constexpr static char TAG[] = "StepperControl";

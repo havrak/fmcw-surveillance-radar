@@ -231,8 +231,8 @@ class StepperHal{
 
 
 extern StepperHal steppers;
-extern stepper_hal_struct_t* stepperHalH;
-extern stepper_hal_struct_t* stepperHalT;
+extern stepper_hal_struct_t* stepperHalYaw;
+extern stepper_hal_struct_t* stepperHalPitch;
 
 
 #endif /* !STEPPER_HAL_H */

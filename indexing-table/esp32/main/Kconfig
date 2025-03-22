@@ -54,7 +54,7 @@ default 38400 if COMM_RS232_BAUDRATE_38400
 default 19200 if COMM_RS232_BAUDRATE_19200
 default 9600 if COMM_RS232_BAUDRATE_9600
 
-config STEPPER_HAL_QUEUE_SIZE
+config STEPPER_YAL_QUEUE_SIZE
 int "Queue size for stepper HAL"
 range 1 100
 default 10
@@ -68,92 +68,92 @@ default 30
 help
 	Maximum speed of the motor in RPM
 
-config STEPPER_H_STEP_COUNT
-int "Horizontal motor rotation step count"
+config STEPPER_Y_STEP_COUNT
+int "Yaw motor rotation step count"
 range 1 1000
 default 200
 help
-	Number of steps to rotate one revolution the motor in horizontal axis, include mechanical reduction or microstepping
+	Number of steps to rotate one revolution the motor in yaw, include mechanical reduction or microstepping
 
-config STEPPER_H_PIN_ENDSTOP
-int  "Horizontal motor endstop pin"
+config STEPPER_Y_PIN_ENDSTOP
+int  "Yaw motor endstop pin"
 default  10
 range -1 100
 help
-	GPIO pin number of the endstop of the motor in horizontal axis, -1 for no endstop
+	GPIO pin number of the endstop of the motor in yaw, -1 for no endstop
 
 
-config STEPPER_H_PIN_EN
-int "Horizontal motor GPIO connection enable pin"
+config STEPPER_Y_PIN_EN
+int "Yaw motor GPIO connection enable pin"
 range 0 100
 default 6
 help
-	Horizontal motor GPIO connection enable pin
+	Yaw motor GPIO connection enable pin
 
 
-config STEPPER_H_PIN_STEP
-int "Horizontal motor GPIO connection for step pin"
+config STEPPER_Y_PIN_STEP
+int "Yaw motor GPIO connection for step pin"
 range 0 100
 default 23
 help
-	Horizontal motor GPIO connection for step pin
+	Yaw motor GPIO connection for step pin
 
-config STEPPER_H_PIN_SENSE
-int "Horizontal motor GPIO connection for sense pin"
+config STEPPER_Y_PIN_SENSE
+int "Yaw motor GPIO connection for sense pin"
 range 0 100
 default 22
 help
-	Horizontal motor GPIO connection for sense pin
+	Yaw motor GPIO connection for sense pin
 
-config STEPPER_H_PIN_DIR
-int "Horizontal motor GPIO connection direction pin"
+config STEPPER_Y_PIN_DIR
+int "Yaw motor GPIO connection direction pin"
 range 0 100
 default 21
 help
-	Horizontal motor GPIO connection for direction pin
+	Yaw motor GPIO connection for direction pin
 
 
-config STEPPER_T_STEP_COUNT
-int "Tilt motor rotation step count"
+config STEPPER_P_STEP_COUNT
+int "Pitch motor rotation step count"
 range 1 1000
 default 200
 help
-	number of steps to rotate one revolution the motor in tilt axis, include mechanical reduction or microstepping
+	number of steps to rotate one revolution the motor in pitch, include mechanical reduction or microstepping
 
-config STEPPER_T_PIN_ENDSTOP
-int  "Tilt motor endstop pin"
+config STEPPER_P_PIN_ENDSTOP
+int  "Pitch motor endstop pin"
 default 11
 range -1 100
 help
-	GPIO pin number of the endstop of the motor in tilt axis, -1 for no endstop
+	GPIO pin number of the endstop of the motor in pitch, -1 for no endstop
 
-config STEPPER_T_PIN_EN
-int "Tilt motor GPIO connection enable pin"
+config STEPPER_P_PIN_EN
+int "Pitch motor GPIO connection enable pin"
 range 0 100
 default 7
 help
-	Tilt motor GPIO connection enable pin
+	Pitch motor GPIO connection enable pin
 
-config STEPPER_T_PIN_STEP
-int "Tilt motor GPIO connection for step pin"
+config STEPPER_P_PIN_STEP
+int "Pitch motor GPIO connection for step pin"
 range 0 100
 default 20
 help
-	Tilt motor GPIO connection for step pin
+	Pitch motor GPIO connection for step pin
 
-config STEPPER_T_PIN_SENSE
-int "Tilt motor GPIO connection for sense pin"
+config STEPPER_P_PIN_SENSE
+int "Pitch motor GPIO connection for sense pin"
 range 0 100
 default 19
 help
-	Tilt motor GPIO connection for sense pin
+	Pitch motor GPIO connection for sense pin
 
-config STEPPER_T_PIN_DIR
-int "Tilt motor GPIO connection for direction pin"
+config STEPPER_P_PIN_DIR
+int "Pitch motor GPIO connection for direction pin"
 range 0 100
 default 18
 help
-	Tilt motor GPIO connection for direction pin
+	Pitch motor GPIO connection for direction pin
 
 
 config STEPPER_MIN_SPINDLE_TIME
