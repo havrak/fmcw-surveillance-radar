@@ -193,10 +193,6 @@ classdef platformControl < handle
 					obj.hEditProgramHeader.String = sprintf(text{1}); % sprintf will execute line breaks
 					obj.hEditProgramMain.String="";
 				else
-					disp(text);
-					disp(text{1});
-					disp(text{2});
-
 					obj.hEditProgramHeader.String = sprintf(text{1}); % sprintf will execute line breaks
 					obj.hEditProgramMain.String = sprintf(text{2}); % sprintf will execute line breaks
 
