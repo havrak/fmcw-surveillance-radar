@@ -23,21 +23,16 @@ classdef dataProcessor < handle
 	methods(Static, Access=private)
 
 
-		function [yaw, pitch, rangeProfile, rangeDoppler, movementMask] = ...
-				processBatch(batchRangeFFTs, batchTimes, posTimes, posYaw, posPitch, speedBins, calcSpeed)
+		function [yaw, pitch, rangeProfile, rangeDoppler, speed, movementMask] = ...
+				processBatch(batchRangeFFTs, batchTimes, posTimes, posYaw, posPitch, speedBins, calcSpeed, maskSize)
 
 			rangeProfile = abs(batchRangeFFTs(end, :));
+			yaw = abs(mod(posYaw(end)+180, 360))-180;
+			pitch = posPitch(end);
 
-			%fid = fopen('processing.txt', 'a+');
 			fprintf("-------------------\nNew batch\n");
-
-			if ~calcSpeed % Lets keep common processing regardless if we compute or don't compute speed
-				rangeDoppler = [zeros(128, speedBins-1); rangeProfile'  ];
-
-				yaw = abs(mod(posYaw(end)+180, 360))-180;
-				pitch = posPitch(end);
-				return;
-			end
+			
+		
 
 
 			if(isempty(posTimes)) % NOTE just for testing
@@ -46,11 +41,21 @@ classdef dataProcessor < handle
 				posTimes = [0 0];
 			end
 
-			% Allow only small movement changes (deg/s)
+			%% Verify how much has the platform moved 
+			% we will cut number of samples used, the number of FFT points stays
+			% the same regardless
+			%   * if we straied too far from main lobe we cannot use these samples
+			%   * if the platform was moving too fast/there were too many changed
+			%     we need to crop 
+			%
+			% we need a segmetn where accumulated change is smaller than main
+			% lobe size, within this segment maximal change should be limited
+
+
 			dt = diff(posTimes);
 			dYaw = gradient(posYaw, dt);
 			dPitch = gradient(posPitch, dt);
-			lowBoundIndex = length(dYaw);
+			lowIndex = length(dYaw);
 
 			for i=length(dYaw):-1:1
 				% stop on fast change
@@ -59,18 +64,42 @@ classdef dataProcessor < handle
 				end
 				% TODO stop on accumulated distance (if radar moved too much we
 				% cannot use these spectrum also
-				lowBoundIndex=i;
+				lowIndex=i;
 			end
 
-			if lowBoundIndex ~= 1
+			if lowIndex ~= 1
 				% we need to find closes timestamp in batchTimes
-				[~, idxMin] = min(abs(batchTimes - posTimes(lowBoundIndex)));
+				[~, idxMin] = min(abs(batchTimes - posTimes(lowIndex)));
 				batchRangeFFTs(1:idxMin) = [];
 				batchTimes(1:idxMin) = [];
 				fprintf("Restricting spectrum count due to too fast movement");
 			end
 
+			% Let's say here we have cropped the data, based on movement
+			% we can calculate movement mask that will be used when running
+			% update
 
+			% calculate speed
+			% calulate mask
+			totalDiffYaw = posYaw(end) - posYaw(lowIndex);
+			totalDIffPitcH = posPitch(end) - posPitch(lowIndex);
+			timeElapsed = posTimes(lowIndex) - posTimes(lowIndex);
+			
+			% angular speed
+			speed = sqrt((totalDiffYaw^2 + totalDIffPitcH^2)) / (timeElapsed + 1e-6); 
+
+			movementMask = radarDataCube.createSectorMask(totalDiffYaw, totalDIffPitcH, maskSize, speed);
+			
+			% in case we aren't calculating speed we can end here
+			if ~calcSpeed 
+				rangeDoppler = [zeros(128, speedBins-1); rangeProfile'  ];
+				yaw = abs(mod(posYaw(end)+180, 360))-180;
+				pitch = posPitch(end);
+				return;
+			end
+
+
+			%% Timing based analysis
 			timeDeltas = diff(batchTimes);
 			meanInterval = mean(timeDeltas);
 
@@ -78,25 +107,17 @@ classdef dataProcessor < handle
 			maxDeviation = max(abs(timeDeltas - meanInterval)) / meanInterval;
 			useNUFFT = maxDeviation > 0.2;
 
+
+			%% Run FFT
 			if useNUFFT
-				% USE FFT
 				fprintf("ugly timing detected\n");
-			end
-			% else
-			% Regular FFT for uniform sampling
-			%rangeDoppler = abs(fftshift(fft(batchRangeFFTs, 16, 1), 1)');
+				rangeDoppler = abs(nufft(batchRangeFFTs, batchTimes, speedBins, 1))';
+			else
 			  rangeDoppler = abs(fft(batchRangeFFTs, speedBins, 1))';
-			%end
+			end
 
-
-			% TODO Decimate/Interpolate spectrum to fit 16 slots
 
 			rangeProfile = abs(batchRangeFFTs(end, :));
-
-
-
-			yaw = abs(mod(posYaw(end)+180, 360))-180;
-			pitch = posPitch(end);
 
 			fprintf("Dimensions Fast time: %f, Slow time %f\n", length(rangeProfile), length(rangeDoppler))
 			% fclose(fid);
@@ -105,7 +126,7 @@ classdef dataProcessor < handle
 	end
 
 	methods(Access=private)
-		function mergeResults(obj, yaw, pitch, rangeProfile, rangeDoppler)
+		function mergeResults(obj, yaw, pitch, rangeProfile, rangeDoppler, speed, movementMask)
 			fprintf("Processing ended\n");
 			disp(yaw)
 			obj.hDataCube.addData(yaw, pitch, rangeProfile, rangeDoppler);
@@ -158,15 +179,26 @@ classdef dataProcessor < handle
 
 			% if ~obj.isProcessing
 			%	obj.isProcessing = true; % Lock processing
+			
 			[batchRangeFFTs, batchTimes] = obj.hRadarBuffer.getSlidingBatch();
 			[posTimes, yaw, pitch] = obj.hPlatform.getPositionsInInterval(min(batchTimes), max(batchTimes));
-
+			maskSize = size(obj.hDataCube.antennaPattern);
+			
 			%future = parfeval(obj.parallelPool, ...
-			%	@dataProcessor.processBatch, 4, ...
-			%	batchRangeFFTs, batchTimes, posTimes, yaw, pitch, obj.speedBins);
+			%	@dataProcessor.processBatch, 6, ...
+			%	batchRangeFFTs, batchTimes, posTimes, yaw, pitch, obj.speedBins, obj.calcSpeed, maskSize);
 
-			[yaw, pitch, rangeProfile, dopplerProfile] = dataProcessor.processBatch(batchRangeFFTs, batchTimes, posTimes, yaw, pitch, obj.speedBins, obj.calcSpeed);
-			obj.mergeResults(yaw, pitch, rangeProfile, dopplerProfile);
+			[yaw, pitch, rangeProfile, rangeDoppler, speed, movementMask] = dataProcessor.processBatch( ...
+				batchRangeFFTs,  ...
+				batchTimes, ...
+				posTimes, ...
+				yaw, ...
+				pitch, ...
+				obj.speedBins, ...
+				obj.calcSpeed, ...
+				maskSize);
+
+			obj.mergeResults(yaw, pitch, rangeProfile, rangeDoppler, speed, movementMask);
 
 			%afterAll(future, @(varargin) obj.mergeResults(varargin{:}), 0);
 			%end

@@ -26,10 +26,13 @@ classdef platformControl < handle
 		hSerial;
 		programs;
 		currentProgramName;
+		
 		bufferSize double = 200;
 		positionTimes;      % Array of timestamps (seconds since start)
 		positionYaw;        % Array of yaw positions
 		positionPitch;      % Array of pitch positions
+		currentIdx double = 1;
+
 		log cell = {};
 		startTime uint64;
 
@@ -229,16 +232,12 @@ classdef platformControl < handle
 				tmp = char(line);
 				vals = strtrim(split(tmp(3:end), ','));
 
-				obj.positionTimes(end+1) = toc(obj.startTime);
-				obj.positionYaw(end+1) = str2double(vals{2})-angleOffsetH;
-				obj.positionPitch(end+1) = str2double(vals{3})-angleOffsetT;
-
-				if length(obj.positionTimes) > obj.bufferSize
-					obj.positionTimes(1) = [];
-					obj.positionYaw(1) = [];
-					obj.positionPitch(1) = [];
-				end
-
+				obj.positionTimes(obj.currentIdx) = toc(obj.startTime);
+				obj.positionYaw(obj.currentIdx) = str2double(vals{2})-angleOffsetH;
+				obj.positionPitch(obj.currentIdx) = str2double(vals{3})-angleOffsetT;
+				
+        obj.currentIdx = mod(obj.currentIdx, obj.bufferSize) + 1;
+				
 				return;
 			elseif strncmp(line,'!R',2)
 				obj.log{end+1} = line;
@@ -367,6 +366,9 @@ classdef platformControl < handle
 			obj.hPreferences = hPreferences;
 			obj.startTime = startTime;
 			obj.programs = obj.hPreferences.getPrograms();
+			obj.positionTimes = zeros(obj.bufferSize, 1);
+			obj.positionYaw = zeros(obj.bufferSize, 1);
+			obj.positionPitch = zeros(obj.bufferSize, 1);
 		end
 
 		function endProcesses(obj)
@@ -427,12 +429,12 @@ classdef platformControl < handle
 
 			[~, idxMin] = min(abs(obj.positionTimes - timeMin));
 			[~, idxMax] = min(abs(obj.positionTimes - timeMax));
+
 			startIdx = min(idxMin, idxMax);
 			endIdx = max(idxMin, idxMax);
 			timestamps = obj.positionTimes(startIdx:endIdx);
 			yaw = obj.positionYaw(startIdx:endIdx);
 			pitch = obj.positionPitch(startIdx:endIdx);
-
 		end
 
 		function [yaw, pitch] = getPositionAtTime(obj, time)
