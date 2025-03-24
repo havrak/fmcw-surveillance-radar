@@ -6,7 +6,7 @@ classdef radarDataCube < handle
 		pitchBinMin=-20;
 		pitchBinMax=60;
 		pitchBins;          % 1° resolution
-		rangeAzimuthDoppler          % 4D matrix [Yaw x Pitch x (Fast time x Slow Time)]
+		cube          % 4D matrix [Yaw x Pitch x (Fast time x Slow Time)]
 		antennaPattern               % Weighting matrix [Yaw x Pitch]
 
 	end
@@ -14,9 +14,9 @@ classdef radarDataCube < handle
 	methods(Static)
 		function mask = createSectorMask(diffYaw, diffPitch, patternSize, speed)
 
-			mask=ones(patternSize);
-			return;
-			
+			%mask=ones(patternSize);
+			%return;
+
 			epsilon = 1e-6;
 			effectiveSpeed = max(speed, epsilon);
 
@@ -62,7 +62,7 @@ classdef radarDataCube < handle
 
 
 
-	methods
+	methods(Access=public)
 
 
 		function obj = radarDataCube(numRangeBins, numDopplerBins, radPatternYaw, radPatternPitch)
@@ -72,7 +72,7 @@ classdef radarDataCube < handle
 			fprintf("Initializing cube with azimuth %f, pitch %f, range %d, doppler %f\n", length(obj.yawBins), length(obj.pitchBins), numRangeBins, numDopplerBins)
 			obj.antennaPattern = obj.generateAntennaPattern(radPatternYaw, radPatternPitch);
 
-			obj.rangeAzimuthDoppler = zeros(...
+			obj.cube = zeros(...
 				length(obj.yawBins), ...
 				length(obj.pitchBins), ...
 				numRangeBins, ...
@@ -83,7 +83,6 @@ classdef radarDataCube < handle
 
 
 		function addData(obj, azimuth, pitch, rangeProfile, rangeDoppler, speed, movementMask)
-
 			if nargin < 6
 				speed = 0.01;
 			end
@@ -95,48 +94,45 @@ classdef radarDataCube < handle
 			% NOTE: if stationary there is no decay (only on current position we
 			% aren't using old data);
 			decay=exp(-speed); % the faster we are moving the faster we should forget
-			obj.rangeAzimuthDoppler = obj.rangeAzimuthDoppler*decay;
-		
+			% obj.rangeAzimuthDoppler = obj.rangeAzimuthDoppler*decay;
+			
 			[~, azIdx] = min(abs(obj.yawBins - azimuth));
 			[~, pitchIdx] = min(abs(obj.pitchBins - pitch));
-
+		
 			limitYawMin = azIdx-floor(size(obj.antennaPattern, 2)/2); % this needs to figure out overflow
 			limitYawMax = azIdx+floor(size(obj.antennaPattern, 2)/2);
-			
+		
 			yawIndRange = limitYawMin:limitYawMax;
 			yawIndRangeWrapped = mod(yawIndRange - 1, 360) + 1;
-
+			
 			limitPitchMin = max(1, pitchIdx-floor(size(obj.antennaPattern, 1)/2));
 			limitPitchMax = min(length(obj.pitchBins), pitchIdx+floor(size(obj.antennaPattern, 1)/2));
-
-			fprintf("Writing to: Yaw: [%f  %f] Pitch [%f %f] Speed %f, Decay %f\n", limitYawMin, limitYawMax, limitPitchMin, limitPitchMax, speed, decay);
+			
 			yawPatternIndex = 1;
-			pitchPatterIndex=max(1,1-(pitchIdx-floor(size(obj.antennaPattern, 1)/2)));
-
-
+			pitchPatternIndex=max(1,1-(pitchIdx-floor(size(obj.antennaPattern, 1)/2)));
+			
+			fprintf("Writing to: Yaw: [%f  %f] Pitch [%f %f] Speed %f, Decay %f\n", limitYawMin, limitYawMax, limitPitchMin, limitPitchMax, speed, decay);
+			
+			
 			for i = 1:length(yawIndRangeWrapped)
 				yawIdx = yawIndRangeWrapped(i);
 				for pitchIdx = limitPitchMin:limitPitchMax
 
-					% fprintf("Starting applying pattern from: yaw: %f pitch: %f, applying to yaw: %f pitch %f\n", azPatternIndex, pitchPatterIndex, az, tl);
-					weightNew = obj.antennaPattern(pitchPatterIndex,yawPatternIndex);
-					weightOld = movementMask(pitchPatterIndex, yawPatternIndex);
+					weightNew = obj.antennaPattern(pitchPatternIndex,yawPatternIndex);
+					weightOld = movementMask(pitchPatternIndex, yawPatternIndex);
 
-					oldVal(:,:) = obj.rangeAzimuthDoppler(yawIdx, pitchIdx, :, :)*weightOld;
+					oldVal(:,:) = obj.cube(yawIdx, pitchIdx, :, :)*weightOld;
 
-					obj.rangeAzimuthDoppler(yawIdx, pitchIdx, :, :) = ...
+					obj.cube(yawIdx, pitchIdx, :, :) = ...
 						oldVal + ...
 						weightNew * rangeDoppler; % Weight range profile, don't weight doppler profile
-					pitchPatterIndex= pitchPatterIndex+1;
+					pitchPatternIndex= pitchPatternIndex+1;
 				end
-				pitchPatterIndex=1;
-				yawPatternIndex= yawPatternIndex+1;
+				pitchPatternIndex=1;
+				yawPatternIndex = yawPatternIndex+1;
 			end
 		end
 
-		function CFAR(obj)
-
-		end
 
 		function pattern = generateAntennaPattern(obj, radPatternYaw, radPatternPitch)
 			dimensionsH = -2*radPatternYaw:2*radPatternYaw;

@@ -191,7 +191,7 @@ classdef platformControl < handle
 				text = split(obj.programs.(obj.currentProgramName), 'P91\n');
 				disp(obj.currentProgramName);
 				tmp=numel(text);
-				
+
 				if(tmp > 2)
 					fprintf("platformControl | loadProgram | too many fields");
 				elseif tmp == 1
@@ -236,7 +236,7 @@ classdef platformControl < handle
 
 				obj.positionTimes(obj.currentIdx) = toc(obj.startTime);
 				% obj.positionYaw(obj.currentIdx) = str2double(vals{2})-angleOffsetH;
-			  % obj.positionPitch(obj.currentIdx) = str2double(vals{3})-angleOffsetT;
+				% obj.positionPitch(obj.currentIdx) = str2double(vals{3})-angleOffsetT;
 
 
 
@@ -447,13 +447,7 @@ classdef platformControl < handle
 				yaw = [obj.positionYaw(idxMin:end, :); obj.positionYaw(1:idxMax, :)];
 				pitch = [obj.positionPitch(idxMin:end); obj.positionPitch(1:idxMax)];
 			end
-			fprintf("Latest pos yaw: %f, pitch %f\n", yaw(end), pitch(end));
-			%if(length(timestamps) <2)
-			%	timestamps = [timestamps timestamps+1];
-			%	yaw = [yaw yaw];
-			%	pitch = [pitch pitch];
-			%end
-			end
+		end
 
 		function [yaw, pitch] = getPositionAtTime(obj, time)
 			% getPositionAtTime: retrieve the closest platform position for a given timestamp

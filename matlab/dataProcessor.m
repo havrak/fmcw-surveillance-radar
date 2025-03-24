@@ -45,20 +45,20 @@ classdef dataProcessor < handle
 			% lobe size, within this segment maximal change should be limited
 
 
-			% dt = diff(posTimes);
-			% rawDiffYaw = diff(posYaw);
-			% dYaw = (mod(rawDiffYaw + 180, 360) - 180)./dt;
-			% rawDiffPitch = diff(posPitch);
-			% dPitch = (mod(rawDiffPitch + 180, 360) - 180)./dt;
+			dt = diff(posTimes);
+			rawDiffYaw = diff(posYaw);
+			dYaw = (mod(rawDiffYaw + 180, 360) - 180)./dt;
+			rawDiffPitch = diff(posPitch);
+			dPitch = (mod(rawDiffPitch + 180, 360) - 180)./dt;
 
 			%lowIndex = length(dYaw);
 			lowIndex = 1;
-			% for i=length(dYaw):-1:1
-			%	if any(abs(dYaw) > 5) || any(abs(dPitch) > 10)
-			%		break;
-			%	end
-			%	lowIndex=i;
-			% end
+			for i=length(dYaw):-1:1
+				if any(abs(dYaw) > 5) || any(abs(dPitch) > 10)
+					break;
+				end
+				lowIndex=i;
+			end
 
 			% if lowIndex ~= 1
 			% we need to find closes timestamp in batchTimes
@@ -71,8 +71,6 @@ classdef dataProcessor < handle
 			% Let's say here we have cropped the data, based on movement
 			% we can calculate movement mask that will be used when running
 			% update
-
-
 
 
 			totalDiffYaw = mod(posYaw(end) - posYaw(lowIndex) + 180, 360) - 180;
@@ -97,21 +95,21 @@ classdef dataProcessor < handle
 
 
 			% Timing based analysis
-			% timeDeltas = diff(batchTimes);
-			% meanInterval = mean(timeDeltas);
+			timeDeltas = diff(batchTimes);
+			meanInterval = mean(timeDeltas);
 
 			% Check uniformity of sampling (20% threshold)
-			% [~, idx] = max(abs(timeDeltas - meanInterval));
-			% maxDeviation = timeDeltas(idx) / meanInterval;
-			% useNUFFT = maxDeviation > 0.2;
+			[~, idx] = max(abs(timeDeltas - meanInterval));
+			maxDeviation = timeDeltas(idx) / meanInterval;
+			useNUFFT = maxDeviation > 0.2;
 
 			% Run FFT
-			%if useNUFFT
-			% fprintf("ugly timing detected\n");
-			%	rangeDoppler = abs(nufft(batchRangeFFTs, batchTimes, speedBins, 1))';
-			%else
-			rangeDoppler = abs(fft(batchRangeFFTs, speedBins, 1))';
-			%end
+			if useNUFFT
+				% fprintf("ugly timing detected\n");
+				rangeDoppler = abs(nufft(batchRangeFFTs, batchTimes, speedBins, 1))';
+			else
+				rangeDoppler = abs(fft(batchRangeFFTs, speedBins, 1))';
+			end
 
 			% fprintf("Dimensions Fast time: %f, Slow time %f\n", length(rangeProfile), length(rangeDoppler))
 		end
@@ -119,12 +117,12 @@ classdef dataProcessor < handle
 
 	methods(Access=private)
 		function mergeResults(obj, yaw, pitch, rangeProfile, rangeDoppler, speed, movementMask)
-			fprintf("Finished\n");
-			% obj.hDataCube.addData(yaw, pitch, rangeProfile, rangeDoppler);
-		
+			% fprintf("mergeResults | adding to cube: yaw %f, pitch %f\n", yaw, pitch);
+			obj.hDataCube.addData(yaw, pitch, rangeProfile, rangeDoppler, speed, movementMask);
+			fprintf("mergeResults | Data added\n");
 			% Draw range yaw
 			%if strcmp(obj.currentVisualizationStyle,'Range-Azimuth')
-			%	data = sum(obj.hDataCube.rangeAzimuthDoppler,4);
+			%	data = sum(obj.hDataCube.cube,4);
 			%	toDraw(:,:) = data(:,20, :);
 			%	obj.hImage.CData = toDraw';
 			%	drawnow limitrate;
@@ -161,7 +159,7 @@ classdef dataProcessor < handle
 			% on addition to chirps processing will also get data about positions
 
 
-			fprintf("New data, busy workers %f\n", obj.parallelPool.Busy);
+			fprintf("onNewDataAvailable | busy workers %f\n", obj.parallelPool.Busy);
 			obj.hRadarBuffer.addChirp(obj.hRadar.bufferI(obj.readIdx, :), ...
 				obj.hRadar.bufferQ(obj.readIdx, :), ...
 				obj.hRadar.bufferTime(obj.readIdx));
@@ -170,6 +168,7 @@ classdef dataProcessor < handle
 			if obj.parallelPool.NumWorkers > obj.parallelPool.Busy
 				[batchRangeFFTs, batchTimes] = obj.hRadarBuffer.getSlidingBatch();
 				[posTimes, yaw, pitch] = obj.hPlatform.getPositionsInInterval(min(batchTimes), max(batchTimes));
+				fprintf("onNewDataAvailable | yaw: %f, pitch %f\n", yaw(end), pitch(end));
 				maskSize = size(obj.hDataCube.antennaPattern);
 
 				future = parfeval(obj.parallelPool, ...
@@ -179,7 +178,7 @@ classdef dataProcessor < handle
 
 				afterAll(future, @(varargin) obj.mergeResults(varargin{:}), 0);
 			else
-				fprintf("Processing overloaded, dropping calculation\n");
+				fprintf("onNewDataAvailable | processing overloaded\n");
 			end
 			% [yaw, pitch, rangeProfile, rangeDoppler, speed, movementMask] = dataProcessor.processBatch( ...
 			%	batchRangeFFTs,  ...
