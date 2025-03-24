@@ -26,8 +26,8 @@ classdef platformControl < handle
 		hSerial;
 		programs;
 		currentProgramName;
-		
-		bufferSize double = 200;
+
+		bufferSize double = 500;
 		positionTimes;      % Array of timestamps (seconds since start)
 		positionYaw;        % Array of yaw positions
 		positionPitch;      % Array of pitch positions
@@ -190,9 +190,11 @@ classdef platformControl < handle
 				obj.currentProgramName = fields{selected};
 				text = split(obj.programs.(obj.currentProgramName), 'P91\n');
 				disp(obj.currentProgramName);
-				if(numel(text) > 2)
-					fprintf("TODO ERROR");
-				elseif numel(text) == 1
+				tmp=numel(text);
+				
+				if(tmp > 2)
+					fprintf("platformControl | loadProgram | too many fields");
+				elseif tmp == 1
 					obj.hEditProgramHeader.String = sprintf(text{1}); % sprintf will execute line breaks
 					obj.hEditProgramMain.String="";
 				else
@@ -228,16 +230,20 @@ classdef platformControl < handle
 
 
 			if strncmp(line,'!P',2)
-				[angleOffsetH, angleOffsetT, ~] = obj.hPreferences.getPlatformParamters();
+				% [angleOffsetH, angleOffsetT, ~] = obj.hPreferences.getPlatformParamters();
 				tmp = char(line);
 				vals = strtrim(split(tmp(3:end), ','));
 
 				obj.positionTimes(obj.currentIdx) = toc(obj.startTime);
-				obj.positionYaw(obj.currentIdx) = str2double(vals{2})-angleOffsetH;
-				obj.positionPitch(obj.currentIdx) = str2double(vals{3})-angleOffsetT;
-				
-        obj.currentIdx = mod(obj.currentIdx, obj.bufferSize) + 1;
-				
+				% obj.positionYaw(obj.currentIdx) = str2double(vals{2})-angleOffsetH;
+			  % obj.positionPitch(obj.currentIdx) = str2double(vals{3})-angleOffsetT;
+
+
+
+				obj.positionYaw(obj.currentIdx) = str2double(vals{2});
+				obj.positionPitch(obj.currentIdx) = str2double(vals{3});
+				obj.currentIdx = mod(obj.currentIdx, obj.bufferSize) + 1;
+
 				return;
 			elseif strncmp(line,'!R',2)
 				obj.log{end+1} = line;
@@ -430,12 +436,24 @@ classdef platformControl < handle
 			[~, idxMin] = min(abs(obj.positionTimes - timeMin));
 			[~, idxMax] = min(abs(obj.positionTimes - timeMax));
 
-			startIdx = min(idxMin, idxMax);
-			endIdx = max(idxMin, idxMax);
-			timestamps = obj.positionTimes(startIdx:endIdx);
-			yaw = obj.positionYaw(startIdx:endIdx);
-			pitch = obj.positionPitch(startIdx:endIdx);
-		end
+			if idxMin <= idxMax
+				% No wrapping needed: extract the contiguous block from idxMin to idxMax
+				timestamps = obj.positionTimes(idxMin:idxMax);
+				yaw = obj.positionYaw(idxMin:idxMax, :);
+				pitch = obj.positionPitch(idxMin:idxMax);
+			else
+				% Wrapping around the buffer: concatenate the end and start parts
+				timestamps = [obj.positionTimes(idxMin:end); obj.positionTimes(1:idxMax)];
+				yaw = [obj.positionYaw(idxMin:end, :); obj.positionYaw(1:idxMax, :)];
+				pitch = [obj.positionPitch(idxMin:end); obj.positionPitch(1:idxMax)];
+			end
+			fprintf("Latest pos yaw: %f, pitch %f\n", yaw(end), pitch(end));
+			%if(length(timestamps) <2)
+			%	timestamps = [timestamps timestamps+1];
+			%	yaw = [yaw yaw];
+			%	pitch = [pitch pitch];
+			%end
+			end
 
 		function [yaw, pitch] = getPositionAtTime(obj, time)
 			% getPositionAtTime: retrieve the closest platform position for a given timestamp

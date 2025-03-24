@@ -9,33 +9,54 @@ classdef radarDataCube < handle
 		rangeAzimuthDoppler          % 4D matrix [Yaw x Pitch x (Fast time x Slow Time)]
 		antennaPattern               % Weighting matrix [Yaw x Pitch]
 
-
 	end
 
 	methods(Static)
 		function mask = createSectorMask(diffYaw, diffPitch, patternSize, speed)
+
+			mask=ones(patternSize);
+			return;
+			
+			epsilon = 1e-6;
+			effectiveSpeed = max(speed, epsilon);
+
 			[yawGrid, pitchGrid] = meshgrid(...
 				linspace(-1, 1, patternSize(2)), ...
 				linspace(-1, 1, patternSize(1)) ...
 				);
 
 			moveAngle = atan2d(diffPitch, -diffYaw);
-			sectorWidth = 30 + 150 * exp(-speed/5); % upon staationary we should get 360 -> null whole area
+			sectorWidth = 30 + 150 * exp(-speed/5); % upon stationary we should get 360 -> null whole area
 
 			gridAngles = atan2d(pitchGrid, yawGrid);
 			angleDiff = abs(mod(gridAngles - moveAngle + 180, 360) - 180);
 
-			distances = sqrt(yawGrid.^2 + pitchGrid.^2);
+			lineVector = [cosd(moveAngle), sind(moveAngle)];
+			perpendicularDistances = abs(pitchGrid * lineVector(1) - yawGrid * lineVector(2));
 
 			mask = zeros(patternSize);
-			sector = angleDiff <= sectorWidth;
-			mask(sector) = exp(-distances(sector).^2 / 0.2); % Gaussian falloff
+			sectorMask = angleDiff <= sectorWidth;
+			dropOffFactor = 1 / (effectiveSpeed^2);
 
-			mask = mask ./ max(mask(:));
+			mask(sectorMask) = exp(- (perpendicularDistances(sectorMask).^2) * dropOffFactor);
 
-			% imagesc(mask);
-			% axis equal tight; colorbar;
-			% drawnow;
+			maxVal = max(mask(:));
+			if maxVal > 0
+				mask = mask ./ maxVal;
+			end
+
+			% For actual speed = 0, return zero array
+			if speed == 0
+				mask = zeros(patternSize);
+			end
+
+
+			%filename = sprintf('mask_speed%g_diffYaw%g_diffPitch%g.png', speed, diffYaw, diffPitch);
+
+			% Save the mask as a grayscale image (scaled 0 to 1)
+			%cmap = parula(256);
+			%rgbImage = ind2rgb(im2uint8(mat2gray(mask)), cmap);
+			%imwrite(rgbImage, filename);
 		end
 	end
 
@@ -48,55 +69,72 @@ classdef radarDataCube < handle
 			obj.yawBins = obj.yawBinMin:obj.yawBinMax;     % 1° resolution
 			obj.pitchBins = obj.pitchBinMin:obj.pitchBinMax;          % 1° resolution
 
+			fprintf("Initializing cube with azimuth %f, pitch %f, range %d, doppler %f\n", length(obj.yawBins), length(obj.pitchBins), numRangeBins, numDopplerBins)
+			obj.antennaPattern = obj.generateAntennaPattern(radPatternYaw, radPatternPitch);
+
 			obj.rangeAzimuthDoppler = zeros(...
 				length(obj.yawBins), ...
 				length(obj.pitchBins), ...
 				numRangeBins, ...
 				numDopplerBins ...
 				);
-			fprintf("Initializing cube with azimuth %f, pitch %f, range %d, doppler %f\n", length(obj.yawBins), length(obj.pitchBins), numRangeBins, numDopplerBins)
-			obj.antennaPattern = obj.generateAntennaPattern(radPatternYaw, radPatternPitch);
-
-
-			%   diffYaw = 30-40;
-			%   diffPitch = 40-0;
-			% speed = 30;
-			%     movement_mask = radarDataCube.createSectorMask(diffYaw, diffPitch, ...
-			%                                   size(obj.antennaPattern), ...
-			%                                   speed);
 
 		end
 
-		function addData(obj, azimuth, pitch, rangeProfile, rangeDoppler)
+
+		function addData(obj, azimuth, pitch, rangeProfile, rangeDoppler, speed, movementMask)
+
+			if nargin < 6
+				speed = 0.01;
+			end
+
+			if nargin < 7
+				movementMask = ones(size(obj.antennaPattern));
+			end
+
+			% NOTE: if stationary there is no decay (only on current position we
+			% aren't using old data);
+			decay=exp(-speed); % the faster we are moving the faster we should forget
+			obj.rangeAzimuthDoppler = obj.rangeAzimuthDoppler*decay;
+		
 			[~, azIdx] = min(abs(obj.yawBins - azimuth));
 			[~, pitchIdx] = min(abs(obj.pitchBins - pitch));
 
 			limitYawMin = azIdx-floor(size(obj.antennaPattern, 2)/2); % this needs to figure out overflow
 			limitYawMax = azIdx+floor(size(obj.antennaPattern, 2)/2);
+			
+			yawIndRange = limitYawMin:limitYawMax;
+			yawIndRangeWrapped = mod(yawIndRange - 1, 360) + 1;
+
 			limitPitchMin = max(1, pitchIdx-floor(size(obj.antennaPattern, 1)/2));
 			limitPitchMax = min(length(obj.pitchBins), pitchIdx+floor(size(obj.antennaPattern, 1)/2));
 
-			fprintf("Yaw: [%f  %f] Pitch [%f %f]", limitYawMin, limitYawMax, limitPitchMin, limitPitchMax);
-			azPatternIndex = 1;
+			fprintf("Writing to: Yaw: [%f  %f] Pitch [%f %f] Speed %f, Decay %f\n", limitYawMin, limitYawMax, limitPitchMin, limitPitchMax, speed, decay);
+			yawPatternIndex = 1;
 			pitchPatterIndex=max(1,1-(pitchIdx-floor(size(obj.antennaPattern, 1)/2)));
 
 
-			for az = limitYawMin:limitYawMax
-				for tl = limitPitchMin:limitPitchMax
-					% now find correct index in pattern map
+			for i = 1:length(yawIndRangeWrapped)
+				yawIdx = yawIndRangeWrapped(i);
+				for pitchIdx = limitPitchMin:limitPitchMax
 
 					% fprintf("Starting applying pattern from: yaw: %f pitch: %f, applying to yaw: %f pitch %f\n", azPatternIndex, pitchPatterIndex, az, tl);
+					weightNew = obj.antennaPattern(pitchPatterIndex,yawPatternIndex);
+					weightOld = movementMask(pitchPatterIndex, yawPatternIndex);
 
-					weight = obj.antennaPattern(pitchPatterIndex,azPatternIndex);
-					oldVal(:,:) = obj.rangeAzimuthDoppler(az, tl, :, :);
-					obj.rangeAzimuthDoppler(az, tl, :, :) = ...
-						weight * rangeDoppler; % Weight range profile, don't weight doppler profile
-					% oldVal + ...
+					oldVal(:,:) = obj.rangeAzimuthDoppler(yawIdx, pitchIdx, :, :)*weightOld;
+
+					obj.rangeAzimuthDoppler(yawIdx, pitchIdx, :, :) = ...
+						oldVal + ...
+						weightNew * rangeDoppler; % Weight range profile, don't weight doppler profile
 					pitchPatterIndex= pitchPatterIndex+1;
 				end
 				pitchPatterIndex=1;
-				azPatternIndex= azPatternIndex+1;
+				yawPatternIndex= yawPatternIndex+1;
 			end
+		end
+
+		function CFAR(obj)
 
 		end
 
@@ -107,7 +145,7 @@ classdef radarDataCube < handle
 			pitchSigma = radPatternPitch / (sqrt(8*log(2)));
 			[azMesh, pitchMesh] = meshgrid(dimensionsH, dimensionsT);
 			pattern = exp(-0.5*( (azMesh/azSigma).^2 + (pitchMesh/pitchSigma).^2 ));
-			imagesc(dimensionsH, dimensionsT, pattern);
+			% imagesc(dimensionsH, dimensionsT, pattern);
 		end
 	end
 end

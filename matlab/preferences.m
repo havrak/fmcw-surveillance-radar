@@ -72,7 +72,7 @@ classdef preferences < handle
 
 			obj.configStruct.processing.visualization=obj.availableVisualization(1);
 			obj.configStruct.processing.maxSpeedBins=0;
-			obj.configStruct.processing.calcspeed = 1;
+			obj.configStruct.processing.calcSpeed = 1;
 
 
 			obj.configStruct.programs=[];
@@ -122,7 +122,7 @@ classdef preferences < handle
 		end
 
 		function [calcSpeed, speedBins] = getProcessingSpeedParamters(obj)
-			calcSpeed = 	obj.configStruct.processing.calcspeed;
+			calcSpeed = 	obj.configStruct.processing.calcSpeed;
 			speedBins = obj.configStruct.processing.maxSpeedBins;
 		end
 
@@ -610,7 +610,7 @@ classdef preferences < handle
 
 			set(obj.hEditProSpeedBins, 'String', obj.configStruct.processing.maxSpeedBins);
 
-			set(obj.hCheckProCalcSpeed, 'Value', obj.configStruct.processing.calcspeed);
+			set(obj.hCheckProCalcSpeed, 'Value', obj.configStruct.processing.calcSpeed);
 
 		end
 
@@ -713,7 +713,7 @@ classdef preferences < handle
 			else obj.configStruct.processing.maxSpeedBins=str2double(tmp);
 			end
 
-			obj.configStruct.processing.calcspeed = obj.hCheckProCalcSpeed.Value;
+			obj.configStruct.processing.calcSpeed = double(obj.hCheckProCalcSpeed.Value);
 
 			storeConfig(obj);
 			notify(obj, 'newConfigEvent');
