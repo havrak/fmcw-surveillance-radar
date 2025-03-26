@@ -104,12 +104,12 @@ classdef dataProcessor < handle
 			useNUFFT = maxDeviation > 0.2;
 
 			% Run FFT
-			if useNUFFT
-				% fprintf("ugly timing detected\n");
-				rangeDoppler = abs(nufft(batchRangeFFTs, batchTimes, speedBins, 1))';
-			else
+			%if useNUFFT
+			%	% fprintf("ugly timing detected\n");
+			%	rangeDoppler = abs(nufft(batchRangeFFTs, batchTimes, speedBins, 1))';
+			%else
 				rangeDoppler = abs(fft(batchRangeFFTs, speedBins, 1))';
-			end
+			%end
 
 			% fprintf("Dimensions Fast time: %f, Slow time %f\n", length(rangeProfile), length(rangeDoppler))
 		end
@@ -117,7 +117,7 @@ classdef dataProcessor < handle
 
 	methods(Access=private)
 		function mergeResults(obj, yaw, pitch, rangeProfile, rangeDoppler, speed, movementMask)
-			% fprintf("mergeResults | adding to cube: yaw %f, pitch %f\n", yaw, pitch);
+			fprintf("mergeResults | adding to cube: yaw %f, pitch %f\n", yaw, pitch);
 			obj.hDataCube.addData(yaw, pitch, rangeProfile, rangeDoppler, speed, movementMask);
 			fprintf("mergeResults | Data added\n");
 			% Draw range yaw

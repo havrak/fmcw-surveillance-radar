@@ -21,8 +21,8 @@ classdef radarDataCube < handle
 			effectiveSpeed = max(speed, epsilon);
 
 			[yawGrid, pitchGrid] = meshgrid(...
-				linspace(-1, 1, patternSize(2)), ...
-				linspace(-1, 1, patternSize(1)) ...
+				linspace(-1, 1, patternSize(1)), ...
+				linspace(-1, 1, patternSize(2)) ...
 				);
 
 			moveAngle = atan2d(diffPitch, -diffYaw);
@@ -81,67 +81,69 @@ classdef radarDataCube < handle
 
 		end
 
-
 		function addData(obj, azimuth, pitch, rangeProfile, rangeDoppler, speed, movementMask)
+			tic;
 			if nargin < 6
 				speed = 0.01;
 			end
-
 			if nargin < 7
 				movementMask = ones(size(obj.antennaPattern));
 			end
 
-			% NOTE: if stationary there is no decay (only on current position we
-			% aren't using old data);
-			decay=exp(-speed); % the faster we are moving the faster we should forget
-			% obj.rangeAzimuthDoppler = obj.rangeAzimuthDoppler*decay;
-			
+			% decay = exp(-speed);
+			% obj.cube = obj.cube * decay;
+			fprintf("CHECKPOINT 1\n");
 			[~, azIdx] = min(abs(obj.yawBins - azimuth));
 			[~, pitchIdx] = min(abs(obj.pitchBins - pitch));
-		
-			limitYawMin = azIdx-floor(size(obj.antennaPattern, 2)/2); % this needs to figure out overflow
-			limitYawMax = azIdx+floor(size(obj.antennaPattern, 2)/2);
-		
-			yawIndRange = limitYawMin:limitYawMax;
-			yawIndRangeWrapped = mod(yawIndRange - 1, 360) + 1;
-			
-			limitPitchMin = max(1, pitchIdx-floor(size(obj.antennaPattern, 1)/2));
-			limitPitchMax = min(length(obj.pitchBins), pitchIdx+floor(size(obj.antennaPattern, 1)/2));
-			
-			yawPatternIndex = 1;
-			pitchPatternIndex=max(1,1-(pitchIdx-floor(size(obj.antennaPattern, 1)/2)));
-			
-			fprintf("Writing to: Yaw: [%f  %f] Pitch [%f %f] Speed %f, Decay %f\n", limitYawMin, limitYawMax, limitPitchMin, limitPitchMax, speed, decay);
-			
-			
-			for i = 1:length(yawIndRangeWrapped)
-				yawIdx = yawIndRangeWrapped(i);
-				for pitchIdx = limitPitchMin:limitPitchMax
 
-					weightNew = obj.antennaPattern(pitchPatternIndex,yawPatternIndex);
-					weightOld = movementMask(pitchPatternIndex, yawPatternIndex);
+			fprintf("CHECKPOINT 2\n");
+			halfYawPat = floor(size(obj.antennaPattern, 1)/2);
+			yawIndices = azIdx + (-halfYawPat:halfYawPat);
+			yawIndices = mod(yawIndices - 1, length(obj.yawBins)) + 1;
 
-					oldVal(:,:) = obj.cube(yawIdx, pitchIdx, :, :)*weightOld;
 
-					obj.cube(yawIdx, pitchIdx, :, :) = ...
-						oldVal + ...
-						weightNew * rangeDoppler; % Weight range profile, don't weight doppler profile
-					pitchPatternIndex= pitchPatternIndex+1;
-				end
-				pitchPatternIndex=1;
-				yawPatternIndex = yawPatternIndex+1;
-			end
+			fprintf("CHECKPOINT 3\n");
+			halfPitchPat = floor(size(obj.antennaPattern, 2)/2);
+			pitchStart = max(1, pitchIdx - halfPitchPat); % we might need to do a crop
+			pitchEnd = min(length(obj.pitchBins), pitchIdx + halfPitchPat);
+			pitchIndices = pitchStart:pitchEnd;
+
+
+			startPatternRow = max(1, (halfPitchPat + 1) - (pitchIdx - pitchStart));
+			endPatternRow = min(size(obj.antennaPattern, 2), startPatternRow + length(pitchIndices) - 1);
+			patternIdx = startPatternRow:endPatternRow;
+			adjAntennaPattern = obj.antennaPattern(patternIdx, :);
+			adjMovementMask = movementMask(patternIdx, :);
+
+			fprintf("CHECKPOINT 6\n");
+			% Reshape movementMask and antennaPattern to [Yaw x Pitch x 1 x 1]
+			movementMask_4D = reshape(adjMovementMask, [size(adjMovementMask), 1, 1]); % [Yaw x Pitch x 1 x 1]
+			antennaPattern_4D = reshape(adjAntennaPattern, [size(adjAntennaPattern), 1, 1]); % [Yaw x Pitch x 1 x 1]
+
+			% Reshape rangeDoppler to [1 x 1 x FastTime x SlowTime]
+			rangeDoppler_4D = reshape(rangeDoppler, [1, 1, size(rangeDoppler)]); % [1 x 1 x F x S]
+
+			% Scale new data by accumulated decay
+			% scaledRangeDoppler = rangeDoppler_4D * obj.accumulatedDecay;
+
+			% Update subcube: Apply movementMask to old data, antennaPattern to new data
+			subCube = obj.cube(yawIndices, pitchIndices, :, :);
+			subCube = subCube .* movementMask_4D + antennaPattern_4D .* rangeDoppler_4D;
+			obj.cube(yawIndices, pitchIndices, :, :) = subCube;
+			toc;
 		end
 
 
+
+
 		function pattern = generateAntennaPattern(obj, radPatternYaw, radPatternPitch)
-			dimensionsH = -2*radPatternYaw:2*radPatternYaw;
-			dimensionsT = -radPatternPitch:radPatternPitch;
-			azSigma = radPatternYaw / (sqrt(8*log(2)));
-			pitchSigma = radPatternPitch / (sqrt(8*log(2)));
-			[azMesh, pitchMesh] = meshgrid(dimensionsH, dimensionsT);
-			pattern = exp(-0.5*( (azMesh/azSigma).^2 + (pitchMesh/pitchSigma).^2 ));
-			% imagesc(dimensionsH, dimensionsT, pattern);
+			dimensionsYaw = -radPatternYaw:radPatternYaw;
+			dimensionsPitch = -radPatternPitch:radPatternPitch;
+			yawSigma = 3*radPatternYaw / (sqrt(8*log(2)));
+			pitchSigma = 1.5*radPatternPitch / (sqrt(8*log(2)));
+			[yawMash, pitchMesh] = meshgrid(dimensionsPitch,dimensionsYaw);
+			pattern = exp(-0.5*( (yawMash/yawSigma).^2 + (pitchMesh/pitchSigma).^2 ));
+			% imagesc(dimensionsYaw, dimensionsPitch, pattern);
 		end
 	end
 end
