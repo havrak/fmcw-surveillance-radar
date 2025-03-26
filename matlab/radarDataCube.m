@@ -89,46 +89,50 @@ classdef radarDataCube < handle
 			if nargin < 7
 				movementMask = ones(size(obj.antennaPattern));
 			end
+			toc;
+			tic;
 
 			% decay = exp(-speed);
 			% obj.cube = obj.cube * decay;
-			fprintf("CHECKPOINT 1\n");
+			fprintf("Part 1\n");
+			tic;
 			[~, azIdx] = min(abs(obj.yawBins - azimuth));
 			[~, pitchIdx] = min(abs(obj.pitchBins - pitch));
 
-			fprintf("CHECKPOINT 2\n");
 			halfYawPat = floor(size(obj.antennaPattern, 1)/2);
 			yawIndices = azIdx + (-halfYawPat:halfYawPat);
 			yawIndices = mod(yawIndices - 1, length(obj.yawBins)) + 1;
 
 
-			fprintf("CHECKPOINT 3\n");
 			halfPitchPat = floor(size(obj.antennaPattern, 2)/2);
 			pitchStart = max(1, pitchIdx - halfPitchPat); % we might need to do a crop
 			pitchEnd = min(length(obj.pitchBins), pitchIdx + halfPitchPat);
 			pitchIndices = pitchStart:pitchEnd;
+			toc;
 
-
+			fprintf("Part 2\n");
+			tic;
 			startPatternRow = max(1, (halfPitchPat + 1) - (pitchIdx - pitchStart));
 			endPatternRow = min(size(obj.antennaPattern, 2), startPatternRow + length(pitchIndices) - 1);
 			patternIdx = startPatternRow:endPatternRow;
-			adjAntennaPattern = obj.antennaPattern(patternIdx, :);
-			adjMovementMask = movementMask(patternIdx, :);
+			adjAntennaPattern = obj.antennaPattern(:,patternIdx);
+			adjMovementMask = movementMask(:,patternIdx);
 
-			fprintf("CHECKPOINT 6\n");
 			% Reshape movementMask and antennaPattern to [Yaw x Pitch x 1 x 1]
-			movementMask_4D = reshape(adjMovementMask, [size(adjMovementMask), 1, 1]); % [Yaw x Pitch x 1 x 1]
-			antennaPattern_4D = reshape(adjAntennaPattern, [size(adjAntennaPattern), 1, 1]); % [Yaw x Pitch x 1 x 1]
+			% movementMask_4D = reshape(adjMovementMask, [size(adjMovementMask), 1, 1]); % [Yaw x Pitch x 1 x 1]
+			% antennaPattern_4D = reshape(adjAntennaPattern, [size(adjAntennaPattern), 1, 1]); % [Yaw x Pitch x 1 x 1]
 
 			% Reshape rangeDoppler to [1 x 1 x FastTime x SlowTime]
-			rangeDoppler_4D = reshape(rangeDoppler, [1, 1, size(rangeDoppler)]); % [1 x 1 x F x S]
-
+			toc;
 			% Scale new data by accumulated decay
 			% scaledRangeDoppler = rangeDoppler_4D * obj.accumulatedDecay;
 
 			% Update subcube: Apply movementMask to old data, antennaPattern to new data
+			fprintf("Part 3\n"); % takes some 10ms FUCK
+			tic;
+			rangeDoppler_4D = reshape(rangeDoppler, [1, 1, size(rangeDoppler)]); % [1 x 1 x F x S]
 			subCube = obj.cube(yawIndices, pitchIndices, :, :);
-			subCube = subCube .* movementMask_4D + antennaPattern_4D .* rangeDoppler_4D;
+			subCube = subCube .* adjMovementMask + adjAntennaPattern .* rangeDoppler_4D;
 			obj.cube(yawIndices, pitchIndices, :, :) = subCube;
 			toc;
 		end
