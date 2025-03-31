@@ -95,8 +95,7 @@ classdef radarDataCube < handle
 
 			[~, yawIdx] = min(abs(obj.yawBins - yaw));
 			[~, pitchIdx] = min(abs(obj.pitchBins - pitch));
-			% decay = exp(-speed);
-			decay = 0.9;
+			decay = exp(-speed/30); % XXX random consntat for debug
 			obj.bufferA.yawIdx(obj.bufferActiveWriteIdx) = yawIdx;
 			obj.bufferA.pitchIdx(obj.bufferActiveWriteIdx) = pitchIdx;
 			obj.bufferA.rangeDoppler(:, :, obj.bufferActiveWriteIdx) = single(rangeDoppler);

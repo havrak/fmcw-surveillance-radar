@@ -46,10 +46,10 @@ classdef dataProcessor < handle
 
 
 			dt = diff(posTimes);
-			rawDiffYaw = diff(posYaw);
-			dYaw = (mod(rawDiffYaw + 180, 360) - 180)./dt;
-			rawDiffPitch = diff(posPitch);
-			dPitch = (mod(rawDiffPitch + 180, 360) - 180)./dt;
+			rawDiffYaw = abs((mod(diff(posYaw) + 180, 360) - 180));
+			dYaw = rawDiffYaw./dt;
+			rawDiffPitch = abs(diff(posPitch));
+			dPitch = rawDiffPitch./dt;
 
 			%lowIndex = length(dYaw);
 			lowIndex = 1;
@@ -70,15 +70,10 @@ classdef dataProcessor < handle
 
 			% Let's say here we have cropped the data, based on movement
 			% we can calculate movement mask that will be used when running
-			% update
-
-
-			totalDiffYaw = mod(posYaw(end) - posYaw(lowIndex) + 180, 360) - 180;
-			totalDiffPitch = posPitch(end) - posPitch(lowIndex);
-			timeElapsed = posTimes(end) - posTimes(lowIndex);
 
 			% angular speed
-			speed = sqrt((totalDiffYaw^2 + totalDiffPitch^2)) / (timeElapsed + 1e-6); % speed falls to zero for some reason
+			%sum(rawDiffYaw)^2
+			speed = sqrt((sum(rawDiffYaw)^2 + sum(rawDiffPitch)^2)) / (timeElapsed + 1e-6); % speed falls to zero for some reason
 
 			% we don't take into account data from area we are moving into, only
 			% are we are moving from
@@ -187,14 +182,6 @@ classdef dataProcessor < handle
 			if obj.parallelPool.NumWorkers > obj.parallelPool.Busy
 				[batchRangeFFTs, batchTimes] = obj.hRadarBuffer.getSlidingBatch();
 				[posTimes, yaw, pitch] = obj.hPlatform.getPositionsInInterval(min(batchTimes), max(batchTimes));
-
-					totalDiffYaw = mod(yaw(end) - yaw(1) + 180, 360) - 180;
-					totalDiffPitch = pitch(end) - pitch(1);
-					timeElapsed = posTimes(end) - posTimes(1);
-					speed = sqrt((totalDiffYaw^2 + totalDiffPitch^2)) / (timeElapsed + 1e-6);
-					fprintf("")
-					fprintf("Adding batch: yaw=%f, pitch=%f, speed=%f\n", yaw(end), pitch(end), speed);
-
 
 				% fprintf("onNewDataAvailable | yaw: %f, pitch %f\n", yaw(end), pitch(end));
 				maskSize = size(obj.hDataCube.antennaPattern);
