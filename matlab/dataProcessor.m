@@ -53,12 +53,12 @@ classdef dataProcessor < handle
 
 			%lowIndex = length(dYaw);
 			lowIndex = 1;
-			for i=length(dYaw):-1:1
-				if any(abs(dYaw) > 5) || any(abs(dPitch) > 10)
-					break;
-				end
-				lowIndex=i;
-			end
+			%for i=length(dYaw):-1:1
+			%	if any(abs(dYaw) > 5) || any(abs(dPitch) > 10)
+			%		break;
+			%	end
+			%	lowIndex=i;
+			%end
 
 			% if lowIndex ~= 1
 			% we need to find closes timestamp in batchTimes
@@ -78,11 +78,12 @@ classdef dataProcessor < handle
 			timeElapsed = posTimes(end) - posTimes(lowIndex);
 
 			% angular speed
-			speed = sqrt((totalDiffYaw^2 + totalDiffPitch^2)) / (timeElapsed + 1e-6);
+			speed = sqrt((totalDiffYaw^2 + totalDiffPitch^2)) / (timeElapsed + 1e-6); % speed falls to zero for some reason
 
 			% we don't take into account data from area we are moving into, only
 			% are we are moving from
-			movementMask = radarDataCube.createSectorMask(totalDiffYaw, totalDiffPitch, maskSize, speed);
+			movementMask = ones(maskSize);
+			% movementMask = radarDataCube.createSectorMask(totalDiffYaw, totalDiffPitch, maskSize, speed);
 
 			% in case we aren't calculating speed we can end here
 			%if ~calcSpeed
@@ -108,7 +109,8 @@ classdef dataProcessor < handle
 			%	% fprintf("ugly timing detected\n");
 			%	rangeDoppler = abs(nufft(batchRangeFFTs, batchTimes, speedBins, 1))';
 			%else
-				rangeDoppler = abs(fft(batchRangeFFTs, speedBins, 1))';
+				tmp = abs(fft(batchRangeFFTs, speedBins, 1))';
+				rangeDoppler = single(tmp);
 			%end
 
 			% fprintf("Dimensions Fast time: %f, Slow time %f\n", length(rangeProfile), length(rangeDoppler))
@@ -117,16 +119,33 @@ classdef dataProcessor < handle
 
 	methods(Access=private)
 		function mergeResults(obj, yaw, pitch, rangeProfile, rangeDoppler, speed, movementMask)
-			fprintf("mergeResults | adding to cube: yaw %f, pitch %f\n", yaw, pitch);
+			persistent counter;
+			if(isempty(counter))
+				counter = 1;
+			end
+
+			counter = counter+1;
+			fprintf("dataProcessor | mergeResults | %d adding to cube: yaw %f, pitch %f, speed %f\n", counter, yaw, pitch, speed);
 			obj.hDataCube.addData(yaw, pitch, rangeProfile, rangeDoppler, speed, movementMask);
-			fprintf("mergeResults | Data added\n");
+			
+			if obj.hDataCube.isBatchFull()
+				fprintf("dataProcessor | mergeResults | starting batch processing\n");
+				obj.hDataCube.processBatchAsync;
+			end
+			
 			% Draw range yaw
-			%if strcmp(obj.currentVisualizationStyle,'Range-Azimuth')
-			%	data = sum(obj.hDataCube.cube,4);
-			%	toDraw(:,:) = data(:,20, :);
-			%	obj.hImage.CData = toDraw';
-			%	drawnow limitrate;
-			%end
+			if(counter >= 20)
+				counter = 1;
+				fprintf("Drawing");
+				data = sum(obj.hDataCube.cube,4);
+				toDraw(:,:) = data(:,20, :);
+				obj.hImage.CData = toDraw';
+				drawnow limitrate;
+			
+			end
+			
+			if strcmp(obj.currentVisualizationStyle,'Range-Azimuth')
+			end
 
 		end
 
@@ -159,7 +178,7 @@ classdef dataProcessor < handle
 			% on addition to chirps processing will also get data about positions
 
 
-			fprintf("onNewDataAvailable | busy workers %f\n", obj.parallelPool.Busy);
+			% fprintf("onNewDataAvailable | busy workers %f\n", obj.parallelPool.Busy);
 			obj.hRadarBuffer.addChirp(obj.hRadar.bufferI(obj.readIdx, :), ...
 				obj.hRadar.bufferQ(obj.readIdx, :), ...
 				obj.hRadar.bufferTime(obj.readIdx));
@@ -168,9 +187,18 @@ classdef dataProcessor < handle
 			if obj.parallelPool.NumWorkers > obj.parallelPool.Busy
 				[batchRangeFFTs, batchTimes] = obj.hRadarBuffer.getSlidingBatch();
 				[posTimes, yaw, pitch] = obj.hPlatform.getPositionsInInterval(min(batchTimes), max(batchTimes));
-				fprintf("onNewDataAvailable | yaw: %f, pitch %f\n", yaw(end), pitch(end));
-				maskSize = size(obj.hDataCube.antennaPattern);
 
+					totalDiffYaw = mod(yaw(end) - yaw(1) + 180, 360) - 180;
+					totalDiffPitch = pitch(end) - pitch(1);
+					timeElapsed = posTimes(end) - posTimes(1);
+					speed = sqrt((totalDiffYaw^2 + totalDiffPitch^2)) / (timeElapsed + 1e-6);
+					fprintf("")
+					fprintf("Adding batch: yaw=%f, pitch=%f, speed=%f\n", yaw(end), pitch(end), speed);
+
+
+				% fprintf("onNewDataAvailable | yaw: %f, pitch %f\n", yaw(end), pitch(end));
+				maskSize = size(obj.hDataCube.antennaPattern);
+				
 				future = parfeval(obj.parallelPool, ...
 					@dataProcessor.processBatch, 6, ...
 					batchRangeFFTs, batchTimes, posTimes, yaw, pitch, obj.speedBins, obj.calcSpeed, maskSize);
