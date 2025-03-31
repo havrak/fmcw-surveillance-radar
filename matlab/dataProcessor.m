@@ -20,7 +20,7 @@ classdef dataProcessor < handle
 		currentVisualizationStyle = '';
 
 
-	end
+	end 
 
 	methods(Static, Access=public)
 
@@ -31,7 +31,6 @@ classdef dataProcessor < handle
 			yaw = abs(mod(posYaw(end)+180, 360))-180;
 			pitch = posPitch(end);
 
-			% fprintf("-------------------\nNew batch\n-------------------\n");
 
 
 			% Verify how much has the platform moved

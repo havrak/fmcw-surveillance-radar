@@ -15,7 +15,7 @@ classdef radarDataCube < handle
 		bufferB = struct('yawIdx', [], 'pitchIdx', [], 'rangeDoppler', [], 'decay', []); % Processing buffer
 		bufferActive;
 		bufferActiveWriteIdx = 1;
-		batchSize = 8;
+		batchSize = 16;
 		isProcessing = false;
 	end
 
@@ -72,6 +72,7 @@ classdef radarDataCube < handle
 		end
 
 		function processBatch(buffer, antennaPattern, cubeSize, yawBins, pitchBins)
+			time = tic;
 			fid = fopen("out.txt", "a+");
 
 			disp(cubeSize);
@@ -93,10 +94,7 @@ classdef radarDataCube < handle
 			yawIndices = mod((minYaw:maxYaw) - 1, length(yawBins)) + 1;
 			pitchIndices = minPitch:maxPitch;
 
-			fprintf(fid,...
-				'[BATCH] Composite Region: Yaw=%d:%d (%d bins), Pitch=%d:%d (%d bins)\n',...
-				minYaw, maxYaw, length(yawIndices), minPitch, maxPitch, length(pitchIndices)...
-				);
+			
 
 
 			% --- 3. Initialize subcube for new contributions ---
@@ -108,13 +106,21 @@ classdef radarDataCube < handle
 				'single' ...
 				);
 
+			time = toc(time);
+			fprintf(fid,...
+				'[BATCH] Initialization done (%f ms), Composite Region: Yaw=%d:%d (%d bins), Pitch=%d:%d (%d bins)\n',...
+				time*1000, minYaw, maxYaw, length(yawIndices), minPitch, maxPitch, length(pitchIndices)...
+				);
+
+			time = tic;
+
+
 			%printf("[BATCH] starting subcube processing\n");
 			% Process each update
 			for i = 1:numel(buffer.yawIdx)
 				yaw = buffer.yawIdx(i);
 				pitch = buffer.pitchIdx(i);
-				fprintf(fid,"[UPDATE %d] Updating yaw=%f, pitch=%f\n", i, yaw, pitch);
-
+			
 				% Valid indices for this update
 				validYaw = mod((yaw - halfYaw : yaw + halfYaw) - 1, length(yawBins)) + 1; % LGTM
 				validPitch = max(1, pitch - halfPitch):min(length(pitchBins), pitch + halfPitch); % LGTM
@@ -124,7 +130,7 @@ classdef radarDataCube < handle
 				% disp(startPitchPat);
 				endPitchPat = min(size(antennaPattern, 2), startPitchPat + length(validPitch) - 1);
 				% disp(endPitchPat);
-				adjPattern = antennaPattern(:, startPitchPat:endPitchPat);
+				adjPattern = antennaPattern(:, startPitchPat:endPitchPat)*prod(buffer.decay(i:end));
 
 
 				% Map to composite subcube
@@ -134,32 +140,43 @@ classdef radarDataCube < handle
 				% Apply contribution
 				contribution = buffer.rangeDoppler(:, :, i);
 				contribution4D = reshape(contribution, [1, 1, size(contribution)]);
-
-				weightedContribution = (adjPattern*prod(buffer.decay(i:end))) .* contribution4D;
+				weightedContribution = adjPattern .* contribution4D;
 				% Log update details
-				fprintf(fid,...
-					'[UPDATE %d] AZ=%d, PITCH=%d | PatternRows=%d:%d | LocalYaw=%d:%d, LocalPitch=%d:%d\n',...
-					i, yaw, pitch, startPitchPat, endPitchPat,...
-					localYaw(1), localYaw(end), localPitch(1), localPitch(end)...
-					);
+				
 
 				% Add to subcube
+
+				%time2 = tic2;
 				subCube(localYaw, localPitch, :, :) = ...
 					subCube(localYaw, localPitch, :, :) + weightedContribution;
+				%time2 = toc(time2);
+				%fprintf(fid,...
+				%	'[UPDATE %2d] (%f ms) AZ=%3d, PITCH=%3d | PatternRows=%3d:%3d | LocalYaw=%3d:%3d, LocalPitch=%3d:%3d\n',...
+				%	i, time2*1000, yaw, pitch, startPitchPat, endPitchPat,...
+				%	localYaw(1), localYaw(end), localPitch(1), localPitch(end)...
+				%	);
 			end
-
-			batchDecay = prod([buffer.decay]);
-			fprintf(fid,"[BATCH] Accumulated decay: %d\n", batchDecay);
-
+			
+			batchDecay = single(prod([buffer.decay]));
+			time = toc(time);
+			fprintf(fid,"[BATCH] Updates processed (%f ms)\n", time*1000);
+			time = tic;
 
 			% --- 5. Merge data ---
+			
+			%m.Data.cube = m.Data.cube*batchDecay; % by far slowest operation
 
-			m.Data.cube = m.Data.cube*batchDecay;
+			disp(m.Data.cube(1:100));
+			decayCube(m.Data.cube, single(0.95));
+			disp(m.Data.cube(1:100));
+			time = toc(time);
+			fprintf(fid,"[BATCH] Decaying cube (%f ms), decaying with %f\n", time*1000, batchDecay);
+			time = tic;
 			m.Data.cube(yawIndices, pitchIndices, :, :) = m.Data.cube(yawIndices, pitchIndices, :, :) + subCube;
-			fprintf(fid,"[BATCH] Updating radar cube, decaying with %d\n", batchDecay);
+			time = toc(time);
+
+			fprintf(fid,"[BATCH] Updating cube (%f ms)\n", time*1000);
 		end
-
-
 	end
 
 	methods(Access=public)
@@ -181,6 +198,7 @@ classdef radarDataCube < handle
 				];
 			
 			if ~exist('cube.dat', 'file')
+				% TODO: this is linux only, would be nice to fix 
 				system('fallocate -l 250M cube.dat'); % 360x81x128x8 single
 			end
 
@@ -190,8 +208,13 @@ classdef radarDataCube < handle
                'Writable', true, ...
 							 'Repeat', 1);
 
+
+			disp(obj.cubeMap.Data.cube(1:50));
+			zeroCube(obj.cubeMap.Data.cube);
+			disp(obj.cubeMap.Data.cube(1:50));
 			% Reshape to 4D array
 			obj.cube = obj.cubeMap.Data.cube;
+			
 		end
 
 		function addData(obj, yaw, pitch, ~, rangeDoppler, speed, ~)
@@ -201,7 +224,7 @@ classdef radarDataCube < handle
 
 			[~, yawIdx] = min(abs(obj.yawBins - yaw));
 			[~, pitchIdx] = min(abs(obj.pitchBins - pitch));
-			decay = exp(-speed/100); % XXX random consntat for debug
+			decay = exp(-speed/1000); % XXX random consntat for debug
 			obj.bufferA.yawIdx(obj.bufferActiveWriteIdx) = yawIdx;
 			obj.bufferA.pitchIdx(obj.bufferActiveWriteIdx) = pitchIdx;
 			obj.bufferA.rangeDoppler(:, :, obj.bufferActiveWriteIdx) = single(rangeDoppler);
@@ -225,10 +248,10 @@ classdef radarDataCube < handle
 			obj.bufferB = processingBuffer; % Assign to processing buffer
 			obj.bufferActiveWriteIdx = 1;
 
-			future = parfeval(gcp, @radarDataCube.processBatch, 0, processingBuffer, obj.antennaPattern, obj.cubeSize, obj.yawBins, obj.pitchBins);
+			% future = parfeval(gcp, @radarDataCube.processBatch, 0, processingBuffer, obj.antennaPattern, obj.cubeSize, obj.yawBins, obj.pitchBins);
 
-			% radarDataCube.processBatch(processingBuffer, obj.antennaPattern, obj.cubeSize, obj.yawBins, obj.pitchBins);
-			% future = parfeval(gcp, @radarDataCube.testFunction, 0);
+			radarDataCube.processBatch(processingBuffer, obj.antennaPattern, obj.cubeSize, obj.yawBins, obj.pitchBins);
+			future = parfeval(gcp, @radarDataCube.testFunction, 0);
 
 		end
 
