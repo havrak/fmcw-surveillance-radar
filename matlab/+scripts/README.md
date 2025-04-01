@@ -2,7 +2,7 @@
 Collection of CPP scripts that are compiled with MATLAB supplied mex tools in order to enable their use withing MATLAB code.
 
 
-## Personal notes to reorder later
+## Personal notes to polish later
 * OpenMP compilation:
 	* `matlab-mex COMPFLAGS="/openmp $COMPFLAGS" CXXOPTIMFLAGS="-O3 -DNDEBUG -fno-predictive-commoning" -v decayCube_omp.cpp`
 

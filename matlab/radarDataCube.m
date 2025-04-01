@@ -4,7 +4,7 @@ classdef radarDataCube < handle
 		yawBinMax=180;
 		yawBins;   % 1° resolution
 		pitchBinMin=-20;
-		pitchBinMax=60;
+		pitchBinMax=60;     % keeping dimension divisible by 8 to use AVX2
 		pitchBins;          % 1° resolution
 		cube;          % 4D matrix [Yaw x Pitch x (Fast time x Slow Time)]
 		cubeMap;
@@ -91,6 +91,9 @@ classdef radarDataCube < handle
 			maxPitch = min(length(pitchBins), max([buffer.pitchIdx]) + halfPitch);
 
 			% Wrap yaw indices and clamp pitch
+
+			% XXX: FUCK we don't save space when revolving around 360;
+			% 
 			yawIndices = mod((minYaw:maxYaw) - 1, length(yawBins)) + 1;
 			pitchIndices = minPitch:maxPitch;
 
@@ -105,7 +108,8 @@ classdef radarDataCube < handle
 				cubeSize(4), ...
 				'single' ...
 				);
-
+			fprintf("Subcube size:");
+			disp(size(subCube));
 			time = toc(time);
 			fprintf(fid,...
 				'[BATCH] Initialization done (%f ms), Composite Region: Yaw=%d:%d (%d bins), Pitch=%d:%d (%d bins)\n',...
@@ -115,16 +119,16 @@ classdef radarDataCube < handle
 			time = tic;
 
 
-			%printf("[BATCH] starting subcube processing\n");
+			fprintf(fid, "[BATCH] starting subcube processing\n");
 			% Process each update
 			for i = 1:numel(buffer.yawIdx)
+				time2 = tic;
 				yaw = buffer.yawIdx(i);
 				pitch = buffer.pitchIdx(i);
 
 				% Valid indices for this update
 				validYaw = mod((yaw - halfYaw : yaw + halfYaw) - 1, length(yawBins)) + 1; % LGTM
 				validPitch = max(1, pitch - halfPitch):min(length(pitchBins), pitch + halfPitch); % LGTM
-
 				% Crop antenna pattern
 				startPitchPat = max(1,(halfPitch+1)-(pitch-validPitch(1)));
 				% disp(startPitchPat);
@@ -133,28 +137,49 @@ classdef radarDataCube < handle
 				adjPattern = antennaPattern(:, startPitchPat:endPitchPat)*prod(buffer.decay(i:end));
 
 
-				% Map to composite subcube
 				[~, localYaw] = ismember(validYaw, yawIndices);
 				[~, localPitch] = ismember(validPitch, pitchIndices);
 
+
+				% THIS IS WRONG -> we have to do this withou flipping
+				if any(diff(localYaw) < 0)
+					fprintf("validYaw: ");
+					disp(validYaw);
+					fprintf("localYaw: ");
+					disp(localYaw);
+				
+					fprintf("XXXXXXXXXXXXXXXXXXXXX\nXXXXXXXXXXXXXXXXXX\nXXXXXXXXXXXXXXX\n");
+				end
 				% Apply contribution
+				
 				contribution = buffer.rangeDoppler(:, :, i);
-				contribution4D = reshape(contribution, [1, 1, size(contribution)]);
-				weightedContribution = adjPattern .* contribution4D;
+				%contribution4D = reshape(contribution, [1, 1, size(contribution)]);
+
+				% this fucker involves 783360 multiplication at worse -> OPTIMIZE
+				% for some reason while  timing it it isn't that slow, but
+				% replacing it leads to measurable speed up
+				% weightedContribution = adjPattern .* contribution4D; 
+				weightedContribution = scripts.applyPattern(adjPattern, contribution);
+				
 				% Log update details
+				time2 = toc(time2);
+				fprintf(fid, '[UPDATE %2d] (%f ms) Initialization done\n', i, time2*1000);
 
 
 				% Add to subcube
-
-				%time2 = tic2;
+				time2 = tic;
+				
+				% here localYaw and localPitch will alwasy be ascending
+				% IF WE DON'T FLIP I CAN DO THIS IN OpenMP
 				subCube(localYaw, localPitch, :, :) = ...
 					subCube(localYaw, localPitch, :, :) + weightedContribution;
-				%time2 = toc(time2);
-				%fprintf(fid,...
-				%	'[UPDATE %2d] (%f ms) AZ=%3d, PITCH=%3d | PatternRows=%3d:%3d | LocalYaw=%3d:%3d, LocalPitch=%3d:%3d\n',...
-				%	i, time2*1000, yaw, pitch, startPitchPat, endPitchPat,...
-				%	localYaw(1), localYaw(end), localPitch(1), localPitch(end)...
-				%	);
+				
+				time2 = toc(time2);
+				fprintf(fid,...
+					'[UPDATE %2d] (%f ms) AZ=%3d, PITCH=%3d | PatternRows=%3d:%3d | LocalYaw=%3d:%3d, LocalPitch=%3d:%3d\n',...
+					i, time2*1000, yaw, pitch, startPitchPat, endPitchPat,...
+					localYaw(1), localYaw(end), localPitch(1), localPitch(end)...
+					);
 			end
 
 			batchDecay = single(prod([buffer.decay]));
@@ -166,12 +191,14 @@ classdef radarDataCube < handle
 
 			%m.Data.cube = m.Data.cube*batchDecay; % by far slowest operation
 
-			disp(m.Data.cube(1:100));
-			+mex_scripts/decayCube_avx2(m.Data.cube, single(0.95));
-			disp(m.Data.cube(1:100));
+			% disp(m.Data.cube(1:100));
+			scripts.decayCube_avx2(m.Data.cube, single(0.95));
+			% disp(m.Data.cube(1:100));
 			time = toc(time);
 			fprintf(fid,"[BATCH] Decaying cube (%f ms), decaying with %f\n", time*1000, batchDecay);
 			time = tic;
+			
+			% here indexes might not be ascending
 			m.Data.cube(yawIndices, pitchIndices, :, :) = m.Data.cube(yawIndices, pitchIndices, :, :) + subCube;
 			time = toc(time);
 
@@ -202,6 +229,9 @@ classdef radarDataCube < handle
 				system('fallocate -l 250M cube.dat'); % 360x81x128x8 single
 			end
 
+			obj.bufferA.rangeDoppler = zeros([128, 8, obj.batchSize], 'single');
+
+			obj.bufferB.rangeDoppler = zeros([128, 8, obj.batchSize], 'single');
 			% Create memory map
 			obj.cubeMap = memmapfile('cube.dat', ...
                'Format', {'single', obj.cubeSize, 'cube'}, ...
@@ -209,9 +239,7 @@ classdef radarDataCube < handle
 							 'Repeat', 1);
 
 
-			disp(obj.cubeMap.Data.cube(1:50));
-			+mex_scripts/zeroCube(obj.cubeMap.Data.cube);
-			disp(obj.cubeMap.Data.cube(1:50));
+			scripts.zeroCube(obj.cubeMap.Data.cube);
 			% Reshape to 4D array
 			obj.cube = obj.cubeMap.Data.cube;
 
@@ -265,7 +293,7 @@ classdef radarDataCube < handle
 			yawSigma = 3*radPatternYaw / (sqrt(8*log(2)));
 			pitchSigma = 1.5*radPatternPitch / (sqrt(8*log(2)));
 			[yawMash, pitchMesh] = meshgrid(dimensionsPitch,dimensionsYaw);
-			pattern = exp(-0.5*( (yawMash/yawSigma).^2 + (pitchMesh/pitchSigma).^2 ));
+			pattern = single(exp(-0.5*( (yawMash/yawSigma).^2 + (pitchMesh/pitchSigma).^2 )));
 			% imagesc(dimensionsYaw, dimensionsPitch, pattern);
 		end
 	end
