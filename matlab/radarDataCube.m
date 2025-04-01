@@ -94,7 +94,7 @@ classdef radarDataCube < handle
 			yawIndices = mod((minYaw:maxYaw) - 1, length(yawBins)) + 1;
 			pitchIndices = minPitch:maxPitch;
 
-			
+
 
 
 			% --- 3. Initialize subcube for new contributions ---
@@ -120,7 +120,7 @@ classdef radarDataCube < handle
 			for i = 1:numel(buffer.yawIdx)
 				yaw = buffer.yawIdx(i);
 				pitch = buffer.pitchIdx(i);
-			
+
 				% Valid indices for this update
 				validYaw = mod((yaw - halfYaw : yaw + halfYaw) - 1, length(yawBins)) + 1; % LGTM
 				validPitch = max(1, pitch - halfPitch):min(length(pitchBins), pitch + halfPitch); % LGTM
@@ -142,7 +142,7 @@ classdef radarDataCube < handle
 				contribution4D = reshape(contribution, [1, 1, size(contribution)]);
 				weightedContribution = adjPattern .* contribution4D;
 				% Log update details
-				
+
 
 				% Add to subcube
 
@@ -156,18 +156,18 @@ classdef radarDataCube < handle
 				%	localYaw(1), localYaw(end), localPitch(1), localPitch(end)...
 				%	);
 			end
-			
+
 			batchDecay = single(prod([buffer.decay]));
 			time = toc(time);
 			fprintf(fid,"[BATCH] Updates processed (%f ms)\n", time*1000);
 			time = tic;
 
 			% --- 5. Merge data ---
-			
+
 			%m.Data.cube = m.Data.cube*batchDecay; % by far slowest operation
 
 			disp(m.Data.cube(1:100));
-			decayCube(m.Data.cube, single(0.95));
+			+mex_scripts/decayCube_avx2(m.Data.cube, single(0.95));
 			disp(m.Data.cube(1:100));
 			time = toc(time);
 			fprintf(fid,"[BATCH] Decaying cube (%f ms), decaying with %f\n", time*1000, batchDecay);
@@ -196,9 +196,9 @@ classdef radarDataCube < handle
 				numRangeBins, ...
 				numDopplerBins ...
 				];
-			
+
 			if ~exist('cube.dat', 'file')
-				% TODO: this is linux only, would be nice to fix 
+				% TODO: this is linux only, would be nice to fix
 				system('fallocate -l 250M cube.dat'); % 360x81x128x8 single
 			end
 
@@ -210,11 +210,11 @@ classdef radarDataCube < handle
 
 
 			disp(obj.cubeMap.Data.cube(1:50));
-			zeroCube(obj.cubeMap.Data.cube);
+			+mex_scripts/zeroCube(obj.cubeMap.Data.cube);
 			disp(obj.cubeMap.Data.cube(1:50));
 			% Reshape to 4D array
 			obj.cube = obj.cubeMap.Data.cube;
-			
+
 		end
 
 		function addData(obj, yaw, pitch, ~, rangeDoppler, speed, ~)
@@ -240,7 +240,7 @@ classdef radarDataCube < handle
 		function future = processBatchAsync(obj)
 			% Swap buffers and reset flags
 			% TODO: verify if MATLAB isn't doing stupid copying data into new memory space
-			
+
 			% obj.isProcessing = true;
 
 			processingBuffer = obj.bufferA;
