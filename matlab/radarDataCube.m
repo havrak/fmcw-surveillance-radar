@@ -84,10 +84,13 @@ classdef radarDataCube < handle
 			% --- 1. Calculate composite region ---
 			halfYaw = floor(size(antennaPattern, 1)/2);
 			halfPitch = floor(size(antennaPattern, 2)/2);
+			numYawBins = length(yawBins);
 
 			% Get raw min/max indices
-			
+
 			% --- 1.1 Expand Yar range for each update ---
+			%  we need to find most distant elements -> let's label them min and
+			%  max (don't correspond to actuall minimums)
 			%  max + halfYaw and min - halfYaw are ok -> great
 			%  max + halfYaw results in overflow, min-halfYaw doesn't -> create array max-halfYaw->end and 1-> min+halfYaw
 			%  ...
@@ -95,11 +98,8 @@ classdef radarDataCube < handle
 			%  -> concart into larger array and remove duplicat elements, mode
 			%  that array
 			%  find breaks in this array (wrap fro 360 to 1) -> fill in elements
-
-			numYawBins = length(yawBins);
 			expandedYaws = arrayfun(@(y) [(y-halfYaw) : (y+halfYaw)], [buffer.yawIdx], 'UniformOutput', false);
 			allYaws = unique(mod(cat(2, expandedYaws{:}) - 1, numYawBins) + 1);
-
 			% Split into contiguous segments if wrap-around exists
 			wrapIdx = find(diff(allYaws) < 0);
 			if ~isempty(wrapIdx)
@@ -107,7 +107,6 @@ classdef radarDataCube < handle
 			else
 				yawIndices = allYaws;
 			end
-
 
 			% Clamp pitch indices
 			minPitch = max(1, min([buffer.pitchIdx]) - halfPitch);
@@ -126,7 +125,7 @@ classdef radarDataCube < handle
 
 			fprintf("Subcube size:");
 			disp(size(subCube));
-			
+
 			% time = toc(time);
 			% fprintf(fid,...
 			%	 '[BATCH] Initialization done (%f ms), Composite Region: Yaw=%d:%d (%d bins), Pitch=%d:%d (%d bins)\n',...
@@ -152,8 +151,8 @@ classdef radarDataCube < handle
 				validYaw = mod((yaw - halfYaw : yaw + halfYaw) - 1, length(yawBins)) + 1;
 				localYaw = arrayfun(@(x) yawMap(x), validYaw);
 
-				validPitch = max(1, pitch - halfPitch):min(length(pitchBins), pitch + halfPitch); % OFFset
-				localPitchOffset = validPitch(1) - minPitch + 1; % Key adjustment
+				validPitch = max(1, pitch - halfPitch):min(length(pitchBins), pitch + halfPitch);
+				localPitchOffset = validPitch(1) - minPitch + 1;
 				localPitch = localPitchOffset : (localPitchOffset + length(validPitch) - 1);
 
 				% --- 3.2 Adjust pattern ---
@@ -164,13 +163,15 @@ classdef radarDataCube < handle
 				% --- 3.3 Spread contribution into 4D with pattern ---
 				contribution = buffer.rangeDoppler(:, :, i);
 				weightedContribution = scripts.applyPattern(adjPattern, contribution);
-				% 
+				%
 				% time2 = toc(time2);
 				% fprintf(fid, '[UPDATE %2d] (%f ms) Initialization done\n', i, time2*1000);
 				% time2 = tic;
 
 
 				% --- 3.4 Update subcube with contribution ---
+				% Stupid fucking column major order fucks up this to be efficient with AVX2 (Inpossible to crete efficient 256 bit fields to run addition on)
+				% TOOD: consider TBB, or just OpenMP
 				subCube(localYaw, localPitch, :, :) = ...
 					subCube(localYaw, localPitch, :, :) + weightedContribution;
 
@@ -197,7 +198,7 @@ classdef radarDataCube < handle
 			% --- 5. Merge data ---
 			m.Data.cube(yawIndices, pitchIndices, :, :) = m.Data.cube(yawIndices, pitchIndices, :, :) + subCube;
 			% time = toc(time);
-			% 
+			%
 			% fprintf(fid,"[BATCH] Updating cube (%f ms)\n", time*1000);
 		end
 	end
@@ -240,7 +241,7 @@ classdef radarDataCube < handle
 				'Repeat', 1);
 
 
-			scripts.zeroCube(obj.cubeMap.Data.cube);
+			scripts.zeroCube(obj.cubeMap.Data.cube
 			% Reshape to 4D array
 			obj.cube = obj.cubeMap.Data.cube;
 
