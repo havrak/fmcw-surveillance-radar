@@ -336,7 +336,7 @@ bool StepperHal::waitStepper(stepper_hal_struct_t* stepperHal, uint32_t time, bo
 
 bool StepperHal::spindleStepper(stepper_hal_struct_t* stepperHal, float rpm, Direction direction)
 {
-	ESP_LOGI(TAG, "Spindle stepper %s, rpm: %f", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "H" : "T", rpm);
+	// ESP_LOGI(TAG, "Spindle stepper %s, rpm: %f", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "H" : "T", rpm);
 	stepper_hal_command_t command = {
 		.type = CommandType::SPINDLE,
 		.rpm = rpm,

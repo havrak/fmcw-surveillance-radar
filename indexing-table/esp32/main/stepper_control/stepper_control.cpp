@@ -937,18 +937,18 @@ ParsingGCodeResult StepperControl::parseGCodeMCommands(const char* gcode, const 
 #endif /* CONFIG_COMM_DEBUG */
 		command->type = GCodeCommand::M03;
 
-		if (getElementString(gcode, length, 3, "Y+", 1)) {
+		if (getElementString(gcode, length, 3, "Y+", 2)) {
 			command->movementYaw = new gcode_command_movement_t();
 			command->movementYaw->val.direction = Direction::FORWARD;
-		} else if (getElementString(gcode, length, 3, "Y-", 1)) {
+		} else if (getElementString(gcode, length, 3, "Y-", 2)) {
 			command->movementYaw = new gcode_command_movement_t();
 			command->movementYaw->val.direction = Direction::BACKWARD;
 		}
 
-		if (getElementString(gcode, length, 3, "P+", 1)) {
+		if (getElementString(gcode, length, 3, "P+", 2)) {
 			command->movementYaw = new gcode_command_movement_t();
 			command->movementYaw->val.direction = Direction::FORWARD;
-		} else if (getElementString(gcode, length, 3, "P-", 1)) {
+		} else if (getElementString(gcode, length, 3, "P-", 2)) {
 			command->movementYaw = new gcode_command_movement_t();
 			command->movementYaw->val.direction = Direction::BACKWARD;
 		}
