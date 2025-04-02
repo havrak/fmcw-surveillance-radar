@@ -28,7 +28,8 @@ classdef dataProcessor < handle
 				processBatch(batchRangeFFTs, batchTimes, posTimes, posYaw, posPitch, speedBins, calcSpeed, maskSize)
 
 			rangeProfile = abs(batchRangeFFTs(end, :));
-			yaw = abs(mod(posYaw(end)+180, 360))-180;
+			%yaw = abs(mod(posYaw(end)+180, 360))-180;
+			yaw = posYaw(end);
 			pitch = posPitch(end);
 
 
@@ -118,8 +119,7 @@ classdef dataProcessor < handle
 	methods(Access=private)
 		function mergeResults(obj, yaw, pitch, rangeProfile, rangeDoppler, speed, movementMask)
 
-			fprintf("dataProcessor | mergeResults | adding to cube: yaw %f, pitch %f, speed %f\n", yaw, pitch, speed);
-
+			
 			obj.hDataCube.addData(yaw, pitch, rangeProfile, rangeDoppler, speed, movementMask);
 
 			if obj.hDataCube.isBatchFull()
