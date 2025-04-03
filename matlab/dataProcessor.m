@@ -85,13 +85,13 @@ classdef dataProcessor < handle
 			% movementMask = radarDataCube.createSectorMask(totalDiffYaw, totalDiffPitch, maskSize, speed);
 
 			% in case we aren't calculating speed we can end here
-			%if ~calcSpeed
-			%	fprintf("No speed calculations, exitting\n");
-			%	rangeDoppler = [zeros(128, speedBins-1), rangeProfile'];
-			%	yaw = abs(mod(posYaw(end)+180, 360))-180;
-			%	pitch = posPitch(end);
-			%	return;
-			%end
+			if ~calcSpeed
+				% fprintf("No speed calculations, exitting\n");
+				rangeDoppler = [zeros(128, speedBins-1), rangeProfile'];
+				yaw = abs(mod(posYaw(end)+180, 360))-180;
+				pitch = posPitch(end);
+				return;
+			end
 
 
 			% Timing based analysis
@@ -136,9 +136,14 @@ classdef dataProcessor < handle
 
 				fprintf("dataProcessor | updateFinished | drawing r-a map\n");
 
-				data = sum(obj.hDataCube.cube,4);
-				toDraw(:,:) = data(:,20, :);
-				obj.hImage.CData = toDraw';
+				 data = sum(obj.hDataCube.cube, 2);
+				 disp(size(data));
+        % Extract the slice for pitch 20 (now dimension 4)
+        % Note: we need to take the 3D slice and then squeeze to 2D
+				
+        toDraw = squeeze(data(:, 1, :, 20));
+				disp(size(toDraw));
+				obj.hImage.CData = 10*log10(toDraw);
 				drawnow limitrate;
 			end
 		end

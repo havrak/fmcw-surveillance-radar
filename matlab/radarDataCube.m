@@ -20,6 +20,8 @@ classdef radarDataCube < handle
 	end
 
 	methods(Static)
+
+		% TODO: consider removal
 		function mask = createSectorMask(diffYaw, diffPitch, patternSize, speed)
 
 			%mask=ones(patternSize);
@@ -116,10 +118,10 @@ classdef radarDataCube < handle
 
 			% --- 2. Initialize subcube for new contributions ---
 			subCube = zeros(...
+				cubeSize(1), ...
+				cubeSize(2), ...
 				length(yawIndices), ...
 				length(pitchIndices), ...
-				cubeSize(3), ...
-				cubeSize(4), ...
 				'single' ...
 				);
 
@@ -172,8 +174,8 @@ classdef radarDataCube < handle
 				% --- 3.4 Update subcube with contribution ---
 				% Stupid fucking column major order fucks up this to be efficient with AVX2 (Inpossible to crete efficient 256 bit fields to run addition on)
 				% TOOD: consider TBB, or just OpenMP
-				subCube(localYaw, localPitch, :, :) = ...
-					subCube(localYaw, localPitch, :, :) + weightedContribution;
+				subCube(:, :, localYaw, localPitch) = ...
+					subCube( :, :, localYaw, localPitch) + weightedContribution;
 
 				% time2 = toc(time2);
 				% fprintf(fid,...
@@ -196,7 +198,7 @@ classdef radarDataCube < handle
 			% time = tic;
 
 			% --- 5. Merge data ---
-			m.Data.cube(yawIndices, pitchIndices, :, :) = m.Data.cube(yawIndices, pitchIndices, :, :) + subCube;
+			m.Data.cube(:, :,yawIndices, pitchIndices) = m.Data.cube( :, :,yawIndices, pitchIndices) + subCube;
 			% time = toc(time);
 			%
 			% fprintf(fid,"[BATCH] Updating cube (%f ms)\n", time*1000);
@@ -220,10 +222,10 @@ classdef radarDataCube < handle
 			% it MATLAB's fault that their memory storage approach is non
 			% conventional to most programmers
 			obj.cubeSize = [ ...
-				length(obj.yawBins), ...
-				length(obj.pitchBins), ...
 				numRangeBins, ...
 				numDopplerBins ...
+				length(obj.yawBins), ...
+				length(obj.pitchBins), ...
 				];
 
 			if ~exist('cube.dat', 'file')
@@ -241,7 +243,7 @@ classdef radarDataCube < handle
 				'Repeat', 1);
 
 
-			scripts.zeroCube(obj.cubeMap.Data.cube
+			scripts.zeroCube(obj.cubeMap.Data.cube);
 			% Reshape to 4D array
 			obj.cube = obj.cubeMap.Data.cube;
 
@@ -299,7 +301,8 @@ classdef radarDataCube < handle
 			pitchSigma = 1.5*radPatternPitch / (sqrt(8*log(2)));
 			[yawMash, pitchMesh] = meshgrid(dimensionsPitch,dimensionsYaw);
 			pattern = single(exp(-0.5*( (yawMash/yawSigma).^2 + (pitchMesh/pitchSigma).^2 )));
-			% imagesc(dimensionsYaw, dimensionsPitch, pattern);
+			size(pattern);
+			%imagesc(dimensionsYaw, dimensionsPitch, pattern);
 		end
 	end
 end

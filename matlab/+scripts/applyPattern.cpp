@@ -12,14 +12,14 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 
     // Get dimensions of adjPattern (MxN) and contribution (PxQ)
     const mwSize *adjDims = mxGetDimensions(prhs[0]);
-    mwSize M = adjDims[0];
-    mwSize N = adjDims[1];
+    mwSize M = adjDims[0];  // Yaw dimension
+    mwSize N = adjDims[1];  // Pitch dimension
     const mwSize *contribDims = mxGetDimensions(prhs[1]);
-    mwSize P = contribDims[0];
-    mwSize Q = contribDims[1];
+    mwSize P = contribDims[0];  // Fast time (range) dimension
+    mwSize Q = contribDims[1];  // Slow time (doppler) dimension
 
-    // Create 4D output array [M, N, P, Q]
-    mwSize outDims[4] = {M, N, P, Q};
+    // Create 4D output array [P, Q, M, N] - Fast time x Slow time x Yaw x Pitch
+    mwSize outDims[4] = {P, Q, M, N};
     plhs[0] = mxCreateNumericArray(4, outDims, mxSINGLE_CLASS, mxREAL);
     float *output = (float *)mxGetData(plhs[0]);
 
@@ -27,37 +27,34 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     float *adjPattern = (float *)mxGetData(prhs[0]);
     float *contribution = (float *)mxGetData(prhs[1]);
 
-    // Iterate over each element in contribution (k,l)
-		// we are processing in retarded column-major order
-		// order in memory
-		//		1. M - Varies fastest (continuos segment in memory).
-		//    2. N
-		//    3. P
-		//    4. Q
-		// we can combine M and N into a single loop
-    for (mwSize l = 0; l < Q; ++l) {
-        for (mwSize k = 0; k < P; ++k) {
+    // Pre-calculate the total size of the range-doppler contribution
+    mwSize rdSize = P * Q;
 
-            // current contribution
-            float c = contribution[k + l * P];
-            __m256 c_vec = _mm256_set1_ps(c);
-            mwSize base = k * M * N + l * M * N * P;
-            float *outSlice = output + base;
+    // Iterate over each antenna pattern position (yaw, pitch)
+    for (mwSize j = 0; j < N; ++j) {
+        for (mwSize i = 0; i < M; ++i) {
+            // Get pattern value for this yaw/pitch combination
+            float patternVal = adjPattern[i + j * M];
 
-            // Vectorized multiplication for contiguous blocks
-            mwSize numElements = M * N;
-            mwSize i = 0;
-            for (; i + 7 < numElements; i += 8) {
-                __m256 a = _mm256_loadu_ps(adjPattern + i);
-                __m256 res = _mm256_mul_ps(a, c_vec);
-                _mm256_storeu_ps(outSlice + i, res);
+            // Calculate base index in the output array
+            mwSize baseIdx = i * rdSize + j * rdSize * M;
+
+            // Process all range-doppler points at once with vectorized operations
+            // This leverages the contiguous memory of range and doppler dimensions
+            mwSize idx = 0;
+
+            // Use SIMD for vectorized operations on contiguous memory
+            __m256 pattern_vec = _mm256_set1_ps(patternVal);
+            for (; idx + 7 < rdSize; idx += 8) {
+                __m256 contrib_vec = _mm256_loadu_ps(&contribution[idx]);
+                __m256 result = _mm256_mul_ps(contrib_vec, pattern_vec);
+                _mm256_storeu_ps(&output[baseIdx + idx], result);
             }
 
-						// if matlab was normal and use row-major this wouldn't be neccesary
-						// but it isn't and pattern size is not by 8 divisible
-            for (; i < numElements; ++i) {
-                outSlice[i] = adjPattern[i] * c;
-            }
+						// there should never be a case where P*Q is not multiple of 8
+            // for (; idx < rdSize; ++idx) {
+            //     output[baseIdx + idx] = contribution[idx] * patternVal;
+            // }
         }
     }
 }
