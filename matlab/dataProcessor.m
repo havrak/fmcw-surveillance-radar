@@ -20,7 +20,7 @@ classdef dataProcessor < handle
 		currentVisualizationStyle = '';
 
 
-	end 
+	end
 
 	methods(Static, Access=public)
 
@@ -88,7 +88,7 @@ classdef dataProcessor < handle
 			if ~calcSpeed
 				% fprintf("No speed calculations, exitting\n");
 				rangeDoppler = [zeros(128, speedBins-1), rangeProfile'];
-				yaw = abs(mod(posYaw(end)+180, 360))-180;
+				yaw = posYaw(end);
 				pitch = posPitch(end);
 				return;
 			end
@@ -119,36 +119,35 @@ classdef dataProcessor < handle
 	methods(Access=private)
 		function mergeResults(obj, yaw, pitch, rangeProfile, rangeDoppler, speed, movementMask)
 
-			
+
 			obj.hDataCube.addData(yaw, pitch, rangeProfile, rangeDoppler, speed, movementMask);
 
 			if obj.hDataCube.isBatchFull()
 				fprintf("dataProcessor | mergeResults | starting batch processing\n");
-				future = obj.hDataCube.processBatchAsync();
-				afterAll(future, @(varargin) obj.updateFinished(varargin{:}), 0);
+				obj.hDataCube.startBatchProcessing();
 			end
 		end
 
-		function updateFinished(obj)
+		function onCubeUpdateFinished(obj)
 			fprintf("dataProcessor | updateFinished\n");
 
 			if strcmp(obj.currentVisualizationStyle,'Range-Azimuth')
 
 				fprintf("dataProcessor | updateFinished | drawing r-a map\n");
 
-				 data = sum(obj.hDataCube.cube, 2);
-				 disp(size(data));
-        % Extract the slice for pitch 20 (now dimension 4)
-        % Note: we need to take the 3D slice and then squeeze to 2D
-				
-        toDraw = squeeze(data(:, 1, :, 20));
-				disp(size(toDraw));
+				data = sum(obj.hDataCube.cube, 2);
+				% Extract the slice for pitch 20 (now dimension 4)
+				% Note: we need to take the 3D slice and then squeeze to 2D
+
+				toDraw = squeeze(data(:, 1, :, 20));
 				obj.hImage.CData = 10*log10(toDraw);
 				drawnow limitrate;
 			end
 		end
 
 		function onNewConfigAvailable(obj)
+
+			java.lang.System.gc();
 			% TODO Deinitilize variables
 
 			[radPatterH, radPatterT] = obj.hPreferences.getRadarRadiationParamters();
@@ -168,7 +167,9 @@ classdef dataProcessor < handle
 				% obj.deinitializeDisplay();
 				obj.initializeARDisplay();
 			end
-			java.lang.System.gc();
+
+
+			addlistener(obj.hDataCube, 'updateFinished', @(~,~) obj.onCubeUpdateFinished());
 		end
 
 		function onNewDataAvailable(obj)
@@ -190,14 +191,14 @@ classdef dataProcessor < handle
 
 
 				[yaw, pitch, rangeProfile, rangeDoppler, speed, movementMask] = dataProcessor.processBatch( ...
-				batchRangeFFTs,  ...
-				batchTimes, ...
-				posTimes, ...
-				yaw, ...
-				pitch, ...
-				obj.speedBins, ...
-				obj.calcSpeed, ...
-				maskSize);
+					batchRangeFFTs,  ...
+					batchTimes, ...
+					posTimes, ...
+					yaw, ...
+					pitch, ...
+					obj.speedBins, ...
+					obj.calcSpeed, ...
+					maskSize);
 
 				obj.mergeResults(yaw, pitch, rangeProfile, rangeDoppler, speed, movementMask);
 
