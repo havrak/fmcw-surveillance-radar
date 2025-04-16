@@ -38,7 +38,7 @@ classdef dataProcessor < handle
 				
 			tmp = abs(batchRangeFFTs(end, :));
 			rangeProfile = tmp(1:distanceNFFT/2);
-			rangeProfile = ((rangeProfile).*distance)';
+			rangeProfile = ((rangeProfile.^2).*distance)';
 
 
 
@@ -171,7 +171,7 @@ classdef dataProcessor < handle
 			[obj.calcSpeed, obj.speedSamples]= obj.hPreferences.getProcessingSpeedParamters();
 			visual=obj.hPreferences.getProcessingVisualization();
 			obj.distanceBinWidth = obj.hPreferences.getDistanceBinWidth();
-			fprintf("dataProcessor | onNewConfigAvailable | Distance bin size: %f cm\n" , obj.distanceBinWidth*100);
+			fprintf("dataProcessor | onNewConfigAvailable | Distance bin size: %f mm\n" , obj.distanceBinWidth*1000);
 			obj.hDataCube = radarDataCube(samples/2, obj.speedSamples/2, radPatterH, radPatterT);
 			obj.hRadarBuffer = radarBuffer(floor(obj.speedSamples*1.5), samples);
 

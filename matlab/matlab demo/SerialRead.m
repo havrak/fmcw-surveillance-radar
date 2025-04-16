@@ -18,6 +18,8 @@ hLine1 = line(ax1,'Color', 'r');
 title('FFT I+Q channel');
 xlabel("[bin]");
 ylabel("[dB]");
+ylim(ax1, [0, 40]);
+
 
 ax2 = nexttile;
 hLine2 = line(ax2,'Color', 'r');
@@ -28,6 +30,7 @@ ylabel("ADC value");
 
 ax3 = nexttile;
 hLine3 = line(ax3, 'Color','g');
+ylim(ax3, [0, 40]);
 title('I channel - FFT');
 xlabel("[bin]");
 ylabel("[dB]");
@@ -37,7 +40,7 @@ hLine4 = line(ax4, 'Color', 'r');
 title('Q channel - FFT');
 xlabel("[bin]");
 ylabel("[dB]");
-
+ylim(ax4, [0, 40]);
 
 
 SerialName = "/dev/ttyACM0";
@@ -74,11 +77,10 @@ start(triggerTimer);
 hFig.CloseRequestFcn = 'stop(triggerTimer); delete(SerialObj); closereq;';
 
 oldBuf = [];
-distanceBinWidth = 0.0416;
+distanceBinWidth = 0.0049;
 distanceNFFT = 128;
-distance = (0:distanceNFFT-1)*distanceBinWidth;
-distance = distance.^2;
-
+distance = (0:distanceNFFT/2-1)*distanceBinWidth;
+distance = distance.^4;
 
 
 while true
@@ -134,12 +136,10 @@ while true
 	nData = numel(data);
 	DataI = double(data(1:2:nData));
 	DataQ = double(data(2:2:nData));
-	% disp(DataI);
+	DataIQ = DataI+1j*DataQ;
+	% 
 
-	% 
-	% DataIQ = DataI+1j*DataQ;
-	% 
-	% fftIQ = abs(fft(DataIQ));
+	fftIQ = abs(fft(DataIQ));
 
 	% time(index) =  (posixtime(datetime('now'))-dataTimestamp) * 1000;
 	%dataTimestamp = posixtime(datetime('now'));
@@ -147,15 +147,18 @@ while true
 
 	fftI = abs(fft(DataI));
 	fftQ= abs(fft(DataQ));
-	%limI=floor((numel(fftI)/2));
-	%limQ=floor((numel(fftQ)/2));
+	
+	fftIQ = (fftIQ(1:distanceNFFT/2).^2).*distance;
+	fftI = (fftI(1:distanceNFFT/2).^2).*distance;
+	fftQ = (fftQ(1:distanceNFFT/2).^2).*distance;
+
 
 	set(hLine2, 'XData', 1:2:nData, 'YData', DataI);
 	set(hLine22, 'XData', 2:2:nData, 'YData', DataQ);
 
-	% set(hLine1, 'XData', 1:distanceNFFT, 'YData', fftIQ);
-	set(hLine3, 'XData', 1:distanceNFFT, 'YData', fftI);
-	set(hLine4, 'XData', 1:distanceNFFT, 'YData', fftQ);
+	set(hLine1, 'XData', 1:distanceNFFT/2, 'YData', fftIQ);
+	set(hLine3, 'XData', 1:distanceNFFT/2, 'YData', fftI);
+	set(hLine4, 'XData', 1:distanceNFFT/2, 'YData', fftQ);
 
 	% index=index+1;
 end
