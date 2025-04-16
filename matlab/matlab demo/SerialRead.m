@@ -84,7 +84,7 @@ distance = distance.^4;
 
 
 while true
-	buf = [];
+	
 	% buf = char(readline(SerialObj));
 	% disp(buf);
 	% 
@@ -114,15 +114,20 @@ while true
 	end
 
 	process = [oldBuf buf];
+	fprintf("BUF:");
+	disp(size(buf));
+	fprintf("OLDBUF: ");
+	disp(size(oldBuf));
 	if length(process) ~= (4*distanceNFFT+11)
 		if length(process) > (4*distanceNFFT+11)
-			obj.oldBuf = [];
+			oldBuf = [];
 		else
-			obj.oldBuf = buf;
+			fprintf("STORING OLD");
+			oldBuf = buf;
 		end
 		continue;
 	end
-	obj.oldBuf = [];
+	oldBuf = [];
 
 	if(process(5) ~= 77)
 		continue;

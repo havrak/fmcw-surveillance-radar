@@ -205,6 +205,7 @@ classdef dataProcessor < handle
 
 			[minTime, maxTime] = obj.hRadarBuffer.getTimeInterval();
 			[posTimes, yaw, pitch] = obj.hPlatform.getPositionsInInterval(minTime, maxTime);
+			fprintf("dataProcessor | onNewDataAvailable | yaw: %f, pitch %f\n", yaw(end), pitch(end));
 
 
 			diffYaw = abs((mod(yaw(end)-obj.hRadarBuffer.lastProcesingYaw + 180, 360) - 180));
@@ -241,8 +242,7 @@ classdef dataProcessor < handle
 
 				obj.mergeResults(yaw, pitch, rangeProfile, rangeDoppler, speed, movementMask);
 
-				fprintf("dataProcessor | onNewDataAvailable | yaw: %f, pitch %f\n", yaw(end), pitch(end));
-
+		
 			% 	future = parfeval(obj.parallelPool, ...
 			% 		@dataProcessor.processBatch, 6, ...
 			% 		batchRangeFFTs, batchTimes, posTimes, yaw, pitch, obj.speedSamples, obj.calcSpeed, maskSize, sigParams);

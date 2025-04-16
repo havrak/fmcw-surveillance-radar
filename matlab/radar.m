@@ -1,65 +1,71 @@
 classdef radar < handle
 	properties(Access = public)
-		
+
 		hPreferences preferences;
 		hSerial;
 		processData = true;
 
-		oldBuf = [];
+		chunkLengths = [];
+		rawBuffer = [];
 		samples = 256;
-    startTime uint64;
+		startTime uint64;
 		triggerTimer;
-		
-	  bufferI;              % Circular buffer for I
-    bufferQ;              % Circular buffer for Q
-    bufferTime = [];           % Circular buffer for timestamps
-    bufferSize = 100;          % Max buffer size
-    writeIdx = 1;              % Index for next write
-   end
+
+		bufferI;              % Circular buffer for I
+		bufferQ;              % Circular buffer for Q
+		bufferTime = [];           % Circular buffer for timestamps
+		bufferSize = 100;          % Max buffer size
+		writeIdx = 1;              % Index for next write
+	end
 
 
-	events 
+	events
 		newDataAvailable
 	end
 
 	methods (Access=private)
 
-		function processIncommingData(obj,src)
-			% processIncommingData: reads next line on serial and parses the data
-			
-			buf = fgets(src);
-			if(length(buf) == 40)
-				return;
+		function processIncomingData(obj, src)
+			frameLen = (4 * obj.samples + 11);
+
+			newChunk = fgets(src);
+			newChunk = uint8(newChunk);
+			obj.rawBuffer = [obj.rawBuffer, newChunk];
+			obj.chunkLengths = [obj.chunkLengths, numel(newChunk)];
+
+
+			while numel(obj.rawBuffer) > frameLen && ~isempty(obj.chunkLengths)
+				obj.rawBuffer(1:obj.chunkLengths(1)) = [];
+				obj.chunkLengths(1) = [];
 			end
-			process = [obj.oldBuf buf];
-			
-			if length(process) ~= (4*obj.samples+11)
-				if length(process) > (4*obj.samples+11)
-					obj.oldBuf = [];
+
+			if numel(obj.rawBuffer) == frameLen
+				if obj.rawBuffer(5) == 77 
+					dataCount = obj.samples * 2;
+					lowBytes = obj.rawBuffer(10:2:(9 + dataCount * 2));
+					highBytes = obj.rawBuffer(11:2:(9 + dataCount * 2));
+					tmp = uint16(highBytes) * 256 + uint16(lowBytes);
+					data = typecast(tmp, 'int16');
+
+					obj.bufferI(obj.writeIdx, :) = data(1:2:end);
+					obj.bufferQ(obj.writeIdx, :) = data(2:2:end);
+					obj.bufferTime(obj.writeIdx) = toc(obj.startTime);
+
+					obj.writeIdx = mod(obj.writeIdx, obj.bufferSize) + 1;
+					notify(obj, 'newDataAvailable');
+
+					obj.rawBuffer = [];
+					obj.chunkLengths = [];
 				else
-					obj.oldBuf = buf;
+					if ~isempty(obj.chunkLengths)
+						obj.rawBuffer(1:obj.chunkLengths(1)) = [];
+						obj.chunkLengths(1) = [];
+					end
 				end
-				return;
 			end
-			obj.oldBuf = [];
-
-			if(process(5) ~= 77)
-				return;
-			end
-			%dataCount = process(9)*256+process(8);
-			dataCount = obj.samples*2; % On some firmwares radar doesn't borther reporting the count and just send 1 even when the data are present 
-			tmp = process(11:2:(9+dataCount*2)) * 256 + process(10:2:(9+dataCount*2));
-			data = typecast(uint16(tmp), 'int16');
-			
-
-			obj.bufferI(obj.writeIdx, :) = data(1:2:length(data));
-      obj.bufferQ(obj.writeIdx, :) = data(2:2:length(data));
-      obj.bufferTime(obj.writeIdx) = toc(obj.startTime);
-            
-      obj.writeIdx = mod(obj.writeIdx, obj.bufferSize) + 1;
-      notify(obj, 'newDataAvailable');
 		end
 		
+
 
 		function sysConfig = generateSystemConfig(obj)
 			% generateSystemConfig: generate system config command for the radar
@@ -79,8 +85,8 @@ classdef radar < handle
 			SER2='1';             % usb connect 0-off | 1-on
 			SER1='0';             % wifi 0-off | 1-on
 			SLF='0';              % 0-ext trig mode | 1-standard
-			PRE='0';              % pretrigger 
-			
+			PRE='0';              % pretrigger
+
 			% data frames sent to PC
 			ERR='0';
 			ST='0';               % status
@@ -90,7 +96,7 @@ classdef radar < handle
 			P='0';                % phase
 			CPL='0';              % complex FFT
 			RAW='1';              % raw ADC
-			
+
 			sys1=append(SelfTrigDelay,reserved);
 			sys2=append(LOG,FMT,LED);
 			sys3=reserved2;
@@ -112,7 +118,7 @@ classdef radar < handle
 
 			WIN='0';              % windowing before FFT
 			FIR='0';              % FIR filter 0-of | 1-on
-			DC='0';               % DCcancel 1-on | 0-off
+			DC='1';               % DCcancel 1-on | 0-off
 			CFAR='00';            % 00-CA_CFAR | 01-CFFAR_GO | 10-CFAR_SO | 11 res
 			CFARthreshold='0000'; % 0-30, step 2
 			CFARsize='0000';      % 0000-0 | 1111-15|  n of
@@ -121,7 +127,7 @@ classdef radar < handle
 			FFTsize='000';        % 000-32,64,128...,111-2048
 			DOWNsample='000';     % downsampling factor 000-0,1,2,4,8..111-64
 			RAMPS='000';          % ramps per measurement
-			
+
 			[samplesReg, samplesBin, adc] = obj.hPreferences.getRadarBasebandParameters();
 			obj.samples = samplesReg;
 			obj.bufferI=zeros(obj.bufferSize, obj.samples);
@@ -141,10 +147,10 @@ classdef radar < handle
 			% frontendCommand ... hex string to be sent to the radar
 
 			FreqReserved='00000000000';
-			if obj.hPreferences.getRadarFrontend() == 122 
+			if obj.hPreferences.getRadarFrontend() == 122
 				fprintf("radar | frontendCommand | setting frontend to 122 GHz\n");
 				OperatingFreq='001110101001100000000';
-			else 
+			else
 				fprintf("radar | frontendCommand | setting frontend to 24 GHz\n");
 				OperatingFreq='000010111011100000000';
 			end
@@ -168,33 +174,33 @@ classdef radar < handle
 			pllCommand=append('!P0000',bandwidth);
 			disp(pllCommand);
 		end
-		
+
 		function configureRadar(obj)
 			flush(obj.hSerial); writeline(obj.hSerial, obj.generateSystemConfig());
 			flush(obj.hSerial); writeline(obj.hSerial, obj.generateBasebandCommand());
 			flush(obj.hSerial); writeline(obj.hSerial, obj.generateFrontendCommand());
 			flush(obj.hSerial); writeline(obj.hSerial, obj.generatePLLCommand());
-			flush(obj.hSerial); 
+			flush(obj.hSerial);
 		end
 
 	end
 
 	methods (Access = public)
-		
+
 		function obj = radar(hPreferences, startTime)
-			% radar: constructor for the radar class 
+			% radar: constructor for the radar class
 			%
 			% INPUT:
-			% hPreferences ... handle to preferences object 
+			% hPreferences ... handle to preferences object
 			% startTime ... output of tic command, timestamp to which all others
 			% are calculated from
 
 			fprintf('Radar | radar | constructing object\n');
 			obj.hPreferences = hPreferences;
-      obj.startTime = startTime;
+			obj.startTime = startTime;
 			bufferTime = zeros(obj.bufferSize);
 		end
-		
+
 		function endProcesses(obj)
 			% endProcesses: safely stops all class processes
 
@@ -204,7 +210,7 @@ classdef radar < handle
 				stop(obj.triggerTimer);
 			end
 		end
-		
+
 		function status = setupSerial(obj)
 			% setupSerial: establish serial connection to the platform
 			%
@@ -216,23 +222,23 @@ classdef radar < handle
 				delete(obj.hSerial)
 			end
 			[port, baudrate] = obj.hPreferences.getConnectionRadar();
-			%try 
-				fprintf("radar | setupSerial | port: %s, baud: %f\n", port, baudrate)
-				obj.hSerial = serialport(port, baudrate, "Timeout", 5);
-				configureTerminator(obj.hSerial,"CR/LF");
-				flush(obj.hSerial);								
-				obj.configureRadar();
-				fprintf("radar | setupSerial | starting thread\n");			
-				configureCallback(obj.hSerial, "terminator", @(src, ~) obj.processIncommingData(src))
-				status = true;
+			%try
+			fprintf("radar | setupSerial | port: %s, baud: %f\n", port, baudrate)
+			obj.hSerial = serialport(port, baudrate, "Timeout", 5);
+			configureTerminator(obj.hSerial,"CR/LF");
+			flush(obj.hSerial);
+			obj.configureRadar();
+			fprintf("radar | setupSerial | starting thread\n");
+			configureCallback(obj.hSerial, "terminator", @(src, ~) obj.processIncomingData(src))
+			status = true;
 
-				obj.triggerTimer = timer;
-				obj.triggerTimer.StartDelay = 4;
-				obj.triggerTimer.Period = obj.hPreferences.getRadarTriggerPeriod()/1000;
-				obj.triggerTimer.ExecutionMode = 'fixedSpacing';
-				obj.triggerTimer.UserData = 0;
-				obj.triggerTimer.TimerFcn = @(~,~) writeline(obj.hSerial, '!N');
-				start(obj.triggerTimer);
+			obj.triggerTimer = timer;
+			obj.triggerTimer.StartDelay = 4;
+			obj.triggerTimer.Period = obj.hPreferences.getRadarTriggerPeriod()/1000;
+			obj.triggerTimer.ExecutionMode = 'fixedSpacing';
+			obj.triggerTimer.UserData = 0;
+			obj.triggerTimer.TimerFcn = @(~,~) writeline(obj.hSerial, '!N');
+			start(obj.triggerTimer);
 			%catch ME
 			%	fprintf("Radar | setupSerial | Failed to setup serial")
 			%	status = false;
@@ -243,11 +249,11 @@ end
 
 
 function hexCode = bin2hex(bin)
-    nBin = length(bin);
-    nParts = nBin/4;
-    hexCode = repmat('0', 1, nParts);
-    for iPart = 1:nParts
-        thisBin = bin((iPart-1)*4+1:iPart*4);
-        hexCode(iPart) = dec2hex(bin2dec(thisBin));
-    end
+nBin = length(bin);
+nParts = nBin/4;
+hexCode = repmat('0', 1, nParts);
+for iPart = 1:nParts
+	thisBin = bin((iPart-1)*4+1:iPart*4);
+	hexCode(iPart) = dec2hex(bin2dec(thisBin));
+end
 end
