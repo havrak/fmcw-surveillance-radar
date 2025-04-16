@@ -28,7 +28,7 @@ classdef preferences < handle
 		hTextRampTime;
 
 		hDropProVisualization;
-		hEditProSpeedBins;
+		hEditProSpeedSamples;
 		hCheckProCalcSpeed;
 
 
@@ -71,7 +71,7 @@ classdef preferences < handle
 			obj.configStruct.platform.debug=1;
 
 			obj.configStruct.processing.visualization=obj.availableVisualization(1);
-			obj.configStruct.processing.maxSpeedBins=0;
+			obj.configStruct.processing.speedSamples=8;
 			obj.configStruct.processing.calcSpeed = 1;
 
 
@@ -121,9 +121,9 @@ classdef preferences < handle
 			visualization = obj.configStruct.processing.visualization;
 		end
 
-		function [calcSpeed, speedBins] = getProcessingSpeedParamters(obj)
+		function [calcSpeed, speedSamples] = getProcessingSpeedParamters(obj)
 			calcSpeed = 	obj.configStruct.processing.calcSpeed;
-			speedBins = obj.configStruct.processing.maxSpeedBins;
+			speedSamples = obj.configStruct.processing.speedSamples;
 		end
 
 		function [port, baudrate] = getConnectionPlatform(obj)
@@ -163,6 +163,7 @@ classdef preferences < handle
 			%
 			% Output:
 			% header ... either 122 or 24
+			disp(obj.configStruct.radar.header);
 			header = obj.configStruct.radar.header;
 		end
 
@@ -223,8 +224,9 @@ classdef preferences < handle
 
 		function binWidth = getDistanceBinWidth(obj)
 			binWidth = physconst('LightSpeed')*(obj.configStruct.radar.samples+85) ...
-			/(2*obj.configStruct.radar.bandwidth*obj.configStruct.radar.samples);
+			/(2*obj.configStruct.radar.bandwidth*1e6*obj.configStruct.radar.samples);
 		end
+
 
 		function storeConfig(obj)
 			%storeConfig: stores current config to file
@@ -497,9 +499,9 @@ classdef preferences < handle
 
 			uilabel(obj.hFig, ...
 				'Position', [20, figSize(2)-processingOffset-50, 170, 25], ...
-				'Text', 'Speed resolution:');
+				'Text', 'Speed samples:');
 
-			obj.hEditProSpeedBins = uicontrol('Style', 'edit', ...
+			obj.hEditProSpeedSamples = uicontrol('Style', 'edit', ...
 				'Parent',obj.hFig,  ...
 				'Position', [150, figSize(2)-processingOffset-50, 80, 25], ...
 				'Max',1, ...
@@ -608,7 +610,7 @@ classdef preferences < handle
 				set(obj.hDropProVisualization, 'Value', obj.configStruct.processing.visualization);
 			end
 
-			set(obj.hEditProSpeedBins, 'String', obj.configStruct.processing.maxSpeedBins);
+			set(obj.hEditProSpeedSamples, 'String', obj.configStruct.processing.speedSamples);
 
 			set(obj.hCheckProCalcSpeed, 'Value', obj.configStruct.processing.calcSpeed);
 
@@ -668,7 +670,7 @@ classdef preferences < handle
 			%% Radar config
 
 			obj.configStruct.radar.baudrate=str2double(obj.hDropRadarBaudrate.Value);
-			obj.configStruct.radar.header=obj.hSwitchRadarHeader.Value;
+			obj.configStruct.radar.header=str2double(obj.hSwitchRadarHeader.Value);
 			obj.configStruct.radar.samples=str2double(obj.hDropRadarSample.Value);
 			obj.configStruct.radar.adc=str2double(obj.hDropRadarADC.Value);
 
@@ -708,9 +710,9 @@ classdef preferences < handle
 				% XXX set(obj.hFig, 'Visible', 'off');
 			end
 
-			tmp = get(obj.hEditProSpeedBins, 'String');
+			tmp = get(obj.hEditProSpeedSamples, 'String');
 			if isnan(str2double(tmp)) warndlg('Bandwidth must be numerical');
-			else obj.configStruct.processing.maxSpeedBins=str2double(tmp);
+			else obj.configStruct.processing.speedSamples=str2double(tmp);
 			end
 
 			obj.configStruct.processing.calcSpeed = double(obj.hCheckProCalcSpeed.Value);

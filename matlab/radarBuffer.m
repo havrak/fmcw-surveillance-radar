@@ -1,10 +1,15 @@
 classdef radarBuffer < handle
     properties
-        bufferSize = 32       % Number of samples per sliding batch
+        bufferSize = 13       % Number of samples per sliding batch
         FFTData               % Complex FFT data [bufferSize x numSamplesPerChirp]
 				timestamps            % Timestamps for each sample [bufferSize x 1]
         currentIdx = 1        % Index for circular buffer (index, of next item)
-    end
+			
+		end
+		properties(Access=public)
+				lastProcesingYaw = 0;
+				lastProcesingPitch = 0;
+		end
 
     methods
         function obj = radarBuffer(bufferSize, numSamplesPerChirp)
@@ -24,5 +29,11 @@ classdef radarBuffer < handle
             batchFFTs = obj.FFTData(idxs, :);
             batchTimes = obj.timestamps(idxs);
 				end
-    end
+
+				function [minTime, maxTime] = getTimeInterval(obj)
+					minTime = min(obj.timestamps);
+					maxTime = max(obj.timestamps);
+				end
+
+    end 
 end

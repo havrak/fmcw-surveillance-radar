@@ -321,9 +321,9 @@ classdef platformControl < handle
 
 			flush(obj.hSerial);
 			writeline(obj.hSerial, "M82"); % stop current move
-			writeline(obj.hSerial, "M81"); % enable stepper drivers
-			writeline(obj.hSerial, "G28"); % home steppers
-			writeline(obj.hSerial, "G92"); % set home to current location
+			% writeline(obj.hSerial, "M81"); % enable stepper drivers
+			% writeline(obj.hSerial, "G28"); % home steppers
+			% writeline(obj.hSerial, "G92"); % set home to current location
 			writeline(obj.hSerial, "P1 "+obj.currentProgramName);
 			flush(obj.hSerial);
 		end
@@ -339,16 +339,14 @@ classdef platformControl < handle
 			writeline(obj.hSerial, "P90 "+obj.currentProgramName);
 			valueHeader = get(obj.hEditProgramHeader, 'String');
 			trimmedHeader = (strtrim(string(valueHeader)));
-			for i=1:numel(trimmedHeader)
-				disp(trimmedHeader(i));
+			for i=1:(numel(trimmedHeader)-1)
 				writeline(obj.hSerial, trimmedHeader(i));
 				pause(0.02); % incomming buffer on esp32 is not infinite so we introduce a small delay
 			end
 			writeline(obj.hSerial, "P91");
 			valueMain = get(obj.hEditProgramMain, 'String');
 			trimmedMain = (strtrim(string(valueMain)));
-			for i=1:numel(trimmedMain)
-				disp(trimmedMain(i));
+			for i=1:(numel(trimmedMain)-1)
 				writeline(obj.hSerial, trimmedMain(i));
 				pause(0.02); % incomming buffer on esp32 is not infinite so we introduce a small delay
 			end

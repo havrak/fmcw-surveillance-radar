@@ -46,7 +46,8 @@ classdef radar < handle
 			if(process(5) ~= 77)
 				return;
 			end
-			dataCount = process(9)*256+process(8);
+			%dataCount = process(9)*256+process(8);
+			dataCount = obj.samples*2; % On some firmwares radar doesn't borther reporting the count and just send 1 even when the data are present 
 			tmp = process(11:2:(9+dataCount*2)) * 256 + process(10:2:(9+dataCount*2));
 			data = typecast(uint16(tmp), 'int16');
 			
@@ -74,7 +75,7 @@ classdef radar < handle
 			reserved2='0000';
 			protocol='010';       % 001 TSV output | 010 binary | 000 webgui
 			AGC='0';              % auto gain 0-off | 1-on
-			gain='10';            % 00-8dB | 10-21dB | 10-43dB | 11-56dB
+			gain='01';            % 00-8dB | 10-21dB | 10-43dB | 11-56dB
 			SER2='1';             % usb connect 0-off | 1-on
 			SER1='0';             % wifi 0-off | 1-on
 			SLF='0';              % 0-ext trig mode | 1-standard
@@ -111,7 +112,7 @@ classdef radar < handle
 
 			WIN='0';              % windowing before FFT
 			FIR='0';              % FIR filter 0-of | 1-on
-			DC='1';               % DCcancel 1-on | 0-off
+			DC='0';               % DCcancel 1-on | 0-off
 			CFAR='00';            % 00-CA_CFAR | 01-CFFAR_GO | 10-CFAR_SO | 11 res
 			CFARthreshold='0000'; % 0-30, step 2
 			CFARsize='0000';      % 0000-0 | 1111-15|  n of
@@ -129,6 +130,7 @@ classdef radar < handle
 			baseband=append(WIN,FIR,DC,CFAR,CFARthreshold,CFARsize,CFARgrd,AVERAGEn,FFTsize,DOWNsample,RAMPS,samplesBin,adc);
 			basebandHEX=bin2hex(baseband);
 			basebandCommand=append('!B',basebandHEX);
+			disp(basebandCommand);
 		end
 
 		function frontendCommand = generateFrontendCommand(obj)
@@ -141,7 +143,7 @@ classdef radar < handle
 			FreqReserved='00000000000';
 			if obj.hPreferences.getRadarFrontend() == 122 
 				fprintf("radar | frontendCommand | setting frontend to 122 GHz\n");
-				OperatingFreq='001110101001100011000';
+				OperatingFreq='001110101001100000000';
 			else 
 				fprintf("radar | frontendCommand | setting frontend to 24 GHz\n");
 				OperatingFreq='000010111011100000000';
@@ -149,6 +151,7 @@ classdef radar < handle
 
 			frontendCommand=bin2hex(append(FreqReserved, OperatingFreq));
 			frontendCommand=append('!F', frontendCommand);
+			disp(frontendCommand);
 		end
 
 		function pllCommand = generatePLLCommand(obj)
@@ -158,8 +161,10 @@ classdef radar < handle
 			% OUTPUT:
 			% pllCommand ... hex string to be sent to the radar
 
-			bandwidth = obj.hPreferences.getRadarBandwidth();
-			bandwidth=dec2hex(bandwidth);
+			bandwidth = floor(obj.hPreferences.getRadarBandwidth()/2);
+			bandwidth = num2str(bandwidth,'%04X');
+			% bandwidth=dec2hex(bandwidth);
+
 			pllCommand=append('!P0000',bandwidth);
 			disp(pllCommand);
 		end

@@ -1340,8 +1340,7 @@ ParsingGCodeResult StepperControl::parseGCodePCommands(const char* gcode, const 
 
 void StepperControl::endstopHandler()
 {
-	if (stepperControl.programmingMode == ProgrammingMode::HOMING)
-		xEventGroupSetBits(StepperControl::homingEventGroup, BIT0);
+	xEventGroupSetBits(StepperControl::homingEventGroup, BIT0);
 }
 
 void StepperControl::home()
@@ -1378,10 +1377,10 @@ void StepperControl::homeYaw()
 	ESP_LOGI(TAG, "Home | Yaw stepper fast homed");
 #endif /* CONFIG_APP_DEBUG */
 
-	steppers.stepStepper(stepperHalYaw, -20, 10);
+	steppers.stepStepper(stepperHalYaw, -20, 6);
 	vTaskDelay(150);
 	xEventGroupClearBits(homingEventGroup, BIT0);
-	steppers.spindleStepper(stepperHalYaw, 4, Direction::FORWARD);
+	steppers.spindleStepper(stepperHalYaw, 3, Direction::FORWARD);
 	result = xEventGroupWaitBits(
 			homingEventGroup,
 			BIT0,
@@ -1412,7 +1411,7 @@ void StepperControl::homePitch()
 
 	attachInterrupt(CONFIG_STEPPER_P_PIN_ENDSTOP, StepperControl::endstopHandler, CHANGE);
 
-	steppers.spindleStepper(stepperHalPitch, 10, Direction::FORWARD);
+	steppers.spindleStepper(stepperHalPitch, 6, Direction::FORWARD);
 
 	EventBits_t result = xEventGroupWaitBits(
 			homingEventGroup,
@@ -1425,10 +1424,10 @@ void StepperControl::homePitch()
 	ESP_LOGI(TAG, "Home | Pitch stepper fast homed");
 #endif /* CONFIG_APP_DEBUG */
 
-	steppers.stepStepper(stepperHalPitch, -80, 20);
+	steppers.stepStepper(stepperHalPitch, -30, 20);
 	vTaskDelay(1000);
 	xEventGroupClearBits(homingEventGroup, BIT0);
-	steppers.spindleStepper(stepperHalPitch, 6, Direction::FORWARD);
+	steppers.spindleStepper(stepperHalPitch, 3, Direction::FORWARD);
 	result = xEventGroupWaitBits(
 			homingEventGroup,
 			BIT0,

@@ -48,7 +48,7 @@ function sysCommand = SystemConfig() %returns sysConfig Command ready for radar
     CPL='0';%complex FFT
     RAW='1';%raw ADC 
     % then 2x reserved
-    SLF='1';%0-ext trig mode |1-standard
+    SLF='0';%0-ext trig mode |1-standard
     PRE='0';%pretrigger
    
     
@@ -118,7 +118,6 @@ function pllCommand = PLLConfig()
 		% bandwidth= '0000000001111101'; % 250 MHz
     pllCommand = bin2hex(append(PLLreserved, bandwidth));
     pllCommand=append('!P',pllCommand);
-
     % pllhex=dec2hex(bin2dec(append(PLLreserved,bandwidth)));
     % PLLhex=num2str(pllhex-'80000000');
     % pllCommand=append('!P',PLLhex);

@@ -15,7 +15,7 @@ classdef radarDataCube < handle
 		bufferB = struct('yawIdx', [], 'pitchIdx', [], 'rangeDoppler', [], 'decay', []); % Processing buffer
 		bufferActive;
 		bufferActiveWriteIdx = 1;
-		batchSize = 16;
+		batchSize = 6;
 		isProcessing = false;
 		overflow = false;
 	end
@@ -45,7 +45,7 @@ classdef radarDataCube < handle
 
 			gridAngles = atan2d(pitchGrid, yawGrid);
 			angleDiff = abs(mod(gridAngles - moveAngle + 180, 360) - 180);
-
+         
 			lineVector = [cosd(moveAngle), sind(moveAngle)];
 			perpendicularDistances = abs(pitchGrid * lineVector(1) - yawGrid * lineVector(2));
 
@@ -138,7 +138,9 @@ classdef radarDataCube < handle
 				time*1000, min(yawIndices), max(yawIndices), length(yawIndices), minPitch, maxPitch, length(pitchIndices)...
 				);
 			time = tic;
-
+			
+			
+			% buffer.decay(buffer.decay == 0) = 1;
 
 			% --- 3. Apply updates into subcube ---
 			fprintf(fid, "[BATCH] starting subcube processing\n");
@@ -176,17 +178,16 @@ classdef radarDataCube < handle
 
 
 				% --- 3.4 Update subcube with contribution ---
-				% Stupid fucking column major order fucks up this to be efficient with AVX2 (Inpossible to crete efficient 256 bit fields to run addition on)
-				% TOOD: consider TBB, or just OpenMP
-				%subCube(:, :, localYaw, localPitch) = ...
+				%%subCube(:, :, localYaw, localPitch) = ...
 				%	subCube( :, :, localYaw, localPitch) + contribution;
 				scripts.updateCube(subCube, contribution, localYaw, localPitch);
 
 				time2 = toc(time2);
 				fprintf(fid,...
-					'[UPDATE %2d] (%f ms) AZ=%3d, PITCH=%3d | PatternRows=%3d:%3d | LocalYaw=%3d:%3d, LocalPitch=%3d:%3d\n',...
+					'[UPDATE %2d] (%f ms) AZ=%3d, PITCH=%3d | PatternRows=%3d:%3d | LocalYaw=%3d:%3d, LocalPitch=%3d:%3d | Decay=%d\n',...
 					i, time2*1000, yaw, pitch, startPitchPat, endPitchPat,...
-					localYaw(1), localYaw(end), localPitch(1), localPitch(end)...
+					localYaw(1), localYaw(end), localPitch(1), localPitch(end),...
+					prod(buffer.decay(i:end)) ...
 					);
 			end
 			time = toc(time);
@@ -257,14 +258,16 @@ classdef radarDataCube < handle
 				length(obj.pitchBins), ...
 				];
 
+			disp(obj.cubeSize);
+
 			if ~exist('cube.dat', 'file')
 				% TODO: this is linux only, would be nice to fix
 				system('fallocate -l 250M cube.dat'); % 360x81x128x8 single
 			end
 
-			obj.bufferA.rangeDoppler = zeros([128, 8, obj.batchSize], 'single');
+			obj.bufferA.rangeDoppler = zeros([numRangeBins, numDopplerBins, obj.batchSize], 'single');
 
-			obj.bufferB.rangeDoppler = zeros([128, 8, obj.batchSize], 'single');
+			obj.bufferB.rangeDoppler = zeros([numRangeBins, numDopplerBins, obj.batchSize], 'single');
 			% Create memory map
 			obj.cubeMap = memmapfile('cube.dat', ...
 				'Format', {'single', obj.cubeSize, 'cube'}, ...
@@ -288,10 +291,12 @@ classdef radarDataCube < handle
 
 			[~, yawIdx] = min(abs(obj.yawBins - yaw));
 			[~, pitchIdx] = min(abs(obj.pitchBins - pitch));
-			decay = exp(-speed/1000); % XXX random consntat for debug
+			decay = 0.8;
+			% decay = exp(-speed/10000); % XXX random consntat for debug
 
 			fprintf("radarDataCube | addData | adding to cube %d: yaw %f, pitch %f, decay %f\n", obj.bufferActiveWriteIdx, yaw, pitch, decay);
 			fprintf("radarDataCube | addData | processing %d\n", obj.isProcessing);
+			
 			obj.bufferA.yawIdx(obj.bufferActiveWriteIdx) = yawIdx;
 			obj.bufferA.pitchIdx(obj.bufferActiveWriteIdx) = pitchIdx;
 			obj.bufferA.rangeDoppler(:, :, obj.bufferActiveWriteIdx) = single(rangeDoppler);

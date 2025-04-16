@@ -15,7 +15,8 @@ classdef dataProcessor < handle
 
 		readIdx = 1;
 		radarBufferSize = 100;
-		speedBins = 16;
+		speedSamples = 16;
+		distanceBinWidth = 0;
 		calcSpeed = 0;
 		currentVisualizationStyle = '';
 
@@ -25,12 +26,19 @@ classdef dataProcessor < handle
 	methods(Static, Access=public)
 
 		function [yaw, pitch, rangeProfile, rangeDoppler, speed, movementMask] = ...
-				processBatch(batchRangeFFTs, batchTimes, posTimes, posYaw, posPitch, speedBins, calcSpeed, maskSize)
+				processBatch(batchRangeFFTs, batchTimes, posTimes, posYaw, posPitch, speedNFFT, calcSpeed, maskSize, sigParams)
 
-			rangeProfile = abs(batchRangeFFTs(end, :));
 			%yaw = abs(mod(posYaw(end)+180, 360))-180;
 			yaw = posYaw(end);
 			pitch = posPitch(end);
+			distanceNFFT = size(batchRangeFFTs,2);
+			distance = (0:(distanceNFFT/2-1))*sigParams.distanceBinWidth;
+			% distance = ((distanceNFFT/2-1):-1:0)*sigParams.distanceBinWidth;
+			distance = distance.^4;
+				
+			tmp = abs(batchRangeFFTs(end, :));
+			rangeProfile = tmp(1:distanceNFFT/2);
+			rangeProfile = ((rangeProfile).*distance)';
 
 
 
@@ -87,12 +95,13 @@ classdef dataProcessor < handle
 			% in case we aren't calculating speed we can end here
 			if ~calcSpeed
 				% fprintf("No speed calculations, exitting\n");
-				rangeDoppler = [zeros(128, speedBins-1), rangeProfile'];
+				rangeDoppler = [zeros(distanceNFFT/2, (speedNFFT/2)-1), rangeProfile];
 				yaw = posYaw(end);
 				pitch = posPitch(end);
 				return;
 			end
-
+			
+			distanceMap = repmat(distance, [1, speedNFFT/2]);
 
 			% Timing based analysis
 			timeDeltas = diff(batchTimes);
@@ -106,11 +115,14 @@ classdef dataProcessor < handle
 			% Run FFT
 			%if useNUFFT
 			%	% fprintf("ugly timing detected\n");
-			%	rangeDoppler = abs(nufft(batchRangeFFTs, batchTimes, speedBins, 1))';
+			%	rangeDoppler = abs(nufft(batchRangeFFTs, batchTimes, speedSamples, 1))';
 			%else
-			tmp = abs(fft(batchRangeFFTs, speedBins, 1))';
-			rangeDoppler = single(tmp);
+			tmp = abs(fft(batchRangeFFTs, speedNFFT, 1))';
+			
 			%end
+
+			tmp = (tmp.^2).*distanceMap;
+			rangeDoppler = single(tmp);
 
 			% fprintf("Dimensions Fast time: %f, Slow time %f\n", length(rangeProfile), length(rangeDoppler))
 		end
@@ -140,7 +152,10 @@ classdef dataProcessor < handle
 				% Note: we need to take the 3D slice and then squeeze to 2D
 
 				toDraw = squeeze(data(:, 1, :, 20));
-				obj.hImage.CData = 10*log10(toDraw);
+				% toDraw(toDraw < -80) = -Inf;
+
+				fprintf("onCubeUpdateFinished | Min value %f\n", min(toDraw(:)));
+				obj.hImage.CData = toDraw;
 				drawnow limitrate;
 			end
 		end
@@ -153,11 +168,12 @@ classdef dataProcessor < handle
 			[radPatterH, radPatterT] = obj.hPreferences.getRadarRadiationParamters();
 			[samples, ~, ~ ] = obj.hPreferences.getRadarBasebandParameters();
 
-			[obj.calcSpeed, obj.speedBins]= obj.hPreferences.getProcessingSpeedParamters();
+			[obj.calcSpeed, obj.speedSamples]= obj.hPreferences.getProcessingSpeedParamters();
 			visual=obj.hPreferences.getProcessingVisualization();
-
-			obj.hDataCube = radarDataCube(samples, obj.speedBins, radPatterH, radPatterT);
-			obj.hRadarBuffer = radarBuffer(32, samples);
+			obj.distanceBinWidth = obj.hPreferences.getDistanceBinWidth();
+			fprintf("dataProcessor | onNewConfigAvailable | Distance bin size: %f cm\n" , obj.distanceBinWidth*100);
+			obj.hDataCube = radarDataCube(samples/2, obj.speedSamples/2, radPatterH, radPatterT);
+			obj.hRadarBuffer = radarBuffer(floor(obj.speedSamples*1.5), samples);
 
 
 			if strcmp(visual, 'Range-Azimuth') && ~strcmp(obj.currentVisualizationStyle, 'Range-Azimuth')
@@ -182,12 +198,34 @@ classdef dataProcessor < handle
 			obj.hRadarBuffer.addChirp(obj.hRadar.bufferI(obj.readIdx, :), ...
 				obj.hRadar.bufferQ(obj.readIdx, :), ...
 				obj.hRadar.bufferTime(obj.readIdx));
+
+
 			obj.readIdx =  mod(obj.readIdx, obj.radarBufferSize) + 1;
+
+
+			[minTime, maxTime] = obj.hRadarBuffer.getTimeInterval();
+			[posTimes, yaw, pitch] = obj.hPlatform.getPositionsInInterval(minTime, maxTime);
+
+
+			diffYaw = abs((mod(yaw(end)-obj.hRadarBuffer.lastProcesingYaw + 180, 360) - 180));
+			distance = sqrt(diffYaw^2 + (pitch(end)-obj.hRadarBuffer.lastProcesingPitch)^2);
+			if distance < 2
+				% I can process every single frame without issue but since I have
+				% trouble with getting the visualizations to be pretty I'm skipping
+				% those frames where positions didn't chaged much
+					return;
+				end
 
 			if obj.parallelPool.NumWorkers > obj.parallelPool.Busy
 				[batchRangeFFTs, batchTimes] = obj.hRadarBuffer.getSlidingBatch();
-				[posTimes, yaw, pitch] = obj.hPlatform.getPositionsInInterval(min(batchTimes), max(batchTimes));
+				obj.hRadarBuffer.lastProcesingYaw = yaw(end);
+				obj.hRadarBuffer.lastProcesingPitch = pitch(end);
+				
+				sigParams = {};
+				sigParams.distanceBinWidth = obj.distanceBinWidth;
+
 				maskSize = size(obj.hDataCube.antennaPattern);
+
 
 
 				[yaw, pitch, rangeProfile, rangeDoppler, speed, movementMask] = dataProcessor.processBatch( ...
@@ -196,18 +234,19 @@ classdef dataProcessor < handle
 					posTimes, ...
 					yaw, ...
 					pitch, ...
-					obj.speedBins, ...
+					obj.speedSamples, ...
 					obj.calcSpeed, ...
-					maskSize);
+					maskSize, ...
+					sigParams);
 
 				obj.mergeResults(yaw, pitch, rangeProfile, rangeDoppler, speed, movementMask);
 
-				%fprintf("dataProcessor | onNewDataAvailable | yaw: %f, pitch %f\n", yaw(end), pitch(end));
+				fprintf("dataProcessor | onNewDataAvailable | yaw: %f, pitch %f\n", yaw(end), pitch(end));
 
-				%future = parfeval(obj.parallelPool, ...
-				%	@dataProcessor.processBatch, 6, ...
-				%	batchRangeFFTs, batchTimes, posTimes, yaw, pitch, obj.speedBins, obj.calcSpeed, maskSize);
-				%afterAll(future, @(varargin) obj.mergeResults(varargin{:}), 0);
+			% 	future = parfeval(obj.parallelPool, ...
+			% 		@dataProcessor.processBatch, 6, ...
+			% 		batchRangeFFTs, batchTimes, posTimes, yaw, pitch, obj.speedSamples, obj.calcSpeed, maskSize, sigParams);
+			% 	afterAll(future, @(varargin) obj.mergeResults(varargin{:}), 0);
 			else
 				fprintf("dataProcessor | onNewDataAvailable | processing overloaded\n");
 			end
@@ -232,11 +271,11 @@ classdef dataProcessor < handle
 				'Position', [0.1 0.1 0.8 0.8]);
 
 			[samples, ~, ~ ] = obj.hPreferences.getRadarBasebandParameters();
-			initialData = zeros(360, samples);
+			initialData = zeros(360, samples/2);
 
 			obj.hImage = imagesc(obj.hAxes, ...
 				obj.hDataCube.yawBins, ...
-				1:samples, initialData);
+				1:(samples/2), initialData);
 
 			axis(obj.hAxes, 'xy');
 
