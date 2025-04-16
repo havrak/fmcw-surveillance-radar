@@ -10,6 +10,7 @@ classdef dataProcessor < handle
 		hPanel;
 
 		hImage;
+		hSurf;
 		hAxes;
 		currentDisplayMethod;
 
@@ -26,16 +27,16 @@ classdef dataProcessor < handle
 	methods(Static, Access=public)
 
 		function [yaw, pitch, rangeProfile, rangeDoppler, speed, movementMask] = ...
-				processBatch(batchRangeFFTs, batchTimes, posTimes, posYaw, posPitch, speedNFFT, calcSpeed, maskSize, sigParams)
+				processBatch(batchRangeFFTs, batchTimes, posTimes, posYaw, posPitch, speedNFFT, calcSpeed, maskSize, procesParams)
 
 			%yaw = abs(mod(posYaw(end)+180, 360))-180;
 			yaw = posYaw(end);
 			pitch = posPitch(end);
 			distanceNFFT = size(batchRangeFFTs,2);
-			distance = (0:(distanceNFFT/2-1))*sigParams.distanceBinWidth;
+			distance = (0:(distanceNFFT/2-1))*procesParams.distanceBinWidth;
 			% distance = ((distanceNFFT/2-1):-1:0)*sigParams.distanceBinWidth;
 			distance = distance.^4;
-				
+
 			tmp = abs(batchRangeFFTs(end, :));
 			rangeProfile = tmp(1:distanceNFFT/2);
 			rangeProfile = ((rangeProfile.^2).*distance)';
@@ -96,11 +97,12 @@ classdef dataProcessor < handle
 			if ~calcSpeed
 				% fprintf("No speed calculations, exitting\n");
 				rangeDoppler = [zeros(distanceNFFT/2, (speedNFFT/2)-1), rangeProfile];
+				disp(size(rangeDoppler));
 				yaw = posYaw(end);
 				pitch = posPitch(end);
 				return;
 			end
-			
+
 			distanceMap = repmat(distance, [1, speedNFFT/2]);
 
 			% Timing based analysis
@@ -118,11 +120,11 @@ classdef dataProcessor < handle
 			%	rangeDoppler = abs(nufft(batchRangeFFTs, batchTimes, speedSamples, 1))';
 			%else
 			tmp = abs(fft(batchRangeFFTs, speedNFFT, 1))';
-			
+
 			%end
 
 			tmp = (tmp.^2).*distanceMap;
-			rangeDoppler = single(tmp);
+			rangeDoppler = single(tmp(1:distanceNFFT/2, 1:speedNFFT/2));
 
 			% fprintf("Dimensions Fast time: %f, Slow time %f\n", length(rangeProfile), length(rangeDoppler))
 		end
@@ -147,15 +149,27 @@ classdef dataProcessor < handle
 
 				fprintf("dataProcessor | updateFinished | drawing r-a map\n");
 
+				% data = sum(obj.hDataCube.cube, 2);
+				% % Extract the slice for pitch 20 (now dimension 4)
+				% % Note: we need to take the 3D slice and then squeeze to 2D
+				%
+				%
+				% toDraw = squeeze(data(:, 1, :, 20));
+				% toDraw(1) = 40;
+				% % toDraw(toDraw < -80) = -Inf;
+				%
+				% fprintf("onCubeUpdateFinished | Min value %f\n", min(toDraw(:)));
+				% obj.hImage.CData = toDraw;
+				% drawnow limitrate;
+
 				data = sum(obj.hDataCube.cube, 2);
-				% Extract the slice for pitch 20 (now dimension 4)
-				% Note: we need to take the 3D slice and then squeeze to 2D
+				toDraw = squeeze(data(:, 1, :, 20)); % Transpose for dimensions [range, azimuth]
+				toDraw(1) = 40; % Adjust data point
 
-				toDraw = squeeze(data(:, 1, :, 20));
-				% toDraw(toDraw < -80) = -Inf;
-
-				fprintf("onCubeUpdateFinished | Min value %f\n", min(toDraw(:)));
-				obj.hImage.CData = toDraw;
+				fprintf("Min value: %f\n", min(toDraw(:)));
+				disp(size(toDraw));
+				% Update surf plot data
+				set(obj.hSurf, 'CData', toDraw);
 				drawnow limitrate;
 			end
 		end
@@ -214,14 +228,14 @@ classdef dataProcessor < handle
 				% I can process every single frame without issue but since I have
 				% trouble with getting the visualizations to be pretty I'm skipping
 				% those frames where positions didn't chaged much
-					return;
-				end
+				return;
+			end
 
 			if obj.parallelPool.NumWorkers > obj.parallelPool.Busy
 				[batchRangeFFTs, batchTimes] = obj.hRadarBuffer.getSlidingBatch();
 				obj.hRadarBuffer.lastProcesingYaw = yaw(end);
 				obj.hRadarBuffer.lastProcesingPitch = pitch(end);
-				
+
 				sigParams = {};
 				sigParams.distanceBinWidth = obj.distanceBinWidth;
 
@@ -242,11 +256,11 @@ classdef dataProcessor < handle
 
 				obj.mergeResults(yaw, pitch, rangeProfile, rangeDoppler, speed, movementMask);
 
-		
-			% 	future = parfeval(obj.parallelPool, ...
-			% 		@dataProcessor.processBatch, 6, ...
-			% 		batchRangeFFTs, batchTimes, posTimes, yaw, pitch, obj.speedSamples, obj.calcSpeed, maskSize, sigParams);
-			% 	afterAll(future, @(varargin) obj.mergeResults(varargin{:}), 0);
+
+				% 	future = parfeval(obj.parallelPool, ...
+				% 		@dataProcessor.processBatch, 6, ...
+				% 		batchRangeFFTs, batchTimes, posTimes, yaw, pitch, obj.speedSamples, obj.calcSpeed, maskSize, sigParams);
+				% 	afterAll(future, @(varargin) obj.mergeResults(varargin{:}), 0);
 			else
 				fprintf("dataProcessor | onNewDataAvailable | processing overloaded\n");
 			end
@@ -263,26 +277,35 @@ classdef dataProcessor < handle
 		end
 		function initializeARDisplay(obj)
 			panelPos = get(obj.hPanel, 'Position');
-			width = panelPos(3);
-			height = panelPos(4);
 
 			obj.hAxes = axes('Parent', obj.hPanel, ...
 				'Units', 'normalized', ...
 				'Position', [0.1 0.1 0.8 0.8]);
 
 			[samples, ~, ~ ] = obj.hPreferences.getRadarBasebandParameters();
-			initialData = zeros(360, samples/2);
+			rangeBins = samples/2;
+			yawBins = 360;
 
-			obj.hImage = imagesc(obj.hAxes, ...
-				obj.hDataCube.yawBins, ...
-				1:(samples/2), initialData);
+			theta = deg2rad(obj.hDataCube.yawBins);
+			r = 1:rangeBins;
+			[THETA, R] = meshgrid(theta, r);
+			[X, Y] = pol2cart(THETA, R);
 
-			axis(obj.hAxes, 'xy');
+			initialData = zeros(rangeBins, yawBins);
 
-			xlabel(obj.hAxes, 'Azimuth (degrees)');
-			ylabel(obj.hAxes, 'Range (bin)');
-			title(obj.hAxes, 'Azimuth-Range Map');
+			X = [X, X(:,1)]; % Add 360° = 0°
+			Y = [Y, Y(:,1)];
+			initialData(:, end) = initialData(:, 1);
+			disp(size(X));
+
+			obj.hSurf = surf(obj.hAxes, X, Y, zeros(size(X)), initialData,...
+				'EdgeColor', 'none',...
+				'FaceColor', 'flat');
+
+			view(obj.hAxes, 2); 
+			axis(obj.hAxes, 'equal', 'off'); 
 			colormap(obj.hAxes, 'jet');
+			title(obj.hAxes, 'Azimuth-Range Polar Map');
 		end
 
 	end

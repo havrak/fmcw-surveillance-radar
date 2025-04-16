@@ -34,7 +34,7 @@ classdef radar < handle
 			obj.chunkLengths = [obj.chunkLengths, numel(newChunk)];
 
 
-			while numel(obj.rawBuffer) > frameLen && ~isempty(obj.chunkLengths)
+			while numel(obj.rawBuffer) > frameLen && ~isempty(obj.chunkLengths) % in case we overflow size we start dumping older contributions
 				obj.rawBuffer(1:obj.chunkLengths(1)) = [];
 				obj.chunkLengths(1) = [];
 			end
@@ -56,7 +56,7 @@ classdef radar < handle
 
 					obj.rawBuffer = [];
 					obj.chunkLengths = [];
-				else
+				else % TODO: this probably actually isn't needed
 					if ~isempty(obj.chunkLengths)
 						obj.rawBuffer(1:obj.chunkLengths(1)) = [];
 						obj.chunkLengths(1) = [];
