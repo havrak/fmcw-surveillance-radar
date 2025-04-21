@@ -28,13 +28,15 @@ classdef preferences < handle
 		hTextRampTime;
 
 		hDropProVisualization;
-		hEditProSpeedSamples;
+		hDropProSpeedNFFT;
+		hDropProRangeNFFT; 
 		hCheckProCalcSpeed;
 
 
 		% OTHER VARS %
 		availableBaudrates = [ 9600 19200 115200 230400 1000000];
 		availableSamples = [32 64 128 256 512 1024 2048 ];
+		availableNFFT = [4 8 16 32 64 128 256 512 1024 2048 4096];
 		availableADC = [2571 2400 2118 1800 1125 487 186 59];
 
 		availableVisualization = {'Range-Azimuth', 'Range-Doppler', 'Target-2D', 'Target-3D'};
@@ -71,7 +73,8 @@ classdef preferences < handle
 			obj.configStruct.platform.debug=1;
 
 			obj.configStruct.processing.visualization=obj.availableVisualization(1);
-			obj.configStruct.processing.speedSamples=8;
+			obj.configStruct.processing.speedNFFT=8;
+			obj.configStruct.processing.rangeNFFT=128;
 			obj.configStruct.processing.calcSpeed = 1;
 
 
@@ -121,9 +124,12 @@ classdef preferences < handle
 			visualization = obj.configStruct.processing.visualization;
 		end
 
-		function [calcSpeed, speedSamples] = getProcessingSpeedParamters(obj)
-			calcSpeed = 	obj.configStruct.processing.calcSpeed;
-			speedSamples = obj.configStruct.processing.speedSamples;
+		function processingParamters = getProcessingParamters(obj)
+			processingParamters = {};
+			processingParamters.calcSpeed = 	obj.configStruct.processing.calcSpeed;
+			processingParamters.speedNFFT = obj.configStruct.processing.speedNFFT;
+			processingParamters.rangeNFFT = obj.configStruct.processing.rangeNFFT;
+			processingParamters.rangeBinWidth = obj.getRangeBinWidth();
 		end
 
 		function [port, baudrate] = getConnectionPlatform(obj)
@@ -222,9 +228,9 @@ classdef preferences < handle
 
 		end
 
-		function binWidth = getDistanceBinWidth(obj)
+		function binWidth = getRangeBinWidth(obj)
 			binWidth = physconst('LightSpeed')*(obj.configStruct.radar.samples+85) ...
-			/(2*obj.configStruct.radar.bandwidth*1e6*obj.configStruct.radar.samples);
+			/(2*obj.configStruct.radar.bandwidth*1e6*obj.configStruct.processing.rangeNFFT);
 		end
 
 
@@ -325,7 +331,7 @@ classdef preferences < handle
 
 			obj.hDropRadarBaudrate = uidropdown(obj.hFig, ...
 				'Position', [150, figSize(2)-100, 80, 25], ...
-				'Items', {'9600','19200', '115200', '230400','1000000'});
+				'Items', string(obj.availableBaudrates));
 
 			list=cat(2, 'none', serialportlist);
 			obj.hDropRadarPort = uidropdown(obj.hFig, ...
@@ -338,7 +344,7 @@ classdef preferences < handle
 
 			obj.hDropPlatformBaudrate = uidropdown(obj.hFig, ...
 				'Position', [150, figSize(2)-70, 80, 25], ...
-				'Items', {'9600', '19200', '115200', '230400','1000000'});
+				'Items', string(obj.availableBaudrates));
 
 			obj.hDropPlatformPort = uidropdown(obj.hFig, ...
 				'Position', [240, figSize(2)-70, 120, 25], ...
@@ -499,14 +505,21 @@ classdef preferences < handle
 
 			uilabel(obj.hFig, ...
 				'Position', [20, figSize(2)-processingOffset-50, 170, 25], ...
-				'Text', 'Speed samples:');
+				'Text', 'Speed NFFT:');
 
-			obj.hEditProSpeedSamples = uicontrol('Style', 'edit', ...
+			obj.hDropProSpeedNFFT = uidropdown( ...
 				'Parent',obj.hFig,  ...
 				'Position', [150, figSize(2)-processingOffset-50, 80, 25], ...
-				'Max',1, ...
-				'String',"", ...
-				'HorizontalAlignment', 'left');
+				'Items', string(obj.availableNFFT));
+
+			uilabel(obj.hFig, ...
+				'Position', [20, figSize(2)-processingOffset-80, 170, 25], ...
+				'Text', 'Range NFFT:');
+
+			obj.hDropProRangeNFFT = uidropdown( ...
+				'Parent',obj.hFig,  ...
+				'Position', [150, figSize(2)-processingOffset-80, 80, 25], ...
+				'Items', string(obj.availableNFFT));
 
 			obj.hCheckProCalcSpeed = uicheckbox('Parent', obj.hFig, ...
 				'Position',[250, figSize(2)-processingOffset-50, 170, 25], ...
@@ -610,7 +623,12 @@ classdef preferences < handle
 				set(obj.hDropProVisualization, 'Value', obj.configStruct.processing.visualization);
 			end
 
-			set(obj.hEditProSpeedSamples, 'String', obj.configStruct.processing.speedSamples);
+			if any(obj.availableNFFT == obj.configStruct.processing.speedNFFT)
+				set(obj.hDropProSpeedNFFT, 'Value', num2str(obj.configStruct.processing.speedNFFT));
+			end
+			if any(obj.availableNFFT == obj.configStruct.processing.rangeNFFT)
+				set(obj.hDropProRangeNFFT, 'Value', num2str(obj.configStruct.processing.rangeNFFT));
+			end
 
 			set(obj.hCheckProCalcSpeed, 'Value', obj.configStruct.processing.calcSpeed);
 
@@ -651,18 +669,24 @@ classdef preferences < handle
 
 			%% Platform config
 			tmp = get(obj.hEditOffsetD, 'String');
-			if isnan(str2double(tmp)) warndlg('Offset must be numerical');
-			else obj.configStruct.platform.offsetDistance=str2double(tmp);
+			if isnan(str2double(tmp)) 
+				warndlg('Offset must be numerical');
+			else 
+				obj.configStruct.platform.offsetDistance=str2double(tmp);
 			end
 
 			tmp = get(obj.hEditOffsetP, 'String');
-			if isnan(str2double(tmp)) warndlg('Offset must be numerical');
-			else obj.configStruct.platform.offsetPitch=str2double(tmp);
+			if isnan(str2double(tmp)) 
+				warndlg('Offset must be numerical');
+			else 
+				obj.configStruct.platform.offsetPitch=str2double(tmp);
 			end
 
 			tmp = get(obj.hEditOffsetY, 'String');
-			if isnan(str2double(tmp)) warndlg('Offset must be numerical');
-			else obj.configStruct.platform.offsetYaw=str2double(tmp);
+			if isnan(str2double(tmp)) 
+				warndlg('Offset must be numerical');
+			else 
+				obj.configStruct.platform.offsetYaw=str2double(tmp);
 			end
 
 
@@ -676,24 +700,32 @@ classdef preferences < handle
 
 
 			tmp = get(obj.hEditRadPatternYaw, 'String');
-			if isnan(str2double(tmp)) warndlg('Lobe width must be numerical');
-			else obj.configStruct.radar.radPatternYaw=str2double(tmp);
+			if isnan(str2double(tmp)) 
+				warndlg('Lobe width must be numerical');
+			else 
+				obj.configStruct.radar.radPatternYaw=str2double(tmp);
 			end
 
 			tmp = get(obj.hEditRadPatternPitch, 'String');
-			if isnan(str2double(tmp)) warndlg('Lobe width must be numerical');
-			else obj.configStruct.radar.radPatternPitch=str2double(tmp);
+			if isnan(str2double(tmp)) 
+				warndlg('Lobe width must be numerical');
+			else 
+				obj.configStruct.radar.radPatternPitch=str2double(tmp);
 			end
 
 			tmp = get(obj.hEditTriggerPeriod, 'String');
-			if (isnan(str2double(tmp)) || any(tmp <0)) warndlg('Trigger period must be numerical');
-			else obj.configStruct.radar.trigger=str2double(tmp);
+			if (isnan(str2double(tmp)) || any(tmp <0)) 
+				warndlg('Trigger period must be numerical');
+			else 
+				obj.configStruct.radar.trigger=str2double(tmp);
 			end
 
 
 			tmp = get(obj.hEditRadarBandwith, 'String');
-			if isnan(str2double(tmp)) warndlg('Bandwidth must be numerical');
-			else obj.configStruct.radar.bandwidth=str2double(tmp);
+			if isnan(str2double(tmp)) 
+				warndlg('Bandwidth must be numerical');
+			else 
+				obj.configStruct.radar.bandwidth=str2double(tmp);
 			end
 
 
@@ -710,10 +742,9 @@ classdef preferences < handle
 				% XXX set(obj.hFig, 'Visible', 'off');
 			end
 
-			tmp = get(obj.hEditProSpeedSamples, 'String');
-			if isnan(str2double(tmp)) warndlg('Bandwidth must be numerical');
-			else obj.configStruct.processing.speedSamples=str2double(tmp);
-			end
+			obj.configStruct.processing.speedNFFT=str2double(obj.hDropProSpeedNFFT.Value);
+
+			obj.configStruct.processing.rangeNFFT=str2double(obj.hDropProRangeNFFT.Value);
 
 			obj.configStruct.processing.calcSpeed = double(obj.hCheckProCalcSpeed.Value);
 

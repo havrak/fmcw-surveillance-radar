@@ -229,7 +229,6 @@ classdef radarDataCube < handle
 			pitchSigma = 1.5*radPatternPitch / (sqrt(8*log(2)));
 			[yawMash, pitchMesh] = meshgrid(dimensionsPitch,dimensionsYaw);
 			pattern = single(exp(-0.5*( (yawMash/yawSigma).^2 + (pitchMesh/pitchSigma).^2 )));
-			size(pattern);
 			%imagesc(dimensionsYaw, dimensionsPitch, pattern);
 		end
 
@@ -258,7 +257,6 @@ classdef radarDataCube < handle
 				length(obj.pitchBins), ...
 				];
 
-			disp(obj.cubeSize);
 
 			if ~exist('cube.dat', 'file')
 				% TODO: this is linux only, would be nice to fix

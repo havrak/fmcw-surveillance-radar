@@ -4,7 +4,9 @@ classdef radarBuffer < handle
         FFTData               % Complex FFT data [bufferSize x numSamplesPerChirp]
 				timestamps            % Timestamps for each sample [bufferSize x 1]
         currentIdx = 1        % Index for circular buffer (index, of next item)
-			
+				rangeNFFT;
+				wn;
+
 		end
 		properties(Access=public)
 				lastProcesingYaw = 0;
@@ -12,14 +14,16 @@ classdef radarBuffer < handle
 		end
 
     methods
-        function obj = radarBuffer(bufferSize, numSamplesPerChirp)
+        function obj = radarBuffer(bufferSize, rangeNFFT)
             obj.bufferSize = bufferSize;
-            obj.FFTData = complex(zeros(bufferSize, numSamplesPerChirp));
+						obj.rangeNFFT = rangeNFFT;
+						obj.wn=hamming(rangeNFFT);
+            obj.FFTData = complex(zeros(bufferSize, rangeNFFT));
             obj.timestamps = zeros(bufferSize, 1);
         end
 
         function addChirp(obj, I, Q, timestamp)
-            obj.FFTData(obj.currentIdx, :) = fft(I + 1j*Q);
+            obj.FFTData(obj.currentIdx, :) = fft((I + 1j*Q).*obj.wn, obj.rangeNFFT);
             obj.timestamps(obj.currentIdx) = timestamp;
             obj.currentIdx = mod(obj.currentIdx, obj.bufferSize) + 1;
         end
@@ -35,5 +39,5 @@ classdef radarBuffer < handle
 					maxTime = max(obj.timestamps);
 				end
 
-    end 
+    end
 end
