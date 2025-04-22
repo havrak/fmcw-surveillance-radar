@@ -12,6 +12,8 @@ pdfa.xmpi
 *.mmz
 *.DAT
 *.mat
+*.dat
+*.mexa64
 *.lot
 *.run.xml
 /# Excluded #

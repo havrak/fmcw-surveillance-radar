@@ -155,6 +155,8 @@ classdef app < handle
 			obj.hBtnConnectPlatform.Position = [10, height - 50 - buttonHeight - spacing, buttonPanelWidth - 30, buttonHeight];
 			obj.hBtnConnectRadar.Position = [10, height - 50 - 2 * (buttonHeight + spacing), buttonPanelWidth - 30, buttonHeight];
 			obj.hPanelView.Position = [10, 130, width-200, height-140];
+
+			obj.hDataProcessor.resizeUI();
 		end
 
 	end

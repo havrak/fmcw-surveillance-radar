@@ -12,9 +12,14 @@ classdef dataProcessor < handle
 		hImage;
 		hSurf;
 		hAxes;
+
+		hPitchSlider; % pitch slider for RA map
+		pitchIndex = 20;
+
 		currentDisplayMethod;
 
 		readIdx = 1;
+
 		radarBufferSize = 100;
 		processingParamters;
 		calcSpeed = 0;
@@ -25,23 +30,27 @@ classdef dataProcessor < handle
 
 	methods(Static, Access=public)
 
-		function [yaw, pitch, rangeProfile, rangeDoppler, speed] = ...
+		function [yaw, pitch, cfar, rangeDoppler, speed] = ...
 				processBatch(batchRangeFFTs, batchTimes, posTimes, posYaw, posPitch, processingParamters)
 
 			yaw = posYaw(end);
 			pitch = posPitch(end);
 			distance = (0:(processingParamters.rangeNFFT/2-1))*processingParamters.rangeBinWidth;
 
-			tmp = abs(batchRangeFFTs(end, :));
-			rangeProfile = tmp(1:processingParamters.rangeNFFT/2);
-			rangeProfile = ((rangeProfile.^2).*distance.^4)';
+			cfar =zeros(processingParamters.rangeNFFT/2);
 
 
 			tmp = diff(posYaw);
 			rawDiffYaw = abs((mod(tmp + 180, 360) - 180));
 			rawDiffPitch = abs(diff(posPitch));
 
+
 			if ~processingParamters.calcSpeed
+				lastFFT = abs(batchRangeFFTs(end, :));
+
+				rangeProfile = lastFFT(1:processingParamters.rangeNFFT/2);
+				rangeProfile = ((rangeProfile.^2).*distance.^4)';
+
 				timeElapsed = posTimes(end) - posTimes(1);
 				speed = sqrt((sum(rawDiffYaw)^2 + sum(rawDiffPitch)^2)) / (timeElapsed + 1e-6); % speed falls to zero for some reason
 
@@ -114,10 +123,10 @@ classdef dataProcessor < handle
 	end
 
 	methods(Access=private)
-		function mergeResults(obj, yaw, pitch, rangeProfile, rangeDoppler, speed)
+		function mergeResults(obj, yaw, pitch, cfar, rangeDoppler, speed)
 
 
-			obj.hDataCube.addData(yaw, pitch, rangeProfile, rangeDoppler, speed);
+			obj.hDataCube.addData(yaw, pitch, cfar, rangeDoppler, speed);
 
 			if obj.hDataCube.isBatchFull()
 				fprintf("dataProcessor | mergeResults | starting batch processing\n");
@@ -146,10 +155,9 @@ classdef dataProcessor < handle
 				% drawnow limitrate;
 
 				data = sum(obj.hDataCube.cube, 2);
-				toDraw = squeeze(data(:, 1, :, 20)); % Transpose for dimensions [range, azimuth]
-				toDraw(1) = 40; % Adjust data point
-
-				set(obj.hSurf, 'CData', toDraw);
+				toDraw = squeeze(data(:, 1, :, obj.pitchIndex)); % Transpose for dimensions [range, azimuth]
+				toDraw(1) = 50; % NOTE: just to fix color scale
+				obj.hSurf.CData = toDraw;
 				drawnow limitrate;
 			end
 		end
@@ -170,7 +178,7 @@ classdef dataProcessor < handle
 
 			if strcmp(visual, 'Range-Azimuth') && ~strcmp(obj.currentVisualizationStyle, 'Range-Azimuth')
 				fprintf("dataProcessor | onNewConfigAvailable | visualizing as yaw-range map.\n")
-				
+
 				obj.currentVisualizationStyle = 'Range-Azimuth';
 				obj.deinitializeDisplay();
 				obj.initializeARDisplay();
@@ -215,7 +223,7 @@ classdef dataProcessor < handle
 				obj.hRadarBuffer.lastProcesingPitch = pitch(end);
 
 
-				[yaw, pitch, rangeProfile, rangeDoppler, speed, movementMask] = dataProcessor.processBatch( ...
+				[yaw, pitch, cfar, rangeDoppler, speed] = dataProcessor.processBatch( ...
 					batchRangeFFTs,  ...
 					batchTimes, ...
 					posTimes, ...
@@ -223,11 +231,11 @@ classdef dataProcessor < handle
 					pitch, ...
 					obj.processingParamters);
 
-				obj.mergeResults(yaw, pitch, rangeProfile, rangeDoppler, speed, movementMask);
+				obj.mergeResults(yaw, pitch, cfar, rangeDoppler, speed);
 
 
 				% 	future = parfeval(obj.parallelPool, ...
-				% 		@dataProcessor.processBatch, 6, ...
+				% 		@dataProcessor.processBatch, 5, ...
 				% 		batchRangeFFTs, batchTimes, posTimes, yaw, pitch, obj.processingParamters);
 				% 	afterAll(future, @(varargin) obj.mergeResults(varargin{:}), 0);
 			else
@@ -239,16 +247,28 @@ classdef dataProcessor < handle
 		end
 
 		function deinitializeDisplay(obj)
-			if ~isempty(obj.hAxes) && ~isvalid(obj.hAxes)
+			if ~isempty(obj.hAxes) && isvalid(obj.hAxes)
 				delete(obj.hAxes);
+			end
+			if ~isempty(obj.hImage) && isvalid(obj.hImage)
 				delete(obj.hImage);
 			end
+			if ~isempty(obj.hSurf) && isvalid(obj.hSurf)
+				delete(obj.hSurf);
+			end
+			if ~isempty(obj.hPitchSlider) && isvalid(obj.hPitchSlider)
+				delete(obj.hPitchSlider);
+			end
+			obj.hAxes = [];
+			obj.hImage = [];
+			obj.hSurf = [];
+			obj.hPitchSlider = [];
 		end
+
 		function initializeARDisplay(obj)
-			
+
 			obj.hAxes = axes('Parent', obj.hPanel, ...
-				'Units', 'normalized', ...
-				'Position', [0.1 0.1 0.8 0.8]);
+				'Units', 'pixels');
 
 			[samples, ~, ~ ] = obj.hPreferences.getRadarBasebandParameters();
 			rangeBins = samples/2;
@@ -269,12 +289,26 @@ classdef dataProcessor < handle
 				'EdgeColor', 'none',...
 				'FaceColor', 'flat');
 
+
+
 			view(obj.hAxes, 2);
 			axis(obj.hAxes, 'equal', 'off');
 			colormap(obj.hAxes, 'jet');
 			title(obj.hAxes, 'Azimuth-Range Polar Map');
+
+			obj.hPitchSlider = uislider(obj.hPanel,...
+				'Limits', [obj.hDataCube.pitchBinMin obj.hDataCube.pitchBinMax],...
+				'Value', obj.pitchIndex,...
+				'ValueChangedFcn', @(src,event) obj.sliderCallback(src),...
+				'Tooltip', 'Select pitch index');
+
+		
+			obj.resizeUI();
 		end
 
+		function sliderCallback(obj, src)
+			obj.pitchIndex=floor(src.Value)+obj.hDataCube.pitchBinMin+1;
+		end
 	end
 
 	methods(Access=public)
@@ -283,12 +317,12 @@ classdef dataProcessor < handle
 			obj.hPlatform = platformObj;
 			obj.hPreferences = preferencesObj;
 
-			% XXX
-			obj.parallelPool = gcp('nocreate'); % Start parallel pool
-			if isempty(obj.parallelPool)
-				fprintf("dataProcessor | dataProcessor | starting paraller pool\n");
-				obj.parallelPool = parpool(6);
-			end
+			% obj.parallelPool = gcp('nocreate'); % Start parallel pool
+			%
+			% if isempty(obj.parallelPool)
+			% 	fprintf("dataProcessor | dataProcessor | starting paraller pool\n");
+			% 	obj.parallelPool = parpool(6);
+			% end
 
 			% TODO -> move some of these paramters to be updateable on the fly
 			fprintf("dataProcessor | dataProcessor |  starting gui\n");
@@ -300,6 +334,32 @@ classdef dataProcessor < handle
 			addlistener(preferencesObj, 'newConfigEvent', @(~,~) obj.onNewConfigAvailable());
 		end
 
+		function resizeUI(obj)
+			panelPos = get(obj.hPanel, 'Position');
+			panelWidth = panelPos(3);
+			panelHeight = panelPos(4);
+
+			axesMarginX = 60;
+			axesMarginY = 60;
+			
+			sliderMarginX = 30;
+			sliderMarginY = 40;
+
+			if isvalid(obj.hAxes)
+				set(obj.hAxes, 'Position', [axesMarginX, axesMarginY, panelWidth-2*axesMarginX, panelHeight-2*axesMarginY]);
+				axis(obj.hAxes, 'equal'); 
+			end
+
+			if isvalid(obj.hPitchSlider)
+					pos = get(obj.hPitchSlider,'Position');
+					pos(1:3) = [sliderMarginX sliderMarginY 80];
+					set(obj.hPitchSlider,'Position',pos);
+			end
+
+			% if isvalid(obj.hSurf)
+			%caxis(obj.hAxes, 'auto');
+			 %end
+		end
 
 		function endProcesses(obj)
 			% endProcesses: safely stops all class processes

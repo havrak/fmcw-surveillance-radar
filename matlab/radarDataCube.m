@@ -282,15 +282,14 @@ classdef radarDataCube < handle
 			fclose(fid);
 		end
 
-		function addData(obj, yaw, pitch, ~, rangeDoppler, speed, ~)
+		function addData(obj, yaw, pitch, cfar, rangeDoppler, speed)
 			if nargin < 6
 				speed = 0.01;
 			end
 
 			[~, yawIdx] = min(abs(obj.yawBins - yaw));
 			[~, pitchIdx] = min(abs(obj.pitchBins - pitch));
-			decay = 0.8;
-			% decay = exp(-speed/10000); % XXX random consntat for debug
+			decay = exp(-speed/10000); % XXX random consntat for debug
 
 			fprintf("radarDataCube | addData | adding to cube %d: yaw %f, pitch %f, decay %f\n", obj.bufferActiveWriteIdx, yaw, pitch, decay);
 			fprintf("radarDataCube | addData | processing %d\n", obj.isProcessing);

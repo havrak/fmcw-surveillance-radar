@@ -30,6 +30,8 @@ classdef preferences < handle
 		hDropProVisualization;
 		hDropProSpeedNFFT;
 		hDropProRangeNFFT; 
+		hEditProCFARGuard;
+		hEditProCFARTraining;
 		hCheckProCalcSpeed;
 
 
@@ -76,6 +78,8 @@ classdef preferences < handle
 			obj.configStruct.processing.speedNFFT=8;
 			obj.configStruct.processing.rangeNFFT=128;
 			obj.configStruct.processing.calcSpeed = 1;
+			obj.configStruct.processing.cfarGuard = 2;
+			obj.configStruct.processing.cfarTraining = 10;
 
 
 			obj.configStruct.programs=[];
@@ -130,6 +134,8 @@ classdef preferences < handle
 			processingParamters.speedNFFT = obj.configStruct.processing.speedNFFT;
 			processingParamters.rangeNFFT = obj.configStruct.processing.rangeNFFT;
 			processingParamters.rangeBinWidth = obj.getRangeBinWidth();
+			processingParamters.cfarGuard = obj.configStruct.processing.cfarGuard;
+			processingParamters.cfarTrainign = obj.configStruct.processing.cfarTraining;
 		end
 
 		function [port, baudrate] = getConnectionPlatform(obj)
@@ -311,7 +317,7 @@ classdef preferences < handle
 			processingOffset = 520;
 
 			fprintf('Preferences | constructGUI | starting gui constructions');
-			figSize = [500, 700];
+			figSize = [500, 800];
 			screenSize = get(groot, 'ScreenSize');
 			obj.hFig = uifigure('Name','Preferences', ...
 				'Position', [(screenSize(3:4) - figSize)/2, figSize], ...
@@ -512,6 +518,11 @@ classdef preferences < handle
 				'Position', [150, figSize(2)-processingOffset-50, 80, 25], ...
 				'Items', string(obj.availableNFFT));
 
+
+			obj.hCheckProCalcSpeed = uicheckbox('Parent', obj.hFig, ...
+				'Position',[250, figSize(2)-processingOffset-50, 170, 25], ...
+				"Text","Calculate Speed");
+
 			uilabel(obj.hFig, ...
 				'Position', [20, figSize(2)-processingOffset-80, 170, 25], ...
 				'Text', 'Range NFFT:');
@@ -521,9 +532,29 @@ classdef preferences < handle
 				'Position', [150, figSize(2)-processingOffset-80, 80, 25], ...
 				'Items', string(obj.availableNFFT));
 
-			obj.hCheckProCalcSpeed = uicheckbox('Parent', obj.hFig, ...
-				'Position',[250, figSize(2)-processingOffset-50, 170, 25], ...
-				"Text","Calculate Speed");
+
+			uilabel(obj.hFig, ...
+				'Position', [20, figSize(2)-processingOffset-110, 140, 25], ...
+				'Text', 'CFAR guard:');
+
+
+			obj.hEditProCFARGuard = uicontrol('Style', 'edit', ...
+				'Parent',obj.hFig,  ...
+				'Position', [150, figSize(2)-processingOffset-110, 140, 25], ...
+				'Max',1, ...
+				'String',"", ...
+				'HorizontalAlignment', 'left');
+
+			uilabel(obj.hFig, ...
+				'Position', [20, figSize(2)-processingOffset-140, 140, 25], ...
+				'Text', 'CFAR training:');
+
+			obj.hEditProCFARTraining  = uicontrol('Style', 'edit', ...
+				'Parent',obj.hFig,  ...
+				'Position', [150, figSize(2)-processingOffset-140, 140, 25], ...
+				'Max',1, ...
+				'String',"", ...
+				'HorizontalAlignment', 'left');
 
 
 
@@ -535,18 +566,18 @@ classdef preferences < handle
 
 			obj.hBtnReload = uibutton(obj.hFig, ...
 				'Text', 'Reload', ...
-				'Position', [figSize(1)-300, 40, 80, 25], ...
+				'Position', [figSize(1)-300, 30, 80, 25], ...
 				'ButtonPushedFcn', @(src,event) reloadConfig(obj) );
 
 
 			obj.hBtnApply = uibutton(obj.hFig, ...
 				'Text', 'Apply', ...
-				'Position', [figSize(1)-200, 40, 80, 25], ...
+				'Position', [figSize(1)-200, 30, 80, 25], ...
 				'ButtonPushedFcn',  @(src, event)obj.processConfig() );
 
 			obj.hBtnClose = uibutton(obj.hFig, ...
 				'Text', 'Close', ...
-				'Position', [figSize(1)-100, 40, 80, 25], ...
+				'Position', [figSize(1)-100, 30, 80, 25], ...
 				'ButtonPushedFcn',@(src,event) set(obj.hFig, 'Visible', 'off'));
 
 			obj.configToGUI();
@@ -632,6 +663,10 @@ classdef preferences < handle
 
 			set(obj.hCheckProCalcSpeed, 'Value', obj.configStruct.processing.calcSpeed);
 
+			set(obj.hEditProCFARGuard, 'String', obj.configStruct.processing.cfarGuard);
+			set(obj.hEditProCFARTraining, 'String', obj.configStruct.processing.cfarTraining);
+			
+			
 		end
 
 		function refreshSerial(obj)
@@ -668,25 +703,25 @@ classdef preferences < handle
 
 
 			%% Platform config
-			tmp = get(obj.hEditOffsetD, 'String');
-			if isnan(str2double(tmp)) 
-				warndlg('Offset must be numerical');
+			tmp = str2double(get(obj.hEditOffsetD, 'String'));
+			if (isnan(tmp) || any(tmp <0)) 
+				warndlg('Offset must be a positive number');
 			else 
-				obj.configStruct.platform.offsetDistance=str2double(tmp);
+				obj.configStruct.platform.offsetDistance=tmp;
 			end
 
-			tmp = get(obj.hEditOffsetP, 'String');
-			if isnan(str2double(tmp)) 
-				warndlg('Offset must be numerical');
+			tmp = str2double(get(obj.hEditOffsetP, 'String'));
+			if (isnan(tmp) || any(tmp <0)) 
+				warndlg('Offset must be a positive number');
 			else 
-				obj.configStruct.platform.offsetPitch=str2double(tmp);
+				obj.configStruct.platform.offsetPitch=tmp;
 			end
 
-			tmp = get(obj.hEditOffsetY, 'String');
-			if isnan(str2double(tmp)) 
-				warndlg('Offset must be numerical');
+			tmp = str2double(get(obj.hEditOffsetY, 'String'));
+			if (isnan(tmp) || any(tmp <0)) 
+				warndlg('Offset must be a positive number');
 			else 
-				obj.configStruct.platform.offsetYaw=str2double(tmp);
+				obj.configStruct.platform.offsetYaw=tmp;
 			end
 
 
@@ -699,33 +734,33 @@ classdef preferences < handle
 			obj.configStruct.radar.adc=str2double(obj.hDropRadarADC.Value);
 
 
-			tmp = get(obj.hEditRadPatternYaw, 'String');
-			if isnan(str2double(tmp)) 
-				warndlg('Lobe width must be numerical');
+			tmp = str2double(get(obj.hEditRadPatternYaw, 'String'));
+			if (isnan(tmp) || any(tmp < 0))
+				warndlg('Lobe width must be a positive number');
 			else 
-				obj.configStruct.radar.radPatternYaw=str2double(tmp);
+				obj.configStruct.radar.radPatternYaw=floor(tmp);
 			end
 
-			tmp = get(obj.hEditRadPatternPitch, 'String');
-			if isnan(str2double(tmp)) 
-				warndlg('Lobe width must be numerical');
+			tmp = str2double(get(obj.hEditRadPatternPitch, 'String'));
+			if (isnan(tmp)  || any(tmp<0))
+				warndlg('Lobe width must be a positive number');
 			else 
-				obj.configStruct.radar.radPatternPitch=str2double(tmp);
+				obj.configStruct.radar.radPatternPitch=floor(tmp);
 			end
 
-			tmp = get(obj.hEditTriggerPeriod, 'String');
-			if (isnan(str2double(tmp)) || any(tmp <0)) 
-				warndlg('Trigger period must be numerical');
+			tmp = str2double(get(obj.hEditTriggerPeriod, 'String'));
+			if (isnan(tmp) || any(tmp <0)) 
+				warndlg('Trigger period must be a positive number');
 			else 
-				obj.configStruct.radar.trigger=str2double(tmp);
+				obj.configStruct.radar.trigger=floor(tmp);
 			end
 
 
-			tmp = get(obj.hEditRadarBandwith, 'String');
-			if isnan(str2double(tmp)) 
-				warndlg('Bandwidth must be numerical');
+			tmp = str2double(get(obj.hEditRadarBandwith, 'String'));
+			if isnan(tmp)
+				warndlg('Bandwidth must be a number');
 			else 
-				obj.configStruct.radar.bandwidth=str2double(tmp);
+				obj.configStruct.radar.bandwidth=floor(tmp);
 			end
 
 
@@ -747,6 +782,20 @@ classdef preferences < handle
 			obj.configStruct.processing.rangeNFFT=str2double(obj.hDropProRangeNFFT.Value);
 
 			obj.configStruct.processing.calcSpeed = double(obj.hCheckProCalcSpeed.Value);
+
+			tmp = str2double(get(obj.hEditProCFARGuard, 'String'));
+			if (isnan(tmp) || tmp < 0)
+				warndlg('CFAR guard size must be a positive number');
+			else 
+				obj.configStruct.processing.cfarGuard=floor(tmp);
+			end
+
+			tmp = str2double(get(obj.hEditProCFARTraining, 'String'));
+			if (isnan(tmp) || tmp < 0)
+				warndlg('CFAR training size must be a positive number');
+			else 
+				obj.configStruct.processing.cfarTraining=floor(tmp);
+			end
 
 			storeConfig(obj);
 			notify(obj, 'newConfigEvent');
