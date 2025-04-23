@@ -135,7 +135,7 @@ classdef preferences < handle
 			processingParamters.rangeNFFT = obj.configStruct.processing.rangeNFFT;
 			processingParamters.rangeBinWidth = obj.getRangeBinWidth();
 			processingParamters.cfarGuard = obj.configStruct.processing.cfarGuard;
-			processingParamters.cfarTrainign = obj.configStruct.processing.cfarTraining;
+			processingParamters.cfarTraining = obj.configStruct.processing.cfarTraining;
 		end
 
 		function [port, baudrate] = getConnectionPlatform(obj)

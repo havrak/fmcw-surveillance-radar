@@ -37,8 +37,18 @@ classdef dataProcessor < handle
 			pitch = posPitch(end);
 			distance = (0:(processingParamters.rangeNFFT/2-1))*processingParamters.rangeBinWidth;
 
-			cfar =zeros(processingParamters.rangeNFFT/2);
-
+			lastFFT = abs(batchRangeFFTs(:,end))';
+			rangeProfile = lastFFT(1:processingParamters.rangeNFFT/2);
+			rangeProfile = ((rangeProfile.^2).*distance.^4)';
+			
+			cfarDetector = phased.CFARDetector('NumTrainingCells',processingParamters.cfarTraining, ...
+				'NumGuardCells',processingParamters.cfarGuard);
+			cfarDetector.ThresholdFactor = 'Auto';
+			cfarDetector.ProbabilityFalseAlarm = 1e-3;
+			
+			cfar = cfarDetector(rangeProfile, 1:processingParamters.rangeNFFT/2);
+			
+		
 
 			tmp = diff(posYaw);
 			rawDiffYaw = abs((mod(tmp + 180, 360) - 180));
@@ -46,17 +56,13 @@ classdef dataProcessor < handle
 
 
 			if ~processingParamters.calcSpeed
-				lastFFT = abs(batchRangeFFTs(end, :));
 
-				rangeProfile = lastFFT(1:processingParamters.rangeNFFT/2);
-				rangeProfile = ((rangeProfile.^2).*distance.^4)';
 
 				timeElapsed = posTimes(end) - posTimes(1);
 				speed = sqrt((sum(rawDiffYaw)^2 + sum(rawDiffPitch)^2)) / (timeElapsed + 1e-6); % speed falls to zero for some reason
 
 				% fprintf("No speed calculations, exitting\n");
-				rangeDoppler = [zeros(processingParamters.rangeNFFT/2, (speedNFFT/2)-1), rangeProfile];
-				disp(size(rangeDoppler));
+				rangeDoppler = [zeros(processingParamters.rangeNFFT/2, (processingParamters.speedNFFT/2)-1), rangeProfile];
 				yaw = posYaw(end);
 				pitch = posPitch(end);
 				return;
@@ -111,9 +117,9 @@ classdef dataProcessor < handle
 
 			% Run FFT
 			if useNUFFT
-				tmp = abs(nufft(batchRangeFFTs, batchTimes, speedSamples, 1))';
+				tmp = abs(nufft(batchRangeFFTs, batchTimes, speedSamples, 1));
 			else
-				tmp = abs(fft(batchRangeFFTs(1:idxBatch), processingParamters.speedNFFT, 1))';
+				tmp = abs(fft(batchRangeFFTs(1:idxBatch), processingParamters.speedNFFT, 1));
 			end
 
 			tmp = (tmp.^2).*distanceMap;
@@ -195,8 +201,8 @@ classdef dataProcessor < handle
 
 
 			% fprintf("onNewDataAvailable | busy workers %f\n", obj.parallelPool.Busy);
-			obj.hRadarBuffer.addChirp(obj.hRadar.bufferI(obj.readIdx, :), ...
-				obj.hRadar.bufferQ(obj.readIdx, :), ...
+			obj.hRadarBuffer.addChirp(obj.hRadar.bufferI(:, obj.readIdx), ...
+				obj.hRadar.bufferQ(:, obj.readIdx), ...
 				obj.hRadar.bufferTime(obj.readIdx));
 
 
@@ -316,17 +322,17 @@ classdef dataProcessor < handle
 			obj.hRadar = radarObj;
 			obj.hPlatform = platformObj;
 			obj.hPreferences = preferencesObj;
+			obj.hPanel = panelObj;
 
-			% obj.parallelPool = gcp('nocreate'); % Start parallel pool
-			%
-			% if isempty(obj.parallelPool)
-			% 	fprintf("dataProcessor | dataProcessor | starting paraller pool\n");
-			% 	obj.parallelPool = parpool(6);
-			% end
+			obj.parallelPool = gcp('nocreate'); % Start parallel pool
+			
+			if isempty(obj.parallelPool)
+			 	fprintf("dataProcessor | dataProcessor | starting paraller pool\n");
+			 	obj.parallelPool = parpool(6);
+			end
 
 			% TODO -> move some of these paramters to be updateable on the fly
 			fprintf("dataProcessor | dataProcessor |  starting gui\n");
-			obj.hPanel = panelObj;
 
 			obj.onNewConfigAvailable();
 
@@ -335,6 +341,9 @@ classdef dataProcessor < handle
 		end
 
 		function resizeUI(obj)
+			if ~isvalid(obj.hPanel)
+				return;
+			end
 			panelPos = get(obj.hPanel, 'Position');
 			panelWidth = panelPos(3);
 			panelHeight = panelPos(4);

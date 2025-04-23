@@ -47,8 +47,8 @@ classdef radar < handle
 					tmp = uint16(highBytes) * 256 + uint16(lowBytes);
 					data = typecast(tmp, 'int16');
 
-					obj.bufferI(obj.writeIdx, :) = data(1:2:end);
-					obj.bufferQ(obj.writeIdx, :) = data(2:2:end);
+					obj.bufferI(:, obj.writeIdx) = data(1:2:end);
+					obj.bufferQ(:, obj.writeIdx) = data(2:2:end);
 					obj.bufferTime(obj.writeIdx) = toc(obj.startTime);
 
 					obj.writeIdx = mod(obj.writeIdx, obj.bufferSize) + 1;
@@ -130,8 +130,8 @@ classdef radar < handle
 
 			[samplesReg, samplesBin, adc] = obj.hPreferences.getRadarBasebandParameters();
 			obj.samples = samplesReg;
-			obj.bufferI=zeros(obj.bufferSize, obj.samples);
-			obj.bufferQ=zeros(obj.bufferSize, obj.samples);
+			obj.bufferI=zeros(obj.samples, obj.bufferSize);
+			obj.bufferQ=zeros(obj.samples, obj.bufferSize);
 
 			baseband=append(WIN,FIR,DC,CFAR,CFARthreshold,CFARsize,CFARgrd,AVERAGEn,FFTsize,DOWNsample,RAMPS,samplesBin,adc);
 			basebandHEX=bin2hex(baseband);
