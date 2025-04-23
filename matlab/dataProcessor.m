@@ -47,6 +47,7 @@ classdef dataProcessor < handle
 			cfarDetector.ProbabilityFalseAlarm = 1e-3;
 			
 			cfar = cfarDetector(rangeProfile, 1:processingParamters.rangeNFFT/2);
+			disp(sum(cfar));
 			
 		
 
@@ -178,7 +179,7 @@ classdef dataProcessor < handle
 			obj.processingParamters = obj.hPreferences.getProcessingParamters();
 			visual=obj.hPreferences.getProcessingVisualization();
 			fprintf("dataProcessor | onNewConfigAvailable | Distance bin size: %f mm\n" , obj.processingParamters.rangeBinWidth*1000);
-			obj.hDataCube = radarDataCube(obj.processingParamters.rangeNFFT/2, obj.processingParamters.speedNFFT/2, radPatterH, radPatterT);
+			obj.hDataCube = radarDataCube(obj.processingParamters.rangeNFFT/2, obj.processingParamters.speedNFFT/2, radPatterH, radPatterT, 1, 1);
 			obj.hRadarBuffer = radarBuffer(floor(obj.processingParamters.speedNFFT*1.5), obj.processingParamters.rangeNFFT);
 
 
