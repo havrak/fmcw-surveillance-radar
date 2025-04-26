@@ -29,10 +29,14 @@ classdef preferences < handle
 
 		hDropProVisualization;
 		hDropProSpeedNFFT;
-		hDropProRangeNFFT; 
+		hDropProRangeNFFT;
 		hEditProCFARGuard;
 		hEditProCFARTraining;
-		hCheckProCalcSpeed;
+		hSwitchProCalcSpeed;
+		hSwitchProCalcRaw;
+		hSwitchProCalcCFAR;
+		hSwitchProDecayType;
+		hEditProResetYaw;
 
 
 		% OTHER VARS %
@@ -41,7 +45,7 @@ classdef preferences < handle
 		availableNFFT = [4 8 16 32 64 128 256 512 1024 2048 4096];
 		availableADC = [2571 2400 2118 1800 1125 487 186 59];
 
-		availableVisualization = {'Range-Azimuth', 'Range-Doppler', 'Target-2D', 'Target-3D'};
+		availableVisualization = {'Range-Azimuth', 'Target-3D'};
 		binaryMap = ['000'; '001'; '010'; '011'; '100'; '101'; '110'; '111'];
 		adcSamplingTime = [14 15 17 20 32 74 194 614];
 		configStruct;
@@ -69,7 +73,6 @@ classdef preferences < handle
 
 			obj.configStruct.platform.port='none';
 			obj.configStruct.platform.baudrate=obj.availableBaudrates(1);
-			obj.configStruct.platform.offsetDistance=0;
 			obj.configStruct.platform.offsetPitch=0;
 			obj.configStruct.platform.offsetYaw=0;
 			obj.configStruct.platform.debug=1;
@@ -78,8 +81,12 @@ classdef preferences < handle
 			obj.configStruct.processing.speedNFFT=8;
 			obj.configStruct.processing.rangeNFFT=128;
 			obj.configStruct.processing.calcSpeed = 1;
+			obj.configStruct.processing.calcCFAR = 1;
+			obj.configStruct.processing.calcRaw = 1;
 			obj.configStruct.processing.cfarGuard = 2;
 			obj.configStruct.processing.cfarTraining = 10;
+			obj.configStruct.processing.decayType = 1;
+			obj.configStruct.processing.resetYaw = 0;
 
 
 			obj.configStruct.programs=[];
@@ -128,14 +135,16 @@ classdef preferences < handle
 			visualization = obj.configStruct.processing.visualization;
 		end
 
-		function processingParamters = getProcessingParamters(obj)
-			processingParamters = {};
-			processingParamters.calcSpeed = 	obj.configStruct.processing.calcSpeed;
-			processingParamters.speedNFFT = obj.configStruct.processing.speedNFFT;
-			processingParamters.rangeNFFT = obj.configStruct.processing.rangeNFFT;
-			processingParamters.rangeBinWidth = obj.getRangeBinWidth();
-			processingParamters.cfarGuard = obj.configStruct.processing.cfarGuard;
-			processingParamters.cfarTraining = obj.configStruct.processing.cfarTraining;
+		function processingParameters = getProcessingParamters(obj)
+			processingParameters = {};
+			processingParameters.calcSpeed =	obj.configStruct.processing.calcSpeed;
+			processingParameters.speedNFFT = obj.configStruct.processing.speedNFFT;
+			processingParameters.rangeNFFT = obj.configStruct.processing.rangeNFFT;
+			processingParameters.rangeBinWidth = obj.getRangeBinWidth();
+			processingParameters.cfarGuard = obj.configStruct.processing.cfarGuard;
+			processingParameters.cfarTraining = obj.configStruct.processing.cfarTraining;
+			processingParameters.calcCFAR  = obj.configStruct.processing.calcCFAR;
+			processingParameters.calcRaw  = obj.configStruct.processing.calcRaw;
 		end
 
 		function [port, baudrate] = getConnectionPlatform(obj)
@@ -210,17 +219,14 @@ classdef preferences < handle
 			adc = obj.binaryMap(obj.availableADC == obj.configStruct.radar.adc, :);
 		end
 
-		function [offsetYaw, offsetPitch, offsetDistance] = getPlatformParamters(obj)
+		function [offsetYaw, offsetPitch] = getPlatformParamters(obj)
 			% getPlatformParamters: return mounting paramters of the platform
 			%
 			%
 			% Output:
 			% offsetYaw ... yaw angle at which radar is poiting straight
 			% offsetPitch ... pitch angle at which radar is poiting straight (PCB is perpendicular to the ground)
-			% offsetDistance ... distance from axis of rotation to the center of
 			% radar PCB
-
-			offsetDistance =  obj.configStruct.platform.offsetDistance;
 			offsetPitch = obj.configStruct.platform.offsetPitch;
 			offsetYaw = obj.configStruct.platform.offsetYaw;
 		end
@@ -236,7 +242,7 @@ classdef preferences < handle
 
 		function binWidth = getRangeBinWidth(obj)
 			binWidth = physconst('LightSpeed')*(obj.configStruct.radar.samples+85) ...
-			/(2*obj.configStruct.radar.bandwidth*1e6*obj.configStruct.processing.rangeNFFT);
+				/(2*obj.configStruct.radar.bandwidth*1e6*obj.configStruct.processing.rangeNFFT);
 		end
 
 
@@ -313,11 +319,11 @@ classdef preferences < handle
 			% constructGUI: initializes all GUI elements
 
 			platformConfigOffset = 140;
-			radarConfigOffset = 280;
-			processingOffset = 520;
+			radarConfigOffset = 250;
+			processingOffset = 490;
 
 			fprintf('Preferences | constructGUI | starting gui constructions');
-			figSize = [500, 800];
+			figSize = [600, 800];
 			screenSize = get(groot, 'ScreenSize');
 			obj.hFig = uifigure('Name','Preferences', ...
 				'Position', [(screenSize(3:4) - figSize)/2, figSize], ...
@@ -366,47 +372,36 @@ classdef preferences < handle
 			%% PlatformConfig
 			uilabel(obj.hFig, 'Position', [20, figSize(2)-platformConfigOffset, 140, 25], 'Text', 'PLATFORM CONFIG', 'FontWeight','bold');
 
-			% Distance offset
+			% Pitch offset
 			uilabel(obj.hFig, ...
 				'Position', [20, figSize(2)-platformConfigOffset-20, 140, 25], ...
-				'Text', 'Platform offset [mm]:');
-			obj.hEditOffsetD=uicontrol('Style', 'edit', ...
+				'Text', 'Pitch offset [deg]:');
+
+			obj.hEditOffsetP=uicontrol('Style', 'edit', ...
 				'Parent',obj.hFig,  ...
 				'Position', [150, figSize(2)-platformConfigOffset-20, 140, 25], ...
 				'Max',1, ...
 				'String',"", ...
 				'HorizontalAlignment', 'left');
 
-			% Pitch offset
+			% Yaw offset
 			uilabel(obj.hFig, ...
 				'Position', [20, figSize(2)-platformConfigOffset-50, 140, 25], ...
-				'Text', 'Pitch offset [deg]:');
+				'Text', 'Yaw offset [deg]:');
 
-			obj.hEditOffsetP=uicontrol('Style', 'edit', ...
+			obj.hEditOffsetY=uicontrol('Style', 'edit', ...
 				'Parent',obj.hFig,  ...
 				'Position', [150, figSize(2)-platformConfigOffset-50, 140, 25], ...
 				'Max',1, ...
 				'String',"", ...
 				'HorizontalAlignment', 'left');
 
-			% Yaw offset
 			uilabel(obj.hFig, ...
 				'Position', [20, figSize(2)-platformConfigOffset-80, 140, 25], ...
-				'Text', 'Yaw offset [deg]:');
-
-			obj.hEditOffsetY=uicontrol('Style', 'edit', ...
-				'Parent',obj.hFig,  ...
-				'Position', [150, figSize(2)-platformConfigOffset-80, 140, 25], ...
-				'Max',1, ...
-				'String',"", ...
-				'HorizontalAlignment', 'left');
-
-			uilabel(obj.hFig, ...
-				'Position', [20, figSize(2)-platformConfigOffset-110, 140, 25], ...
 				'Text', 'Platform debug: ');
 
 			obj.hSwitchPlatformDebug=uiswitch('Parent', obj.hFig, ...
-				'Position', [180, figSize(2)-platformConfigOffset-110, 140, 25], ...
+				'Position', [180, figSize(2)-platformConfigOffset-80, 140, 25], ...
 				'Items', {'On', 'Off'}, ...
 				'Orientation', 'horizontal');
 
@@ -440,7 +435,7 @@ classdef preferences < handle
 				'Position', [20, figSize(2)-radarConfigOffset-80, 140, 25], ...
 				'Text', 'Chirp samples: ');
 
-				uilabel(obj.hFig, ...
+			uilabel(obj.hFig, ...
 				'Position', [250, figSize(2)-radarConfigOffset-95, 140, 25], ...
 				'Text', 'Chirp time [ms]: ');
 
@@ -478,9 +473,10 @@ classdef preferences < handle
 			uilabel(obj.hFig, ...
 				'Position', [20, figSize(2)-radarConfigOffset-170, 170, 25], ...
 				'Text', 'Lobe width pitch: ');
+
 			obj.hEditRadPatternPitch = uicontrol('Style', 'edit', ...
 				'Parent',obj.hFig,  ...
-				'Position', [150, figSize(2)-radarConfigOffset-170, 170, 25], ...
+				'Position', [150, figSize(2)-radarConfigOffset-170, 140, 25], ...
 				'Max',1, ...
 				'String',"", ...
 				'HorizontalAlignment', 'left');
@@ -491,7 +487,7 @@ classdef preferences < handle
 
 			obj.hEditTriggerPeriod = uicontrol('Style', 'edit', ...
 				'Parent',obj.hFig,  ...
-				'Position', [150, figSize(2)-radarConfigOffset-200, 170, 25], ...
+				'Position', [150, figSize(2)-radarConfigOffset-200, 140, 25], ...
 				'Max',1, ...
 				'String',"", ...
 				'HorizontalAlignment', 'left');
@@ -499,14 +495,14 @@ classdef preferences < handle
 			%% Processing settings
 
 
-			uilabel(obj.hFig, 'Position', [20, figSize(2)-processingOffset, 240, 25], 'Text', 'VISUALIZATION CONFIG', 'FontWeight','bold');
+			uilabel(obj.hFig, 'Position', [20, figSize(2)-processingOffset, 240, 25], 'Text', 'PROCESSING CONFIG', 'FontWeight','bold');
 
 			uilabel(obj.hFig, ...
 				'Position', [20, figSize(2)-processingOffset-20, 140, 25], ...
 				'Text', 'Visualization:');
 
 			obj.hDropProVisualization = uidropdown(obj.hFig, ...
-				'Position', [150, figSize(2)-processingOffset-20, 200, 25], ...
+				'Position', [150, figSize(2)-processingOffset-20, 140, 25], ...
 				'Items', obj.availableVisualization);
 
 			uilabel(obj.hFig, ...
@@ -518,10 +514,6 @@ classdef preferences < handle
 				'Position', [150, figSize(2)-processingOffset-50, 80, 25], ...
 				'Items', string(obj.availableNFFT));
 
-
-			obj.hCheckProCalcSpeed = uicheckbox('Parent', obj.hFig, ...
-				'Position',[250, figSize(2)-processingOffset-50, 170, 25], ...
-				"Text","Calculate Speed");
 
 			uilabel(obj.hFig, ...
 				'Position', [20, figSize(2)-processingOffset-80, 170, 25], ...
@@ -556,7 +548,52 @@ classdef preferences < handle
 				'String',"", ...
 				'HorizontalAlignment', 'left');
 
+			uilabel(obj.hFig, ...
+				'Position',[320, figSize(2)-processingOffset-20, 170, 25], ...
+				'Text', 'Calc speed:');
 
+			obj.hSwitchProCalcSpeed = uiswitch('Parent', obj.hFig, ...
+				'Position',[450, figSize(2)-processingOffset-20, 170, 25], ...
+				'Items', {'On', 'Off'}, ...
+				'Orientation', 'horizontal');
+
+			uilabel(obj.hFig, ...
+				'Position',[320, figSize(2)-processingOffset-50, 170, 25], ...
+				'Text', 'Calc raw cube:');
+
+			obj.hSwitchProCalcRaw = uiswitch('Parent', obj.hFig, ...
+				'Position',[450, figSize(2)-processingOffset-50, 170, 25], ...
+				'Items', {'On', 'Off'}, ...
+				'Orientation', 'horizontal');
+
+			uilabel(obj.hFig, ...
+				'Position',[320, figSize(2)-processingOffset-80, 170, 25], ...
+				'Text', 'Calc CFAR:');
+
+			obj.hSwitchProCalcCFAR = uiswitch('Parent', obj.hFig, ...
+				'Position',[450, figSize(2)-processingOffset-80, 170, 25], ...
+				'Items', {'On', 'Off'}, ...
+				'Orientation', 'horizontal');
+
+			uilabel(obj.hFig, ...
+				'Position',[320, figSize(2)-processingOffset-110, 170, 25], ...
+				'Text', 'Decay type:');
+
+			obj.hSwitchProDecayType = uiswitch('Parent', obj.hFig, ...
+				'Position',[450, figSize(2)-processingOffset-110, 170, 25], ...
+				'Items', {'Speed', 'Yaw'}, ...
+				'Orientation', 'horizontal');
+
+			uilabel(obj.hFig, ...
+				'Position', [20, figSize(2)-processingOffset-170, 140, 25], ...
+				'Text', 'Yaw reset:');
+
+			obj.hEditProResetYaw  = uicontrol('Style', 'edit', ...
+				'Parent',obj.hFig,  ...
+				'Position', [150, figSize(2)-processingOffset-170, 140, 25], ...
+				'Max',1, ...
+				'String',"", ...
+				'HorizontalAlignment', 'left');
 
 			%% Buttons
 			function reloadConfig(obj)
@@ -614,7 +651,6 @@ classdef preferences < handle
 			%% Platform config
 
 
-			set(obj.hEditOffsetD, 'String', obj.configStruct.platform.offsetDistance);
 			set(obj.hEditOffsetP, 'String', obj.configStruct.platform.offsetPitch);
 			set(obj.hEditOffsetY, 'String', obj.configStruct.platform.offsetYaw);
 
@@ -661,12 +697,35 @@ classdef preferences < handle
 				set(obj.hDropProRangeNFFT, 'Value', num2str(obj.configStruct.processing.rangeNFFT));
 			end
 
-			set(obj.hCheckProCalcSpeed, 'Value', obj.configStruct.processing.calcSpeed);
+			if(obj.configStruct.processing.calcSpeed == 1)
+				set(obj.hSwitchProCalcSpeed, 'Value', 'On');
+			else
+				set(obj.hSwitchProCalcSpeed, 'Value', 'Off');
+			end
+
+			if(obj.configStruct.processing.calcRaw == 1)
+				set(obj.hSwitchProCalcRaw, 'Value', 'On');
+			else
+				set(obj.hSwitchProCalcRaw, 'Value', 'Off');
+			end
+
+			if(obj.configStruct.processing.calcCFAR == 1)
+				set(obj.hSwitchProCalcCFAR, 'Value', 'On');
+			else
+				set(obj.hSwitchProCalcCFAR, 'Value', 'Off');
+			end
+
+			if(obj.configStruct.processing.decayType == 1)
+				set(obj.hSwitchProDecayType, 'Value', 'Speed');
+			else
+				set(obj.hSwitchProDecayType, 'Value', 'Yaw');
+			end
 
 			set(obj.hEditProCFARGuard, 'String', obj.configStruct.processing.cfarGuard);
 			set(obj.hEditProCFARTraining, 'String', obj.configStruct.processing.cfarTraining);
-			
-			
+			set(obj.hEditProResetYaw, 'String', obj.configStruct.processing.resetYaw);
+
+
 		end
 
 		function refreshSerial(obj)
@@ -685,7 +744,6 @@ classdef preferences < handle
 			err=false;
 			obj.configStruct.platform.baudrate=str2double(obj.hDropPlatformBaudrate.Value);
 
-			disp(obj.hSwitchPlatformDebug.Value);
 			if(strcmp(obj.hSwitchPlatformDebug.Value,'On'))
 				obj.configStruct.platform.debug = 1;
 			else
@@ -703,24 +761,18 @@ classdef preferences < handle
 
 
 			%% Platform config
-			tmp = str2double(get(obj.hEditOffsetD, 'String'));
-			if (isnan(tmp) || any(tmp <0)) 
-				warndlg('Offset must be a positive number');
-			else 
-				obj.configStruct.platform.offsetDistance=tmp;
-			end
 
 			tmp = str2double(get(obj.hEditOffsetP, 'String'));
-			if (isnan(tmp) || any(tmp <0)) 
+			if (isnan(tmp) || any(tmp <0))
 				warndlg('Offset must be a positive number');
-			else 
+			else
 				obj.configStruct.platform.offsetPitch=tmp;
 			end
 
 			tmp = str2double(get(obj.hEditOffsetY, 'String'));
-			if (isnan(tmp) || any(tmp <0)) 
+			if (isnan(tmp) || any(tmp <0))
 				warndlg('Offset must be a positive number');
-			else 
+			else
 				obj.configStruct.platform.offsetYaw=tmp;
 			end
 
@@ -737,21 +789,21 @@ classdef preferences < handle
 			tmp = str2double(get(obj.hEditRadPatternYaw, 'String'));
 			if (isnan(tmp) || any(tmp < 0))
 				warndlg('Lobe width must be a positive number');
-			else 
+			else
 				obj.configStruct.radar.radPatternYaw=floor(tmp);
 			end
 
 			tmp = str2double(get(obj.hEditRadPatternPitch, 'String'));
 			if (isnan(tmp)  || any(tmp<0))
 				warndlg('Lobe width must be a positive number');
-			else 
+			else
 				obj.configStruct.radar.radPatternPitch=floor(tmp);
 			end
 
 			tmp = str2double(get(obj.hEditTriggerPeriod, 'String'));
-			if (isnan(tmp) || any(tmp <0)) 
+			if (isnan(tmp) || any(tmp <0))
 				warndlg('Trigger period must be a positive number');
-			else 
+			else
 				obj.configStruct.radar.trigger=floor(tmp);
 			end
 
@@ -759,7 +811,7 @@ classdef preferences < handle
 			tmp = str2double(get(obj.hEditRadarBandwith, 'String'));
 			if isnan(tmp)
 				warndlg('Bandwidth must be a number');
-			else 
+			else
 				obj.configStruct.radar.bandwidth=floor(tmp);
 			end
 
@@ -781,20 +833,49 @@ classdef preferences < handle
 
 			obj.configStruct.processing.rangeNFFT=str2double(obj.hDropProRangeNFFT.Value);
 
-			obj.configStruct.processing.calcSpeed = double(obj.hCheckProCalcSpeed.Value);
+			if(strcmp(obj.hSwitchProCalcSpeed.Value,'On'))
+				obj.configStruct.processing.calcSpeed = 1;
+			else
+				obj.configStruct.processing.calcSpeed = 0;
+			end
+
+			if(strcmp(obj.hSwitchProCalcRaw.Value,'On'))
+				obj.configStruct.processing.calcRaw = 1;
+			else
+				obj.configStruct.processing.calcRaw = 0;
+			end
+
+			if(strcmp(obj.hSwitchProCalcCFAR.Value,'On'))
+				obj.configStruct.processing.calcCFAR = 1;
+			else
+				obj.configStruct.processing.calcCFAR = 0;
+			end
+
+			if(strcmp(obj.hSwitchProDecayType.Value,'Speed'))
+				obj.configStruct.processing.calcCFAR = 1;
+			else
+				obj.configStruct.processing.calcCFAR = 0;
+			end
 
 			tmp = str2double(get(obj.hEditProCFARGuard, 'String'));
 			if (isnan(tmp) || tmp < 0)
 				warndlg('CFAR guard size must be a positive number');
-			else 
+			else
 				obj.configStruct.processing.cfarGuard=floor(tmp);
 			end
 
 			tmp = str2double(get(obj.hEditProCFARTraining, 'String'));
 			if (isnan(tmp) || tmp < 0)
 				warndlg('CFAR training size must be a positive number');
-			else 
+			else
 				obj.configStruct.processing.cfarTraining=floor(tmp);
+			end
+
+			tmp = str2double(get(obj.hEditProResetYaw, 'String'));
+			if (isnan(tmp) || tmp < 0 || tmp > 360)
+				warndlg('CFAR training size must be a between 0 and 360');
+			else
+				obj.configStruct.processing.resetYaw=floor(tmp);
 			end
 
 			storeConfig(obj);
@@ -806,111 +887,111 @@ end
 
 
 function struct2ini(filename,Structure)
-%==========================================================================
-% Author:      Dirk Lohse ( dirklohse@web.de )
-% Version:     0.1a
-% Last change: 2008-11-13
-%==========================================================================
-%
-% struct2ini converts a given structure into an ini-file.
-% It's the opposite to Andriy Nych's ini2struct. Only
-% creating an ini-file is implemented. To modify an existing
-% file load it with ini2struct.m from:
-%       Andriy Nych ( nych.andriy@gmail.com )
-% change the structure and write it with struct2ini.
-%
-% Open file, or create new file, for writing
-% discard existing contents, if any.
-fid = fopen(filename,'w');
-sections = fieldnames(Structure);                     % returns the sections
-for k=1:length(sections)
-	section = char(sections(k));
+	%==========================================================================
+	% Author:      Dirk Lohse ( dirklohse@web.de )
+	% Version:     0.1a
+	% Last change: 2008-11-13
+	%==========================================================================
+	%
+	% struct2ini converts a given structure into an ini-file.
+	% It's the opposite to Andriy Nych's ini2struct. Only
+	% creating an ini-file is implemented. To modify an existing
+	% file load it with ini2struct.m from:
+	%       Andriy Nych ( nych.andriy@gmail.com )
+	% change the structure and write it with struct2ini.
+	%
+	% Open file, or create new file, for writing
+	% discard existing contents, if any.
+	fid = fopen(filename,'w');
+	sections = fieldnames(Structure);                     % returns the sections
+	for k=1:length(sections)
+		section = char(sections(k));
 
-	fprintf(fid,'\n[%s]\n',section);
+		fprintf(fid,'\n[%s]\n',section);
 
-	member_struct = Structure.(section);
-	if ~isempty(member_struct)
-		member_names = fieldnames(member_struct);
-		for j=1:length(member_names)
-			member_name = char(member_names(j));
-			member_value = Structure.(section).(member_name);
-			if isnumeric(member_value)
-				member_value=num2str(member_value);
-			end
+		member_struct = Structure.(section);
+		if ~isempty(member_struct)
+			member_names = fieldnames(member_struct);
+			for j=1:length(member_names)
+				member_name = char(member_names(j));
+				member_value = Structure.(section).(member_name);
+				if isnumeric(member_value)
+					member_value=num2str(member_value);
+				end
 
-			fprintf(fid,'%s=%s\n',member_name,member_value); % output member name and value
+				fprintf(fid,'%s=%s\n',member_name,member_value); % output member name and value
 
-		end % for-END (Members)
-	end % if-END
-end % for-END (sections)
-fclose(fid);
+			end % for-END (Members)
+		end % if-END
+	end % for-END (sections)
+	fclose(fid);
 
 end
 
 
 function Result = ini2struct(filename)
-%==========================================================================
-% Author: Andriy Nych ( nych.andriy@gmail.com )
-% Version:        733341.4155741782200
-%==========================================================================
-%
-% INI = ini2struct(filename)
-%
-% This function parses INI file filename and returns it as a structure with
-% section names and keys as fields.
-%
-% sections from INI file are returned as fields of INI structure.
-% Each fiels (section of INI file) in turn is structure.
-% It's fields are variables from the corrPlatformonding section of the INI file.
-%
-% If INI file contains "oprhan" variables at the beginning, they will be
-% added as fields to INI structure.
-%
-% Lines starting with ';' and '#' are ignored (comments).
-%
-% See example below for more information.
-%
-% Usually, INI files allow to put spaces and numbers in section names
-% without restrictions as long as section name is between '[' and ']'.
-% It makes people crazy to convert them to valid Matlab variables.
-% For this purpose Matlab provides GENVARNAME function, which does
-%  "Construct a valid MATLAB variable name from a given candidate".
-% See 'help genvarname' for more information.
-%
-% The INI2STRUCT function uses the GENVARNAME to convert strange INI
-% file string into valid Matlab field names.
-%
-Result = [];
-CurrMainField = '';
-f = fopen(filename,'r');
-while ~feof(f)
-	s = strtrim(fgetl(f));
-	if isempty(s)
-		continue;
-	end
-	if (s(1)==';') || (s(1)=='#')
-		continue;
-	end
-	if ( s(1)=='[' ) && (s(end)==']' )
-		CurrMainField = genvarname(s(2:end-1));
-		Result.(CurrMainField) = [];
-	else
-		[par,val] = strtok(s, '=');
-		val = CleanValue(val);
-
-		if ~isnan(str2double(val))
-			val=str2double(val);
+	%==========================================================================
+	% Author: Andriy Nych ( nych.andriy@gmail.com )
+	% Version:        733341.4155741782200
+	%==========================================================================
+	%
+	% INI = ini2struct(filename)
+	%
+	% This function parses INI file filename and returns it as a structure with
+	% section names and keys as fields.
+	%
+	% sections from INI file are returned as fields of INI structure.
+	% Each fiels (section of INI file) in turn is structure.
+	% It's fields are variables from the corrPlatformonding section of the INI file.
+	%
+	% If INI file contains "oprhan" variables at the beginning, they will be
+	% added as fields to INI structure.
+	%
+	% Lines starting with ';' and '#' are ignored (comments).
+	%
+	% See example below for more information.
+	%
+	% Usually, INI files allow to put spaces and numbers in section names
+	% without restrictions as long as section name is between '[' and ']'.
+	% It makes people crazy to convert them to valid Matlab variables.
+	% For this purpose Matlab provides GENVARNAME function, which does
+	%  "Construct a valid MATLAB variable name from a given candidate".
+	% See 'help genvarname' for more information.
+	%
+	% The INI2STRUCT function uses the GENVARNAME to convert strange INI
+	% file string into valid Matlab field names.
+	%
+	Result = [];
+	CurrMainField = '';
+	f = fopen(filename,'r');
+	while ~feof(f)
+		s = strtrim(fgetl(f));
+		if isempty(s)
+			continue;
 		end
-
-		if ~isempty(CurrMainField)
-			Result.(CurrMainField).(genvarname(par)) = val;
+		if (s(1)==';') || (s(1)=='#')
+			continue;
+		end
+		if ( s(1)=='[' ) && (s(end)==']' )
+			CurrMainField = genvarname(s(2:end-1));
+			Result.(CurrMainField) = [];
 		else
-			Result.(genvarname(par)) = val;
+			[par,val] = strtok(s, '=');
+			val = CleanValue(val);
+
+			if ~isnan(str2double(val))
+				val=str2double(val);
+			end
+
+			if ~isempty(CurrMainField)
+				Result.(CurrMainField).(genvarname(par)) = val;
+			else
+				Result.(genvarname(par)) = val;
+			end
 		end
 	end
-end
-fclose(f);
-return;
+	fclose(f);
+	return;
 	function res = CleanValue(s)
 		res = strtrim(s);
 		if strcmpi(res(1),'=')

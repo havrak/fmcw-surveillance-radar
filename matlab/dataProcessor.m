@@ -7,14 +7,14 @@ classdef dataProcessor < handle
 		isProcessing = false      % Flag to prevent overlap
 		hRadarBuffer radarBuffer; %
 		hDataCube radarDataCube;  % RadarDataCube instance
-		hPanel;
+		hPanel = [];
 
 		hImage;
 		hSurf;
 		hAxes;
 
 		hPitchSlider; % pitch slider for RA map
-		pitchIndex = 20;
+		pitchIndex = 21; 
 
 		currentDisplayMethod;
 
@@ -47,10 +47,7 @@ classdef dataProcessor < handle
 			cfarDetector.ProbabilityFalseAlarm = 1e-3;
 			
 			cfar = cfarDetector(rangeProfile, 1:processingParamters.rangeNFFT/2);
-			disp(sum(cfar));
 			
-		
-
 			tmp = diff(posYaw);
 			rawDiffYaw = abs((mod(tmp + 180, 360) - 180));
 			rawDiffPitch = abs(diff(posPitch));
@@ -161,9 +158,14 @@ classdef dataProcessor < handle
 				% obj.hImage.CData = toDraw;
 				% drawnow limitrate;
 
-				data = sum(obj.hDataCube.cube, 2);
-				toDraw = squeeze(data(:, 1, :, obj.pitchIndex)); % Transpose for dimensions [range, azimuth]
-				toDraw(1) = 50; % NOTE: just to fix color scale
+				% data = sum(obj.hDataCube.radarCube, 2);
+				% toDraw = squeeze(data(:, 1, :, obj.pitchIndex)); % Transpose for dimensions [range, azimuth]
+				% toDraw(1) = 50; % NOTE: just to fix color scale
+				% disp(sub)
+				disp(sum(obj.hDataCube.cfarCube(:)));
+				disp(obj.pitchIndex);
+				toDraw = squeeze(obj.hDataCube.cfarCube(:, :, obj.pitchIndex));
+				
 				obj.hSurf.CData = toDraw;
 				drawnow limitrate;
 			end
@@ -179,7 +181,7 @@ classdef dataProcessor < handle
 			obj.processingParamters = obj.hPreferences.getProcessingParamters();
 			visual=obj.hPreferences.getProcessingVisualization();
 			fprintf("dataProcessor | onNewConfigAvailable | Distance bin size: %f mm\n" , obj.processingParamters.rangeBinWidth*1000);
-			obj.hDataCube = radarDataCube(obj.processingParamters.rangeNFFT/2, obj.processingParamters.speedNFFT/2, radPatterH, radPatterT, 1, 1);
+			obj.hDataCube = radarDataCube(obj.processingParamters.rangeNFFT/2, obj.processingParamters.speedNFFT/2, radPatterH, radPatterT, false, true);
 			obj.hRadarBuffer = radarBuffer(floor(obj.processingParamters.speedNFFT*1.5), obj.processingParamters.rangeNFFT);
 
 
@@ -230,21 +232,21 @@ classdef dataProcessor < handle
 				obj.hRadarBuffer.lastProcesingPitch = pitch(end);
 
 
-				[yaw, pitch, cfar, rangeDoppler, speed] = dataProcessor.processBatch( ...
-					batchRangeFFTs,  ...
-					batchTimes, ...
-					posTimes, ...
-					yaw, ...
-					pitch, ...
-					obj.processingParamters);
+				% [yaw, pitch, cfar, rangeDoppler, speed] = dataProcessor.processBatch( ...
+				% 	batchRangeFFTs,  ...
+				% 	batchTimes, ...
+				% 	posTimes, ...
+				% 	yaw, ...
+				% 	pitch, ...
+				% 	obj.processingParamters);
+				% 
+				% obj.mergeResults(yaw, pitch, cfar, rangeDoppler, speed);
 
-				obj.mergeResults(yaw, pitch, cfar, rangeDoppler, speed);
 
-
-				% 	future = parfeval(obj.parallelPool, ...
-				% 		@dataProcessor.processBatch, 5, ...
-				% 		batchRangeFFTs, batchTimes, posTimes, yaw, pitch, obj.processingParamters);
-				% 	afterAll(future, @(varargin) obj.mergeResults(varargin{:}), 0);
+					future = parfeval(obj.parallelPool, ...
+						@dataProcessor.processBatch, 5, ...
+						batchRangeFFTs, batchTimes, posTimes, yaw, pitch, obj.processingParamters);
+					afterAll(future, @(varargin) obj.mergeResults(varargin{:}), 0);
 			else
 				fprintf("dataProcessor | onNewDataAvailable | processing overloaded\n");
 			end
@@ -305,7 +307,7 @@ classdef dataProcessor < handle
 
 			obj.hPitchSlider = uislider(obj.hPanel,...
 				'Limits', [obj.hDataCube.pitchBinMin obj.hDataCube.pitchBinMax],...
-				'Value', obj.pitchIndex,...
+				'Value', obj.pitchIndex-21,...
 				'ValueChangedFcn', @(src,event) obj.sliderCallback(src),...
 				'Tooltip', 'Select pitch index');
 
@@ -314,7 +316,7 @@ classdef dataProcessor < handle
 		end
 
 		function sliderCallback(obj, src)
-			obj.pitchIndex=floor(src.Value)+obj.hDataCube.pitchBinMin+1;
+			obj.pitchIndex=floor(src.Value)-obj.hDataCube.pitchBinMin+1;
 		end
 	end
 
@@ -325,12 +327,12 @@ classdef dataProcessor < handle
 			obj.hPreferences = preferencesObj;
 			obj.hPanel = panelObj;
 
-			obj.parallelPool = gcp('nocreate'); % Start parallel pool
-			
-			if isempty(obj.parallelPool)
-			 	fprintf("dataProcessor | dataProcessor | starting paraller pool\n");
-			 	obj.parallelPool = parpool(6);
-			end
+			% obj.parallelPool = gcp('nocreate'); % Start parallel pool
+			%
+			% if isempty(obj.parallelPool)
+			% 	 fprintf("dataProcessor | dataProcessor | starting paraller pool\n");
+			% 	 obj.parallelPool = parpool(6);
+			% end
 
 			% TODO -> move some of these paramters to be updateable on the fly
 			fprintf("dataProcessor | dataProcessor |  starting gui\n");
@@ -342,7 +344,7 @@ classdef dataProcessor < handle
 		end
 
 		function resizeUI(obj)
-			if ~isvalid(obj.hPanel)
+			if isempty(obj.hPanel) || ~isvalid(obj.hPanel)
 				return;
 			end
 			panelPos = get(obj.hPanel, 'Position');
@@ -362,7 +364,7 @@ classdef dataProcessor < handle
 
 			if isvalid(obj.hPitchSlider)
 					pos = get(obj.hPitchSlider,'Position');
-					pos(1:3) = [sliderMarginX sliderMarginY 80];
+					pos(1:3) = [sliderMarginX sliderMarginY 200];
 					set(obj.hPitchSlider,'Position',pos);
 			end
 

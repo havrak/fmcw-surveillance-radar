@@ -230,7 +230,7 @@ classdef platformControl < handle
 
 
 			if strncmp(line,'!P',2)
-				% [angleOffsetH, angleOffsetT, ~] = obj.hPreferences.getPlatformParamters();
+				% [angleOffsetH, angleOffsetT] = obj.hPreferences.getPlatformParamters();
 				tmp = char(line);
 				vals = strtrim(split(tmp(3:end), ','));
 
@@ -409,13 +409,13 @@ classdef platformControl < handle
 			end
 		end
 
-		function [vec] = getSpeedVector(obj, timeMin, timeMax)
-			[timestamps, yaw, pitch] = obj.getPositionsInInterval(timeMin, timeMax);
-			[~,~, r] = obj.hPreferences.getPlatformParamters();
-
-			[x,y,z] = sph2cart(yaw/180*pi, pitch/180*pi-pi, r);
-
-		end
+		% function [vec] = getSpeedVector(obj, timeMin, timeMax)
+		% 	[timestamps, yaw, pitch] = obj.getPositionsInInterval(timeMin, timeMax);
+		% 	[~,~, r] = obj.hPreferences.getPlatformParamters();
+		% 
+		% 	[x,y,z] = sph2cart(yaw/180*pi, pitch/180*pi-pi, r);
+		% 
+		% end
 
 		function [timestamps, yaw, pitch] = getPositionsInInterval(obj, timeMin, timeMax)
 			% getPositionsInInterval: returns lits of position logs that fall
