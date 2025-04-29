@@ -252,11 +252,11 @@ void StepperControl::commandSchedulerTask(void* arg)
 		// 	int64_t travelledH = steppers.getStepsTraveledOfCurrentCommand(stepperHalYaw);
 		// 	int64_t travelledT = steppers.getStepsTraveledOfCurrentCommand(stepperHalPitch);
 		// 	ESP_LOGI(TAG, "H position %lld, H traveled %lld, T position %lld, T traveled %lld", stepperOpParYaw.position, travelledH, stepperOpParPitch.position, travelledT);
-		// 	ESP_LOGI(TAG, "!P %lld, %f, %f\n", esp_timer_get_time()/1000, STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParYaw.position + travelledH, CONFIG_STEPPER_Y_STEP_COUNT), CONFIG_STEPPER_Y_STEP_COUNT), STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParPitch.position + travelledT, CONFIG_STEPPER_Y_STEP_COUNT), CONFIG_STEPPER_Y_STEP_COUNT));
+		// 	ESP_LOGI(TAG, "!P %lld, %f, %f\n", esp_timer_get_time()/1000, STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParYaw.position + travelledH, stepperHalYaw->stepCount), stepperHalYaw->stepCount), STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParPitch.position + travelledT, stepperHalYaw->stepCount), stepperHalYaw->stepCount));
 		// }
 
 
-		printf("!P %lld, %f, %f\n", esp_timer_get_time()/1000, STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParYaw.position + steppers.getStepsTraveledOfCurrentCommand(stepperHalYaw), CONFIG_STEPPER_Y_STEP_COUNT), CONFIG_STEPPER_Y_STEP_COUNT), STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParPitch.position + steppers.getStepsTraveledOfCurrentCommand(stepperHalPitch), CONFIG_STEPPER_P_STEP_COUNT), CONFIG_STEPPER_P_STEP_COUNT));
+		printf("!P %lld, %f, %f\n", esp_timer_get_time()/1000, STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParYaw.position + steppers.getStepsTraveledOfCurrentCommand(stepperHalYaw), stepperHalYaw->stepCount), stepperHalYaw->stepCount), STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParPitch.position + steppers.getStepsTraveledOfCurrentCommand(stepperHalPitch), stepperHalPitch->stepCount), stepperHalPitch->stepCount));
 		// if queues are filled we will wait
 
 		if (steppers.getQueueLength(stepperHalYaw) == CONFIG_STEPPER_YAL_QUEUE_SIZE || steppers.getQueueLength(stepperHalPitch) == CONFIG_STEPPER_YAL_QUEUE_SIZE) {
@@ -417,12 +417,12 @@ void StepperControl::commandSchedulerTask(void* arg)
 			if (command->movementYaw != nullptr) {
 				if (command->movementYaw->val.steps == 0)
 					steppers.skipStepper(stepperHalYaw, SYNCHRONIZED);
-				command->movementYaw->val.steps = unit == Unit::DEGREES ? ANGLE_TO_STEPS(command->movementYaw->val.steps, CONFIG_STEPPER_Y_STEP_COUNT) : command->movementYaw->val.steps;
+				command->movementYaw->val.steps = unit == Unit::DEGREES ? ANGLE_TO_STEPS(command->movementYaw->val.steps, stepperHalYaw->stepCount) : command->movementYaw->val.steps;
 				if (stepperOpParYaw.positioningMode == PositioningMode::ABSOLUTE) {
 #ifdef CONFIG_APP_DEBUG
 					ESP_LOGI(TAG, "commandSchedulerTask | G0 | Y absolute");
 #endif
-					command->movementYaw->val.steps = NORMALIZE_ANGLE(command->movementYaw->val.steps, CONFIG_STEPPER_Y_STEP_COUNT);
+					command->movementYaw->val.steps = NORMALIZE_ANGLE(command->movementYaw->val.steps, stepperHalYaw->stepCount);
 					stepperOpParYaw.positionLastScheduled = moveStepperAbsolute(stepperHalYaw, command->movementYaw, &stepperOpParYaw, SYNCHRONIZED);
 				} else {
 #ifdef CONFIG_APP_DEBUG
@@ -434,12 +434,12 @@ void StepperControl::commandSchedulerTask(void* arg)
 			if (command->movementPitch != nullptr) {
 				if (command->movementPitch->val.steps == 0)
 					steppers.skipStepper(stepperHalPitch, SYNCHRONIZED);
-				command->movementPitch->val.steps = unit == Unit::DEGREES ? ANGLE_TO_STEPS(command->movementPitch->val.steps, CONFIG_STEPPER_P_STEP_COUNT) : command->movementPitch->val.steps;
+				command->movementPitch->val.steps = unit == Unit::DEGREES ? ANGLE_TO_STEPS(command->movementPitch->val.steps, stepperHalPitch->stepCount) : command->movementPitch->val.steps;
 				if (stepperOpParPitch.positioningMode == PositioningMode::ABSOLUTE) {
 #ifdef CONFIG_APP_DEBUG
 					ESP_LOGI(TAG, "commandSchedulerTask | G0 | P absolute");
 #endif
-					command->movementPitch->val.steps = NORMALIZE_ANGLE(command->movementPitch->val.steps, CONFIG_STEPPER_P_STEP_COUNT);
+					command->movementPitch->val.steps = NORMALIZE_ANGLE(command->movementPitch->val.steps, stepperHalPitch->stepCount);
 					stepperOpParPitch.positionLastScheduled = moveStepperAbsolute(stepperHalPitch, command->movementPitch, &stepperOpParPitch, SYNCHRONIZED);
 				} else {
 #ifdef CONFIG_APP_DEBUG
@@ -502,21 +502,21 @@ void StepperControl::commandSchedulerTask(void* arg)
 #endif
 			if (unit == Unit::STEPS) {
 				if (command->movementYaw != nullptr) {
-					stepperOpParYaw.stepsMin = command->movementYaw->val.limits.min <= CONFIG_STEPPER_Y_STEP_COUNT ? (uint32_t)command->movementYaw->val.limits.min : CONFIG_STEPPER_Y_STEP_COUNT;
-					stepperOpParYaw.stepsMax = command->movementYaw->val.limits.max <= CONFIG_STEPPER_Y_STEP_COUNT ? (uint32_t)command->movementYaw->val.limits.max : CONFIG_STEPPER_Y_STEP_COUNT;
+					stepperOpParYaw.stepsMin = command->movementYaw->val.limits.min <= stepperHalYaw->stepCount ? (uint32_t)command->movementYaw->val.limits.min : stepperHalYaw->stepCount;
+					stepperOpParYaw.stepsMax = command->movementYaw->val.limits.max <= stepperHalYaw->stepCount ? (uint32_t)command->movementYaw->val.limits.max : stepperHalYaw->stepCount;
 				}
 				if (command->movementPitch != nullptr) {
-					stepperOpParPitch.stepsMin = command->movementPitch->val.limits.min <= CONFIG_STEPPER_P_STEP_COUNT ? (uint32_t)command->movementPitch->val.limits.min : CONFIG_STEPPER_P_STEP_COUNT;
-					stepperOpParPitch.stepsMax = command->movementPitch->val.limits.max <= CONFIG_STEPPER_P_STEP_COUNT ? (uint32_t)command->movementPitch->val.limits.max : CONFIG_STEPPER_P_STEP_COUNT;
+					stepperOpParPitch.stepsMin = command->movementPitch->val.limits.min <= stepperHalPitch->stepCount ? (uint32_t)command->movementPitch->val.limits.min : stepperHalPitch->stepCount;
+					stepperOpParPitch.stepsMax = command->movementPitch->val.limits.max <= stepperHalPitch->stepCount ? (uint32_t)command->movementPitch->val.limits.max : stepperHalPitch->stepCount;
 				}
 			} else {
 				if (command->movementYaw != nullptr) {
-					stepperOpParYaw.stepsMin = ANGLE_TO_STEPS(command->movementYaw->val.limits.min, CONFIG_STEPPER_Y_STEP_COUNT) <= CONFIG_STEPPER_Y_STEP_COUNT ? ANGLE_TO_STEPS(command->movementYaw->val.limits.min, CONFIG_STEPPER_Y_STEP_COUNT) : CONFIG_STEPPER_Y_STEP_COUNT;
-					stepperOpParYaw.stepsMax = ANGLE_TO_STEPS(command->movementYaw->val.limits.max, CONFIG_STEPPER_Y_STEP_COUNT) <= CONFIG_STEPPER_Y_STEP_COUNT ? ANGLE_TO_STEPS(command->movementYaw->val.limits.max, CONFIG_STEPPER_Y_STEP_COUNT) : CONFIG_STEPPER_Y_STEP_COUNT;
+					stepperOpParYaw.stepsMin = ANGLE_TO_STEPS(command->movementYaw->val.limits.min, stepperHalYaw->stepCount) <= stepperHalYaw->stepCount ? ANGLE_TO_STEPS(command->movementYaw->val.limits.min, stepperHalYaw->stepCount) : stepperHalYaw->stepCount;
+					stepperOpParYaw.stepsMax = ANGLE_TO_STEPS(command->movementYaw->val.limits.max, stepperHalYaw->stepCount) <= stepperHalYaw->stepCount ? ANGLE_TO_STEPS(command->movementYaw->val.limits.max, stepperHalYaw->stepCount) : stepperHalYaw->stepCount;
 				}
 				if (command->movementPitch != nullptr) {
-					stepperOpParPitch.stepsMin = ANGLE_TO_STEPS(command->movementPitch->val.limits.min, CONFIG_STEPPER_Y_STEP_COUNT) <= CONFIG_STEPPER_P_STEP_COUNT ? ANGLE_TO_STEPS(command->movementPitch->val.limits.min, CONFIG_STEPPER_Y_STEP_COUNT) : CONFIG_STEPPER_P_STEP_COUNT;
-					stepperOpParPitch.stepsMax = ANGLE_TO_STEPS(command->movementPitch->val.limits.max, CONFIG_STEPPER_Y_STEP_COUNT) <= CONFIG_STEPPER_P_STEP_COUNT ? ANGLE_TO_STEPS(command->movementPitch->val.limits.max, CONFIG_STEPPER_Y_STEP_COUNT) : CONFIG_STEPPER_P_STEP_COUNT;
+					stepperOpParPitch.stepsMin = ANGLE_TO_STEPS(command->movementPitch->val.limits.min, stepperHalYaw->stepCount) <= stepperHalPitch->stepCount ? ANGLE_TO_STEPS(command->movementPitch->val.limits.min, stepperHalYaw->stepCount) : stepperHalPitch->stepCount;
+					stepperOpParPitch.stepsMax = ANGLE_TO_STEPS(command->movementPitch->val.limits.max, stepperHalYaw->stepCount) <= stepperHalPitch->stepCount ? ANGLE_TO_STEPS(command->movementPitch->val.limits.max, stepperHalYaw->stepCount) : stepperHalPitch->stepCount;
 				}
 			}
 			break;
@@ -996,7 +996,23 @@ ParsingGCodeResult StepperControl::parseGCodeMCommands(const char* gcode, const 
 		if (getElementString(gcode, length, 3, "P", 1)) {
 			command->movementPitch = new gcode_command_movement_t(); // stepper will stop in command->movementPitch is not nullptr
 		}
-	} else if (strncmp(gcode, "M201", 4) == 0) {
+	} else if (strncmp(gcode, "M92", 3) == 0) { // set steps per unit
+#ifdef CONFIG_COMM_DEBUG
+		ESP_LOGI(TAG, "parseGCode| M92");
+#endif /* CONFIG_COMM_DEBUG */
+		command->type = GCodeCommand::M92;
+		elementInt = getElementInt(gcode, length, 4, "Y", 1);
+		if (elementInt != GCODE_ELEMENT_INVALID_INT && elementInt > 0)
+			stepperHalYaw->stepCount = elementInt;
+		else
+			return ParsingGCodeResult::INVALID_ARGUMENT;
+
+		elementInt = getElementInt(gcode, length, 4, "P", 1);
+		if (elementInt != GCODE_ELEMENT_INVALID_INT && elementInt > 0)
+			stepperHalPitch->stepCount = elementInt;
+		else
+			return ParsingGCodeResult::INVALID_ARGUMENT;
+	} else if (strncmp(gcode, "M201", 4) == 0) { // set limits for the steppers
 #ifdef CONFIG_COMM_DEBUG
 		ESP_LOGI(TAG, "parseGCode| M201");
 #endif /* CONFIG_COMM_DEBUG */

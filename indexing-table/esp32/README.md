@@ -7,7 +7,7 @@ Configuration of the device is done primarily with Kconfig under esp-idf. While 
 # Constants
 * these parameters are defined in Kconfig and will require recompilation of the firmware to change
 * STEPPER_Y_STEP_COUNT, STEPPER_P_STEP_COUNT - number of steps in a single rotation on horizontal and pitch
-	* number includes any microstepping and down/up gearing
+	* can be changed on the fly with M92 command, however changes are not persistent
 * STEPPER_Y_PIN_DIR, STEPPER_Y_PIN_STEP, STEPPER_P_PIN_DIR, STEPPER_P_PIN_STEP - pins used for direction and step signals
 * STEPPER_Y_PIN_ENDSTOP, STEPPER_P_PIN_ENDSTOP - pins used for endstop signals
 * STEPPER_MAX_SPEED - maximum speed in rpm
@@ -115,6 +115,10 @@ WARNING: DO NOT use this device without first reading the documentation. Command
 		* P - stop spindle regime on pitch
 		* NOTE: spindle mode will also automatically end if stepper receives G0 command or if another M03 command is issued
 		* if no argument is present neither axis will be stopped
+* M92: set step count on steppers
+	* Y<STEPS: set step count on Yaw
+	* P<STEPS>: set step count on Pitch
+	* default step count is defined in Kconfig
 * M201: set limits on steppers
 	* LY<ANGLE>: low limit on yaw
 	* HY<ANGLE>: high limit on horizontal Stepper
