@@ -7,9 +7,9 @@ classdef radarDataCube < handle
 		pitchBinMax=60;     % keeping dimension divisible by 8 to use AVX2
 		pitchBins;          % 1° resolution
 
-		radarCube;          % 4D matrix [Yaw x Pitch x (Fast time x Slow Time)]
-		radarCubeMap;
-		radarCubeSize;
+		rawCube;          % 4D matrix [Yaw x Pitch x (Fast time x Slow Time)]
+		rawCubeMap;
+		rawCubeSize;
 
 		cfarCube;          % 4D matrix [Yaw x Pitch x (Fast time x Slow Time)]
 		cfarCubeMap;
@@ -73,11 +73,11 @@ classdef radarDataCube < handle
 			disp("Test");
 		end
 
-		function processBatch(buffer, antennaPattern, radarCubeSize, yawBins, pitchBins, processRaw, processCFAR, decay)
+		function processBatch(buffer, antennaPattern, rawCubeSize, yawBins, pitchBins, processRaw, processCFAR, decay)
 			%% Updating cube for raw data
 			if(processRaw)
-				m = memmapfile('radarCube.dat', ...
-					'Format', {'single', radarCubeSize, 'radarCube'}, ...
+				m = memmapfile('rawCube.dat', ...
+					'Format', {'single', rawCubeSize, 'rawCube'}, ...
 					'Writable', true, ...
 					'Repeat', 1);
 
@@ -113,16 +113,16 @@ classdef radarDataCube < handle
 				pitchIndices = minPitch:maxPitch;
 
 
-				% --- 2. Initialize subradarCube for new contributions ---
+				% --- 2. Initialize subrawCube for new contributions ---
 				subCube = zeros(...
-					radarCubeSize(1), ...
-					radarCubeSize(2), ...
+					rawCubeSize(1), ...
+					rawCubeSize(2), ...
 					length(yawIndices), ...
 					length(pitchIndices), ...
 					'single' ...
 					);
 
-				% fprintf("SubradarCube size:");
+				% fprintf("SubrawCube size:");
 				% disp(size(subCube));
 
 				% time = toc(time);
@@ -135,12 +135,12 @@ classdef radarDataCube < handle
 
 				% buffer.decay(buffer.decay == 0) = 1;
 
-				% --- 3. Apply updates into subradarCube ---
-				% fprintf(fid, "[BATCH] starting subradarCube processing\n");
+				% --- 3. Apply updates into subrawCube ---
+				% fprintf(fid, "[BATCH] starting subrawCube processing\n");
 
 				yawMap = containers.Map('KeyType', 'double', 'ValueType', 'double');
 				for i = 1:length(yawIndices)
-					yawMap(yawIndices(i)) = i; % Maps original yaw index to subradarCube position
+					yawMap(yawIndices(i)) = i; % Maps original yaw index to subrawCube position
 				end
 
 				for i = 1:numel(buffer.yawIdx)
@@ -148,7 +148,7 @@ classdef radarDataCube < handle
 					yaw = buffer.yawIdx(i);
 					pitch = buffer.pitchIdx(i);
 
-					% --- 3.1 Reindex from radarCube into subradarCube ---
+					% --- 3.1 Reindex from rawCube into subrawCube ---
 					validYaw = mod((yaw - halfYaw : yaw + halfYaw) - 1, length(yawBins)) + 1;
 					localYaw = arrayfun(@(x) yawMap(x), validYaw);
 
@@ -174,7 +174,7 @@ classdef radarDataCube < handle
 					% time2 = tic;
 
 
-					% --- 3.4 Update subradarCube with contribution ---
+					% --- 3.4 Update subrawCube with contribution ---
 					%%subCube(:, :, localYaw, localPitch) = ...
 					%	subCube( :, :, localYaw, localPitch) + contribution;
 					scripts.updateCube(subCube, contribution, localYaw, localPitch);
@@ -189,20 +189,20 @@ classdef radarDataCube < handle
 				end
 			
 
-				% --- 4. Decay radarCube ---
+				% --- 4. Decay rawCube ---
 				if(decay)
 					batchDecay = single(prod([buffer.decay]));
-					scripts.decayCube_avx2(m.Data.radarCube, batchDecay); % speed varies widely, probalby due to non consistent memory managment
+					scripts.decayCube_avx2(m.Data.rawCube, batchDecay); % speed varies widely, probalby due to non consistent memory managment
 				end
 				
 				% --- 5. Merge data ---
-				scripts.updateCube(m.Data.radarCube, subCube, yawIndices, pitchIndices);
-				% m.Data.radarCube(:, :,yawIndices, pitchIndices) = m.Data.radarCube( :, :,yawIndices, pitchIndices) + subCube;
+				scripts.updateCube(m.Data.rawCube, subCube, yawIndices, pitchIndices);
+				% m.Data.rawCube(:, :,yawIndices, pitchIndices) = m.Data.rawCube( :, :,yawIndices, pitchIndices) + subCube;
 			end
 
 			%% Updating cube for CFAR data
 			if(processCFAR)
-				cfarCubeSize=radarCubeSize([1 3 4]);
+				cfarCubeSize=rawCubeSize([1 3 4]);
 				m = memmapfile('cfarCube.dat', ...
 					'Format', {'single', cfarCubeSize, 'cfarCube'}, ...
 					'Writable', true, ...
@@ -247,7 +247,7 @@ classdef radarDataCube < handle
 			obj.keepRaw = keepRaw;
 			obj.keepCFAR = keepCFAR;
 			obj.decay = decay;
-			obj.radarCubeSize = [ ...
+			obj.rawCubeSize = [ ...
 				numRangeBins, ...
 				numDopplerBins ...
 				length(obj.yawBins), ...
@@ -259,26 +259,26 @@ classdef radarDataCube < handle
 
 
 
-				if ~exist('radarCube.dat', 'file')
+				if ~exist('rawCube.dat', 'file')
 					% TODO: this is linux only, would be nice to fix
-					system('fallocate -l 256M radarCube.dat');
+					system('fallocate -l 256M rawCube.dat');
 				end
 
-				fprintf("radarDataCube | radarDataCube | Initializing radarCube with yaw %f, pitch %f, range %d, doppler %f\n", length(obj.yawBins), length(obj.pitchBins), numRangeBins, numDopplerBins)
+				fprintf("radarDataCube | radarDataCube | Initializing rawCube with yaw %f, pitch %f, range %d, doppler %f\n", length(obj.yawBins), length(obj.pitchBins), numRangeBins, numDopplerBins)
 
 				obj.bufferA.rangeDoppler = zeros([numRangeBins, numDopplerBins, obj.batchSize], 'single');
 				obj.bufferB.rangeDoppler = zeros([numRangeBins, numDopplerBins, obj.batchSize], 'single');
 
 
 				% Create memory map
-				obj.radarCubeMap = memmapfile('radarCube.dat', ...
-					'Format', {'single', obj.radarCubeSize, 'radarCube'}, ...
+				obj.rawCubeMap = memmapfile('rawCube.dat', ...
+					'Format', {'single', obj.rawCubeSize, 'rawCube'}, ...
 					'Writable', true, ...
 					'Repeat', 1);
 
 
-				scripts.zeroCube(obj.radarCubeMap.Data.radarCube);
-				obj.radarCube = obj.radarCubeMap.Data.radarCube;
+				scripts.zeroCube(obj.rawCubeMap.Data.rawCube);
+				obj.rawCube = obj.rawCubeMap.Data.rawCube;
 			end
 
 			%% Initialize radar cube for cfar
@@ -290,9 +290,10 @@ classdef radarDataCube < handle
 				if ~exist('cfarCube.dat', 'file')
 					system('fallocate -l 64M cfarCube.dat');
 				end
+				
 				% Create memory map
 				obj.cfarCubeMap = memmapfile('cfarCube.dat', ...
-					'Format', {'single', obj.radarCubeSize([1 3 4]), 'cfarCube'}, ...
+					'Format', {'single', obj.rawCubeSize([1 3 4]), 'cfarCube'}, ...
 					'Writable', true, ...
 					'Repeat', 1);
 
@@ -310,7 +311,7 @@ classdef radarDataCube < handle
 			[~, pitchIdx] = min(abs(obj.pitchBins - pitch));
 			decay = exp(-speed/100);
 
-			fprintf("radarDataCube | addData | adding to radarCube %d: yaw %f, pitch %f, decay %f\n", obj.bufferActiveWriteIdx, yaw, pitch, decay);
+			fprintf("radarDataCube | addData | adding to rawCube %d: yaw %f, pitch %f, decay %f\n", obj.bufferActiveWriteIdx, yaw, pitch, decay);
 
 			obj.bufferA.yawIdx(obj.bufferActiveWriteIdx) = yawIdx;
 			obj.bufferA.pitchIdx(obj.bufferActiveWriteIdx) = pitchIdx;
@@ -356,13 +357,13 @@ classdef radarDataCube < handle
 			obj.bufferB = processingBuffer; % Assign to processing buffer
 			obj.bufferActiveWriteIdx = 1;
 
-			% future = parfeval(gcp, @radarDataCube.processBatch, 0, processingBuffer, obj.antennaPattern, obj.radarCubeSize, obj.yawBins, obj.pitchBins, obj.keepRaw, obj.keepCFAR);
+			% future = parfeval(gcp, @radarDataCube.processBatch, 0, processingBuffer, obj.antennaPattern, obj.rawCubeSize, obj.yawBins, obj.pitchBins, obj.keepRaw, obj.keepCFAR);
 			
 
 			% NOTE: main thread execution for debug
 			radarDataCube.processBatch(processingBuffer, ...
 				obj.antennaPattern, ...
-				obj.radarCubeSize, ...
+				obj.rawCubeSize, ...
 				obj.yawBins, ...
 				obj.pitchBins, ...
 				obj.keepRaw, ...
@@ -379,7 +380,7 @@ classdef radarDataCube < handle
 				scripts.zeroCube(obj.cfarCube)
 			end
 			if obj.keepRaw
-				scripts.zeroCube(obj.radarCube)
+				scripts.zeroCube(obj.rawCube)
 			end
 		end
 

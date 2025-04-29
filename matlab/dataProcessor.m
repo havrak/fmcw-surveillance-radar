@@ -7,11 +7,11 @@ classdef dataProcessor < handle
 		isProcessing = false      % Flag to prevent overlap
 		hRadarBuffer radarBuffer; %
 		hDataCube radarDataCube;  % RadarDataCube instance
+		
 		hPanel = [];
-
-		hImage;
-		hSurf;
-		hAxes;
+		hSurf = [];
+		hAxes = [];
+		hScatter3D = [];
 
 		hPitchSlider; % pitch slider for RA map
 		pitchIndex = 21;
@@ -151,30 +151,41 @@ classdef dataProcessor < handle
 
 				fprintf("dataProcessor | updateFinished | drawing r-a map\n");
 
-				% data = sum(obj.hDataCube.cube, 2);
-				% % Extract the slice for pitch 20 (now dimension 4)
-				% % Note: we need to take the 3D slice and then squeeze to 2D
-				%
-				%
-				% toDraw = squeeze(data(:, 1, :, 20));
-				% toDraw(1) = 40;
-				% % toDraw(toDraw < -80) = -Inf;
-				%
-				% fprintf("onCubeUpdateFinished | Min value %f\n", min(toDraw(:)));
-				% obj.hImage.CData = toDraw;
-				% drawnow limitrate;
-
-				% data = sum(obj.hDataCube.radarCube, 2);
-				% toDraw = squeeze(data(:, 1, :, obj.pitchIndex)); % Transpose for dimensions [range, azimuth]
-				% toDraw(1) = 50; % NOTE: just to fix color scale
-				% disp(sub)
-				disp(sum(obj.hDataCube.cfarCube(:)));
-				disp(obj.pitchIndex);
-				toDraw = squeeze(obj.hDataCube.cfarCube(:, :, obj.pitchIndex));
+				if obj.processingParamters.calcRaw && obj.processingParamters.calcCFAR
+					data = sum(obj.hDataCube.rawCube, 2);
+					toDraw = squeeze(data(:, 1, :, obj.pitchIndex));
+					cfarData = squeeze(obj.hDataCube.cfarCube(:, :, obj.pitchIndex));
+					toDraw = toDraw+cfarData.*max(toDraw);
+				elseif obj.processingParamters.calcRaw
+					data = sum(obj.hDataCube.rawCube, 2);
+					toDraw = squeeze(data(:, 1, :, obj.pitchIndex));
+				elseif obj.processingParamters.calcCFAR
+					toDraw = squeeze(obj.hDataCube.cfarCube(:, :, obj.pitchIndex));
+				end
 
 				obj.hSurf.CData = toDraw;
-				drawnow limitrate;
+			elseif strcmp(obj.currentVisualizationStyle, 'Target-3D')
+				fprintf("dataProcessor | updateFinished | updating 3D plot\n");
+
+				[rangeBin, yawBin, pitchBin] = ind2sub(size(obj.hDataCube.cfarCube), find(obj.hDataCube.cfarCube));
+
+				if ~isempty(rangeBin)
+					range = (rangeBin - 1) * obj.processingParamters.rangeBinWidth;
+					yaw = obj.hDataCube.yawBins(yawBin);
+					pitch = obj.hDataCube.pitchBins(pitchBin);
+
+					X = range .* cosd(pitch) .* cosd(yaw);
+					Y = range .* cosd(pitch) .* sind(yaw);
+					Z = range .* sind(pitch);
+
+					set(obj.hScatter3D, 'XData', X, 'YData', Y, 'ZData', Z, 'CData', range);
+					clim(obj.hAxes, [min(range), max(range)]);
+				else
+					set(obj.hScatter3D, 'XData', [], 'YData', [], 'ZData', []);
+				end
 			end
+
+			drawnow limitrate;
 		end
 
 		function onPlatformTriggerYawHit(obj)
@@ -208,10 +219,16 @@ classdef dataProcessor < handle
 
 			if strcmp(visual, 'Range-Azimuth') && ~strcmp(obj.currentVisualizationStyle, 'Range-Azimuth')
 				fprintf("dataProcessor | onNewConfigAvailable | visualizing as yaw-range map.\n")
-
 				obj.currentVisualizationStyle = 'Range-Azimuth';
 				obj.deinitializeDisplay();
 				obj.initializeARDisplay();
+			end
+
+			if strcmp(visual, 'Target-3D') && ~strcmp(obj.currentVisualizationStyle, 'Target-3D')
+				fprintf("dataProcessor | onNewConfigAvailable | visualizing CFAR in 3D.\n")
+				obj.currentVisualizationStyle = 'Target-3D';
+				obj.deinitializeDisplay();
+				obj.initialize3DDisplay();
 			end
 
 
@@ -219,12 +236,6 @@ classdef dataProcessor < handle
 		end
 
 		function onNewDataAvailable(obj)
-			% Called automatically when radar data arrives
-			% TODO: add chirp to buffer -> run processing on buffer
-			% on addition to chirps processing will also get data about positions
-
-
-			% fprintf("onNewDataAvailable | busy workers %f\n", obj.parallelPool.Busy);
 			obj.hRadarBuffer.addChirp(obj.hRadar.bufferI(:, obj.readIdx), ...
 				obj.hRadar.bufferQ(:, obj.readIdx), ...
 				obj.hRadar.bufferTime(obj.readIdx));
@@ -240,10 +251,10 @@ classdef dataProcessor < handle
 
 			diffYaw = abs((mod(yaw(end)-obj.hRadarBuffer.lastProcesingYaw + 180, 360) - 180));
 			distance = sqrt(diffYaw^2 + (pitch(end)-obj.hRadarBuffer.lastProcesingPitch)^2);
-			if distance < 2
-				% I can process every single frame without issue but since I have
-				% trouble with getting the visualizations to be pretty I'm skipping
-				% those frames where positions didn't chaged much
+			if distance < 1
+				% I can process every single frame without issue but there no need
+				% to process frames where position has not changed, this data is
+				% only usefull for speed calculation
 				return;
 			end
 
@@ -280,9 +291,6 @@ classdef dataProcessor < handle
 			if ~isempty(obj.hAxes) && isvalid(obj.hAxes)
 				delete(obj.hAxes);
 			end
-			if ~isempty(obj.hImage) && isvalid(obj.hImage)
-				delete(obj.hImage);
-			end
 			if ~isempty(obj.hSurf) && isvalid(obj.hSurf)
 				delete(obj.hSurf);
 			end
@@ -290,7 +298,6 @@ classdef dataProcessor < handle
 				delete(obj.hPitchSlider);
 			end
 			obj.hAxes = [];
-			obj.hImage = [];
 			obj.hSurf = [];
 			obj.hPitchSlider = [];
 		end
@@ -324,6 +331,7 @@ classdef dataProcessor < handle
 			view(obj.hAxes, 2);
 			axis(obj.hAxes, 'equal', 'off');
 			colormap(obj.hAxes, 'jet');
+
 			title(obj.hAxes, 'Azimuth-Range Polar Map');
 
 			obj.hPitchSlider = uislider(obj.hPanel,...
@@ -334,6 +342,27 @@ classdef dataProcessor < handle
 
 
 			obj.resizeUI();
+		end
+
+		function initialize3DDisplay(obj)
+			obj.hAxes = axes('Parent', obj.hPanel, ...
+				'Units', 'pixels');
+			obj.hScatter3D = scatter3(obj.hAxes, [], [], [], [], 'filled');
+			colormap(obj.hAxes, 'jet');
+			xlabel(obj.hAxes, 'X (m)');
+			ylabel(obj.hAxes, 'Y (m)');
+			zlabel(obj.hAxes, 'Z (m)');
+			title(obj.hAxes, '3D Target Visualization');
+			view(obj.hAxes, 3);
+			grid(obj.hAxes, 'on');
+			axis(obj.hAxes, 'equal');
+			% colorbar(obj.hAxes);
+			obj.resizeUI();
+			maxRange = obj.processingParamters.rangeNFFT/2* obj.processingParamters.rangeBinWidth;
+			xlim(obj.hAxes, [-maxRange, maxRange]);
+			ylim(obj.hAxes, [-maxRange, maxRange]);
+			zlim(obj.hAxes, [-maxRange* sind(obj.hDataCube.pitchBinMin), maxRange* sind(obj.hDataCube.pitchBinMax)]);
+			
 		end
 
 		function sliderCallback(obj, src)
@@ -349,10 +378,10 @@ classdef dataProcessor < handle
 			obj.hPanel = panelObj;
 
 			% obj.parallelPool = gcp('nocreate'); % Start parallel pool
-			%
+			% 
 			% if isempty(obj.parallelPool)
-			% 	 fprintf("dataProcessor | dataProcessor | starting paraller pool\n");
-			% 	 obj.parallelPool = parpool(6);
+			% 	fprintf("dataProcessor | dataProcessor | starting paraller pool\n");
+			% 	obj.parallelPool = parpool(6);
 			% end
 
 			% TODO -> move some of these paramters to be updateable on the fly
@@ -384,15 +413,12 @@ classdef dataProcessor < handle
 				axis(obj.hAxes, 'equal');
 			end
 
-			if isvalid(obj.hPitchSlider)
+			if ~isempty(obj.hPitchSlider) && isvalid(obj.hPitchSlider)
 				pos = get(obj.hPitchSlider,'Position');
 				pos(1:3) = [sliderMarginX sliderMarginY 200];
 				set(obj.hPitchSlider,'Position',pos);
 			end
 
-			% if isvalid(obj.hSurf)
-			%caxis(obj.hAxes, 'auto');
-			%end
 		end
 
 		function endProcesses(obj)

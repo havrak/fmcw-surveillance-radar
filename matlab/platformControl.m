@@ -392,7 +392,7 @@ classdef platformControl < handle
 
 	methods(Access=public)
 
-		function obj = platformControl(hPreferences, startTime)
+		function obj = platformControl(preferencesObj, startTime)
 			% platformControl: constructor for the platformControl class
 			%
 			% INPUT:
@@ -400,7 +400,7 @@ classdef platformControl < handle
 			% startTime ... output of tic command, timestamp to which all others
 			% are calculated from
 
-			obj.hPreferences = hPreferences;
+			obj.hPreferences = preferencesObj;
 			obj.startTime = startTime;
 			obj.programs = obj.hPreferences.getPrograms();
 			obj.positionTimes = zeros(obj.bufferSize, 1);

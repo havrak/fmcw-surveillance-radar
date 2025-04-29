@@ -345,7 +345,7 @@ classdef preferences < handle
 			processingOffset = 490;
 
 			fprintf('Preferences | constructGUI | starting gui constructions');
-			figSize = [600, 800];
+			figSize = [620, 800];
 			screenSize = get(groot, 'ScreenSize');
 			obj.hFig = uifigure('Name','Preferences', ...
 				'Position', [(screenSize(3:4) - figSize)/2, figSize], ...
@@ -621,11 +621,11 @@ classdef preferences < handle
 
 			uilabel(obj.hFig, ...
 				'Position',[320, figSize(2)-processingOffset-110, 170, 25], ...
-				'Text', 'Decay type:');
+				'Text', 'Old removal:');
 
 			obj.hSwitchProDecayType = uiswitch('Parent', obj.hFig, ...
 				'Position',[450, figSize(2)-processingOffset-110, 170, 25], ...
-				'Items', {'Speed', 'Yaw'}, ...
+				'Items', {'Decay', 'Yaw'}, ...
 				'Orientation', 'horizontal');
 
 			uilabel(obj.hFig, ...
@@ -763,7 +763,7 @@ classdef preferences < handle
 			end
 
 			if(obj.configStruct.processing.decayType == 1)
-				set(obj.hSwitchProDecayType, 'Value', 'Speed');
+				set(obj.hSwitchProDecayType, 'Value', 'Decay');
 			else
 				set(obj.hSwitchProDecayType, 'Value', 'Yaw');
 			end
@@ -918,7 +918,7 @@ classdef preferences < handle
 				obj.configStruct.processing.calcCFAR = 0;
 			end
 
-			if(strcmp(obj.hSwitchProDecayType.Value,'Speed'))
+			if(strcmp(obj.hSwitchProDecayType.Value,'Decay'))
 				obj.configStruct.processing.calcCFAR = 1;
 			else
 				obj.configStruct.processing.calcCFAR = 0;
