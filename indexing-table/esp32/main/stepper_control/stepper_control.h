@@ -109,6 +109,7 @@ enum GCodeCommand : uint8_t {
 	G0,		// move stepper 													DONE	DONE	DONE
 	M03,	// start spindle 													DONE	DONE	DONE
 	M05,	// stop spindle 													DONE	DONE	DONE
+	M92,  // set steps per revolution 						  DONE	DONE	DONE
 	M201, // set limits 														DONE	DONE	DONE
 	M202, // disable limits 												DONE	DONE	DONE
 	P0,		// stop programm execution 								DONE	XXX		DONE

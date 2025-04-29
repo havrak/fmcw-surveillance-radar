@@ -773,6 +773,26 @@ ParsingGCodeResult StepperControl::parseGCodeNonScheduledCommands(const char* gc
 		}
 		return ParsingGCodeResult::SUCCESS;
 
+	} else if (strncmp(gcode, "M92", 3) == 0) { // set steps per unit
+#ifdef CONFIG_COMM_DEBUG
+		ESP_LOGI(TAG, "parseGCode| M92");
+#endif /* CONFIG_COMM_DEBUG */
+		elementInt = getElementInt(gcode, length, 4, "Y", 1);
+		if (elementInt != GCODE_ELEMENT_INVALID_INT && elementInt > 0)
+			stepperHalYaw->stepCount = elementInt;
+		else
+			return ParsingGCodeResult::INVALID_ARGUMENT;
+
+		elementInt = getElementInt(gcode, length, 4, "P", 1);
+		if (elementInt != GCODE_ELEMENT_INVALID_INT && elementInt > 0)
+			stepperHalPitch->stepCount = elementInt;
+		else
+			return ParsingGCodeResult::INVALID_ARGUMENT;
+
+#ifdef CONFIG_COMM_DEBUG
+		fprintf(stderr, "parseGCode| M92 | Y: %d, P: %d\n", stepperHalYaw->stepCount, stepperHalPitch->stepCount);
+#endif /* CONFIG_COMM_DEBUG */
+		return ParsingGCodeResult::SUCCESS;
 	} else if (strncmp(gcode, "P0", 2) == 0) { // stop programm execution
 #ifdef CONFIG_COMM_DEBUG
 		ESP_LOGI(TAG, "parseGCode| P0");
@@ -996,22 +1016,6 @@ ParsingGCodeResult StepperControl::parseGCodeMCommands(const char* gcode, const 
 		if (getElementString(gcode, length, 3, "P", 1)) {
 			command->movementPitch = new gcode_command_movement_t(); // stepper will stop in command->movementPitch is not nullptr
 		}
-	} else if (strncmp(gcode, "M92", 3) == 0) { // set steps per unit
-#ifdef CONFIG_COMM_DEBUG
-		ESP_LOGI(TAG, "parseGCode| M92");
-#endif /* CONFIG_COMM_DEBUG */
-		command->type = GCodeCommand::M92;
-		elementInt = getElementInt(gcode, length, 4, "Y", 1);
-		if (elementInt != GCODE_ELEMENT_INVALID_INT && elementInt > 0)
-			stepperHalYaw->stepCount = elementInt;
-		else
-			return ParsingGCodeResult::INVALID_ARGUMENT;
-
-		elementInt = getElementInt(gcode, length, 4, "P", 1);
-		if (elementInt != GCODE_ELEMENT_INVALID_INT && elementInt > 0)
-			stepperHalPitch->stepCount = elementInt;
-		else
-			return ParsingGCodeResult::INVALID_ARGUMENT;
 	} else if (strncmp(gcode, "M201", 4) == 0) { // set limits for the steppers
 #ifdef CONFIG_COMM_DEBUG
 		ESP_LOGI(TAG, "parseGCode| M201");
