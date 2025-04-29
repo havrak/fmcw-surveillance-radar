@@ -23,7 +23,7 @@ classdef platformControl < handle
 
 		% OTHER VARS%
 		hPreferences preferences;
-		hSerial;
+		hSerial = [];
 		programs;
 		currentProgramName;
 
@@ -32,6 +32,15 @@ classdef platformControl < handle
 		positionYaw;        % Array of yaw positions
 		positionPitch;      % Array of pitch positions
 		currentIdx double = 1;
+		
+		angleOffsetYaw = 0;
+		angleOffsetPitch = 0;
+		stepCountYaw = 200;
+		stepCountPitch = 200;
+		angleTriggerYaw =10000;
+		angleTriggerYawTorelance = 2; % how far can we be for trigger to trigger
+		angleTriggerYawTimestamp = 0; % just for debounce
+		
 
 		log cell = {};
 		startTime uint64;
@@ -39,8 +48,9 @@ classdef platformControl < handle
 	end
 
 	events
-		platformPositionChanged; % notify on position change
+		positionTriggerHit; % notify on position change
 	end
+
 	methods(Access=private)
 
 		function constructGUI(obj)
@@ -139,7 +149,7 @@ classdef platformControl < handle
 
 			fprintf('PlatformControl | constructGUI | GUI constructed\n');
 
-			set(obj.hFig,		'SizeChangedFcn', @(src, event) obj.resizeUI());
+			set(obj.hFig,	'SizeChangedFcn', @(src, event) obj.resizeUI());
 
 			loadProgram(obj);
 		end
@@ -230,19 +240,25 @@ classdef platformControl < handle
 
 
 			if strncmp(line,'!P',2)
-				% [angleOffsetH, angleOffsetT] = obj.hPreferences.getPlatformParamters();
 				tmp = char(line);
 				vals = strtrim(split(tmp(3:end), ','));
 
 				obj.positionTimes(obj.currentIdx) = toc(obj.startTime);
-				% obj.positionYaw(obj.currentIdx) = str2double(vals{2})-angleOffsetH;
-				% obj.positionPitch(obj.currentIdx) = str2double(vals{3})-angleOffsetT;
+				obj.positionYaw(obj.currentIdx) = mod(str2double(vals{2})-obj.angleOffsetYaw,360);
+				obj.positionPitch(obj.currentIdx) = str2double(vals{3})-obj.angleOffsetPitch;
 
 
 
 				obj.positionYaw(obj.currentIdx) = str2double(vals{2});
 				obj.positionPitch(obj.currentIdx) = str2double(vals{3});
 				obj.currentIdx = mod(obj.currentIdx, obj.bufferSize) + 1;
+
+				if(mod(obj.positionYaw(obj.currentIdx) - obj.angleTriggerYaw, 360) <= 2*obj.angleTriggerYawTorelance)
+					if toc(obj.angleTriggerYawTimestamp) > 1
+						obj.angleTriggerYawTimestamp = tic;
+						notify(obj, 'positionTriggerHit');
+					end
+				end
 
 				return;
 			elseif strncmp(line,'!R',2)
@@ -355,6 +371,23 @@ classdef platformControl < handle
 			flush(obj.hSerial);
 		end
 
+		function onNewConfigAvailable(obj)
+			[obj.angleOffsetYaw, obj.angleOffsetPitch, localStepCountYaw, localStepCountPitch] = obj.hPreferences.getPlatformParamters();
+			if obj.hPreferences.getDecayType() == 0
+				obj.angleTriggerYaw = mod(obj.hPreferences.getTriggerYaw()-obj.angleTriggerYawTorelance, 360);
+			else
+				obj.angleTriggerYaw = 10000;
+			end
+
+			if ~isempty(obj.hSerial) && ((localStepCountYaw ~= obj.stepCountYaw) || (localStepCountPitch ~= obj.stepCountPitch)) 
+				obj.stepCountPitch = localStepCountPitch;
+				obj.stepCountYaw = localStepCountYaw;
+				command = "M92 Y"+obj.stepCountYaw + " P"+obk.stepCountPitch;
+				flush(obj.hSerial);
+				writeline(obj.hSerial, command);
+			end
+		end
+
 	end
 
 	methods(Access=public)
@@ -373,6 +406,10 @@ classdef platformControl < handle
 			obj.positionTimes = zeros(obj.bufferSize, 1);
 			obj.positionYaw = zeros(obj.bufferSize, 1);
 			obj.positionPitch = zeros(obj.bufferSize, 1);
+
+			obj.onNewConfigAvailable();
+			addlistener(preferencesObj, 'newConfigEvent', @(~,~) obj.onNewConfigAvailable());
+
 		end
 
 		function endProcesses(obj)
@@ -399,7 +436,11 @@ classdef platformControl < handle
 				fprintf("platFormControl | setupSerial | port: %s, baud: %f\n", port, baudrate)
 				obj.hSerial = serialport(port, baudrate, "Timeout", 5);
 				configureTerminator(obj.hSerial,"CR");
+			
+				command = "M92 Y"+obj.stepCountYaw + " P"+obj.stepCountPitch; % send step count
 				flush(obj.hSerial);
+				writeline(obj.hSerial, command);
+			
 				fprintf("platFormControl | setupSerial | starting thread\n");
 				configureCallback(obj.hSerial, "terminator", @(src, ~) obj.processIncommingData(src))
 				status = true;

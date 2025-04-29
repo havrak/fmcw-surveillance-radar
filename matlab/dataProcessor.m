@@ -14,13 +14,14 @@ classdef dataProcessor < handle
 		hAxes;
 
 		hPitchSlider; % pitch slider for RA map
-		pitchIndex = 21; 
+		pitchIndex = 21;
 
 		currentDisplayMethod;
 
 		readIdx = 1;
 
 		radarBufferSize = 100;
+		decayType = 1;
 		processingParamters;
 		calcSpeed = 0;
 		currentVisualizationStyle = '';
@@ -40,24 +41,29 @@ classdef dataProcessor < handle
 			lastFFT = abs(batchRangeFFTs(:,end))';
 			rangeProfile = lastFFT(1:processingParamters.rangeNFFT/2);
 			rangeProfile = ((rangeProfile.^2).*distance.^4)';
-			
+
 			cfarDetector = phased.CFARDetector('NumTrainingCells',processingParamters.cfarTraining, ...
 				'NumGuardCells',processingParamters.cfarGuard);
 			cfarDetector.ThresholdFactor = 'Auto';
 			cfarDetector.ProbabilityFalseAlarm = 1e-3;
-			
+
 			cfar = cfarDetector(rangeProfile, 1:processingParamters.rangeNFFT/2);
-			
+
 			tmp = diff(posYaw);
 			rawDiffYaw = abs((mod(tmp + 180, 360) - 180));
 			rawDiffPitch = abs(diff(posPitch));
 
-
-			if ~processingParamters.calcSpeed
-
-
+			if ~processingParamters.calcRaw
 				timeElapsed = posTimes(end) - posTimes(1);
 				speed = sqrt((sum(rawDiffYaw)^2 + sum(rawDiffPitch)^2)) / (timeElapsed + 1e-6); % speed falls to zero for some reason
+				return;
+			end
+
+			if ~processingParamters.calcSpeed
+				timeElapsed = posTimes(end) - posTimes(1);
+				speed = sqrt((sum(rawDiffYaw)^2 + sum(rawDiffPitch)^2)) / (timeElapsed + 1e-6); % speed falls to zero for some reason
+
+
 
 				% fprintf("No speed calculations, exitting\n");
 				rangeDoppler = [zeros(processingParamters.rangeNFFT/2, (processingParamters.speedNFFT/2)-1), rangeProfile];
@@ -165,9 +171,15 @@ classdef dataProcessor < handle
 				disp(sum(obj.hDataCube.cfarCube(:)));
 				disp(obj.pitchIndex);
 				toDraw = squeeze(obj.hDataCube.cfarCube(:, :, obj.pitchIndex));
-				
+
 				obj.hSurf.CData = toDraw;
 				drawnow limitrate;
+			end
+		end
+
+		function onPlatformTriggerYawHit(obj)
+			if obj.decayType == 0
+				obj.hDataCube.zeroCubes();
 			end
 		end
 
@@ -181,7 +193,16 @@ classdef dataProcessor < handle
 			obj.processingParamters = obj.hPreferences.getProcessingParamters();
 			visual=obj.hPreferences.getProcessingVisualization();
 			fprintf("dataProcessor | onNewConfigAvailable | Distance bin size: %f mm\n" , obj.processingParamters.rangeBinWidth*1000);
-			obj.hDataCube = radarDataCube(obj.processingParamters.rangeNFFT/2, obj.processingParamters.speedNFFT/2, radPatterH, radPatterT, false, true);
+			obj.decayType = obj.hPreferences.getDecayType();
+			obj.hDataCube = radarDataCube( ...
+				obj.processingParamters.rangeNFFT/2, ...
+				obj.processingParamters.speedNFFT/2, ...
+				radPatterH, ...
+				radPatterT, ...
+				obj.processingParamters.calcRaw , ...
+				obj.processingParamters.calcCFAR, ...
+				obj.decayType ...
+				);
 			obj.hRadarBuffer = radarBuffer(floor(obj.processingParamters.speedNFFT*1.5), obj.processingParamters.rangeNFFT);
 
 
@@ -239,14 +260,14 @@ classdef dataProcessor < handle
 				% 	yaw, ...
 				% 	pitch, ...
 				% 	obj.processingParamters);
-				% 
+				%
 				% obj.mergeResults(yaw, pitch, cfar, rangeDoppler, speed);
 
 
-					future = parfeval(obj.parallelPool, ...
-						@dataProcessor.processBatch, 5, ...
-						batchRangeFFTs, batchTimes, posTimes, yaw, pitch, obj.processingParamters);
-					afterAll(future, @(varargin) obj.mergeResults(varargin{:}), 0);
+				future = parfeval(obj.parallelPool, ...
+					@dataProcessor.processBatch, 5, ...
+					batchRangeFFTs, batchTimes, posTimes, yaw, pitch, obj.processingParamters);
+				afterAll(future, @(varargin) obj.mergeResults(varargin{:}), 0);
 			else
 				fprintf("dataProcessor | onNewDataAvailable | processing overloaded\n");
 			end
@@ -311,7 +332,7 @@ classdef dataProcessor < handle
 				'ValueChangedFcn', @(src,event) obj.sliderCallback(src),...
 				'Tooltip', 'Select pitch index');
 
-		
+
 			obj.resizeUI();
 		end
 
@@ -341,6 +362,7 @@ classdef dataProcessor < handle
 
 			addlistener(radarObj, 'newDataAvailable', @(~,~) obj.onNewDataAvailable());
 			addlistener(preferencesObj, 'newConfigEvent', @(~,~) obj.onNewConfigAvailable());
+			addlistener(platformObj, 'positionTriggerHit', @(~,~) obj.onPlatformTriggerYawHit());
 		end
 
 		function resizeUI(obj)
@@ -353,24 +375,24 @@ classdef dataProcessor < handle
 
 			axesMarginX = 60;
 			axesMarginY = 60;
-			
+
 			sliderMarginX = 30;
 			sliderMarginY = 40;
 
 			if isvalid(obj.hAxes)
 				set(obj.hAxes, 'Position', [axesMarginX, axesMarginY, panelWidth-2*axesMarginX, panelHeight-2*axesMarginY]);
-				axis(obj.hAxes, 'equal'); 
+				axis(obj.hAxes, 'equal');
 			end
 
 			if isvalid(obj.hPitchSlider)
-					pos = get(obj.hPitchSlider,'Position');
-					pos(1:3) = [sliderMarginX sliderMarginY 200];
-					set(obj.hPitchSlider,'Position',pos);
+				pos = get(obj.hPitchSlider,'Position');
+				pos(1:3) = [sliderMarginX sliderMarginY 200];
+				set(obj.hPitchSlider,'Position',pos);
 			end
 
 			% if isvalid(obj.hSurf)
 			%caxis(obj.hAxes, 'auto');
-			 %end
+			%end
 		end
 
 		function endProcesses(obj)

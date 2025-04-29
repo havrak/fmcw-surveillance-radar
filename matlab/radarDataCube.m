@@ -21,11 +21,12 @@ classdef radarDataCube < handle
 		bufferActive;
 		bufferActiveWriteIdx = 1;
 		batchSize = 6;
-
+		
+		decay = true;
 		isProcessing = false;
 		overflow = false;
-		keepRaw = true;
-		keepCFAR = true;
+		keepRaw;
+		keepCFAR;
 	end
 
 	events
@@ -72,8 +73,7 @@ classdef radarDataCube < handle
 			disp("Test");
 		end
 
-		function processBatch(buffer, antennaPattern, radarCubeSize, yawBins, pitchBins, processRaw, processCFAR)
-
+		function processBatch(buffer, antennaPattern, radarCubeSize, yawBins, pitchBins, processRaw, processCFAR, decay)
 			%% Updating cube for raw data
 			if(processRaw)
 				m = memmapfile('radarCube.dat', ...
@@ -163,6 +163,10 @@ classdef radarDataCube < handle
 
 					% --- 3.3 Spread contribution into 4D with pattern ---
 					rangerDoppler = buffer.rangeDoppler(:, :, i);
+					if(decay)
+						batchDecay = single(prod([buffer.decay(i:end)]));
+						scripts.decayCube_avx2(rangerDoppler, batchDecay);
+					end
 					contribution = scripts.applyPattern(adjPattern, rangerDoppler);
 					%
 					% time2 = toc(time2);
@@ -183,24 +187,17 @@ classdef radarDataCube < handle
 					% 	prod(buffer.decay(i:end)) ...
 					% 	);
 				end
-				% time = toc(time);
-				% fprintf(fid,"[BATCH] Updates processed (%f ms)\n", time*1000);
-				% time = tic;
-
+			
 
 				% --- 4. Decay radarCube ---
-				batchDecay = single(prod([buffer.decay]));
-				scripts.decayCube_avx2(m.Data.radarCube, batchDecay); % speed varies widely, probalby due to non consistent memory managment
-
-				% time = toc(time);
-				% fprintf(fid,"[BATCH] Decaying radarCube (%f ms), decaying with %f\n", time*1000, batchDecay);
-				% time = tic;
-
+				if(decay)
+					batchDecay = single(prod([buffer.decay]));
+					scripts.decayCube_avx2(m.Data.radarCube, batchDecay); % speed varies widely, probalby due to non consistent memory managment
+				end
+				
 				% --- 5. Merge data ---
 				scripts.updateCube(m.Data.radarCube, subCube, yawIndices, pitchIndices);
 				% m.Data.radarCube(:, :,yawIndices, pitchIndices) = m.Data.radarCube( :, :,yawIndices, pitchIndices) + subCube;
-				% time = toc(time);
-				% fprintf(fid,"[BATCH] Updating radarCube (%f ms)\n", time*1000);
 			end
 
 			%% Updating cube for CFAR data
@@ -241,14 +238,15 @@ classdef radarDataCube < handle
 	methods(Access=public)
 
 
-		function obj = radarDataCube(numRangeBins, numDopplerBins, radPatternYaw, radPatternPitch, keepRaw, keepCFAR)
+		function obj = radarDataCube(numRangeBins, numDopplerBins, radPatternYaw, radPatternPitch, keepRaw, keepCFAR, decay)
 			obj.yawBins = obj.yawBinMin:obj.yawBinMax;     % 1° resolution
 			obj.pitchBins = obj.pitchBinMin:obj.pitchBinMax;          % 1° resolution
-
+			
 			obj.bufferActive = obj.bufferA;
 			obj.generateAntennaPattern(radPatternYaw, radPatternPitch);
 			obj.keepRaw = keepRaw;
 			obj.keepCFAR = keepCFAR;
+			obj.decay = decay;
 			obj.radarCubeSize = [ ...
 				numRangeBins, ...
 				numDopplerBins ...
@@ -362,11 +360,27 @@ classdef radarDataCube < handle
 			
 
 			% NOTE: main thread execution for debug
-			radarDataCube.processBatch(processingBuffer, obj.antennaPattern, obj.radarCubeSize, obj.yawBins, obj.pitchBins, obj.keepRaw, obj.keepCFAR);
+			radarDataCube.processBatch(processingBuffer, ...
+				obj.antennaPattern, ...
+				obj.radarCubeSize, ...
+				obj.yawBins, ...
+				obj.pitchBins, ...
+				obj.keepRaw, ...
+				obj.keepCFAR, ...
+				obj.decay);
 			future = parfeval(gcp, @radarDataCube.testFunction, 0);
 
 			afterAll(future, @(varargin) obj.afterBatchProcessing(varargin{:}), 0);
 
+		end
+
+		function zeroCubes(obj)
+			if obj.keepCFAR
+				scripts.zeroCube(obj.cfarCube)
+			end
+			if obj.keepRaw
+				scripts.zeroCube(obj.radarCube)
+			end
 		end
 
 	end

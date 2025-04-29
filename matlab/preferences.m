@@ -14,9 +14,10 @@ classdef preferences < handle
 		hDropPlatformBaudrate;  % uidropdown - platform serial baudrate
 
 		hSwitchPlatformDebug;   % uiswitch - display debug messages from platform
-		hEditOffsetD;           % uicontrol/edit - distance offset
-		hEditOffsetP;           % uicontrol/edit - angle offset pitch
-		hEditOffsetY;           % uicontrol/edit - angle offset yaw
+		hEditPlatOffsetPitch;           % uicontrol/edit - angle offset pitch
+		hEditPlatOffsetYaw;           % uicontrol/edit - angle offset yaw
+		hEditPlatStepCountYaw;
+		hEditPlatStepCountPitch;
 
 		hDropRadarSample       % number of FFT samples for chirp
 		hSwitchRadarHeader;     % uiswitch - pick between 122 and 24 GHz header
@@ -76,6 +77,8 @@ classdef preferences < handle
 			obj.configStruct.platform.offsetPitch=0;
 			obj.configStruct.platform.offsetYaw=0;
 			obj.configStruct.platform.debug=1;
+			obj.configStruct.platform.stepCountYaw = 200;
+			obj.configStruct.platform.stepCountPitch = 200;
 
 			obj.configStruct.processing.visualization=obj.availableVisualization(1);
 			obj.configStruct.processing.speedNFFT=8;
@@ -86,7 +89,7 @@ classdef preferences < handle
 			obj.configStruct.processing.cfarGuard = 2;
 			obj.configStruct.processing.cfarTraining = 10;
 			obj.configStruct.processing.decayType = 1;
-			obj.configStruct.processing.resetYaw = 0;
+			obj.configStruct.processing.triggerYaw = 0;
 
 
 			obj.configStruct.programs=[];
@@ -219,7 +222,24 @@ classdef preferences < handle
 			adc = obj.binaryMap(obj.availableADC == obj.configStruct.radar.adc, :);
 		end
 
-		function [offsetYaw, offsetPitch] = getPlatformParamters(obj)
+		function [decayType] = getDecayType(obj)
+			% getDecayType: return how values in radarCube are decayed
+			%
+			% Output:
+			% decayType ... 1 for speed based decay, 0 for yaw trigger	
+			decayType = obj.configStruct.processing.decayType;
+		end
+
+		function [triggerYaw] = getTriggerYaw(obj)
+			% getTriggerYaw: return on which yaw will platformControl send event
+			% in case decayType is zero
+			%
+			% Output:
+			% triggerYaw ... value in degrees
+			triggerYaw = obj.configStruct.processing.triggerYaw;
+		end
+
+		function [offsetYaw, offsetPitch, stepCountYaw, stepCountPitch] = getPlatformParamters(obj)
 			% getPlatformParamters: return mounting paramters of the platform
 			%
 			%
@@ -229,6 +249,8 @@ classdef preferences < handle
 			% radar PCB
 			offsetPitch = obj.configStruct.platform.offsetPitch;
 			offsetYaw = obj.configStruct.platform.offsetYaw;
+			stepCountPitch = 	obj.configStruct.platform.stepCountPitch;
+			stepCountYaw = 	obj.configStruct.platform.stepCountYaw;
 		end
 
 
@@ -377,7 +399,7 @@ classdef preferences < handle
 				'Position', [20, figSize(2)-platformConfigOffset-20, 140, 25], ...
 				'Text', 'Pitch offset [deg]:');
 
-			obj.hEditOffsetP=uicontrol('Style', 'edit', ...
+			obj.hEditPlatOffsetPitch=uicontrol('Style', 'edit', ...
 				'Parent',obj.hFig,  ...
 				'Position', [150, figSize(2)-platformConfigOffset-20, 140, 25], ...
 				'Max',1, ...
@@ -389,7 +411,7 @@ classdef preferences < handle
 				'Position', [20, figSize(2)-platformConfigOffset-50, 140, 25], ...
 				'Text', 'Yaw offset [deg]:');
 
-			obj.hEditOffsetY=uicontrol('Style', 'edit', ...
+			obj.hEditPlatOffsetYaw=uicontrol('Style', 'edit', ...
 				'Parent',obj.hFig,  ...
 				'Position', [150, figSize(2)-platformConfigOffset-50, 140, 25], ...
 				'Max',1, ...
@@ -404,6 +426,28 @@ classdef preferences < handle
 				'Position', [180, figSize(2)-platformConfigOffset-80, 140, 25], ...
 				'Items', {'On', 'Off'}, ...
 				'Orientation', 'horizontal');
+
+			uilabel(obj.hFig, ...
+				'Position', [320, figSize(2)-platformConfigOffset-20, 140, 25], ...
+				'Text', 'Step count pitch:');
+
+			obj.hEditPlatStepCountPitch=uicontrol('Style', 'edit', ...
+				'Parent',obj.hFig,  ...
+				'Position', [450, figSize(2)-platformConfigOffset-20, 140, 25], ...
+				'Max',1, ...
+				'String',"", ...
+				'HorizontalAlignment', 'left');
+
+				uilabel(obj.hFig, ...
+				'Position', [320, figSize(2)-platformConfigOffset-50, 140, 25], ...
+				'Text', 'Step count yaw:');
+				
+			obj.hEditPlatStepCountYaw=uicontrol('Style', 'edit', ...
+				'Parent',obj.hFig,  ...
+				'Position', [450, figSize(2)-platformConfigOffset-50, 140, 25], ...
+				'Max',1, ...
+				'String',"", ...
+				'HorizontalAlignment', 'left');
 
 			%% Radar setting
 
@@ -651,8 +695,8 @@ classdef preferences < handle
 			%% Platform config
 
 
-			set(obj.hEditOffsetP, 'String', obj.configStruct.platform.offsetPitch);
-			set(obj.hEditOffsetY, 'String', obj.configStruct.platform.offsetYaw);
+			set(obj.hEditPlatOffsetPitch, 'String', obj.configStruct.platform.offsetPitch);
+			set(obj.hEditPlatOffsetYaw, 'String', obj.configStruct.platform.offsetYaw);
 
 
 			if(obj.configStruct.platform.debug == 1)
@@ -660,6 +704,9 @@ classdef preferences < handle
 			else
 				set(obj.hSwitchPlatformDebug, 'Value', 'Off');
 			end
+
+			set(obj.hEditPlatStepCountYaw, 'String',obj.configStruct.platform.stepCountYaw);
+			set(obj.hEditPlatStepCountPitch, 'String',obj.configStruct.platform.stepCountPitch);
 
 			%% Radar config
 
@@ -723,7 +770,7 @@ classdef preferences < handle
 
 			set(obj.hEditProCFARGuard, 'String', obj.configStruct.processing.cfarGuard);
 			set(obj.hEditProCFARTraining, 'String', obj.configStruct.processing.cfarTraining);
-			set(obj.hEditProResetYaw, 'String', obj.configStruct.processing.resetYaw);
+			set(obj.hEditProResetYaw, 'String', obj.configStruct.processing.triggerYaw);
 
 
 		end
@@ -762,14 +809,21 @@ classdef preferences < handle
 
 			%% Platform config
 
-			tmp = str2double(get(obj.hEditOffsetP, 'String'));
+			tmp = str2double(get(obj.hEditPlatOffsetPitch, 'String'));
 			if (isnan(tmp) || any(tmp <0))
 				warndlg('Offset must be a positive number');
 			else
 				obj.configStruct.platform.offsetPitch=tmp;
 			end
 
-			tmp = str2double(get(obj.hEditOffsetY, 'String'));
+			tmp = str2double(get(obj.hEditPlatOffsetYaw, 'String'));
+			if (isnan(tmp) || any(tmp <0))
+				warndlg('Offset must be a positive number');
+			else
+				obj.configStruct.platform.offsetYaw=tmp;
+			end
+
+			tmp = str2double(get(obj.hEditPlatOffsetYaw, 'String'));
 			if (isnan(tmp) || any(tmp <0))
 				warndlg('Offset must be a positive number');
 			else
@@ -777,6 +831,19 @@ classdef preferences < handle
 			end
 
 
+				tmp = str2double(get(obj.hEditPlatStepCountYaw, 'String'));
+			if (isnan(tmp) || any(tmp <0))
+				warndlg('Step count must be a positive number');
+			else
+				obj.configStruct.platform.stepCountYaw=tmp;
+			end
+
+			tmp = str2double(get(obj.hEditPlatStepCountPitch, 'String'));
+			if (isnan(tmp) || any(tmp <0))
+				warndlg('Step count must be a positive number');
+			else
+				obj.configStruct.platform.stepCountPitch=tmp;
+			end
 
 			%% Radar config
 
@@ -875,7 +942,7 @@ classdef preferences < handle
 			if (isnan(tmp) || tmp < 0 || tmp > 360)
 				warndlg('CFAR training size must be a between 0 and 360');
 			else
-				obj.configStruct.processing.resetYaw=floor(tmp);
+				obj.configStruct.processing.triggerYaw=floor(tmp);
 			end
 
 			storeConfig(obj);
