@@ -22,8 +22,7 @@ classdef preferences < handle
 		hDropRadarSample       % number of FFT samples for chirp
 		hSwitchRadarHeader;     % uiswitch - pick between 122 and 24 GHz header
 		hEditRadarBandwith;     % uicontrol/edit - distance offset
-		hEditRadPatternPitch;
-		hEditRadPatternYaw;
+
 		hEditTriggerPeriod;
 		hDropRadarADC;
 		hTextRampTime;
@@ -37,6 +36,10 @@ classdef preferences < handle
 		hSwitchProCalcRaw;
 		hSwitchProCalcCFAR;
 		hSwitchProDecayType;
+
+		hEditProSpreadPatternPitch;
+		hEditProSpreadPatternYaw;
+		hSwitchProSpreadPattern;
 		hEditProResetYaw;
 
 
@@ -67,8 +70,6 @@ classdef preferences < handle
 			obj.configStruct.radar.header='';
 			obj.configStruct.radar.bandwidth=0;
 			obj.configStruct.radar.samples=128;
-			obj.configStruct.radar.radPatternYaw=0;
-			obj.configStruct.radar.radPatternPitch=0;
 			obj.configStruct.radar.adc=obj.availableADC(1);
 			obj.configStruct.radar.trigger=0;
 
@@ -90,6 +91,9 @@ classdef preferences < handle
 			obj.configStruct.processing.cfarTraining = 10;
 			obj.configStruct.processing.decayType = 1;
 			obj.configStruct.processing.triggerYaw = 0;
+			obj.configStruct.processing.spreadPatternEnabled=1;
+			obj.configStruct.processing.spreadPatternYaw=7;
+			obj.configStruct.processing.spreadPatternPitch=14;
 
 
 			obj.configStruct.programs=[];
@@ -191,9 +195,10 @@ classdef preferences < handle
 			header = obj.configStruct.radar.header;
 		end
 
-		function [radPatterYaw, radPatterPitch] = getRadarRadiationParamters(obj)
-			radPatterYaw = obj.configStruct.radar.radPatternYaw;
-			radPatterPitch = obj.configStruct.radar.radPatternPitch;
+		function [spreadPatternEnabled, spreadPatternYaw, spreadPatternPitch] = getProcessingSpreadPatternParamters(obj)
+			spreadPatternEnabled = obj.configStruct.processing.spreadPatternEnabled;
+			spreadPatternYaw = obj.configStruct.processing.spreadPatternYaw;
+			spreadPatternPitch = obj.configStruct.processing.spreadPatternPitch;
 		end
 
 		function period = getRadarTriggerPeriod(obj)
@@ -226,7 +231,7 @@ classdef preferences < handle
 			% getDecayType: return how values in radarCube are decayed
 			%
 			% Output:
-			% decayType ... 1 for speed based decay, 0 for yaw trigger	
+			% decayType ... 1 for speed based decay, 0 for yaw trigger
 			decayType = obj.configStruct.processing.decayType;
 		end
 
@@ -342,9 +347,9 @@ classdef preferences < handle
 
 			platformConfigOffset = 140;
 			radarConfigOffset = 250;
-			processingOffset = 490;
+			processingOffset = 400;
 
-			fprintf('Preferences | constructGUI | starting gui constructions');
+			fprintf('Preferences | constructGUI | starting gui constructions\n');
 			figSize = [620, 800];
 			screenSize = get(groot, 'ScreenSize');
 			obj.hFig = uifigure('Name','Preferences', ...
@@ -438,10 +443,10 @@ classdef preferences < handle
 				'String',"", ...
 				'HorizontalAlignment', 'left');
 
-				uilabel(obj.hFig, ...
+			uilabel(obj.hFig, ...
 				'Position', [320, figSize(2)-platformConfigOffset-50, 140, 25], ...
 				'Text', 'Step count yaw:');
-				
+
 			obj.hEditPlatStepCountYaw=uicontrol('Style', 'edit', ...
 				'Parent',obj.hFig,  ...
 				'Position', [450, figSize(2)-platformConfigOffset-50, 140, 25], ...
@@ -464,12 +469,12 @@ classdef preferences < handle
 				);
 
 			uilabel(obj.hFig, ...
-				'Position', [20, figSize(2)-radarConfigOffset-50, 140, 25], ...
+				'Position', [320, figSize(2)-radarConfigOffset-20, 140, 25], ...
 				'Text', 'Radar Bandwith [MHz]: ');
 
 			obj.hEditRadarBandwith = uicontrol('Style', 'edit', ...
 				'Parent',obj.hFig,  ...
-				'Position', [150, figSize(2)-radarConfigOffset-50, 140, 25], ...
+				'Position', [450, figSize(2)-radarConfigOffset-20, 140, 25], ...
 				'Max',1, ...
 				'String',"", ...
 				'HorizontalAlignment', 'left');
@@ -503,35 +508,14 @@ classdef preferences < handle
 				'Items', {'2571' '2400' '2118' '1800' '1125' '487' '186' '59'});
 
 
-			uilabel(obj.hFig, ...
-				'Position', [20, figSize(2)-radarConfigOffset-140, 140, 25], ...
-				'Text', 'Lobe width yaw: ');
-
-			obj.hEditRadPatternYaw = uicontrol('Style', 'edit', ...
-				'Parent',obj.hFig,  ...
-				'Position', [150, figSize(2)-radarConfigOffset-140, 140, 25], ...
-				'Max',1, ...
-				'String',"", ...
-				'HorizontalAlignment', 'left');
 
 			uilabel(obj.hFig, ...
-				'Position', [20, figSize(2)-radarConfigOffset-170, 170, 25], ...
-				'Text', 'Lobe width pitch: ');
-
-			obj.hEditRadPatternPitch = uicontrol('Style', 'edit', ...
-				'Parent',obj.hFig,  ...
-				'Position', [150, figSize(2)-radarConfigOffset-170, 140, 25], ...
-				'Max',1, ...
-				'String',"", ...
-				'HorizontalAlignment', 'left');
-
-			uilabel(obj.hFig, ...
-				'Position', [20, figSize(2)-radarConfigOffset-200, 140, 25], ...
+				'Position', [20, figSize(2)-radarConfigOffset-50, 140, 25], ...
 				'Text', 'Trigger period [ms]:');
 
 			obj.hEditTriggerPeriod = uicontrol('Style', 'edit', ...
 				'Parent',obj.hFig,  ...
-				'Position', [150, figSize(2)-radarConfigOffset-200, 140, 25], ...
+				'Position', [150, figSize(2)-radarConfigOffset-50, 140, 25], ...
 				'Max',1, ...
 				'String',"", ...
 				'HorizontalAlignment', 'left');
@@ -570,13 +554,13 @@ classdef preferences < handle
 
 
 			uilabel(obj.hFig, ...
-				'Position', [20, figSize(2)-processingOffset-110, 140, 25], ...
+				'Position', [20, figSize(2)-processingOffset-170, 140, 25], ...
 				'Text', 'CFAR guard:');
 
 
 			obj.hEditProCFARGuard = uicontrol('Style', 'edit', ...
 				'Parent',obj.hFig,  ...
-				'Position', [150, figSize(2)-processingOffset-110, 140, 25], ...
+				'Position', [150, figSize(2)-processingOffset-170, 140, 25], ...
 				'Max',1, ...
 				'String',"", ...
 				'HorizontalAlignment', 'left');
@@ -611,11 +595,11 @@ classdef preferences < handle
 				'Orientation', 'horizontal');
 
 			uilabel(obj.hFig, ...
-				'Position',[320, figSize(2)-processingOffset-80, 170, 25], ...
+				'Position',[320, figSize(2)-processingOffset-140, 170, 25], ...
 				'Text', 'Calc CFAR:');
 
 			obj.hSwitchProCalcCFAR = uiswitch('Parent', obj.hFig, ...
-				'Position',[450, figSize(2)-processingOffset-80, 170, 25], ...
+				'Position',[450, figSize(2)-processingOffset-140, 170, 25], ...
 				'Items', {'On', 'Off'}, ...
 				'Orientation', 'horizontal');
 
@@ -629,15 +613,48 @@ classdef preferences < handle
 				'Orientation', 'horizontal');
 
 			uilabel(obj.hFig, ...
-				'Position', [20, figSize(2)-processingOffset-170, 140, 25], ...
+				'Position', [20, figSize(2)-processingOffset-110, 140, 25], ...
 				'Text', 'Yaw reset:');
 
 			obj.hEditProResetYaw  = uicontrol('Style', 'edit', ...
 				'Parent',obj.hFig,  ...
-				'Position', [150, figSize(2)-processingOffset-170, 140, 25], ...
+				'Position', [150, figSize(2)-processingOffset-110, 140, 25], ...
 				'Max',1, ...
 				'String',"", ...
 				'HorizontalAlignment', 'left');
+
+
+			uilabel(obj.hFig, ...
+				'Position', [20, figSize(2)-processingOffset-200, 140, 25], ...
+				'Text', 'Spread in yaw [deg]:');
+
+			obj.hEditProSpreadPatternYaw = uicontrol('Style', 'edit', ...
+				'Parent',obj.hFig,  ...
+				'Position', [150, figSize(2)-processingOffset-200, 140, 25], ...
+				'Max',1, ...
+				'String',"", ...
+				'HorizontalAlignment', 'left');
+
+			uilabel(obj.hFig, ...
+				'Position', [20, figSize(2)-processingOffset-230, 170, 25], ...
+				'Text', 'Spread in pitch [deg]:');
+
+			obj.hEditProSpreadPatternPitch = uicontrol('Style', 'edit', ...
+				'Parent',obj.hFig,  ...
+				'Position', [150, figSize(2)-processingOffset-230, 140, 25], ...
+				'Max',1, ...
+				'String',"", ...
+				'HorizontalAlignment', 'left');
+
+			uilabel(obj.hFig, ...
+				'Position', [320, figSize(2)-processingOffset-200, 140, 25], ...
+				'Text', 'Use spread pattern:');
+
+
+			obj.hSwitchProSpreadPattern  = uiswitch('Parent', obj.hFig, ...
+				'Position',[450, figSize(2)-processingOffset-200, 170, 25], ...
+				'Items', {'On', 'Off'}, ...
+				'Orientation', 'horizontal');
 
 			%% Buttons
 			function reloadConfig(obj)
@@ -712,8 +729,6 @@ classdef preferences < handle
 
 			set(obj.hEditRadarBandwith, 'String', obj.configStruct.radar.bandwidth);
 
-			set(obj.hEditRadPatternYaw, 'String', obj.configStruct.radar.radPatternYaw);
-			set(obj.hEditRadPatternPitch, 'String', obj.configStruct.radar.radPatternPitch);
 			set(obj.hEditTriggerPeriod, 'String', obj.configStruct.radar.trigger);
 
 			if any(obj.availableSamples == obj.configStruct.radar.samples)
@@ -768,10 +783,17 @@ classdef preferences < handle
 				set(obj.hSwitchProDecayType, 'Value', 'Yaw');
 			end
 
+			if(obj.configStruct.processing.spreadPatternEnabled == 1)
+				set(obj.hSwitchProSpreadPattern, 'Value', 'On');
+			else
+				set(obj.hSwitchProSpreadPattern, 'Value', 'Off');
+			end
+
 			set(obj.hEditProCFARGuard, 'String', obj.configStruct.processing.cfarGuard);
 			set(obj.hEditProCFARTraining, 'String', obj.configStruct.processing.cfarTraining);
 			set(obj.hEditProResetYaw, 'String', obj.configStruct.processing.triggerYaw);
-
+			set(obj.hEditProSpreadPatternYaw, 'String', obj.configStruct.processing.spreadPatternYaw);
+			set(obj.hEditProSpreadPatternPitch, 'String', obj.configStruct.processing.spreadPatternPitch);
 
 		end
 
@@ -831,7 +853,7 @@ classdef preferences < handle
 			end
 
 
-				tmp = str2double(get(obj.hEditPlatStepCountYaw, 'String'));
+			tmp = str2double(get(obj.hEditPlatStepCountYaw, 'String'));
 			if (isnan(tmp) || any(tmp <0))
 				warndlg('Step count must be a positive number');
 			else
@@ -853,19 +875,6 @@ classdef preferences < handle
 			obj.configStruct.radar.adc=str2double(obj.hDropRadarADC.Value);
 
 
-			tmp = str2double(get(obj.hEditRadPatternYaw, 'String'));
-			if (isnan(tmp) || any(tmp < 0))
-				warndlg('Lobe width must be a positive number');
-			else
-				obj.configStruct.radar.radPatternYaw=floor(tmp);
-			end
-
-			tmp = str2double(get(obj.hEditRadPatternPitch, 'String'));
-			if (isnan(tmp)  || any(tmp<0))
-				warndlg('Lobe width must be a positive number');
-			else
-				obj.configStruct.radar.radPatternPitch=floor(tmp);
-			end
 
 			tmp = str2double(get(obj.hEditTriggerPeriod, 'String'));
 			if (isnan(tmp) || any(tmp <0))
@@ -924,6 +933,27 @@ classdef preferences < handle
 				obj.configStruct.processing.calcCFAR = 0;
 			end
 
+			if(strcmp(obj.hSwitchProSpreadPattern.Value,'On'))
+				obj.configStruct.processing.spreadPatternEnabled = 1;
+			else
+				obj.configStruct.processing.spreadPatternEnabled = 0;
+			end
+
+			tmp = str2double(get(obj.hEditProSpreadPatternYaw, 'String'));
+			if (isnan(tmp) || any(tmp < 0))
+				warndlg('Lobe width must be a positive number');
+			else
+				obj.configStruct.processing.spreadPatternYaw=floor(tmp);
+			end
+
+			tmp = str2double(get(obj.hEditProSpreadPatternPitch, 'String'));
+			if (isnan(tmp)  || any(tmp<0))
+				warndlg('Lobe width must be a positive number');
+			else
+				obj.configStruct.processing.spreadPatternPitch=floor(tmp);
+			end
+
+
 			tmp = str2double(get(obj.hEditProCFARGuard, 'String'));
 			if (isnan(tmp) || tmp < 0)
 				warndlg('CFAR guard size must be a positive number');
@@ -954,111 +984,111 @@ end
 
 
 function struct2ini(filename,Structure)
-	%==========================================================================
-	% Author:      Dirk Lohse ( dirklohse@web.de )
-	% Version:     0.1a
-	% Last change: 2008-11-13
-	%==========================================================================
-	%
-	% struct2ini converts a given structure into an ini-file.
-	% It's the opposite to Andriy Nych's ini2struct. Only
-	% creating an ini-file is implemented. To modify an existing
-	% file load it with ini2struct.m from:
-	%       Andriy Nych ( nych.andriy@gmail.com )
-	% change the structure and write it with struct2ini.
-	%
-	% Open file, or create new file, for writing
-	% discard existing contents, if any.
-	fid = fopen(filename,'w');
-	sections = fieldnames(Structure);                     % returns the sections
-	for k=1:length(sections)
-		section = char(sections(k));
+%==========================================================================
+% Author:      Dirk Lohse ( dirklohse@web.de )
+% Version:     0.1a
+% Last change: 2008-11-13
+%==========================================================================
+%
+% struct2ini converts a given structure into an ini-file.
+% It's the opposite to Andriy Nych's ini2struct. Only
+% creating an ini-file is implemented. To modify an existing
+% file load it with ini2struct.m from:
+%       Andriy Nych ( nych.andriy@gmail.com )
+% change the structure and write it with struct2ini.
+%
+% Open file, or create new file, for writing
+% discard existing contents, if any.
+fid = fopen(filename,'w');
+sections = fieldnames(Structure);                     % returns the sections
+for k=1:length(sections)
+	section = char(sections(k));
 
-		fprintf(fid,'\n[%s]\n',section);
+	fprintf(fid,'\n[%s]\n',section);
 
-		member_struct = Structure.(section);
-		if ~isempty(member_struct)
-			member_names = fieldnames(member_struct);
-			for j=1:length(member_names)
-				member_name = char(member_names(j));
-				member_value = Structure.(section).(member_name);
-				if isnumeric(member_value)
-					member_value=num2str(member_value);
-				end
+	member_struct = Structure.(section);
+	if ~isempty(member_struct)
+		member_names = fieldnames(member_struct);
+		for j=1:length(member_names)
+			member_name = char(member_names(j));
+			member_value = Structure.(section).(member_name);
+			if isnumeric(member_value)
+				member_value=num2str(member_value);
+			end
 
-				fprintf(fid,'%s=%s\n',member_name,member_value); % output member name and value
+			fprintf(fid,'%s=%s\n',member_name,member_value); % output member name and value
 
-			end % for-END (Members)
-		end % if-END
-	end % for-END (sections)
-	fclose(fid);
+		end % for-END (Members)
+	end % if-END
+end % for-END (sections)
+fclose(fid);
 
 end
 
 
 function Result = ini2struct(filename)
-	%==========================================================================
-	% Author: Andriy Nych ( nych.andriy@gmail.com )
-	% Version:        733341.4155741782200
-	%==========================================================================
-	%
-	% INI = ini2struct(filename)
-	%
-	% This function parses INI file filename and returns it as a structure with
-	% section names and keys as fields.
-	%
-	% sections from INI file are returned as fields of INI structure.
-	% Each fiels (section of INI file) in turn is structure.
-	% It's fields are variables from the corrPlatformonding section of the INI file.
-	%
-	% If INI file contains "oprhan" variables at the beginning, they will be
-	% added as fields to INI structure.
-	%
-	% Lines starting with ';' and '#' are ignored (comments).
-	%
-	% See example below for more information.
-	%
-	% Usually, INI files allow to put spaces and numbers in section names
-	% without restrictions as long as section name is between '[' and ']'.
-	% It makes people crazy to convert them to valid Matlab variables.
-	% For this purpose Matlab provides GENVARNAME function, which does
-	%  "Construct a valid MATLAB variable name from a given candidate".
-	% See 'help genvarname' for more information.
-	%
-	% The INI2STRUCT function uses the GENVARNAME to convert strange INI
-	% file string into valid Matlab field names.
-	%
-	Result = [];
-	CurrMainField = '';
-	f = fopen(filename,'r');
-	while ~feof(f)
-		s = strtrim(fgetl(f));
-		if isempty(s)
-			continue;
+%==========================================================================
+% Author: Andriy Nych ( nych.andriy@gmail.com )
+% Version:        733341.4155741782200
+%==========================================================================
+%
+% INI = ini2struct(filename)
+%
+% This function parses INI file filename and returns it as a structure with
+% section names and keys as fields.
+%
+% sections from INI file are returned as fields of INI structure.
+% Each fiels (section of INI file) in turn is structure.
+% It's fields are variables from the corrPlatformonding section of the INI file.
+%
+% If INI file contains "oprhan" variables at the beginning, they will be
+% added as fields to INI structure.
+%
+% Lines starting with ';' and '#' are ignored (comments).
+%
+% See example below for more information.
+%
+% Usually, INI files allow to put spaces and numbers in section names
+% without restrictions as long as section name is between '[' and ']'.
+% It makes people crazy to convert them to valid Matlab variables.
+% For this purpose Matlab provides GENVARNAME function, which does
+%  "Construct a valid MATLAB variable name from a given candidate".
+% See 'help genvarname' for more information.
+%
+% The INI2STRUCT function uses the GENVARNAME to convert strange INI
+% file string into valid Matlab field names.
+%
+Result = [];
+CurrMainField = '';
+f = fopen(filename,'r');
+while ~feof(f)
+	s = strtrim(fgetl(f));
+	if isempty(s)
+		continue;
+	end
+	if (s(1)==';') || (s(1)=='#')
+		continue;
+	end
+	if ( s(1)=='[' ) && (s(end)==']' )
+		CurrMainField = genvarname(s(2:end-1));
+		Result.(CurrMainField) = [];
+	else
+		[par,val] = strtok(s, '=');
+		val = CleanValue(val);
+
+		if ~isnan(str2double(val))
+			val=str2double(val);
 		end
-		if (s(1)==';') || (s(1)=='#')
-			continue;
-		end
-		if ( s(1)=='[' ) && (s(end)==']' )
-			CurrMainField = genvarname(s(2:end-1));
-			Result.(CurrMainField) = [];
+
+		if ~isempty(CurrMainField)
+			Result.(CurrMainField).(genvarname(par)) = val;
 		else
-			[par,val] = strtok(s, '=');
-			val = CleanValue(val);
-
-			if ~isnan(str2double(val))
-				val=str2double(val);
-			end
-
-			if ~isempty(CurrMainField)
-				Result.(CurrMainField).(genvarname(par)) = val;
-			else
-				Result.(genvarname(par)) = val;
-			end
+			Result.(genvarname(par)) = val;
 		end
 	end
-	fclose(f);
-	return;
+end
+fclose(f);
+return;
 	function res = CleanValue(s)
 		res = strtrim(s);
 		if strcmpi(res(1),'=')

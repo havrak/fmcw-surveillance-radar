@@ -7,7 +7,7 @@ classdef dataProcessor < handle
 		isProcessing = false      % Flag to prevent overlap
 		hRadarBuffer radarBuffer; %
 		hDataCube radarDataCube;  % RadarDataCube instance
-		
+
 		hPanel = [];
 		hSurf = [];
 		hAxes = [];
@@ -178,7 +178,7 @@ classdef dataProcessor < handle
 					Y = range .* cosd(pitch) .* sind(yaw);
 					Z = range .* sind(pitch);
 
-					set(obj.hScatter3D, 'XData', X, 'YData', Y, 'ZData', Z, 'CData', range);
+					set(obj.hScatter3D, 'XData', X, 'YData', Y, 'ZData', Z);
 					clim(obj.hAxes, [min(range), max(range)]);
 				else
 					set(obj.hScatter3D, 'XData', [], 'YData', [], 'ZData', []);
@@ -199,7 +199,12 @@ classdef dataProcessor < handle
 			java.lang.System.gc();
 			% TODO Deinitilize variables
 
-			[radPatterH, radPatterT] = obj.hPreferences.getRadarRadiationParamters();
+			[spreadPatternEnabled, spreadPatternYaw, spreadPatternPitch] = obj.hPreferences.getProcessingSpreadPatternParamters();
+			
+			if spreadPatternEnabled == 0
+				spreadPatternYaw = 0;
+				spreadPatternPitch = 0;
+			end
 
 			obj.processingParamters = obj.hPreferences.getProcessingParamters();
 			visual=obj.hPreferences.getProcessingVisualization();
@@ -208,8 +213,8 @@ classdef dataProcessor < handle
 			obj.hDataCube = radarDataCube( ...
 				obj.processingParamters.rangeNFFT/2, ...
 				obj.processingParamters.speedNFFT/2, ...
-				radPatterH, ...
-				radPatterT, ...
+				spreadPatternYaw, ...
+				spreadPatternPitch, ...
 				obj.processingParamters.calcRaw , ...
 				obj.processingParamters.calcCFAR, ...
 				obj.decayType ...
@@ -345,24 +350,47 @@ classdef dataProcessor < handle
 		end
 
 		function initialize3DDisplay(obj)
+
+			maxRange = obj.processingParamters.rangeNFFT/2* obj.processingParamters.rangeBinWidth;
+
+			xlimits = [-maxRange, maxRange];
+			ylimits = [-maxRange, maxRange];
+			zlimits = [-maxRange* sind(obj.hDataCube.pitchBinMin), maxRange* sind(obj.hDataCube.pitchBinMax)];
+
 			obj.hAxes = axes('Parent', obj.hPanel, ...
-				'Units', 'pixels');
-			obj.hScatter3D = scatter3(obj.hAxes, [], [], [], [], 'filled');
+				'Units', 'pixels', ...
+				'XLim',   xlimits, ...
+				'YLim',   ylimits, ...
+				'ZLim',   zlimits, ...
+				'XLimMode','manual', ...
+				'YLimMode','manual', ...
+				'ZLimMode','manual');
+			hold(obj.hAxes, 'on');
+			view(obj.hAxes, 3);
+			grid(obj.hAxes, 'on');
+			axis(obj.hAxes, 'equal', 'manual');
+
+
+			% NOTE: there must be an easier way to fix dimensions of axis evironment
+			lightGray = [0.9 0.9 0.9];   
+			ls = ':';                   
+			lw = 0.1;                   
+			line(obj.hAxes, xlimits, [ylimits(1) ylimits(1)], [zlimits(1) zlimits(1)], ...
+				'Color', lightGray, 'LineStyle', ls, 'LineWidth', lw);
+			line(obj.hAxes, [xlimits(1) xlimits(1)], ylimits, [zlimits(1) zlimits(1)], ...
+				'Color', lightGray, 'LineStyle', ls, 'LineWidth', lw);
+			line(obj.hAxes, [xlimits(1) xlimits(1)], [ylimits(1) ylimits(1)], zlimits, ...
+				'Color', lightGray, 'LineStyle', ls, 'LineWidth', lw);
+
+			obj.hScatter3D = scatter3(obj.hAxes, NaN, NaN, NaN, 'filled');
 			colormap(obj.hAxes, 'jet');
 			xlabel(obj.hAxes, 'X (m)');
 			ylabel(obj.hAxes, 'Y (m)');
 			zlabel(obj.hAxes, 'Z (m)');
 			title(obj.hAxes, '3D Target Visualization');
-			view(obj.hAxes, 3);
-			grid(obj.hAxes, 'on');
-			axis(obj.hAxes, 'equal');
-			% colorbar(obj.hAxes);
+
 			obj.resizeUI();
-			maxRange = obj.processingParamters.rangeNFFT/2* obj.processingParamters.rangeBinWidth;
-			xlim(obj.hAxes, [-maxRange, maxRange]);
-			ylim(obj.hAxes, [-maxRange, maxRange]);
-			zlim(obj.hAxes, [-maxRange* sind(obj.hDataCube.pitchBinMin), maxRange* sind(obj.hDataCube.pitchBinMax)]);
-			
+			set(obj.hScatter3D, 'XData', [3,2], 'YData', [3,2], 'ZData', [2,2]);
 		end
 
 		function sliderCallback(obj, src)
@@ -378,7 +406,7 @@ classdef dataProcessor < handle
 			obj.hPanel = panelObj;
 
 			% obj.parallelPool = gcp('nocreate'); % Start parallel pool
-			% 
+			%
 			% if isempty(obj.parallelPool)
 			% 	fprintf("dataProcessor | dataProcessor | starting paraller pool\n");
 			% 	obj.parallelPool = parpool(6);
