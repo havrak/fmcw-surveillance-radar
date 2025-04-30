@@ -504,6 +504,11 @@ Since mechanical stresses are minimal, most parts can be 3D-printed using standa
 The only non-3D-printed components are the screws, bearings, and stepper motors.
 The final assembly (Figure~\ref{fig:side_by_side}) measures approximately 33~cm in height and has a footprint of $20\times20$~cm.
 
+While the platform offers some ability to tension the belt in currently printed configuration the range is not sufficient to fully tighten the belt.
+While slippage is not a problem radar there is some slack in radar's tilt.
+However as the radars capabilities in this direction aren't particularly high it was decided not to reprint the whole assembly.
+Still in supplied 3D models these issues were fixed.
+
 \begin{figure}[h!]
   \centering
   \begin{subfigure}[b]{0.45\textwidth}
@@ -530,6 +535,9 @@ Given the low load on the stepper motors and the platform's inability to accumul
 For this purpose the A4988 stepper driver was chosen due to its low cost, microstepping capabilities and basic current control \cite{a4988}.
 A minor drawback is the lack of feedback from the driver to the microcontroller, including the absence of stall detection.
 To simplify the design, A4988 development kits were used and soldered onto a prototyping board, eliminating the need for a custom PCB.
+In addition if the need arieses A4988 development kit can be replaced by one with a different IC, such as TCM2209, as manufacturers keep the same pinout and dimensions on these complementary kits.
+This might be necessary in application where platform loudness would be a serious problem as A4988 produces rather noisy driving signal leading to even 20 dB higher operating volume \cite{a4988_sound}.
+
 
 For homing implementation, two potential solutions were considered: Hall effect sensors and optical gates.
 Hall effect sensors offer the advantage of angle sensing, allowing correction for positional drift during operation; however, they require precise alignment.
@@ -717,12 +725,46 @@ This demonstrates the efficiency of the HAL layer in managing stepper motor cont
 As long as stepper queues are supplied with commands in advance, the platform can operate without noticeable interruptions.
 Most importantly, the platform’s timely and predictable behavior ensures that mathematical corrections to the radar data can be applied accurately.
 
+
+
+\chapter{Control application}
+
+As previously stated on PC side whole radar is controlled using MALTAB application.
+This application is split into two distinct parts - one is managing rotary platform and the other is processing radar data.
+Alongside these there are some basic shared components, such as preferences.
+
+\section{Main application interface}
+
+Upon starting the application user is presented with the main window \ref{fig:main_window}.
+Here output from radar is displayed, connection to platform and radar established and by clicking on the icons in top bar user can access other windows.
+Preferences are hidden behind the paper icon, platform control interface behind the cube icon.
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=0.9\textwidth]{../img/main_window.jpg}
+	\caption[Main application window]{Main application window}
+	\label{fig:main_window}
+\end{figure}
+
 \section{MATLAB Control Interface}
 
-In its basic operating mode, platform control is entirely independent of the radar data processing.
-Or to be more precise, while radar data processing may apply corrections based on platform speed, acceleration, and position, it does not send any commands to the platform itself.
-As a result, the control flow of the platform remains simple -- users upload a program to the microcontroller and start its execution.
-To manage programs and provide a means of reading platform diagnostics, a simple MATLAB application was developed.
+It is necessary to emphasizes that platform control is entirely independent of radar functions.
+User loads up platform program, starts it execution and from that point while processing radar data only platform position is taken into account.
+With current architecture there is no mechanism that would influence platform movement according to radar data.
+
+Still as only one process can access platform serial interface at a time platform control is part of a larger program together with radar data processing.
+The platform control is implemented in a simple MATLAB application that allows users to upload and manage programs on the microcontroller.
+Along with the program management, the application also provides a simple interface for reading platform diagnostics and ability to configure some parameters.
+
+From preferences menu \ref{fig:preferences_platform} user can configure serial port connection, introduce offset and set number of steps per revolution.
+It is necessary to point out that number of steps must correspond to microstepping ratio used on the hardware.
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=0.7\textwidth]{../img/platform_preferences.jpg}
+	\caption[Platform related part of preferences menu]{Platform related part of preferences menu}
+	\label{fig:preferences_platform}
+\end{figure}
 
 \begin{figure}[h!]
 	\centering
@@ -731,17 +773,108 @@ To manage programs and provide a means of reading platform diagnostics, a simple
 	\label{fig:platformControl}
 \end{figure}
 
-After connecting to the platform (by selecting the correct port and baud rate in the preferences menu and clicking the "Connect" button in the main window), the user can navigate to the platform control window, as shown in Figure \ref{fig:platformControl}.
-On the left side, a sidebar displays a list of all stored programs.
-Clicking on any of these programs loads it into the editor window, where the user can edit it or send it to the platform using the buttons on the right.
+Managing platform programs is done with separate window as shown in figure \ref{fig:platformControl}.
+Here user can load, edit and send programs to the platform.
+Also while programs send to the platform are not persistent, the application allows to save them locally alongside other configuration parameters.
 
-Once the program is sent, execution can be initiated either manually by sending a start command from the \verb|QUICK COMMAND| box—or by pressing the "Start" button.
-Using the "Start" button ensures that platform queues are empty and that the platform is homed before execution begins.
-To monitor feedback from the platform, users can refer to the text window at the bottom of the screen.
+Left sidebar allows user to load stored programs.
+Middle windows is used to edit programs header (top part) and program body (bottom part).
+Command used to denote start of program, end of header and so on are automatically sent to the device after program is saved and uploaded.
+To validate whether program was parsed correctly user can consult the text window at the bottom of the screen which forwards platforms debug output to the user.
 
-\chapter{Radar Data Processing}
+Backend side of platform control is rather straightforward forward.
+After connection to platform is established MATLAB serial interface calls a callback each time terminator sequence is found in receiving data.
+Received message is then parsed with debug output being forwarded to the user and positions logged with timestamp in a rotary buffer.
+Radar data processing part can then request positions list in given time interval.
 
-\boldred{TODO: target detection at least using CFAR}
+Platform control can also emit an event when specified yaw angle is reached.
+Or to be more precise platform is withins ome interval of that positions.
+This mechanism enables the program to clear stored radar data after each rotation.
+
+\section{Radar Data Processing}
+
+First it is neccesay to outline what are inputs and outputs of the whole processing pipeline.
+Data used in processing come from two sources -- radar and platform.
+These data are then processed according to users settings in preferences.
+User can pick whether to calculate CFAR data, whether to keep raw radar cube data and in that case if speed calculation is needed.
+Output is then stored in classical radar data cube \cite{richards2022} enabling integration of more advanced algorithms in the future.
+
+As there are two possible distinct output there are two cubes used.
+One is 4D structure with dimensions of fast time $\times$ slow time $\times$ yaw $\times$ pitch, this stores complete range doppler map for each spatial degree.
+In this thesis this structure is only used for visualizing of raw data for given fixed pitch angle.
+Second cube is 3D structure with dimensions of fast time $\times$ slow time $\times$ range and is used to store CFAR output.
+
+Main complicating factor with radar data processing was the need to keep main thread responsive.
+Most time critical aspect of this thread is timely reading of incoming serial data, be it from platform or radar.
+As radar frames aren't timestamp slowdown in reading of them would lead to incorrect interpretation of the data in relation to platform position.
+In addition GUI starts to be quite unresponsive if the resources of main thread are stretched too thin.
+
+To solve this problem processing heavily leverages MATLAB's parallel computing toolbox, offloading as much as possible to different cores.
+Through whole processing pipeline there are mechanism of buffering data into larger batches and if needed discarding some in case software is unable to keep up with incoming data.
+We can split processing into three distinct components -- first part is reading data from serial, running basic FFT and storing them into buffer.
+Second is running 2D FFT and CFAR on the data and them storing them into ping-pong buffer
+And finally last part processes filled ping-pong buffer -- updating radar cube.
+
+\begin{figure}[h!]
+	\centering
+  \begin{tikzpicture}[scale=0.9, node distance=1.5cm]
+
+    % Layer headers
+		\node (comm_layer) [layerheader] at (0, 0) {Serial Layer};
+		\node (app_layer) [layerheader] at (6, 0) {CFAR/2D FFT Layer};
+		\node (hal_layer) [layerheader] at (12, 0) {Cube update Layer};
+
+    % Communication Layer
+    \node (comm_start) [startstop, below of=comm_layer, yshift=-0.3cm] {Start};
+		\node (wait_serial) [process, below of=comm_start] {(M) Wait for serial data};
+    \node (notify_data) [process, below of=wait_serial] {(M) Notify data processor};
+		\node (fft_calc) [process, below of=notify_data] {(M) Calculate FFT};
+		\node (store_chirp) [process, below of=fft_calc, align=center] {Store data to buffer};
+
+    % Arrows in Communication Layer
+    \draw [arrow] (comm_start) -- (wait_serial);
+    \draw [arrow] (wait_serial) -- (fft_calc);
+    \draw [arrow] (fft_calc) -- (store_chirp);
+    \draw [arrow] (store_chirp.west) -- ++(-0.5, 0) |- (wait_serial.west);
+
+    % Application Layer
+    \node (app_start) [startstop, below of=app_layer, yshift=-0.3cm] {Start};
+    \node (update_position) [process, below of=app_start] {Update position};
+    \node (check_queues) [decision, below of=update_position, yshift=-1.3cm] {Queues full?};
+    \node (load) [process, below of=check_queues, align=center, yshift=-1.5cm] {Load command \\ queue ? program};
+    \node (process_command) [process, below of=load,yshift=-0.25cm] {Process command};
+    \node (store_command) [process, align=center, below of=process_command] {Add command \\ to stepper queue};
+
+    % Arrows in Application Layer
+    \draw [arrow] (app_start) -- (update_position);
+    \draw [arrow] (update_position) -- (check_queues);
+    \draw [arrow] (check_queues.east) -- ++(1, 0) |- (update_position.east) node[midway, left, xshift=0.2cm, yshift=+0.25cm,xshift=0.2cm] {Yes};
+    \draw [arrow] (check_queues.south) -- ++(0, -0.5) -| (load.north) node[midway, right, yshift=+0.1cm] {No};
+    \draw [arrow] (load.south) -- ++(0, -0.5) -- (process_command.north);
+    \draw [arrow] (process_command) -- (store_command);
+    \draw [arrow] (store_command.west) -- ++(-0.5, 0) |- (update_position.west);
+
+
+    \node (hal_start) [startstop, below of=hal_layer, yshift=-0.3cm] {Start};
+    \node (wait_queue) [process, below of=hal_start] {Wait on queue};
+    \node (execute_command) [process, below of=wait_queue] {Execute command};
+    \node (wait_command) [process, below of=execute_command] {Wait on command};
+    \node (update_info) [process, align=center, below of=wait_command] {Update last \\command};
+
+    % Arrows in HAL Layer
+    \draw [arrow] (hal_start) -- (wait_queue);
+    \draw [arrow] (wait_queue) -- (execute_command);
+    \draw [arrow] (execute_command) -- (wait_command);
+    \draw [arrow] (wait_command) -- (update_info);
+    \draw [arrow] (update_info.west) -- ++(-0.5, 0) |- (wait_queue.west);
+
+  \end{tikzpicture}
+
+  \caption[Program flow diagram]{Program flow diagram}
+  \label{fig:code_diag}
+\end{figure}
+
+
 
 \include{conclusion}
 
