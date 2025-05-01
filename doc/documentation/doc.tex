@@ -820,7 +820,8 @@ And finally last part processes filled ping-pong buffer -- updating radar cube.
   \begin{tikzpicture}[scale=0.9, node distance=1.5cm]
 
     % Layer headers
-		\node (comm_layer) [layerheader] at (0, 0) {Serial Layer};
+		\node (comm_layer) [layerheaderT, top left text=XXXXXXXXXXXX] at (0,0) {Main Layer};
+		% \node (comm_layer) [layerheader] at (0, 0) {Serial Layer};
 		\node (app_layer) [layerheader] at (6, 0) {CFAR/2D FFT Layer};
 		\node (hal_layer) [layerheader] at (12, 0) {Cube update Layer};
 

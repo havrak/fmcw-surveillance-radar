@@ -20,6 +20,8 @@ classdef dataProcessor < handle
 
 		readIdx = 1;
 
+		cfarDrawThreshold = 0.2;
+
 		radarBufferSize = 100;
 		decayType = 1;
 		processingParamters;
@@ -166,14 +168,13 @@ classdef dataProcessor < handle
 				obj.hSurf.CData = toDraw;
 			elseif strcmp(obj.currentVisualizationStyle, 'Target-3D')
 				fprintf("dataProcessor | updateFinished | updating 3D plot\n");
-
-				[rangeBin, yawBin, pitchBin] = ind2sub(size(obj.hDataCube.cfarCube), find(obj.hDataCube.cfarCube));
+				idx = find(obj.hDataCube.cfarCube >= obj.cfarDrawThreshold);
+				[rangeBin, yawBin, pitchBin] = ind2sub(size(obj.hDataCube.cfarCube), idx);
 
 				if ~isempty(rangeBin)
 					range = (rangeBin - 1) * obj.processingParamters.rangeBinWidth;
 					yaw = obj.hDataCube.yawBins(yawBin);
 					pitch = obj.hDataCube.pitchBins(pitchBin);
-
 					X = range .* cosd(pitch) .* cosd(yaw);
 					Y = range .* cosd(pitch) .* sind(yaw);
 					Z = range .* sind(pitch);
@@ -181,7 +182,7 @@ classdef dataProcessor < handle
 					set(obj.hScatter3D, 'XData', X, 'YData', Y, 'ZData', Z);
 					clim(obj.hAxes, [min(range), max(range)]);
 				else
-					set(obj.hScatter3D, 'XData', [], 'YData', [], 'ZData', []);
+					set(obj.hScatter3D, 'XData', [], 'YData', [], 'ZData', [], 'CData', obj.hDataCube.cfarCube(idx));
 				end
 			end
 
@@ -200,7 +201,7 @@ classdef dataProcessor < handle
 			% TODO Deinitilize variables
 
 			[spreadPatternEnabled, spreadPatternYaw, spreadPatternPitch] = obj.hPreferences.getProcessingSpreadPatternParamters();
-			
+
 			if spreadPatternEnabled == 0
 				spreadPatternYaw = 0;
 				spreadPatternPitch = 0;
@@ -372,9 +373,9 @@ classdef dataProcessor < handle
 
 
 			% NOTE: there must be an easier way to fix dimensions of axis evironment
-			lightGray = [0.9 0.9 0.9];   
-			ls = ':';                   
-			lw = 0.1;                   
+			lightGray = [0.9 0.9 0.9];
+			ls = ':';
+			lw = 0.1;
 			line(obj.hAxes, xlimits, [ylimits(1) ylimits(1)], [zlimits(1) zlimits(1)], ...
 				'Color', lightGray, 'LineStyle', ls, 'LineWidth', lw);
 			line(obj.hAxes, [xlimits(1) xlimits(1)], ylimits, [zlimits(1) zlimits(1)], ...
