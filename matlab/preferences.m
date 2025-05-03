@@ -19,6 +19,7 @@ classdef preferences < handle
 		hEditPlatStepCountYaw;
 		hEditPlatStepCountPitch;
 
+
 		hDropRadarSample       % number of FFT samples for chirp
 		hSwitchRadarHeader;     % uiswitch - pick between 122 and 24 GHz header
 		hEditRadarBandwith;     % uicontrol/edit - distance offset
@@ -26,13 +27,18 @@ classdef preferences < handle
 		hEditTriggerPeriod;
 		hDropRadarADC;
 		hTextRampTime;
-
+		hTextMaxSpeed;
+		
 		hDropProVisualization;
 		hDropProSpeedNFFT;
 		hDropProRangeNFFT;
+		hTextProBinWidthRange;
+		hTextProBinWidthSpeed;
+
 		hEditProCFARGuard;
 		hEditProCFARTraining;
 		hSwitchProCalcSpeed;
+		hSwitchProRequirePosChange;
 		hSwitchProCalcRaw;
 		hSwitchProCalcCFAR;
 		hSwitchProDecayType;
@@ -49,7 +55,7 @@ classdef preferences < handle
 		availableNFFT = [4 8 16 32 64 128 256 512 1024 2048 4096];
 		availableADC = [2571 2400 2118 1800 1125 487 186 59];
 
-		availableVisualization = {'Range-Azimuth', 'Target-3D'};
+		availableVisualization = {'Range-Azimuth', 'Target-3D', 'Range-Doppler'};
 		binaryMap = ['000'; '001'; '010'; '011'; '100'; '101'; '110'; '111'];
 		adcSamplingTime = [14 15 17 20 32 74 194 614];
 		configStruct;
@@ -71,7 +77,7 @@ classdef preferences < handle
 			obj.configStruct.radar.bandwidth=0;
 			obj.configStruct.radar.samples=128;
 			obj.configStruct.radar.adc=obj.availableADC(1);
-			obj.configStruct.radar.trigger=0;
+			obj.configStruct.radar.trigger=25;
 
 			obj.configStruct.platform.port='none';
 			obj.configStruct.platform.baudrate=obj.availableBaudrates(1);
@@ -87,6 +93,8 @@ classdef preferences < handle
 			obj.configStruct.processing.calcSpeed = 1;
 			obj.configStruct.processing.calcCFAR = 1;
 			obj.configStruct.processing.calcRaw = 1;
+
+			obj.configStruct.processing.requirePosChange = 1;
 			obj.configStruct.processing.cfarGuard = 2;
 			obj.configStruct.processing.cfarTraining = 10;
 			obj.configStruct.processing.decayType = 1;
@@ -264,12 +272,21 @@ classdef preferences < handle
 			samples = obj.configStruct.radar.samples;
 			adc = obj.adcSamplingTime(obj.configStruct.radar.adc == obj.availableADC);
 			time = adc*(samples+85)/36e3;
+		end
 
+		function maxSpeed = getMaxSpeed(obj)
+			maxSpeed = physconst('LightSpeed')/((obj.configStruct.radar.trigger/1000)*4*obj.configStruct.radar.header*1e9);
 		end
 
 		function binWidth = getRangeBinWidth(obj)
 			binWidth = physconst('LightSpeed')*(obj.configStruct.radar.samples+85) ...
 				/(2*obj.configStruct.radar.bandwidth*1e6*obj.configStruct.processing.rangeNFFT);
+		end
+
+
+		function binWidth = getSpeedBinWidth(obj)
+			binWidth = physconst('LightSpeed')*(obj.configStruct.radar.trigger/1000)/ ...
+				(2*obj.configStruct.processing.speedNFFT*obj.configStruct.radar.header*1e9);
 		end
 
 
@@ -485,12 +502,23 @@ classdef preferences < handle
 				'Text', 'Chirp samples: ');
 
 			uilabel(obj.hFig, ...
-				'Position', [250, figSize(2)-radarConfigOffset-95, 140, 25], ...
+				'Position', [320, figSize(2)-radarConfigOffset-50, 140, 25], ...
+				'Text', 'Max speed limit [m/s]: ');
+
+			obj.hTextMaxSpeed = uicontrol('Style', 'text', ...
+				'Parent',obj.hFig,  ...
+				'Position', [450, figSize(2)-radarConfigOffset-55, 170, 25], ...
+				'Max',1, ...
+				'String',"Time", ...
+				'HorizontalAlignment', 'left');
+
+			uilabel(obj.hFig, ...
+				'Position', [320, figSize(2)-radarConfigOffset-80, 140, 25], ...
 				'Text', 'Chirp time [ms]: ');
 
 			obj.hTextRampTime = uicontrol('Style', 'text', ...
 				'Parent',obj.hFig,  ...
-				'Position', [350, figSize(2)-radarConfigOffset-100, 170, 25], ...
+				'Position', [450, figSize(2)-radarConfigOffset-85, 170, 25], ...
 				'Max',1, ...
 				'String',"Time", ...
 				'HorizontalAlignment', 'left');
@@ -581,34 +609,68 @@ classdef preferences < handle
 				'Text', 'Calc speed:');
 
 			obj.hSwitchProCalcSpeed = uiswitch('Parent', obj.hFig, ...
-				'Position',[450, figSize(2)-processingOffset-20, 170, 25], ...
+				'Position',[470, figSize(2)-processingOffset-20, 170, 25], ...
 				'Items', {'On', 'Off'}, ...
 				'Orientation', 'horizontal');
 
 			uilabel(obj.hFig, ...
-				'Position',[320, figSize(2)-processingOffset-50, 170, 25], ...
+				'Position', [320, figSize(2)-processingOffset-50, 140, 25], ...
+				'Text', 'Range bin width [m]: ');
+
+			obj.hTextProBinWidthRange = uicontrol('Style', 'text', ...
+				'Parent',obj.hFig,  ...
+				'Position', [450, figSize(2)-processingOffset-55, 170, 25], ...
+				'Max',1, ...
+				'String',"Time", ...
+				'HorizontalAlignment', 'left');
+
+			uilabel(obj.hFig, ...
+				'Position', [320, figSize(2)-processingOffset-80, 140, 25], ...
+				'Text', 'Speed bin width [m/s]: ');
+
+			obj.hTextProBinWidthSpeed = uicontrol('Style', 'text', ...
+				'Parent',obj.hFig,  ...
+				'Position', [450, figSize(2)-processingOffset-85, 170, 25], ...
+				'Max',1, ...
+				'String',"Time", ...
+				'HorizontalAlignment', 'left');
+
+			uilabel(obj.hFig, ...
+				'Position',[320, figSize(2)-processingOffset-110, 170, 25], ...
 				'Text', 'Calc raw cube:');
 
+
 			obj.hSwitchProCalcRaw = uiswitch('Parent', obj.hFig, ...
-				'Position',[450, figSize(2)-processingOffset-50, 170, 25], ...
+				'Position',[470, figSize(2)-processingOffset-110, 170, 25], ...
 				'Items', {'On', 'Off'}, ...
 				'Orientation', 'horizontal');
+
+			uilabel(obj.hFig, ...
+				'Position',[320, figSize(2)-processingOffset-170, 170, 25], ...
+				'Text', 'Require pos change:');
+
+
+			obj.hSwitchProRequirePosChange = uiswitch('Parent', obj.hFig, ...
+				'Position',[470, figSize(2)-processingOffset-170, 170, 25], ...
+				'Items', {'On', 'Off'}, ...
+				'Orientation', 'horizontal');
+
 
 			uilabel(obj.hFig, ...
 				'Position',[320, figSize(2)-processingOffset-140, 170, 25], ...
 				'Text', 'Calc CFAR:');
 
 			obj.hSwitchProCalcCFAR = uiswitch('Parent', obj.hFig, ...
-				'Position',[450, figSize(2)-processingOffset-140, 170, 25], ...
+				'Position',[470, figSize(2)-processingOffset-140, 170, 25], ...
 				'Items', {'On', 'Off'}, ...
 				'Orientation', 'horizontal');
 
 			uilabel(obj.hFig, ...
-				'Position',[320, figSize(2)-processingOffset-110, 170, 25], ...
+				'Position',[320, figSize(2)-processingOffset-200, 170, 25], ...
 				'Text', 'Old removal:');
 
 			obj.hSwitchProDecayType = uiswitch('Parent', obj.hFig, ...
-				'Position',[450, figSize(2)-processingOffset-110, 170, 25], ...
+				'Position',[470, figSize(2)-processingOffset-200, 170, 25], ...
 				'Items', {'Decay', 'Yaw'}, ...
 				'Orientation', 'horizontal');
 
@@ -647,12 +709,12 @@ classdef preferences < handle
 				'HorizontalAlignment', 'left');
 
 			uilabel(obj.hFig, ...
-				'Position', [320, figSize(2)-processingOffset-200, 140, 25], ...
+				'Position', [320, figSize(2)-processingOffset-230, 140, 25], ...
 				'Text', 'Use spread pattern:');
 
 
 			obj.hSwitchProSpreadPattern  = uiswitch('Parent', obj.hFig, ...
-				'Position',[450, figSize(2)-processingOffset-200, 170, 25], ...
+				'Position',[470, figSize(2)-processingOffset-230, 170, 25], ...
 				'Items', {'On', 'Off'}, ...
 				'Orientation', 'horizontal');
 
@@ -777,6 +839,13 @@ classdef preferences < handle
 				set(obj.hSwitchProCalcCFAR, 'Value', 'Off');
 			end
 
+			if(obj.configStruct.processing.requirePosChange == 1)
+				set(obj.hSwitchProRequirePosChange, 'Value', 'On');
+			else
+				set(obj.hSwitchProRequirePosChange, 'Value', 'Off');
+			end
+
+
 			if(obj.configStruct.processing.decayType == 1)
 				set(obj.hSwitchProDecayType, 'Value', 'Decay');
 			else
@@ -895,6 +964,9 @@ classdef preferences < handle
 			time = obj.getRampTime();
 			set(obj.hTextRampTime, 'String', time);
 
+
+			speed = obj.getMaxSpeed();
+			set(obj.hTextMaxSpeed, 'String', speed);
 			%% Processing
 
 			obj.configStruct.processing.visualization = obj.hDropProVisualization.Value;
@@ -931,6 +1003,12 @@ classdef preferences < handle
 				obj.configStruct.processing.calcCFAR = 1;
 			else
 				obj.configStruct.processing.calcCFAR = 0;
+			end
+
+			if(strcmp(obj.hSwitchProRequirePosChange.Value,'On'))
+				obj.configStruct.processing.requirePosChange = 1;
+			else
+				obj.configStruct.processing.requirePosChange = 0;
 			end
 
 			if(strcmp(obj.hSwitchProSpreadPattern.Value,'On'))
@@ -974,6 +1052,12 @@ classdef preferences < handle
 			else
 				obj.configStruct.processing.triggerYaw=floor(tmp);
 			end
+
+			bin = obj.getSpeedBinWidth();
+			set(obj.hTextProBinWidthSpeed, 'String', bin);
+
+			bin = obj.getRangeBinWidth();
+			set(obj.hTextProBinWidthRange, 'String', bin);
 
 			storeConfig(obj);
 			notify(obj, 'newConfigEvent');

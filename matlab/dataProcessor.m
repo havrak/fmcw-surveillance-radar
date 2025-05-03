@@ -10,11 +10,16 @@ classdef dataProcessor < handle
 
 		hPanel = [];
 		hSurf = [];
+		hImage = [];
 		hAxes = [];
 		hScatter3D = [];
 
-		hPitchSlider; % pitch slider for RA map
-		pitchIndex = 21;
+		yawIndex = 1;        % Default yaw index for RD map
+		pitchIndex = 21;     % Default pitch index for RD map
+		hEditYaw;            % Yaw input textbox
+		hEditPitch;          % Pitch input textbox
+		hLabelYaw;
+		hLabelPitch;
 
 		currentDisplayMethod;
 
@@ -68,7 +73,7 @@ classdef dataProcessor < handle
 
 
 				% fprintf("No speed calculations, exitting\n");
-				rangeDoppler = [zeros(processingParamters.rangeNFFT/2, (processingParamters.speedNFFT/2)-1), rangeProfile];
+				rangeDoppler = [zeros(processingParamters.rangeNFFT/2, (processingParamters.speedNFFT)-1), rangeProfile];
 				yaw = posYaw(end);
 				pitch = posPitch(end);
 				return;
@@ -123,13 +128,13 @@ classdef dataProcessor < handle
 
 			% Run FFT
 			if useNUFFT
-				tmp = abs(nufft(batchRangeFFTs, batchTimes, speedSamples, 1));
+				tmp = abs(fftshift(nufft(batchRangeFFTs, batchTimes, speedSamples, 1)),1);
 			else
-				tmp = abs(fft(batchRangeFFTs(1:idxBatch), processingParamters.speedNFFT, 1));
+				tmp = abs(fftshift(fft(batchRangeFFTs(1:idxBatch), processingParamters.speedNFFT, 1)),1 );
 			end
 
 			tmp = (tmp.^2).*distanceMap;
-			rangeDoppler = single(tmp(1:processingParamters.rangeNFFT/2, 1:processingParamters.speedNFFT/2));
+			rangeDoppler = single(tmp(1:processingParamters.rangeNFFT/2, 1:processingParamters.speedNFFT));
 
 		end
 	end
@@ -184,6 +189,19 @@ classdef dataProcessor < handle
 				else
 					set(obj.hScatter3D, 'XData', [], 'YData', [], 'ZData', [], 'CData', obj.hDataCube.cfarCube(idx));
 				end
+			elseif strcmp(obj.currentVisualizationStyle, 'Range-Doppler')
+				if obj.processingParamters.calcSpeed == 1
+					fprintf("Updating Range-Doppler Map\n");
+
+					data = squeeze(obj.hDataCube.rangeDopplerCube(:, :, obj.yawIndex, obj.yawIndex));
+
+					if isempty(data)
+						data = zeros(obj.processingParamters.rangeNFFT/2, ...
+							obj.processingParamters.speedNFFT/2);
+					end
+					set(obj.hImage, 'CData', data);
+				else
+				end
 			end
 
 			drawnow limitrate;
@@ -209,11 +227,10 @@ classdef dataProcessor < handle
 
 			obj.processingParamters = obj.hPreferences.getProcessingParamters();
 			visual=obj.hPreferences.getProcessingVisualization();
-			fprintf("dataProcessor | onNewConfigAvailable | Distance bin size: %f mm\n" , obj.processingParamters.rangeBinWidth*1000);
 			obj.decayType = obj.hPreferences.getDecayType();
 			obj.hDataCube = radarDataCube( ...
 				obj.processingParamters.rangeNFFT/2, ...
-				obj.processingParamters.speedNFFT/2, ...
+				obj.processingParamters.speedNFFT, ...
 				spreadPatternYaw, ...
 				spreadPatternPitch, ...
 				obj.processingParamters.calcRaw , ...
@@ -237,6 +254,13 @@ classdef dataProcessor < handle
 				obj.initialize3DDisplay();
 			end
 
+			if strcmp(visual, 'Range-Doppler') && ~strcmp(obj.currentVisualizationStyle, 'Range-Doppler')
+				fprintf("dataProcessor | onNewConfigAvailable | visualizing Range-Doppler.\n")
+				obj.currentVisualizationStyle = 'Range-Doppler';
+				obj.deinitializeDisplay();
+				obj.initializeRDDisplay();
+			end
+
 
 			addlistener(obj.hDataCube, 'updateFinished', @(~,~) obj.onCubeUpdateFinished());
 		end
@@ -250,21 +274,24 @@ classdef dataProcessor < handle
 			obj.readIdx =  mod(obj.readIdx, obj.radarBufferSize) + 1;
 
 
-			[minTime, maxTime] = obj.hRadarBuffer.getTimeInterval();
-			[posTimes, yaw, pitch] = obj.hPlatform.getPositionsInInterval(minTime, maxTime);
-			fprintf("dataProcessor | onNewDataAvailable | yaw: %f, pitch %f\n", yaw(end), pitch(end));
 
-
-			diffYaw = abs((mod(yaw(end)-obj.hRadarBuffer.lastProcesingYaw + 180, 360) - 180));
-			distance = sqrt(diffYaw^2 + (pitch(end)-obj.hRadarBuffer.lastProcesingPitch)^2);
-			if distance < 1
-				% I can process every single frame without issue but there no need
-				% to process frames where position has not changed, this data is
-				% only usefull for speed calculation
-				return;
-			end
 
 			if obj.parallelPool.NumWorkers > obj.parallelPool.Busy
+
+
+				[minTime, maxTime] = obj.hRadarBuffer.getTimeInterval();
+				[posTimes, yaw, pitch] = obj.hPlatform.getPositionsInInterval(minTime, maxTime);
+
+				fprintf("dataProcessor | onNewDataAvailable | yaw: %f, pitch %f\n", yaw(end), pitch(end));
+				diffYaw = abs((mod(yaw(end)-obj.hRadarBuffer.lastProcesingYaw + 180, 360) - 180));
+				distance = sqrt(diffYaw^2 + (pitch(end)-obj.hRadarBuffer.lastProcesingPitch)^2);
+				if obj.processingParamters.requirePosChange == 1 && distance < 1
+					% I can process every single frame without issue but there no needz
+					% to process frames where position has not changed, this data is
+					% only usefull for speed calculation
+					return;
+				end
+
 				[batchRangeFFTs, batchTimes] = obj.hRadarBuffer.getSlidingBatch();
 				obj.hRadarBuffer.lastProcesingYaw = yaw(end);
 				obj.hRadarBuffer.lastProcesingPitch = pitch(end);
@@ -297,15 +324,34 @@ classdef dataProcessor < handle
 			if ~isempty(obj.hAxes) && isvalid(obj.hAxes)
 				delete(obj.hAxes);
 			end
+
 			if ~isempty(obj.hSurf) && isvalid(obj.hSurf)
 				delete(obj.hSurf);
 			end
-			if ~isempty(obj.hPitchSlider) && isvalid(obj.hPitchSlider)
-				delete(obj.hPitchSlider);
+
+			if ~isempty(obj.hEditPitch) && isvalid(obj.hEditPitch)
+				delete(obj.hEditPitch);
+			end
+
+			if ~isempty(obj.hEditYaw) && isvalid(obj.hEditYaw)
+				delete(obj.hEditYaw);
+			end
+
+			if ~isempty(obj.hImage) && isvalid(obj.hImage)
+				delete(obj.hImage)
+			end
+
+			if ~isempty(obj.hLabelYaw) && isvalid(obj.hLabelYaw)
+				delete(obj.hLabelYaw)
+			end
+
+			if ~isempty(obj.hLabelPitch) && isvalid(obj.hLabelPitch)
+				delete(obj.hLabelPitch)
 			end
 			obj.hAxes = [];
 			obj.hSurf = [];
-			obj.hPitchSlider = [];
+			obj.hEditPitch = [];
+			obj.hEditYaw = [];
 		end
 
 		function initializeARDisplay(obj)
@@ -340,13 +386,18 @@ classdef dataProcessor < handle
 
 			title(obj.hAxes, 'Azimuth-Range Polar Map');
 
-			obj.hPitchSlider = uislider(obj.hPanel,...
-				'Limits', [obj.hDataCube.pitchBinMin obj.hDataCube.pitchBinMax],...
-				'Value', obj.pitchIndex-21,...
-				'ValueChangedFcn', @(src,event) obj.sliderCallback(src),...
-				'Tooltip', 'Select pitch index');
+			obj.hEditPitch = uicontrol(obj.hPanel, ...
+				'Style', 'edit', ...
+				'String', num2str(obj.hDataCube.pitchBins(obj.pitchIndex)), ...
+				'Max',1, ...
+				'HorizontalAlignment', 'left', ...
+				'Callback', @(src,~) obj.updatePitchIndex(src));
 
+			obj.hLabelPitch = uilabel(obj.hPanel, ...
+				'Text', 'Pitch [deg]:');
 
+			axis(obj.hAxes, 'equal'); % otherwise circle wont be much of an circle
+		
 			obj.resizeUI();
 		end
 
@@ -369,7 +420,7 @@ classdef dataProcessor < handle
 			hold(obj.hAxes, 'on');
 			view(obj.hAxes, 3);
 			grid(obj.hAxes, 'on');
-			axis(obj.hAxes, 'equal', 'manual');
+			axis(obj.hAxes, 'manual');
 
 
 			% NOTE: there must be an easier way to fix dimensions of axis evironment
@@ -390,12 +441,77 @@ classdef dataProcessor < handle
 			zlabel(obj.hAxes, 'Z (m)');
 			title(obj.hAxes, '3D Target Visualization');
 
+
+			
+			% axis(obj.hAxes, 'equal'); % otherwise circle wont be much of an circle
+		
+
 			obj.resizeUI();
-			set(obj.hScatter3D, 'XData', [3,2], 'YData', [3,2], 'ZData', [2,2]);
 		end
 
-		function sliderCallback(obj, src)
-			obj.pitchIndex=floor(src.Value)-obj.hDataCube.pitchBinMin+1;
+		function initializeRDDisplay(obj)
+
+			obj.hAxes = axes('Parent', obj.hPanel, 'Units', 'pixels');
+			obj.hEditYaw = uicontrol(obj.hPanel, 'Style', 'edit', ...
+				'String', num2str(obj.hDataCube.yawBins(obj.yawIndex)), ...
+				'Max',1, ...
+				'HorizontalAlignment', 'left', ...
+				'Callback', @(src,~) obj.updateYawIndex(src));
+
+			obj.hEditPitch = uicontrol(obj.hPanel, 'Style', 'edit', ...
+				'String', num2str(obj.hDataCube.pitchBins(obj.pitchIndex)), ...
+				'Max',1, ...
+				'HorizontalAlignment', 'left', ...
+				'Callback', @(src,~) obj.updatePitchIndex(src));
+			obj.hLabelYaw = uilabel(obj.hPanel, ...
+				'Text', 'Yaw [deg]:');
+
+			obj.hLabelPitch = uilabel(obj.hPanel, ...
+				'Text', 'Pitch [deg]:');
+			% initilaize axes, two text boxes, one for yaw, second for pitch
+			if(obj.processingParamters.calcSpeed)
+
+				maxRange = obj.processingParamters.rangeNFFT/2* obj.processingParamters.rangeBinWidth;
+				maxSpeed = obj.processingParamters.speedNFFT*obj.hPreferences.getSpeedBinWidth();
+				initialData = zeros(obj.processingParamters.speedNFFT, ...
+					obj.processingParamters.rangeNFFT/2);
+				speedBins = linspace(-maxSpeed, maxSpeed, obj.processingParamters.speedNFFT)*1000;
+				rangeBins = linspace(0, maxRange, obj.processingParamters.rangeNFFT/2);
+				
+				obj.hImage = imagesc(obj.hAxes, ...
+					rangeBins, ...
+					speedBins, ...
+					initialData);
+
+%obj.hAxes.YAxis.Exponent = 3;
+				title(obj.hAxes, 'Range-Doppler Map');
+				xlabel(obj.hAxes, 'Range [m]');
+				ylabel(obj.hAxes, 'Speed [mm/s]');
+				colormap(obj.hAxes, 'jet');
+			else
+
+			end
+			obj.resizeUI();
+
+		end
+
+
+		function updatePitchIndex(obj, src)
+			inputPitch = str2double(get(src, 'String'));
+			if isnan(inputPitch)
+				warndlg('Pitch must be a number');
+				return;
+			end
+			[~, obj.pitchIndex] = min(abs(obj.hDataCube.pitchBins - inputPitch));
+		end
+
+		function updateYawIndex(obj, src)
+			inputYaw = str2double(get(src, 'String'));
+			if isnan(inputYaw)
+				warndlg('Yaw must be a number');
+				return;
+			end
+			[~, obj.yawIndex] = min(abs(obj.hDataCube.pitchBins - inputYaw));
 		end
 	end
 
@@ -424,6 +540,7 @@ classdef dataProcessor < handle
 		end
 
 		function resizeUI(obj)
+
 			if isempty(obj.hPanel) || ~isvalid(obj.hPanel)
 				return;
 			end
@@ -431,21 +548,21 @@ classdef dataProcessor < handle
 			panelWidth = panelPos(3);
 			panelHeight = panelPos(4);
 
-			axesMarginX = 60;
-			axesMarginY = 60;
+			axesMarginX = 80;
+			axesMarginY = 70;
 
-			sliderMarginX = 30;
-			sliderMarginY = 40;
+			if ~isempty(obj.hAxes) && isvalid(obj.hAxes)
+				set(obj.hAxes, 'Position', [axesMarginX, axesMarginY+10, panelWidth-2*axesMarginX, panelHeight-2*axesMarginY-10]);
+				end
 
-			if isvalid(obj.hAxes)
-				set(obj.hAxes, 'Position', [axesMarginX, axesMarginY, panelWidth-2*axesMarginX, panelHeight-2*axesMarginY]);
-				axis(obj.hAxes, 'equal');
+			if ~isempty(obj.hEditPitch) && isvalid(obj.hEditPitch)
+				set(obj.hLabelPitch, 'Position', [30, 20, 70, 25]);
+				set(obj.hEditPitch,'Position',[100, 20, 100, 25]);
 			end
 
-			if ~isempty(obj.hPitchSlider) && isvalid(obj.hPitchSlider)
-				pos = get(obj.hPitchSlider,'Position');
-				pos(1:3) = [sliderMarginX sliderMarginY 200];
-				set(obj.hPitchSlider,'Position',pos);
+			if ~isempty(obj.hEditYaw) && isvalid(obj.hEditYaw)
+				set(obj.hEditYaw, 'Position', [278, 20, 100, 25]);
+				set(obj.hLabelYaw,'Position',[210, 20, 70, 25]);
 			end
 
 		end
