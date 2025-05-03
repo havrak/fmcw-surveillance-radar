@@ -182,7 +182,7 @@ classdef radarDataCube < handle
 					% --- 3.4 Update subrawCube with contribution ---
 					%%subCube(:, :, localYaw, localPitch) = ...
 					%	subCube( :, :, localYaw, localPitch) + contribution;
-					scripts.updateCube(subCube, contribution, localYaw, localPitch);
+					% scripts.updateCube(subCube, contribution, localYaw, localPitch);
 				end
 
 
@@ -261,8 +261,10 @@ classdef radarDataCube < handle
 
 
 				if ~exist('rawCube.dat', 'file')
-					% TODO: this is linux only, would be nice to fix
-					system('fallocate -l 256M rawCube.dat');
+					mocDataSize = obj.rawCubeSize;
+					mocDataSize(1) = floor(mocDataSize(1)*1.2); % there needs to be a little reserve
+					data = randn(mocDataSize, 'single');
+					save('rawCube.dat', 'data');
 				end
 
 				fprintf("radarDataCube | radarDataCube | Initializing rawCube with yaw %f, pitch %f, range %d, doppler %f\n", length(obj.yawBins), length(obj.pitchBins), numRangeBins, numDopplerBins)
@@ -289,7 +291,10 @@ classdef radarDataCube < handle
 				obj.bufferB.cfar = zeros([numRangeBins, obj.batchSize], 'single');
 
 				if ~exist('cfarCube.dat', 'file')
-					system('fallocate -l 64M cfarCube.dat');
+					mocDataSize = obj.rawCubeSize([1 3 4]);
+					mocDataSize(1) = floor(mocDataSize(1)*1.2);
+					data = randn(mocDataSize, 'single');
+					save('cfarCube.dat', 'data');
 				end
 
 				% Create memory map

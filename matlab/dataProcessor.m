@@ -475,7 +475,7 @@ classdef dataProcessor < handle
 				maxSpeed = obj.processingParamters.speedNFFT*obj.hPreferences.getSpeedBinWidth();
 				initialData = zeros(obj.processingParamters.speedNFFT, ...
 					obj.processingParamters.rangeNFFT/2);
-				speedBins = linspace(-maxSpeed, maxSpeed, obj.processingParamters.speedNFFT)*1000;
+				speedBins = linspace(-maxSpeed, maxSpeed-obj.hPreferences.getSpeedBinWidth(), obj.processingParamters.speedNFFT)*1000;
 				rangeBins = linspace(0, maxRange, obj.processingParamters.rangeNFFT/2);
 				
 				obj.hImage = imagesc(obj.hAxes, ...

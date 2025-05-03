@@ -808,6 +808,9 @@ classdef preferences < handle
 
 			time = obj.getRampTime();
 			set(obj.hTextRampTime, 'String', time);
+
+			speed = obj.getMaxSpeed();
+			set(obj.hTextMaxSpeed, 'String', speed);
 			%% Processing config
 
 			if any(matches(obj.configStruct.processing.visualization,obj.availableVisualization))
@@ -858,6 +861,12 @@ classdef preferences < handle
 				set(obj.hSwitchProSpreadPattern, 'Value', 'Off');
 			end
 
+			bin = obj.getSpeedBinWidth();
+			set(obj.hTextProBinWidthSpeed, 'String', bin);
+
+			bin = obj.getRangeBinWidth();
+			set(obj.hTextProBinWidthRange, 'String', bin);
+			
 			set(obj.hEditProCFARGuard, 'String', obj.configStruct.processing.cfarGuard);
 			set(obj.hEditProCFARTraining, 'String', obj.configStruct.processing.cfarTraining);
 			set(obj.hEditProResetYaw, 'String', obj.configStruct.processing.triggerYaw);
@@ -963,7 +972,6 @@ classdef preferences < handle
 
 			time = obj.getRampTime();
 			set(obj.hTextRampTime, 'String', time);
-
 
 			speed = obj.getMaxSpeed();
 			set(obj.hTextMaxSpeed, 'String', speed);

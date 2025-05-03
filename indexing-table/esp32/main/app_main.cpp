@@ -39,5 +39,5 @@ extern "C" void app_main(void)
 	stepperControl.parseGCode("M03 SY4 Y-",10);
 	stepperControl.parseGCode("P91", 3);
 	stepperControl.parseGCode("P92", 3);
-	// stepperControl.parseGCode("P1 xxxx", 7);
+	stepperControl.parseGCode("P1 xxxx", 7);
 }
