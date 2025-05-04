@@ -32,7 +32,7 @@ classdef platformControl < handle
 		positionYaw;        % Array of yaw positions
 		positionPitch;      % Array of pitch positions
 		currentIdx double = 1;
-		
+
 		angleOffsetYaw = 0;
 		angleOffsetPitch = 0;
 		stepCountYaw = 200;
@@ -40,7 +40,7 @@ classdef platformControl < handle
 		angleTriggerYaw =10000;
 		angleTriggerYawTorelance = 2; % how far can we be for trigger to trigger
 		angleTriggerYawTimestamp = 0; % just for debounce
-		
+
 
 		log cell = {};
 		startTime uint64;
@@ -247,18 +247,20 @@ classdef platformControl < handle
 				obj.positionYaw(obj.currentIdx) = mod(str2double(vals{2})-obj.angleOffsetYaw,360);
 				obj.positionPitch(obj.currentIdx) = str2double(vals{3})-obj.angleOffsetPitch;
 
-
-
-				obj.positionYaw(obj.currentIdx) = str2double(vals{2});
-				obj.positionPitch(obj.currentIdx) = str2double(vals{3});
-				obj.currentIdx = mod(obj.currentIdx, obj.bufferSize) + 1;
-
 				if obj.angleTriggerYaw ~= -1 &&  (mod(obj.positionYaw(obj.currentIdx) - obj.angleTriggerYaw, 360) <= 2*obj.angleTriggerYawTorelance)
+					
 					if toc(obj.angleTriggerYawTimestamp) > 1
+						fprintf("HIT\n");
 						obj.angleTriggerYawTimestamp = tic;
 						notify(obj, 'positionTriggerHit');
 					end
 				end
+
+				% obj.positionYaw(obj.currentIdx) = str2double(vals{2});
+				% obj.positionPitch(obj.currentIdx) = str2double(vals{3});
+				obj.currentIdx = mod(obj.currentIdx, obj.bufferSize) + 1;
+
+
 
 				return;
 			elseif strncmp(line,'!R',2)
@@ -379,7 +381,7 @@ classdef platformControl < handle
 				obj.angleTriggerYaw = -1;
 			end
 
-			if ~isempty(obj.hSerial) && ((localStepCountYaw ~= obj.stepCountYaw) || (localStepCountPitch ~= obj.stepCountPitch)) 
+			if ~isempty(obj.hSerial) && ((localStepCountYaw ~= obj.stepCountYaw) || (localStepCountPitch ~= obj.stepCountPitch))
 				obj.stepCountPitch = localStepCountPitch;
 				obj.stepCountYaw = localStepCountYaw;
 				command = "M92 Y"+obj.stepCountYaw + " P"+obk.stepCountPitch;
@@ -437,11 +439,11 @@ classdef platformControl < handle
 				fprintf("platFormControl | setupSerial | port: %s, baud: %f\n", port, baudrate)
 				obj.hSerial = serialport(port, baudrate, "Timeout", 5);
 				configureTerminator(obj.hSerial,"CR");
-			
+
 				command = "M92 Y"+obj.stepCountYaw + " P"+obj.stepCountPitch; % send step count
 				flush(obj.hSerial);
 				writeline(obj.hSerial, command);
-			
+
 				fprintf("platFormControl | setupSerial | starting thread\n");
 				configureCallback(obj.hSerial, "terminator", @(src, ~) obj.processIncommingData(src))
 				status = true;
@@ -454,9 +456,9 @@ classdef platformControl < handle
 		% function [vec] = getSpeedVector(obj, timeMin, timeMax)
 		% 	[timestamps, yaw, pitch] = obj.getPositionsInInterval(timeMin, timeMax);
 		% 	[~,~, r] = obj.hPreferences.getPlatformParamters();
-		% 
+		%
 		% 	[x,y,z] = sph2cart(yaw/180*pi, pitch/180*pi-pi, r);
-		% 
+		%
 		% end
 
 		function [timestamps, yaw, pitch] = getPositionsInInterval(obj, timeMin, timeMax)

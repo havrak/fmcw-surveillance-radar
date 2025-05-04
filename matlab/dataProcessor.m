@@ -364,7 +364,7 @@ classdef dataProcessor < handle
 			rangeBins = samples/2;
 			yawBins = 360;
 
-			theta = deg2rad(obj.hDataCube.yawBins)-pi/4;
+			theta = -deg2rad(obj.hDataCube.yawBins)+pi/2; % minus to rotate counter clock wise, +pi/2 to center 0 deg 
 			r = 1:rangeBins;
 			[THETA, R] = meshgrid(theta, r);
 			[X, Y] = pol2cart(THETA, R);
