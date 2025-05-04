@@ -1051,9 +1051,9 @@ classdef preferences < handle
 			end
 
 			if(strcmp(obj.hSwitchProDecayType.Value,'Decay'))
-				obj.configStruct.processing.calcCFAR = 1;
+				obj.configStruct.processing.decayType = 1;
 			else
-				obj.configStruct.processing.calcCFAR = 0;
+				obj.configStruct.processing.decayType = 0;
 			end
 
 			if(strcmp(obj.hSwitchProRequirePosChange.Value,'On'))

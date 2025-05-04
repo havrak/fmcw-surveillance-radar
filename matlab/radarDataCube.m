@@ -23,6 +23,7 @@ classdef radarDataCube < handle
 		batchSize = 6;
 
 		decay = true;
+		requestToZero = false;
 		isProcessing = false;
 		overflow = false;
 		keepRaw;
@@ -228,6 +229,10 @@ classdef radarDataCube < handle
 	methods(Access=private)
 		function afterBatchProcessing(obj)
 			obj.isProcessing = false;
+			if obj.requestToZero
+				obj.requestToZero = false; 
+				obj.zeroCubes();
+			end
 			notify(obj, 'updateFinished');
 			fprintf("radarDataCube | updateFinished\n");
 		end
@@ -328,7 +333,7 @@ classdef radarDataCube < handle
 			[~, yawIdx] = min(abs(obj.yawBins - yaw));
 			[~, pitchIdx] = min(abs(obj.pitchBins - pitch));
 			decayCoef = exp(-speed/1000);
-			fprintf("radarDataCube | addData | adding to rawCube %d: yaw %f, pitch %f, decay %f\n", obj.bufferActiveWriteIdx, yaw, pitch, decayCoef);
+			% fprintf("radarDataCube | addData | adding to rawCube %d: yaw %f, pitch %f, decay %f\n", obj.bufferActiveWriteIdx, yaw, pitch, decayCoef);
 			
 			obj.bufferA.decay(obj.bufferActiveWriteIdx) = decayCoef;
 
@@ -404,6 +409,11 @@ classdef radarDataCube < handle
 		end
 
 		function zeroCubes(obj)
+			if (obj.isProcessing) % processBatch is currently running, this function will run after that function finishes
+				obj.requestToZero = true;
+				return; 
+			end
+
 			if obj.keepCFAR
 				scripts.zeroCube(obj.cfarCube)
 			end

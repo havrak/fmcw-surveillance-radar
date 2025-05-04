@@ -77,7 +77,7 @@ classdef dataProcessor < handle
 				return;
 			end
 
-		
+
 			% only allow samples whose position was within 4 degrees of our
 			% current one
 			% four is totaly arbitrary number, given radars capabilities speed
@@ -141,10 +141,8 @@ classdef dataProcessor < handle
 		end
 
 		function onCubeUpdateFinished(obj)
-			fprintf("dataProcessor | updateFinished\n");
 
 			if strcmp(obj.currentVisualizationStyle,'Range-Azimuth')
-
 				fprintf("dataProcessor | updateFinished | drawing r-a map\n");
 
 				if obj.processingParamters.calcRaw && obj.processingParamters.calcCFAR
@@ -157,6 +155,8 @@ classdef dataProcessor < handle
 					toDraw = squeeze(data(:, 1, :, obj.pitchIndex));
 				elseif obj.processingParamters.calcCFAR
 					toDraw = squeeze(obj.hDataCube.cfarCube(:, :, obj.pitchIndex));
+				else
+					toDraw = zeros(obj.hDataCube.rawCubeSize([1 3]));
 				end
 
 				obj.hSurf.CData = toDraw;
@@ -169,14 +169,20 @@ classdef dataProcessor < handle
 					range = (rangeBin - 1) * obj.processingParamters.rangeBinWidth;
 					yaw = obj.hDataCube.yawBins(yawBin);
 					pitch = obj.hDataCube.pitchBins(pitchBin);
-					X = range .* cosd(pitch) .* cosd(yaw);
-					Y = range .* cosd(pitch) .* sind(yaw);
-					Z = range .* sind(pitch);
+					X = range' .* cosd(pitch) .* cosd(yaw);
+					Y = range' .* cosd(pitch) .* sind(yaw);
+					Z = range' .* sind(pitch);
+					fprintf("dataProcessor | updateFinished | X:%d, Y:%d, Z%d. limX = [%d, %d], limY = [%d, %d], limZ = [%d, %d]\n", ...
+						length(X), length(Y), length(Z), ...
+						min(X), max(X), ...
+						min(Y), max(Y), ...
+						min(Z), max(Z));
+					set(obj.hScatter3D, 'XData', X, 'YData', Y, 'ZData', Z, 'CData', obj.hDataCube.cfarCube(idx));
+					% set(obj.hScatter3D, 'XData', X, 'YData', Y, 'ZData', Z);
 
-					set(obj.hScatter3D, 'XData', X, 'YData', Y, 'ZData', Z);
-					clim(obj.hAxes, [min(range), max(range)]);
+					% clim(obj.hAxes, [min(range), max(range)]);
 				else
-					set(obj.hScatter3D, 'XData', [], 'YData', [], 'ZData', [], 'CData', obj.hDataCube.cfarCube(idx));
+					set(obj.hScatter3D, 'XData', [], 'YData', [], 'ZData', []);
 				end
 			elseif strcmp(obj.currentVisualizationStyle, 'Range-Doppler')
 				if obj.processingParamters.calcSpeed == 1
@@ -272,7 +278,7 @@ classdef dataProcessor < handle
 				[minTime, maxTime] = obj.hRadarBuffer.getTimeInterval();
 				[posTimes, yaw, pitch] = obj.hPlatform.getPositionsInInterval(minTime, maxTime);
 
-				
+
 				diffYaw = abs((mod(yaw(end)-obj.hRadarBuffer.lastProcesingYaw + 180, 360) - 180));
 				distance = sqrt(diffYaw^2 + (pitch(end)-obj.hRadarBuffer.lastProcesingPitch)^2);
 				if obj.processingParamters.requirePosChange == 1 && distance < 1
@@ -294,9 +300,9 @@ classdef dataProcessor < handle
 				% 	yaw, ...
 				% 	pitch, ...
 				% 	obj.processingParamters);
-				% 
+				%
 				% obj.mergeResults(yaw, pitch, cfar, rangeDoppler, speed);
-				
+
 				fprintf("dataProcessor | onNewDataAvailable | processing: yaw: %f, pitch %f\n", yaw(end), pitch(end));
 				future = parfeval(obj.parallelPool, ...
 					@dataProcessor.processBatch, 5, ...
@@ -358,7 +364,7 @@ classdef dataProcessor < handle
 			rangeBins = samples/2;
 			yawBins = 360;
 
-			theta = deg2rad(obj.hDataCube.yawBins);
+			theta = deg2rad(obj.hDataCube.yawBins)-pi/4;
 			r = 1:rangeBins;
 			[THETA, R] = meshgrid(theta, r);
 			[X, Y] = pol2cart(THETA, R);
@@ -392,7 +398,7 @@ classdef dataProcessor < handle
 				'Text', 'Pitch [deg]:');
 
 			axis(obj.hAxes, 'equal'); % otherwise circle wont be much of an circle
-		
+
 			obj.resizeUI();
 		end
 
@@ -402,7 +408,7 @@ classdef dataProcessor < handle
 
 			xlimits = [-maxRange, maxRange];
 			ylimits = [-maxRange, maxRange];
-			zlimits = [-maxRange* sind(obj.hDataCube.pitchBinMin), maxRange* sind(obj.hDataCube.pitchBinMax)];
+			zlimits = [maxRange* sind(obj.hDataCube.pitchBinMin), maxRange* sind(obj.hDataCube.pitchBinMax)];
 
 			obj.hAxes = axes('Parent', obj.hPanel, ...
 				'Units', 'pixels', ...
@@ -411,35 +417,21 @@ classdef dataProcessor < handle
 				'ZLim',   zlimits, ...
 				'XLimMode','manual', ...
 				'YLimMode','manual', ...
-				'ZLimMode','manual');
-			hold(obj.hAxes, 'on');
+				'ZLimMode','manual', ...
+				'NextPlot','add');
+			
 			view(obj.hAxes, 3);
 			grid(obj.hAxes, 'on');
 			axis(obj.hAxes, 'manual');
-
-
-			% NOTE: there must be an easier way to fix dimensions of axis evironment
-			lightGray = [0.9 0.9 0.9];
-			ls = ':';
-			lw = 0.1;
-			line(obj.hAxes, xlimits, [ylimits(1) ylimits(1)], [zlimits(1) zlimits(1)], ...
-				'Color', lightGray, 'LineStyle', ls, 'LineWidth', lw);
-			line(obj.hAxes, [xlimits(1) xlimits(1)], ylimits, [zlimits(1) zlimits(1)], ...
-				'Color', lightGray, 'LineStyle', ls, 'LineWidth', lw);
-			line(obj.hAxes, [xlimits(1) xlimits(1)], [ylimits(1) ylimits(1)], zlimits, ...
-				'Color', lightGray, 'LineStyle', ls, 'LineWidth', lw);
-
-			obj.hScatter3D = scatter3(obj.hAxes, NaN, NaN, NaN, 'filled');
+	
+			obj.hScatter3D = scatter3(obj.hAxes, [], [], [], 'filled');
 			colormap(obj.hAxes, 'jet');
 			xlabel(obj.hAxes, 'X (m)');
 			ylabel(obj.hAxes, 'Y (m)');
 			zlabel(obj.hAxes, 'Z (m)');
 			title(obj.hAxes, '3D Target Visualization');
 
-
-			
-			% axis(obj.hAxes, 'equal'); % otherwise circle wont be much of an circle
-		
+			set(obj.hScatter3D, 'XData', [2,1,0], 'YData', [2,1,0], 'ZData', [1,0,0]);
 
 			obj.resizeUI();
 		end
@@ -472,13 +464,13 @@ classdef dataProcessor < handle
 					obj.processingParamters.rangeNFFT/2);
 				speedBins = linspace(-maxSpeed, maxSpeed-obj.hPreferences.getSpeedBinWidth(), obj.processingParamters.speedNFFT)*1000;
 				rangeBins = linspace(0, maxRange, obj.processingParamters.rangeNFFT/2);
-				
+
 				obj.hImage = imagesc(obj.hAxes, ...
 					rangeBins, ...
 					speedBins, ...
 					initialData);
 
-%obj.hAxes.YAxis.Exponent = 3;
+				%obj.hAxes.YAxis.Exponent = 3;
 				title(obj.hAxes, 'Range-Doppler Map');
 				xlabel(obj.hAxes, 'Range [m]');
 				ylabel(obj.hAxes, 'Speed [mm/s]');
@@ -548,7 +540,7 @@ classdef dataProcessor < handle
 
 			if ~isempty(obj.hAxes) && isvalid(obj.hAxes)
 				set(obj.hAxes, 'Position', [axesMarginX, axesMarginY+10, panelWidth-2*axesMarginX, panelHeight-2*axesMarginY-10]);
-				end
+			end
 
 			if ~isempty(obj.hEditPitch) && isvalid(obj.hEditPitch)
 				set(obj.hLabelPitch, 'Position', [30, 20, 70, 25]);
