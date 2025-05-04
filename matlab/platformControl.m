@@ -247,17 +247,13 @@ classdef platformControl < handle
 				obj.positionYaw(obj.currentIdx) = mod(str2double(vals{2})-obj.angleOffsetYaw,360);
 				obj.positionPitch(obj.currentIdx) = str2double(vals{3})-obj.angleOffsetPitch;
 
-				if obj.angleTriggerYaw ~= -1 &&  (mod(obj.positionYaw(obj.currentIdx) - obj.angleTriggerYaw, 360) <= 2*obj.angleTriggerYawTorelance)
-					
-					if toc(obj.angleTriggerYawTimestamp) > 1
-						fprintf("HIT\n");
-						obj.angleTriggerYawTimestamp = tic;
-						notify(obj, 'positionTriggerHit');
-					end
+				if obj.angleTriggerYaw ~= -1 && ...
+						(mod(obj.positionYaw(obj.currentIdx) - obj.angleTriggerYaw, 360) <= 2*obj.angleTriggerYawTorelance) && ...
+						toc(obj.angleTriggerYawTimestamp) > 1
+					obj.angleTriggerYawTimestamp = tic;
+					notify(obj, 'positionTriggerHit');
 				end
 
-				% obj.positionYaw(obj.currentIdx) = str2double(vals{2});
-				% obj.positionPitch(obj.currentIdx) = str2double(vals{3});
 				obj.currentIdx = mod(obj.currentIdx, obj.bufferSize) + 1;
 
 

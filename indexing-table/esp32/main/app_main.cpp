@@ -32,13 +32,15 @@ extern "C" void app_main(void)
 
 	// DELETE
 	stepperControl.parseGCode("P90 xxxx", 14);
+	stepperControl.parseGCode("M92 Y400 P200", 13);
 	stepperControl.parseGCode("G91", 3);
 	stepperControl.parseGCode("G21",3);
 	stepperControl.parseGCode("G92",3);
 	stepperControl.parseGCode("P29",3);
-	stepperControl.parseGCode("M03 SY4 Y-",10);
+	stepperControl.parseGCode("M03 SY5 Y-",10);
 	stepperControl.parseGCode("P91", 3);
-	stepperControl.parseGCode("G01 SY4 Y-",10);
+	stepperControl.parseGCode("G0 SP15 P60",11);
+	stepperControl.parseGCode("G0 SP15 P-60",12);
 
 	stepperControl.parseGCode("P92", 3);
 	stepperControl.parseGCode("P1 xxxx", 7);

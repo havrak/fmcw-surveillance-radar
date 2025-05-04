@@ -169,20 +169,18 @@ classdef dataProcessor < handle
 					range = (rangeBin - 1) * obj.processingParamters.rangeBinWidth;
 					yaw = obj.hDataCube.yawBins(yawBin);
 					pitch = obj.hDataCube.pitchBins(pitchBin);
-					X = range' .* cosd(pitch) .* cosd(yaw);
-					Y = range' .* cosd(pitch) .* sind(yaw);
+					X = range' .* cosd(pitch) .* cosd(-yaw+90);
+					Y = range' .* cosd(pitch) .* sind(-yaw+90);
 					Z = range' .* sind(pitch);
-					fprintf("dataProcessor | updateFinished | X:%d, Y:%d, Z%d. limX = [%d, %d], limY = [%d, %d], limZ = [%d, %d]\n", ...
-						length(X), length(Y), length(Z), ...
-						min(X), max(X), ...
-						min(Y), max(Y), ...
-						min(Z), max(Z));
+					% fprintf("dataProcessor | updateFinished | X:%d, Y:%d, Z%d. limX = [%d, %d], limY = [%d, %d], limZ = [%d, %d]\n", ...
+					% 	length(X), length(Y), length(Z), ...
+					% 	min(X), max(X), ...
+					% 	min(Y), max(Y), ...
+					% 	min(Z), max(Z));
 					set(obj.hScatter3D, 'XData', X, 'YData', Y, 'ZData', Z, 'CData', obj.hDataCube.cfarCube(idx));
-					% set(obj.hScatter3D, 'XData', X, 'YData', Y, 'ZData', Z);
-
-					% clim(obj.hAxes, [min(range), max(range)]);
-				else
-					set(obj.hScatter3D, 'XData', [], 'YData', [], 'ZData', []);
+					
+					else
+						set(obj.hScatter3D, 'XData', [], 'YData', [], 'ZData', []);
 				end
 			elseif strcmp(obj.currentVisualizationStyle, 'Range-Doppler')
 				if obj.processingParamters.calcSpeed == 1
