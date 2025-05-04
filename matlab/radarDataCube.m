@@ -119,7 +119,7 @@ classdef radarDataCube < handle
 				%  -> concart into larger array and remove duplicat elements, mode
 				%  that array
 				%  find breaks in this array (wrap fro 360 to 1) -> fill in elements
-				expandedYaws = arrayfun(@(y) [(y-halfYaw) : (y+halfYaw)], [buffer.yawIdx], 'UniformOutput', false);
+				expandedYaws = arrayfun(@(y) [(y-halfYaw):(y+halfYaw)], [buffer.yawIdx], 'UniformOutput', false);
 				allYaws = unique(mod(cat(2, expandedYaws{:}) - 1, numYawBins) + 1);
 				% Split into contiguous segments if wrap-around exists
 				wrapIdx = find(diff(allYaws) < 0);
@@ -176,13 +176,13 @@ classdef radarDataCube < handle
 						scripts.decayCube_avx2(rangerDoppler, batchDecay);
 					end
 					contribution = scripts.applyPattern(adjPattern, rangerDoppler);
-				
+
 
 
 					% --- 3.4 Update subrawCube with contribution ---
 					%%subCube(:, :, localYaw, localPitch) = ...
 					%	subCube( :, :, localYaw, localPitch) + contribution;
-					% scripts.updateCube(subCube, contribution, localYaw, localPitch);
+					scripts.updateCube(subCube, contribution, localYaw, localPitch);
 				end
 
 
@@ -205,10 +205,22 @@ classdef radarDataCube < handle
 					'Writable', true, ...
 					'Repeat', 1);
 
-				for i = 1:numel(buffer.yawIdx)
-					fprintf("CFAR | idx=%f, sum=%f", buffer.pitchIdx(i), sum(buffer.cfar(:, i)));
-					m.Data.cfarCube(:, buffer.yawIdx(i), buffer.pitchIdx(i)) = buffer.cfar(:, i);
+				if(decay)
+					batchDecay = single(prod([buffer.decay]));
+					scripts.decayCube_avx2(m.Data.cfarCube, batchDecay);
 				end
+
+
+				for i = 1:numel(buffer.yawIdx)
+					% fprintf("CFAR | idx=%f, sum=%f", buffer.pitchIdx(i), sum(buffer.cfar(:, i)));
+					contribution =  buffer.cfar(:, i);
+					if(decay)
+						batchDecay = single(prod(buffer.decay(i:end)));
+						scripts.decayCube_avx2(contribution, batchDecay);
+					end
+					m.Data.cfarCube(:, buffer.yawIdx(i), buffer.pitchIdx(i)) = contribution;
+				end
+
 			end
 		end
 	end
@@ -235,10 +247,10 @@ classdef radarDataCube < handle
 	methods(Access=public)
 
 
-		function obj = radarDataCube(numRangeBins, numDopplerBins, spreadPatternYaw, spreadPatternPitch, keepRaw, keepCFAR, decay)
+		function obj = radarDataCube(numRangeBins, numDopplerBins, batchSize,  spreadPatternYaw, spreadPatternPitch, keepRaw, keepCFAR, decay)
 			obj.yawBins = obj.yawBinMin:obj.yawBinMax;     % 1° resolution
 			obj.pitchBins = obj.pitchBinMin:obj.pitchBinMax;          % 1° resolution
-
+			obj.batchSize = batchSize;
 			obj.bufferActive = obj.bufferA;
 			if(spreadPatternYaw == 0 || spreadPatternPitch == 0)
 				obj.spreadPattern = [];
@@ -260,10 +272,10 @@ classdef radarDataCube < handle
 
 
 
-				if ~exist('rawCube.dat', 'file')
+				if ~exist('rawCube.dat', 'file') % this can more easily be handled bu fsutil (win), fallocate (linux)
 					mocDataSize = obj.rawCubeSize;
 					mocDataSize(1) = floor(mocDataSize(1)*1.2); % there needs to be a little reserve
-					data = randn(mocDataSize, 'single');
+					data = randn(mocDataSize, 'single');  % matlab applyes some sort of compression, so we need data to be random in order to correctly allocate enough space
 					save('rawCube.dat', 'data');
 				end
 
@@ -315,9 +327,10 @@ classdef radarDataCube < handle
 			% disp(sum(cfar))
 			[~, yawIdx] = min(abs(obj.yawBins - yaw));
 			[~, pitchIdx] = min(abs(obj.pitchBins - pitch));
-			decay = exp(-speed/100);
-
-			fprintf("radarDataCube | addData | adding to rawCube %d: yaw %f, pitch %f, decay %f\n", obj.bufferActiveWriteIdx, yaw, pitch, decay);
+			decayCoef = exp(-speed/1000);
+			fprintf("radarDataCube | addData | adding to rawCube %d: yaw %f, pitch %f, decay %f\n", obj.bufferActiveWriteIdx, yaw, pitch, decayCoef);
+			
+			obj.bufferA.decay(obj.bufferActiveWriteIdx) = decayCoef;
 
 			obj.bufferA.yawIdx(obj.bufferActiveWriteIdx) = yawIdx;
 			obj.bufferA.pitchIdx(obj.bufferActiveWriteIdx) = pitchIdx;
@@ -330,7 +343,6 @@ classdef radarDataCube < handle
 				%	fprintf("AFTER SINGLE\n");
 				%disp(sum(obj.bufferA.cfar(:, obj.bufferActiveWriteIdx)));
 			end
-			obj.bufferA.decay(obj.bufferActiveWriteIdx) = decay;
 
 			if obj.bufferActiveWriteIdx > obj.batchSize
 				obj.overflow = true;
@@ -363,11 +375,10 @@ classdef radarDataCube < handle
 			obj.bufferB = processingBuffer; % Assign to processing buffer
 			obj.bufferActiveWriteIdx = 1;
 
-			% future = parfeval(gcp, @radarDataCube.processBatch, 0, processingBuffer, obj.spreadPattern, obj.rawCubeSize, obj.yawBins, obj.pitchBins, obj.keepRaw, obj.keepCFAR);
-
-
-			% NOTE: main thread execution for debug
-			radarDataCube.processBatch(processingBuffer, ...
+			future = parfeval(gcp, ...
+				@radarDataCube.processBatch, ...
+				0, ...
+				processingBuffer, ...
 				obj.spreadPattern, ...
 				obj.rawCubeSize, ...
 				obj.yawBins, ...
@@ -375,7 +386,18 @@ classdef radarDataCube < handle
 				obj.keepRaw, ...
 				obj.keepCFAR, ...
 				obj.decay);
-			future = parfeval(gcp, @radarDataCube.testFunction, 0);
+
+
+			% NOTE: main thread execution for debug
+			% radarDataCube.processBatch(processingBuffer, ...
+			% 	obj.spreadPattern, ...
+			% 	obj.rawCubeSize, ...
+			% 	obj.yawBins, ...
+			% 	obj.pitchBins, ...
+			% 	obj.keepRaw, ...
+			% 	obj.keepCFAR, ...
+			% 	obj.decay);
+			% future = parfeval(gcp, @radarDataCube.testFunction, 0);
 
 			afterAll(future, @(varargin) obj.afterBatchProcessing(varargin{:}), 0);
 

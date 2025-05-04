@@ -62,6 +62,7 @@ classdef dataProcessor < handle
 
 			if ~processingParamters.calcRaw
 				timeElapsed = posTimes(end) - posTimes(1);
+				rangeDoppler = [];
 				speed = sqrt((sum(rawDiffYaw)^2 + sum(rawDiffPitch)^2)) / (timeElapsed + 1e-6); % speed falls to zero for some reason
 				return;
 			end
@@ -69,9 +70,6 @@ classdef dataProcessor < handle
 			if ~processingParamters.calcSpeed
 				timeElapsed = posTimes(end) - posTimes(1);
 				speed = sqrt((sum(rawDiffYaw)^2 + sum(rawDiffPitch)^2)) / (timeElapsed + 1e-6); % speed falls to zero for some reason
-
-
-
 				% fprintf("No speed calculations, exitting\n");
 				rangeDoppler = [zeros(processingParamters.rangeNFFT/2, (processingParamters.speedNFFT)-1), rangeProfile];
 				yaw = posYaw(end);
@@ -79,26 +77,17 @@ classdef dataProcessor < handle
 				return;
 			end
 
-			% Verify how much has the platform moved
-			% we will cut number of samples used, the number of FFT points stays
-			% the same regardless
-			%   * if we straied too far from main lobe we cannot use these samples
-			%   * if the platform was moving too fast/there were too many changed
-			%     we need to crop
-			%
-			% we need a segmetn where accumulated change is smaller than main
-			% lobe size, within this segment maximal change should be limited
+		
+			% only allow samples whose position was within 4 degrees of our
+			% current one
+			% four is totaly arbitrary number, given radars capabilities speed
+			% processing is more of an demonstration of processing than anything
+			% practical
 
-
-			dt = diff(posTimes);
-
-			dYaw = rawDiffYaw./dt;
-			dPitch = rawDiffPitch./dt;
-
-
-			idxPosition = length(dYaw);
+			tolerace = 4;
+			idxPosition = length(posYaw);
 			for i=length(dYaw):-1:1
-				if any(abs(dYaw) > 5) || any(abs(dPitch) > 10)
+				if sqrt((posYaw(i)- posYaw(end))^2 + (posPitch(i)- posPitch(end))^2) > tolerace
 					break;
 				end
 				idxPosition=i;
@@ -231,6 +220,7 @@ classdef dataProcessor < handle
 			obj.hDataCube = radarDataCube( ...
 				obj.processingParamters.rangeNFFT/2, ...
 				obj.processingParamters.speedNFFT, ...
+				obj.hPreferences.getProcessingBatchSize(), ...
 				spreadPatternYaw, ...
 				spreadPatternPitch, ...
 				obj.processingParamters.calcRaw , ...
@@ -282,7 +272,7 @@ classdef dataProcessor < handle
 				[minTime, maxTime] = obj.hRadarBuffer.getTimeInterval();
 				[posTimes, yaw, pitch] = obj.hPlatform.getPositionsInInterval(minTime, maxTime);
 
-				fprintf("dataProcessor | onNewDataAvailable | yaw: %f, pitch %f\n", yaw(end), pitch(end));
+				
 				diffYaw = abs((mod(yaw(end)-obj.hRadarBuffer.lastProcesingYaw + 180, 360) - 180));
 				distance = sqrt(diffYaw^2 + (pitch(end)-obj.hRadarBuffer.lastProcesingPitch)^2);
 				if obj.processingParamters.requirePosChange == 1 && distance < 1
@@ -297,20 +287,25 @@ classdef dataProcessor < handle
 				obj.hRadarBuffer.lastProcesingPitch = pitch(end);
 
 
-				% [yaw, pitch, cfar, rangeDoppler, speed] = dataProcessor.processBatch( ...
+				% [ yaw, pitch, cfar, rangeDoppler, speed] = dataProcessor.processBatch( ...
 				% 	batchRangeFFTs,  ...
 				% 	batchTimes, ...
 				% 	posTimes, ...
 				% 	yaw, ...
 				% 	pitch, ...
 				% 	obj.processingParamters);
-				%
+				% 
 				% obj.mergeResults(yaw, pitch, cfar, rangeDoppler, speed);
-
-
+				
+				fprintf("dataProcessor | onNewDataAvailable | processing: yaw: %f, pitch %f\n", yaw(end), pitch(end));
 				future = parfeval(obj.parallelPool, ...
 					@dataProcessor.processBatch, 5, ...
-					batchRangeFFTs, batchTimes, posTimes, yaw, pitch, obj.processingParamters);
+					batchRangeFFTs, ...
+					batchTimes, ...
+					posTimes, ...
+					yaw, ...
+					pitch, ...
+					obj.processingParamters);
 				afterAll(future, @(varargin) obj.mergeResults(varargin{:}), 0);
 			else
 				fprintf("dataProcessor | onNewDataAvailable | processing overloaded\n");
@@ -522,12 +517,12 @@ classdef dataProcessor < handle
 			obj.hPreferences = preferencesObj;
 			obj.hPanel = panelObj;
 
-			% obj.parallelPool = gcp('nocreate'); % Start parallel pool
-			%
-			% if isempty(obj.parallelPool)
-			% 	fprintf("dataProcessor | dataProcessor | starting paraller pool\n");
-			% 	obj.parallelPool = parpool(6);
-			% end
+			obj.parallelPool = gcp('nocreate'); % Start parallel pool
+
+			if isempty(obj.parallelPool)
+				fprintf("dataProcessor | dataProcessor | starting paraller pool\n");
+				obj.parallelPool = parpool(6);
+			end
 
 			% TODO -> move some of these paramters to be updateable on the fly
 			fprintf("dataProcessor | dataProcessor |  starting gui\n");

@@ -21,6 +21,7 @@ classdef preferences < handle
 
 
 		hDropRadarSample       % number of FFT samples for chirp
+		hDropRadarGain
 		hSwitchRadarHeader;     % uiswitch - pick between 122 and 24 GHz header
 		hEditRadarBandwith;     % uicontrol/edit - distance offset
 
@@ -28,7 +29,7 @@ classdef preferences < handle
 		hDropRadarADC;
 		hTextRampTime;
 		hTextMaxSpeed;
-		
+
 		hDropProVisualization;
 		hDropProSpeedNFFT;
 		hDropProRangeNFFT;
@@ -43,6 +44,7 @@ classdef preferences < handle
 		hSwitchProCalcCFAR;
 		hSwitchProDecayType;
 
+		hEditProBatchSize;
 		hEditProSpreadPatternPitch;
 		hEditProSpreadPatternYaw;
 		hSwitchProSpreadPattern;
@@ -51,12 +53,14 @@ classdef preferences < handle
 
 		% OTHER VARS %
 		availableBaudrates = [ 9600 19200 115200 230400 1000000];
+		availableGains = [8 21 43 56];
 		availableSamples = [32 64 128 256 512 1024 2048 ];
 		availableNFFT = [4 8 16 32 64 128 256 512 1024 2048 4096];
 		availableADC = [2571 2400 2118 1800 1125 487 186 59];
 
 		availableVisualization = {'Range-Azimuth', 'Target-3D', 'Range-Doppler'};
 		binaryMap = ['000'; '001'; '010'; '011'; '100'; '101'; '110'; '111'];
+		binaryMap2 = ['00'; '01'; '10'; '11'];
 		adcSamplingTime = [14 15 17 20 32 74 194 614];
 		configStruct;
 		configFilePath;
@@ -76,6 +80,7 @@ classdef preferences < handle
 			obj.configStruct.radar.header='';
 			obj.configStruct.radar.bandwidth=0;
 			obj.configStruct.radar.samples=128;
+			obj.configStruct.radar.gain =obj.availableSamples(1);
 			obj.configStruct.radar.adc=obj.availableADC(1);
 			obj.configStruct.radar.trigger=25;
 
@@ -102,7 +107,7 @@ classdef preferences < handle
 			obj.configStruct.processing.spreadPatternEnabled=1;
 			obj.configStruct.processing.spreadPatternYaw=7;
 			obj.configStruct.processing.spreadPatternPitch=14;
-
+			obj.configStruct.processing.batchSize = 6;
 
 			obj.configStruct.programs=[];
 
@@ -160,6 +165,7 @@ classdef preferences < handle
 			processingParameters.cfarTraining = obj.configStruct.processing.cfarTraining;
 			processingParameters.calcCFAR  = obj.configStruct.processing.calcCFAR;
 			processingParameters.calcRaw  = obj.configStruct.processing.calcRaw;
+			processingParameters.requirePosChange = obj.configStruct.processing.requirePosChange;
 		end
 
 		function [port, baudrate] = getConnectionPlatform(obj)
@@ -199,7 +205,6 @@ classdef preferences < handle
 			%
 			% Output:
 			% header ... either 122 or 24
-			disp(obj.configStruct.radar.header);
 			header = obj.configStruct.radar.header;
 		end
 
@@ -235,6 +240,10 @@ classdef preferences < handle
 			adc = obj.binaryMap(obj.availableADC == obj.configStruct.radar.adc, :);
 		end
 
+		function [gain] = getRadarSystemParamters(obj)
+			gain =  obj.binaryMap2(obj.availableGains==obj.configStruct.radar.gain, :);
+		end
+
 		function [decayType] = getDecayType(obj)
 			% getDecayType: return how values in radarCube are decayed
 			%
@@ -250,6 +259,10 @@ classdef preferences < handle
 			% Output:
 			% triggerYaw ... value in degrees
 			triggerYaw = obj.configStruct.processing.triggerYaw;
+		end
+
+		function batchSize = getProcessingBatchSize(obj)
+			batchSize = obj.configStruct.processing.batchSize;
 		end
 
 		function [offsetYaw, offsetPitch, stepCountYaw, stepCountPitch] = getPlatformParamters(obj)
@@ -497,31 +510,41 @@ classdef preferences < handle
 				'HorizontalAlignment', 'left');
 
 
-			uilabel(obj.hFig, ...
-				'Position', [20, figSize(2)-radarConfigOffset-80, 140, 25], ...
-				'Text', 'Chirp samples: ');
 
-			uilabel(obj.hFig, ...
-				'Position', [320, figSize(2)-radarConfigOffset-50, 140, 25], ...
-				'Text', 'Max speed limit [m/s]: ');
-
-			obj.hTextMaxSpeed = uicontrol('Style', 'text', ...
-				'Parent',obj.hFig,  ...
-				'Position', [450, figSize(2)-radarConfigOffset-55, 170, 25], ...
-				'Max',1, ...
-				'String',"Time", ...
-				'HorizontalAlignment', 'left');
 
 			uilabel(obj.hFig, ...
 				'Position', [320, figSize(2)-radarConfigOffset-80, 140, 25], ...
-				'Text', 'Chirp time [ms]: ');
+				'Text', 'Max speed limit [m/s]: ');
 
-			obj.hTextRampTime = uicontrol('Style', 'text', ...
+			obj.hTextMaxSpeed = uicontrol('Style', 'text', ...
 				'Parent',obj.hFig,  ...
 				'Position', [450, figSize(2)-radarConfigOffset-85, 170, 25], ...
 				'Max',1, ...
 				'String',"Time", ...
 				'HorizontalAlignment', 'left');
+
+			uilabel(obj.hFig, ...
+				'Position', [320, figSize(2)-radarConfigOffset-110, 140, 25], ...
+				'Text', 'Chirp time [ms]: ');
+
+			obj.hTextRampTime = uicontrol('Style', 'text', ...
+				'Parent',obj.hFig,  ...
+				'Position', [450, figSize(2)-radarConfigOffset-115, 170, 25], ...
+				'Max',1, ...
+				'String',"Time", ...
+				'HorizontalAlignment', 'left');
+
+			uilabel(obj.hFig, ...
+				'Position', [320, figSize(2)-radarConfigOffset-50, 140, 25], ...
+				'Text', 'Radar gain [dB]: ');
+
+			obj.hDropRadarGain = uidropdown(obj.hFig, ...
+				'Position', [450, figSize(2)-radarConfigOffset-50, 80, 25], ...
+				'Items', string(obj.availableGains));
+
+			uilabel(obj.hFig, ...
+				'Position', [20, figSize(2)-radarConfigOffset-80, 140, 25], ...
+				'Text', 'Chirp samples: ');
 
 			obj.hDropRadarSample = uidropdown(obj.hFig, ...
 				'Position', [150, figSize(2)-radarConfigOffset-80, 80, 25], ...
@@ -709,6 +732,17 @@ classdef preferences < handle
 				'HorizontalAlignment', 'left');
 
 			uilabel(obj.hFig, ...
+				'Position', [20, figSize(2)-processingOffset-260, 170, 25], ...
+				'Text', 'Update batch size:');
+
+			obj.hEditProBatchSize = uicontrol('Style', 'edit', ...
+				'Parent',obj.hFig,  ...
+				'Position', [150, figSize(2)-processingOffset-260, 140, 25], ...
+				'Max',1, ...
+				'String',"", ...
+				'HorizontalAlignment', 'left');
+
+			uilabel(obj.hFig, ...
 				'Position', [320, figSize(2)-processingOffset-230, 140, 25], ...
 				'Text', 'Use spread pattern:');
 
@@ -802,6 +836,12 @@ classdef preferences < handle
 				set(obj.hDropRadarADC, 'Value', num2str(obj.configStruct.radar.adc))
 			end
 
+			if any(obj.availableGains == obj.configStruct.radar.gain)
+
+				set(obj.hDropRadarGain, 'Value', num2str(obj.configStruct.radar.gain))
+			end
+
+
 			if ismember(num2str(obj.configStruct.radar.header),obj.hSwitchRadarHeader.Items)
 				set(obj.hSwitchRadarHeader, 'Value', num2str(obj.configStruct.radar.header));
 			end
@@ -866,7 +906,9 @@ classdef preferences < handle
 
 			bin = obj.getRangeBinWidth();
 			set(obj.hTextProBinWidthRange, 'String', bin);
-			
+
+
+			set(obj.hEditProBatchSize, 'String', obj.configStruct.processing.batchSize);
 			set(obj.hEditProCFARGuard, 'String', obj.configStruct.processing.cfarGuard);
 			set(obj.hEditProCFARTraining, 'String', obj.configStruct.processing.cfarTraining);
 			set(obj.hEditProResetYaw, 'String', obj.configStruct.processing.triggerYaw);
@@ -951,6 +993,7 @@ classdef preferences < handle
 			obj.configStruct.radar.header=str2double(obj.hSwitchRadarHeader.Value);
 			obj.configStruct.radar.samples=str2double(obj.hDropRadarSample.Value);
 			obj.configStruct.radar.adc=str2double(obj.hDropRadarADC.Value);
+			obj.configStruct.radar.gain=str2double(obj.hDropRadarGain.Value);
 
 
 
@@ -1059,6 +1102,13 @@ classdef preferences < handle
 				warndlg('CFAR training size must be a between 0 and 360');
 			else
 				obj.configStruct.processing.triggerYaw=floor(tmp);
+			end
+
+			tmp = str2double(get(obj.hEditProBatchSize, 'String'));
+			if (isnan(tmp) || tmp < 0 || tmp > 360)
+				warndlg('Batch size must be a positive number');
+			else
+				obj.configStruct.processing.batchSize=floor(tmp);
 			end
 
 			bin = obj.getSpeedBinWidth();

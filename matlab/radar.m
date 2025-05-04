@@ -2,7 +2,7 @@ classdef radar < handle
 	properties(Access = public)
 
 		hPreferences preferences;
-		hSerial;
+		hSerial = [];
 		processData = true;
 
 		chunkLengths = [];
@@ -23,6 +23,19 @@ classdef radar < handle
 		newDataAvailable
 	end
 
+	methods(Static, Access=private)
+		function hexCode = bin2hex(bin)
+			nBin = length(bin);
+			nParts = nBin/4;
+			hexCode = repmat('0', 1, nParts);
+			for iPart = 1:nParts
+				thisBin = bin((iPart-1)*4+1:iPart*4);
+				hexCode(iPart) = dec2hex(bin2dec(thisBin));
+			end
+		end
+
+	end
+
 	methods (Access=private)
 
 		function processIncomingData(obj, src)
@@ -40,7 +53,7 @@ classdef radar < handle
 			end
 
 			if numel(obj.rawBuffer) == frameLen
-				if obj.rawBuffer(5) == 77 
+				if obj.rawBuffer(5) == 77
 					dataCount = obj.samples * 2;
 					lowBytes = obj.rawBuffer(10:2:(9 + dataCount * 2));
 					highBytes = obj.rawBuffer(11:2:(9 + dataCount * 2));
@@ -64,7 +77,7 @@ classdef radar < handle
 				end
 			end
 		end
-		
+
 
 
 		function sysConfig = generateSystemConfig(obj)
@@ -81,7 +94,7 @@ classdef radar < handle
 			reserved2='0000';
 			protocol='010';       % 001 TSV output | 010 binary | 000 webgui
 			AGC='0';              % auto gain 0-off | 1-on
-			gain='01';            % 00-8dB | 10-21dB | 10-43dB | 11-56dB
+			gain = obj.hPreferences.getRadarSystemParamters();
 			SER2='1';             % usb connect 0-off | 1-on
 			SER1='0';             % wifi 0-off | 1-on
 			SLF='0';              % 0-ext trig mode | 1-standard
@@ -105,7 +118,7 @@ classdef radar < handle
 			sys6=append(ERR,ST,TL,C);
 			sys7=append(R,P,CPL,RAW);
 			sys8=append(reserved,reserved,SLF,PRE);
-			sysCommand=bin2hex(append(sys1,sys2,sys3,sys4,sys5,sys6,sys7,sys8));
+			sysCommand=radar.bin2hex(append(sys1,sys2,sys3,sys4,sys5,sys6,sys7,sys8));
 			sysConfig = append('!S', sysCommand);
 			disp(sysConfig);
 		end
@@ -134,7 +147,7 @@ classdef radar < handle
 			obj.bufferQ=zeros(obj.samples, obj.bufferSize);
 
 			baseband=append(WIN,FIR,DC,CFAR,CFARthreshold,CFARsize,CFARgrd,AVERAGEn,FFTsize,DOWNsample,RAMPS,samplesBin,adc);
-			basebandHEX=bin2hex(baseband);
+			basebandHEX=radar.bin2hex(baseband);
 			basebandCommand=append('!B',basebandHEX);
 			disp(basebandCommand);
 		end
@@ -155,7 +168,7 @@ classdef radar < handle
 				OperatingFreq='000010111011100000000';
 			end
 
-			frontendCommand=bin2hex(append(FreqReserved, OperatingFreq));
+			frontendCommand=radar.bin2hex(append(FreqReserved, OperatingFreq));
 			frontendCommand=append('!F', frontendCommand);
 			disp(frontendCommand);
 		end
@@ -198,7 +211,7 @@ classdef radar < handle
 			fprintf('Radar | radar | constructing object\n');
 			obj.hPreferences = hPreferences;
 			obj.startTime = startTime;
-			bufferTime = zeros(obj.bufferSize);
+			addlistener(hPreferences, 'newConfigEvent', @(~,~) obj.onNewConfigAvailable());
 		end
 
 		function endProcesses(obj)
@@ -208,6 +221,13 @@ classdef radar < handle
 				configureCallback(obj.hSerial, "off");
 				delete(obj.hSerial)
 				stop(obj.triggerTimer);
+			end
+		end
+
+		function onNewConfigAvailable(obj)
+			if ~isempty(obj.hSerial)
+				obj.triggerTimer.Period = obj.hPreferences.getRadarTriggerPeriod()/1000;
+				obj.configureRadar();
 			end
 		end
 
@@ -247,13 +267,3 @@ classdef radar < handle
 	end
 end
 
-
-function hexCode = bin2hex(bin)
-nBin = length(bin);
-nParts = nBin/4;
-hexCode = repmat('0', 1, nParts);
-for iPart = 1:nParts
-	thisBin = bin((iPart-1)*4+1:iPart*4);
-	hexCode(iPart) = dec2hex(bin2dec(thisBin));
-end
-end
