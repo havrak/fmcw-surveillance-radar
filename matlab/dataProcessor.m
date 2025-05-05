@@ -20,6 +20,7 @@ classdef dataProcessor < handle
 		hEditPitch;          % Pitch input textbox
 		hLabelYaw;
 		hLabelPitch;
+		processingActive = true;
 
 		currentDisplayMethod;
 
@@ -268,7 +269,9 @@ classdef dataProcessor < handle
 			obj.readIdx =  mod(obj.readIdx, obj.radarBufferSize) + 1;
 
 
-
+			if ~obj.processingActive
+				return
+			end
 
 			if obj.parallelPool.NumWorkers > obj.parallelPool.Busy
 
@@ -507,12 +510,12 @@ classdef dataProcessor < handle
 			obj.hPreferences = preferencesObj;
 			obj.hPanel = panelObj;
 
-			obj.parallelPool = gcp('nocreate'); % Start parallel pool
-
-			if isempty(obj.parallelPool)
-				fprintf("dataProcessor | dataProcessor | starting paraller pool\n");
-				obj.parallelPool = parpool(6);
-			end
+			% obj.parallelPool = gcp('nocreate'); % Start parallel pool
+			% 
+			% if isempty(obj.parallelPool)
+			% 	fprintf("dataProcessor | dataProcessor | starting paraller pool\n");
+			% 	obj.parallelPool = parpool(6);
+			% end
 
 			% TODO -> move some of these paramters to be updateable on the fly
 			fprintf("dataProcessor | dataProcessor |  starting gui\n");
@@ -550,6 +553,12 @@ classdef dataProcessor < handle
 				set(obj.hLabelYaw,'Position',[210, 20, 70, 25]);
 			end
 
+		end
+
+
+		function status = toggleProcessing(obj)
+			obj.processingActive = ~obj.processingActive;
+			status = obj.processingActive;
 		end
 
 		function endProcesses(obj)

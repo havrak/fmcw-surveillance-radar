@@ -4,8 +4,8 @@ classdef app < handle
 		hPanelBtn              % uipanel - panel to group buttons
 		hBtnConnectRadar;      % uicontrol/pushBtn - new program
 		hBtnConnectPlatform;   % uicontrol/pushBtn - delete a program
+		hBtnToggleProcessing;
 		hPanelView;
-		hBtnConnectPlatformS;
 		hTextTelemetry;        % uicontrol/text - basic telemetry
 
 
@@ -98,31 +98,45 @@ classdef app < handle
 
 			obj.hBtnConnectPlatform = uicontrol('Style', 'pushbutton', ...
 				'Parent', obj.hPanelBtn, ...
-				'String', 'Platform Connect', ...
+				'String', 'Platform', ...
 				'Callback', @(src, event) obj.setupPlatformSerial(), ...
 				'BackgroundColor', '#E57373');
 
 
 			obj.hBtnConnectRadar = uicontrol('Style', 'pushbutton', ...
 				'Parent', obj.hPanelBtn, ...
-				'String', 'Radar Connect', ...
+				'String', 'Radar', ...
 				'Callback', @(src, event) obj.setupRadarSerial(), ...
 				'BackgroundColor', '#E57373');
 
+			obj.hBtnToggleProcessing = uicontrol('Style', 'pushbutton', ...
+				'Parent', obj.hPanelBtn, ...
+				'String', 'Processing', ...
+				'Callback', @(src, event) obj.toggleProcessing(), ...
+				'BackgroundColor', '#66BB6A');
+
 			set(obj.hFig, 'SizeChangedFcn', @(src, event) obj.resizeUI());
+
+			obj.resizeUI();
 
 		end
 
 		function setupPlatformSerial(obj)
 			% setupPlatformSerial: attempts to connec to the platform
 			% if successfull it will change bg color of connect button
-			
 			if obj.hPlatformControl.setupSerial()
 				set(obj.hBtnConnectPlatform, 'BackgroundColor', '#66BB6A');
 			else
 				set(obj.hBtnConnectPlatform, 'BackgroundColor', '#E57373');
 			end
+		end
 
+		function toggleProcessing(obj)
+			if obj.hDataProcessor.toggleProcessing()
+				set(obj.hBtnConnectPlatform, 'BackgroundColor', '#66BB6A');
+			else
+				set(obj.hBtnConnectPlatform, 'BackgroundColor', '#E57373');
+			end
 		end
 
 		function setupRadarSerial(obj)
@@ -154,9 +168,11 @@ classdef app < handle
 			spacing = 10;
 			obj.hBtnConnectPlatform.Position = [10, height - 50 - buttonHeight - spacing, buttonPanelWidth - 30, buttonHeight];
 			obj.hBtnConnectRadar.Position = [10, height - 50 - 2 * (buttonHeight + spacing), buttonPanelWidth - 30, buttonHeight];
+
+			obj.hBtnToggleProcessing.Position = [10, height - 50 - 3 * (buttonHeight + spacing), buttonPanelWidth - 30, buttonHeight];
 			obj.hPanelView.Position = [10, 130, width-200, height-140];
-			
-			 % resize callback gets called right after creating gui so before hDataProcessor is even initialized
+
+			% resize callback gets called right after creating gui so before hDataProcessor is even initialized
 			if ~isempty(obj.hDataProcessor) && isvalid(obj.hDataProcessor)
 				obj.hDataProcessor.resizeUI();
 			end

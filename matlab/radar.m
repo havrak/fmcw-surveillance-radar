@@ -240,29 +240,33 @@ classdef radar < handle
 			if ~isempty(obj.hSerial)
 				configureCallback(obj.hSerial, "off");
 				delete(obj.hSerial)
+				delete(obj.triggerTimer);
+				status = false;
+				return
 			end
 			[port, baudrate] = obj.hPreferences.getConnectionRadar();
-			%try
-			fprintf("radar | setupSerial | port: %s, baud: %f\n", port, baudrate)
-			obj.hSerial = serialport(port, baudrate, "Timeout", 5);
-			configureTerminator(obj.hSerial,"CR/LF");
-			flush(obj.hSerial);
-			obj.configureRadar();
-			fprintf("radar | setupSerial | starting thread\n");
-			configureCallback(obj.hSerial, "terminator", @(src, ~) obj.processIncomingData(src))
-			status = true;
+			try
+				fprintf("radar | setupSerial | port: %s, baud: %f\n", port, baudrate)
+				obj.hSerial = serialport(port, baudrate, "Timeout", 5);
+				configureTerminator(obj.hSerial,"CR/LF");
+				flush(obj.hSerial);
+				obj.configureRadar();
+				fprintf("radar | setupSerial | starting thread\n");
+				configureCallback(obj.hSerial, "terminator", @(src, ~) obj.processIncomingData(src))
+				status = true;
 
-			obj.triggerTimer = timer;
-			obj.triggerTimer.StartDelay = 4;
-			obj.triggerTimer.Period = obj.hPreferences.getRadarTriggerPeriod()/1000;
-			obj.triggerTimer.ExecutionMode = 'fixedSpacing';
-			obj.triggerTimer.UserData = 0;
-			obj.triggerTimer.TimerFcn = @(~,~) writeline(obj.hSerial, '!N');
-			start(obj.triggerTimer);
-			%catch ME
-			%	fprintf("Radar | setupSerial | Failed to setup serial")
-			%	status = false;
-			%end
+				obj.triggerTimer = timer;
+				obj.triggerTimer.StartDelay = 4;
+				obj.triggerTimer.Period = obj.hPreferences.getRadarTriggerPeriod()/1000;
+				obj.triggerTimer.ExecutionMode = 'fixedSpacing';
+				obj.triggerTimer.UserData = 0;
+				obj.triggerTimer.TimerFcn = @(~,~) writeline(obj.hSerial, '!N');
+				start(obj.triggerTimer);
+			catch ME
+				fprintf("Radar | setupSerial | Failed to setup serial")
+				obj.hSerial = [];
+				status = false;
+			end
 		end
 	end
 end
