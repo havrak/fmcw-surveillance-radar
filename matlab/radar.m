@@ -1,18 +1,24 @@
 classdef radar < handle
+	% radar: Manages radar hardware communication, data acquisition, and configuration
+	%
+	% Handles serial communication with a radar device,  processes incoming 
+	% data streams, and dynamically updates configurations via a preferences 
+	% object. Supports real-time data buffering and event-driven processing.
+
 	properties(Access = public)
 
-		hPreferences preferences;
-		hSerial = [];
-		processData = true;
+		hPreferences preferences;  % Handle to preferences object for configuration management
+		hSerial = [];              % Serial port object for radar communication
+		processData = true;        % Flag to enable/disable data processing
 
-		chunkLengths = [];
-		rawBuffer = [];
-		samples = 256;
-		startTime uint64;
+		chunkLengths = [];         % Stores lengths of incoming data chunks for buffer management
+		rawBuffer = [];            % Temporary storage for raw serial data before processing
+		samples = 256;             % Number of samples per radar chirp 
+		startTime uint64;          % Base timestamp (uint64) for calculating relative timestamps
 		triggerTimer;
 
-		bufferI;              % Circular buffer for I
-		bufferQ;              % Circular buffer for Q
+		bufferI;                   % Circular buffer for I
+		bufferQ;                   % Circular buffer for Q
 		bufferTime = [];           % Circular buffer for timestamps
 		bufferSize = 100;          % Max buffer size
 		writeIdx = 1;              % Index for next write
@@ -20,11 +26,17 @@ classdef radar < handle
 
 
 	events
-		newDataAvailable
+		newDataAvailable           % even triggered when chirp is received and buffered
 	end
 
 	methods(Static, Access=private)
 		function hexCode = bin2hex(bin)
+			% bin2hex: Takes binary code in string and converts it to hex
+			%
+			% Inputs:
+			%    bin ... String with binary code
+			% Outputs:
+			%    hexCode ... String with hex code
 			nBin = length(bin);
 			nParts = nBin/4;
 			hexCode = repmat('0', 1, nParts);
@@ -39,6 +51,11 @@ classdef radar < handle
 	methods (Access=private)
 
 		function processIncomingData(obj, src)
+			% processIncomingData: Processes raw serial data into I/Q components and timestamps
+			% Triggers newDataAvailable event when a full chirp is received
+			%
+			% Inputs:
+			%   src ... Serial port object with incoming data
 			frameLen = (4 * obj.samples + 11);
 
 			newChunk = fgets(src);
@@ -81,11 +98,10 @@ classdef radar < handle
 
 
 		function sysConfig = generateSystemConfig(obj)
-			% generateSystemConfig: generate system config command for the radar
+			% generateSystemConfig: Generates system configuration command (hex) for the radar
 			%
-			% OUTPUT:
-			% sysConfig ... hex string to be sent to the radar
-
+			% Output:
+			%   sysConfig ... Hex command string
 			SelfTrigDelay='000';  % 0 ms delay
 			reserved='0';
 			LOG='0';              % MAG 0 log | 1-linear
@@ -124,10 +140,10 @@ classdef radar < handle
 		end
 
 		function basebandCommand = generateBasebandCommand(obj)
-			% generateBasebandCommand: generate baseband config command for the radar
+			% generateBasebandCommand: Generates baseband configuration command for the radar
 			%
-			% OUTPUT:
-			% basebandCommand ... hex string to be sent to the radar
+			% Output:
+			%   basebandCommand ... Hex command string
 
 			WIN='0';              % windowing before FFT
 			FIR='0';              % FIR filter 0-of | 1-on
@@ -141,24 +157,18 @@ classdef radar < handle
 			DOWNsample='000';     % downsampling factor 000-0,1,2,4,8..111-64
 			RAMPS='000';          % ramps per measurement
 
-			[samplesReg, samplesBin, adc] = obj.hPreferences.getRadarBasebandParameters();
-			obj.samples = samplesReg;
-			obj.bufferI=zeros(obj.samples, obj.bufferSize);
-			obj.bufferQ=zeros(obj.samples, obj.bufferSize);
-
-			baseband=append(WIN,FIR,DC,CFAR,CFARthreshold,CFARsize,CFARgrd,AVERAGEn,FFTsize,DOWNsample,RAMPS,samplesBin,adc);
+			[~, samplesBin, adcBin] = obj.hPreferences.getRadarBasebandParameters();
+			baseband=append(WIN,FIR,DC,CFAR,CFARthreshold,CFARsize,CFARgrd,AVERAGEn,FFTsize,DOWNsample,RAMPS,samplesBin,adcBin);
 			basebandHEX=radar.bin2hex(baseband);
 			basebandCommand=append('!B',basebandHEX);
 			disp(basebandCommand);
 		end
 
 		function frontendCommand = generateFrontendCommand(obj)
-			% generateBasebandCommand: generate frontend config command for the radar
-			% command gets current frontend type from preferences
+			% generateFrontendCommand: Generates frontend frequency configuration command
 			%
-			% OUTPUT:
-			% frontendCommand ... hex string to be sent to the radar
-
+			% Output:
+			%   frontendCommand ... Hex command string
 			FreqReserved='00000000000';
 			if obj.hPreferences.getRadarFrontend() == 122
 				fprintf("radar | frontendCommand | setting frontend to 122 GHz\n");
@@ -174,21 +184,20 @@ classdef radar < handle
 		end
 
 		function pllCommand = generatePLLCommand(obj)
-			% generatePLLCommand: generate PLL config command for the radar
-			% desired bandwith is read from preferences
+			% generatePLLCommand: Generates PLL configuration command based on bandwidth
 			%
-			% OUTPUT:
-			% pllCommand ... hex string to be sent to the radar
-
+			% Output:
+			%   pllCommand ... Hex command string
 			bandwidth = floor(obj.hPreferences.getRadarBandwidth()/2);
 			bandwidth = num2str(bandwidth,'%04X');
-			% bandwidth=dec2hex(bandwidth);
-
 			pllCommand=append('!P0000',bandwidth);
 			disp(pllCommand);
 		end
 
 		function configureRadar(obj)
+			% Sends all configuration commands to the radar via serial
+			%
+			% Flushes buffers and ensures commands are executed in sequence
 			flush(obj.hSerial); writeline(obj.hSerial, obj.generateSystemConfig());
 			flush(obj.hSerial); writeline(obj.hSerial, obj.generateBasebandCommand());
 			flush(obj.hSerial); writeline(obj.hSerial, obj.generateFrontendCommand());
@@ -201,21 +210,30 @@ classdef radar < handle
 	methods (Access = public)
 
 		function obj = radar(hPreferences, startTime)
-			% radar: constructor for the radar class
+			% radar: Initializes radar object with preferences and timing reference
 			%
-			% INPUT:
-			% hPreferences ... handle to preferences object
-			% startTime ... output of tic command, timestamp to which all others
-			% are calculated from
+			% Inputs:
+			%   hPreferences ... Handle to preferences object
+			%   startTime    ... Base timestamp (output of `tic`)
+			%
+			% Output:
+			%   obj ... Initialized radar instance
 
 			fprintf('Radar | radar | constructing object\n');
 			obj.hPreferences = hPreferences;
 			obj.startTime = startTime;
+			
+			[obj.samples, ~, ~] = obj.hPreferences.getRadarBasebandParameters();
+			obj.bufferI=zeros(obj.samples, obj.bufferSize);
+			obj.bufferQ=zeros(obj.samples, obj.bufferSize);
+
 			addlistener(hPreferences, 'newConfigEvent', @(~,~) obj.onNewConfigAvailable());
 		end
 
 		function endProcesses(obj)
-			% endProcesses: safely stops all class processes
+			% endProcesses: Safely stops serial communication and timers
+			%
+			% Releases hardware resources and halts data acquisition
 
 			if ~isempty(obj.hSerial)
 				configureCallback(obj.hSerial, "off");
@@ -225,6 +243,15 @@ classdef radar < handle
 		end
 
 		function onNewConfigAvailable(obj)
+			% onNewConfigAvailable: Updates radar configuration dynamically when preferences change
+			%
+			% Reconfigures radar via serial commands and trigger timer
+
+			[obj.samples, ~, ~] = obj.hPreferences.getRadarBasebandParameters();
+			obj.bufferI=zeros(obj.samples, obj.bufferSize);
+			obj.bufferQ=zeros(obj.samples, obj.bufferSize);
+
+
 			if ~isempty(obj.hSerial)
 				obj.triggerTimer.Period = obj.hPreferences.getRadarTriggerPeriod()/1000;
 				obj.configureRadar();
@@ -232,10 +259,10 @@ classdef radar < handle
 		end
 
 		function status = setupSerial(obj)
-			% setupSerial: establish serial connection to the platform
+			% setupSerial: Establishes serial connection to the radar hardware
 			%
-			% OUTPUT:
-			% status ... true if connection was established
+			% Output:
+			%   status ... true if connection succeeded, false otherwise
 
 			if ~isempty(obj.hSerial)
 				configureCallback(obj.hSerial, "off");

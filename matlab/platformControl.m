@@ -1,13 +1,13 @@
 classdef platformControl < handle
-	%properties (SetAccess = private, GetAccess=public)
+
 	properties (Access = private)
 
 		% GUI %
 		hFig;                  % uifigure - main figure
 		hListboxSidebar;       % listbox - sidebar with different programs
 		hEditCommand;          % uicontrol/edit - text field for commands
-		hEditProgramHeader;          % uicontrol/edit - large text field for program declaration
-		hEditProgramMain;          % uicontrol/edit - large text field for program declaration
+		hEditProgramHeader;    % uicontrol/edit - large text field for program declaration
+		hEditProgramMain;      % uicontrol/edit - large text field for program declaration
 
 		hPanelBtn              % uipanel - panel to group buttons
 		hBtnNew;               % uicontrol/pushBtn - new program
@@ -28,9 +28,9 @@ classdef platformControl < handle
 		currentProgramName;
 
 		bufferSize double = 500;
-		positionTimes;      % Array of timestamps (seconds since start)
-		positionYaw;        % Array of yaw positions
-		positionPitch;      % Array of pitch positions
+		positionTimes;                % Array of timestamps (seconds since start)
+		positionYaw;                  % Array of yaw positions
+		positionPitch;                % Array of pitch positions
 		currentIdx double = 1;
 
 		angleOffsetYaw = 0;

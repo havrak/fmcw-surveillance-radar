@@ -21,6 +21,8 @@ classdef dataProcessor < handle
 		hLabelYaw;
 		hLabelPitch;
 		processingActive = true;
+		lastProcesingYaw
+		lastProcesingPitch
 
 		currentDisplayMethod;
 
@@ -179,9 +181,9 @@ classdef dataProcessor < handle
 					% 	min(Y), max(Y), ...
 					% 	min(Z), max(Z));
 					set(obj.hScatter3D, 'XData', X, 'YData', Y, 'ZData', Z, 'CData', obj.hDataCube.cfarCube(idx));
-					
-					else
-						set(obj.hScatter3D, 'XData', [], 'YData', [], 'ZData', []);
+
+				else
+					set(obj.hScatter3D, 'XData', [], 'YData', [], 'ZData', []);
 				end
 			elseif strcmp(obj.currentVisualizationStyle, 'Range-Doppler')
 				if obj.processingParamters.calcSpeed == 1
@@ -279,9 +281,8 @@ classdef dataProcessor < handle
 				[minTime, maxTime] = obj.hRadarBuffer.getTimeInterval();
 				[posTimes, yaw, pitch] = obj.hPlatform.getPositionsInInterval(minTime, maxTime);
 
-
-				diffYaw = abs((mod(yaw(end)-obj.hRadarBuffer.lastProcesingYaw + 180, 360) - 180));
-				distance = sqrt(diffYaw^2 + (pitch(end)-obj.hRadarBuffer.lastProcesingPitch)^2);
+				diffYaw = abs((mod(yaw(end)-obj.lastProcesingYaw + 180, 360) - 180));
+				distance = sqrt(diffYaw^2 + (pitch(end)-obj.lastProcesingPitch)^2);
 				if obj.processingParamters.requirePosChange == 1 && distance < 1
 					% I can process every single frame without issue but there no needz
 					% to process frames where position has not changed, this data is
@@ -290,8 +291,8 @@ classdef dataProcessor < handle
 				end
 
 				[batchRangeFFTs, batchTimes] = obj.hRadarBuffer.getSlidingBatch();
-				obj.hRadarBuffer.lastProcesingYaw = yaw(end);
-				obj.hRadarBuffer.lastProcesingPitch = pitch(end);
+				obj.lastProcesingYaw = yaw(end);
+				obj.lastProcesingPitch = pitch(end);
 
 
 				% [ yaw, pitch, cfar, rangeDoppler, speed] = dataProcessor.processBatch( ...
@@ -365,7 +366,7 @@ classdef dataProcessor < handle
 			rangeBins = samples/2;
 			yawBins = 360;
 
-			theta = -deg2rad(obj.hDataCube.yawBins)+pi/2; % minus to rotate counter clock wise, +pi/2 to center 0 deg 
+			theta = -deg2rad(obj.hDataCube.yawBins)+pi/2; % minus to rotate counter clock wise, +pi/2 to center 0 deg
 			r = 1:rangeBins;
 			[THETA, R] = meshgrid(theta, r);
 			[X, Y] = pol2cart(THETA, R);
@@ -420,11 +421,11 @@ classdef dataProcessor < handle
 				'YLimMode','manual', ...
 				'ZLimMode','manual', ...
 				'NextPlot','add');
-			
+
 			view(obj.hAxes, 3);
 			grid(obj.hAxes, 'on');
 			axis(obj.hAxes, 'manual');
-	
+
 			obj.hScatter3D = scatter3(obj.hAxes, [], [], [], 'filled');
 			colormap(obj.hAxes, 'jet');
 			xlabel(obj.hAxes, 'X (m)');
@@ -482,7 +483,7 @@ classdef dataProcessor < handle
 			obj.resizeUI();
 
 		end
-		
+
 
 		function updatePitchIndex(obj, src)
 			inputPitch = str2double(get(src, 'String'));
@@ -511,7 +512,7 @@ classdef dataProcessor < handle
 			obj.hPanel = panelObj;
 
 			% obj.parallelPool = gcp('nocreate'); % Start parallel pool
-			% 
+			%
 			% if isempty(obj.parallelPool)
 			% 	fprintf("dataProcessor | dataProcessor | starting paraller pool\n");
 			% 	obj.parallelPool = parpool(6);

@@ -1,73 +1,75 @@
 classdef preferences < handle
+	% preferences: Manages permanent config of the application
+	%
+	% provides gui tool to configure application parameters, these are also
+	% stored in persistent configuration file conf.fmcw
+
 	properties (Access = private)
 
 		% GUI %
-		hFig;                   % uifugre - main figure
-		hBtnApply;              % uibutton - check validity
-		hBtnClose;              % uibutton - close window
-		hBtnRefresh;            % uibutton - refresh serial
-		hBtnReload;             % uibutton - reload config from file
+		hFig;                        % Main figure
+		hBtnApply;                   % Check validity
+		hBtnClose;                   % Close window
+		hBtnRefresh;                 % Refresh serial
+		hBtnReload;                  % Reload config from file
 
-		hDropRadarPort;         % uidropdown - radar serial port
-		hDropRadarBaudrate;     % uidropdown - radar serial baudrate
-		hDropPlatformPort;      % uidropdown - platform serial port
-		hDropPlatformBaudrate;  % uidropdown - platform serial baudrate
+		hDropRadarPort;              % Radar serial port
+		hDropRadarBaudrate;          % Radar serial baudrate
+		hDropPlatformPort;           % Platform serial port
+		hDropPlatformBaudrate;       % Platform serial baudrate
 
-		hSwitchPlatformDebug;   % uiswitch - display debug messages from platform
-		hEditPlatOffsetPitch;           % uicontrol/edit - angle offset pitch
-		hEditPlatOffsetYaw;           % uicontrol/edit - angle offset yaw
-		hEditPlatStepCountYaw;
-		hEditPlatStepCountPitch;
+		hSwitchPlatformDebug;        % Display debug messages from platform
+		hEditPlatOffsetPitch;        % Angle offset pitch
+		hEditPlatOffsetYaw;          % Angle offset yaw
+		hEditPlatStepCountYaw;       % Step count in yaw
+		hEditPlatStepCountPitch;     % Step count in pitch
 
 
-		hDropRadarSample       % number of FFT samples for chirp
-		hDropRadarGain
-		hSwitchRadarHeader;     % uiswitch - pick between 122 and 24 GHz header
-		hEditRadarBandwith;     % uicontrol/edit - distance offset
+		hDropRadarSample             % Number of FFT samples for chirp
+		hDropRadarGain               % Radar gain (picks from predefined options)
+		hSwitchRadarHeader;          % Radar hedear base frequency,pPick between 122 and 24 GHz header
+		hEditRadarBandwith;          % Radar header bandwith
+		hEditRadarTriggerPeriod;     % Triggering period for chirps
+		hDropRadarADC                % ADC setting on the radar
+		hTextRadarRampTime;          % Text field to display how long does the chirp take
+		hTextRadarMaxSpeed;          % Text field to display maximal detectable speed
 
-		hEditTriggerPeriod;
-		hDropRadarADC;
-		hTextRampTime;
-		hTextMaxSpeed;
-
-		hDropProVisualization;
-		hDropProSpeedNFFT;
-		hDropProRangeNFFT;
-		hTextProBinWidthRange;
-		hTextProBinWidthSpeed;
-
-		hEditProCFARGuard;
-		hEditProCFARTraining;
-		hSwitchProCalcSpeed;
-		hSwitchProRequirePosChange;
-		hSwitchProCalcRaw;
-		hSwitchProCalcCFAR;
-		hSwitchProDecayType;
-
-		hEditProBatchSize;
-		hEditProSpreadPatternPitch;
-		hEditProSpreadPatternYaw;
-		hSwitchProSpreadPattern;
-		hEditProResetYaw;
+		hDropProVisualization;       % Dropdownmenu to pick visualization style
+		hDropProSpeedNFFT;           % Number of FFT points used for speed calculation
+		hDropProRangeNFFT;           % Number of FFT points used for range calculation
+		hTextProBinWidthRange;       % Text field to display width of range bin
+		hTextProBinWidthSpeed;       % Text field to display widht of speed bin
+		hEditProCFARGuard;           % Number of CFAR guard cells
+		hEditProCFARTraining;        % Number of CFAR training cells
+		hSwitchProCalcSpeed;         % Switch to toggle if speed is calculated
+		hSwitchProRequirePosChange;  % Switch to toggle if processing starts even if the platform didn't move
+		hSwitchProCalcRaw;           % Enable calculation of range doppler cube with raw data
+		hSwitchProCalcCFAR;          % Enable calculation of CFAR and use of respective cube
+		hSwitchProDecayType;         % Choose what decay type is used (speed based x yaw trigger)
+		hEditProBatchSize;           % Number of updates buffered before cube is updated
+		hEditProSpreadPatternPitch;  % Spread pattern pitch paramter
+		hEditProSpreadPatternYaw;    % Spread pattern yaw paramter
+		hSwitchProSpreadPattern;     % Enable use of spread pattern
+		hEditProResetYaw;            % Yaw position that will trigger cube zeroing callback
 
 
 		% OTHER VARS %
-		availableBaudrates = [ 9600 19200 115200 230400 1000000];
-		availableGains = [8 21 43 56];
-		availableSamples = [32 64 128 256 512 1024 2048 ];
-		availableNFFT = [4 8 16 32 64 128 256 512 1024 2048 4096];
-		availableADC = [2571 2400 2118 1800 1125 487 186 59];
+		availableBaudrates = [ 9600 19200 115200 230400 1000000];  % availableBaudrates for radar and platform
+		availableGains = [8 21 43 56];                             % available gains in the SiDAR
+		availableSamples = [32 64 128 256 512 1024 2048 ];         % available number of samples on the SiDAR
+		availableNFFT = [4 8 16 32 64 128 256 512 1024 2048 4096]; % available NFFT's
+		availableADC = [2571 2400 2118 1800 1125 487 186 59];      % available ADC settings on the SiDAR
+		adcSamplingTime = [13 15 17 20 32 74 194 614];             % available sampling times on the SiDAR
 
-		availableVisualization = {'Range-Azimuth', 'Target-3D', 'Range-Doppler'};
-		binaryMap = ['000'; '001'; '010'; '011'; '100'; '101'; '110'; '111'];
-		binaryMap2 = ['00'; '01'; '10'; '11'];
-		adcSamplingTime = [14 15 17 20 32 74 194 614];
-		configStruct;
-		configFilePath;
+		availableVisualization = {'Range-Azimuth', 'Target-3D', 'Range-Doppler'}; % available visualization styles
+		binaryMap = ['000'; '001'; '010'; '011'; '100'; '101'; '110'; '111'];     % binary map for values 0-7
+		binaryMap2 = ['00'; '01'; '10'; '11'];                                    % binary map for values 0-3
+		configStruct;    % configuration struct
+		configFilePath;  % filepath to the configuration struct
 	end
 
 	events
-		newConfigEvent
+		newConfigEvent   % even trigger upon config is processed
 	end
 
 	methods(Access = public)
@@ -230,8 +232,8 @@ classdef preferences < handle
 			%
 			% Output:
 			%   spreadPatternEnabled ... 1 (enabled) or 0 (disabled)
-			%   spreadYaw ... Numeric yaw spread in degrees
-			%   spreadPitch ... Numeric pitch spread in degrees
+			%   spreadPatternYaw ... Numeric yaw spread in degrees
+			%   spreadPatternPitch ... Numeric pitch spread in degrees
 			spreadPatternEnabled = obj.configStruct.processing.spreadPatternEnabled;
 			spreadPatternYaw = obj.configStruct.processing.spreadPatternYaw;
 			spreadPatternPitch = obj.configStruct.processing.spreadPatternPitch;
@@ -253,16 +255,16 @@ classdef preferences < handle
 			bandwith = obj.configStruct.radar.bandwidth;
 		end
 
-		function [samplesReg, samplesBin, adc ] = getRadarBasebandParameters(obj)
+		function [samplesReg, samplesBin, adcBin ] = getRadarBasebandParameters(obj)
 			% getRadarBasebandParameters: Returns radar sampling parameters in binary format
 			%
 			% Output:
 			%   samplesReg ... Numeric number of FFT samples
 			%   samplesBin ... Protocol correct representation of samples (e.g., '011')
-			%   adc ... Protocol correct representation of ADC clock divider (e.g., '00')
+			%   adcBin ... Protocol correct representation of ADC clock divider (e.g., '00')
 			samplesReg = obj.configStruct.radar.samples;
 			samplesBin = obj.binaryMap(obj.availableSamples==obj.configStruct.radar.samples, :);
-			adc = obj.binaryMap(obj.availableADC == obj.configStruct.radar.adc, :);
+			adcBin = obj.binaryMap(obj.availableADC == obj.configStruct.radar.adc, :);
 		end
 
 		function [gain] = getRadarSystemParamters(obj)
@@ -575,7 +577,7 @@ classdef preferences < handle
 				'Position', [320, figSize(2)-radarConfigOffset-80, 140, 25], ...
 				'Text', 'Max speed limit [m/s]: ');
 
-			obj.hTextMaxSpeed = uicontrol('Style', 'text', ...
+			obj.hTextRadarMaxSpeed = uicontrol('Style', 'text', ...
 				'Parent',obj.hFig,  ...
 				'Position', [450, figSize(2)-radarConfigOffset-85, 170, 25], ...
 				'Max',1, ...
@@ -586,7 +588,7 @@ classdef preferences < handle
 				'Position', [320, figSize(2)-radarConfigOffset-110, 140, 25], ...
 				'Text', 'Chirp time [ms]: ');
 
-			obj.hTextRampTime = uicontrol('Style', 'text', ...
+			obj.hTextRadarRampTime = uicontrol('Style', 'text', ...
 				'Parent',obj.hFig,  ...
 				'Position', [450, figSize(2)-radarConfigOffset-115, 170, 25], ...
 				'Max',1, ...
@@ -623,7 +625,7 @@ classdef preferences < handle
 				'Position', [20, figSize(2)-radarConfigOffset-50, 140, 25], ...
 				'Text', 'Trigger period [ms]:');
 
-			obj.hEditTriggerPeriod = uicontrol('Style', 'edit', ...
+			obj.hEditRadarTriggerPeriod = uicontrol('Style', 'edit', ...
 				'Parent',obj.hFig,  ...
 				'Position', [150, figSize(2)-radarConfigOffset-50, 140, 25], ...
 				'Max',1, ...
@@ -882,7 +884,7 @@ classdef preferences < handle
 
 			set(obj.hEditRadarBandwith, 'String', obj.configStruct.radar.bandwidth);
 
-			set(obj.hEditTriggerPeriod, 'String', obj.configStruct.radar.trigger);
+			set(obj.hEditRadarTriggerPeriod, 'String', obj.configStruct.radar.trigger);
 
 			if any(obj.availableSamples == obj.configStruct.radar.samples)
 				set(obj.hDropRadarSample, 'Value', num2str(obj.configStruct.radar.samples))
@@ -904,10 +906,10 @@ classdef preferences < handle
 			end
 
 			time = obj.getRampTime();
-			set(obj.hTextRampTime, 'String', time);
+			set(obj.hTextRadarRampTime, 'String', time);
 
 			speed = obj.getMaxSpeed();
-			set(obj.hTextMaxSpeed, 'String', speed);
+			set(obj.hTextRadarMaxSpeed, 'String', speed);
 
 			%% Processing config
 
@@ -1058,7 +1060,7 @@ classdef preferences < handle
 
 
 
-			tmp = str2double(get(obj.hEditTriggerPeriod, 'String'));
+			tmp = str2double(get(obj.hEditRadarTriggerPeriod, 'String'));
 			if (isnan(tmp) || any(tmp <0))
 				warndlg('Trigger period must be a positive number');
 			else
@@ -1075,10 +1077,10 @@ classdef preferences < handle
 
 
 			time = obj.getRampTime();
-			set(obj.hTextRampTime, 'String', time);
+			set(obj.hTextRadarRampTime, 'String', time);
 
 			speed = obj.getMaxSpeed();
-			set(obj.hTextMaxSpeed, 'String', speed);
+			set(obj.hTextRadarMaxSpeed, 'String', speed);
 
 			%% Processing config
 
