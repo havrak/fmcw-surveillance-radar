@@ -453,13 +453,11 @@ classdef platformControl < handle
 			end
 		end
 
-		% function [vec] = getSpeedVector(obj, timeMin, timeMax)
-		% 	[timestamps, yaw, pitch] = obj.getPositionsInInterval(timeMin, timeMax);
-		% 	[~,~, r] = obj.hPreferences.getPlatformParamters();
-		%
-		% 	[x,y,z] = sph2cart(yaw/180*pi, pitch/180*pi-pi, r);
-		%
-		% end
+
+		function stopPlatform(obj)
+			command = "M82"; % clears queues, issues stop requests, shuts down power
+			writeline(obj.hSerial, command);
+		end
 
 		function [timestamps, yaw, pitch] = getPositionsInInterval(obj, timeMin, timeMax)
 			% getPositionsInInterval: returns lits of position logs that fall

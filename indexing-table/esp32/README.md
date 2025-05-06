@@ -72,6 +72,7 @@ WARNING: DO NOT use this device without first reading the documentation. Command
 * axis descriptors: Y for yaw (horizontal) and P for pitch (tilt)
 * M80: turn on high voltage power supply
 * M81: turn off high voltage power supply
+* M82: stop steppers and clear queues
 * G20: set units to degrees
 * G21: set units to steps
 * G90: absolute positioning

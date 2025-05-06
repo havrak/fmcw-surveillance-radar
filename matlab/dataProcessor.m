@@ -482,7 +482,7 @@ classdef dataProcessor < handle
 			obj.resizeUI();
 
 		end
-
+		
 
 		function updatePitchIndex(obj, src)
 			inputPitch = str2double(get(src, 'String'));
@@ -525,6 +525,10 @@ classdef dataProcessor < handle
 			addlistener(radarObj, 'newDataAvailable', @(~,~) obj.onNewDataAvailable());
 			addlistener(preferencesObj, 'newConfigEvent', @(~,~) obj.onNewConfigAvailable());
 			addlistener(platformObj, 'positionTriggerHit', @(~,~) obj.onPlatformTriggerYawHit());
+		end
+
+		function saveScene(obj)
+
 		end
 
 		function resizeUI(obj)

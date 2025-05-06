@@ -73,7 +73,11 @@ classdef preferences < handle
 	methods(Access = public)
 
 		function obj = preferences()
-			% preferences: constructor for preferences class
+			% preferences: Constructor for preferences class
+			%
+			% Initializes the configuration structure with default values for radar, platform, and processing parameters.
+			% Sets up the configuration file path based on the operating system (Unix or Windows).
+			% Creates the configuration directory if it does not exist and loads existing configurations from fmcw.conf
 
 			obj.configStruct.radar.port='none';
 			obj.configStruct.radar.baudrate=obj.availableBaudrates(1);
@@ -131,7 +135,8 @@ classdef preferences < handle
 		end
 
 		function showGUI(obj)
-			% showGUI: displays generated GUI that is hidden
+			% showGUI: Displays the preferences GUI.
+			% If the GUI is not initialized or closed, constructs it first.
 
 			if isempty(obj.hFig) | ~isvalid(obj.hFig)
 				constructGUI(obj);
@@ -140,7 +145,7 @@ classdef preferences < handle
 		end
 
 		function [programs] = getPrograms(obj)
-			% getPrograms: return loaded programs from permanent confi
+			% getPrograms: return loaded programs from permanent configuration
 			%
 			% Output:
 			% programs ... struct will all programs
@@ -148,14 +153,27 @@ classdef preferences < handle
 		end
 
 		function setPrograms(obj, programs)
+			% setPrograms: Updates the programs stored in the configuration
+			%
+			% Input:
+			%   programs ... Struct containing program configurations to save
 			obj.configStruct.programs = programs;
 		end
 
 		function visualization =  getProcessingVisualization(obj)
+			% getProcessingVisualization: Returns the current visualization mode
+			%
+			% Output:
+			%   visualization ... String specifying the visualization type (e.g., 'Range-Azimuth')
 			visualization = obj.configStruct.processing.visualization;
 		end
 
 		function processingParameters = getProcessingParamters(obj)
+			% getProcessingParamters: Returns processing parameters as a struct
+			%
+			% Output:
+			%   processingParameters ... Struct with fields for speed/range NFFT, CFAR settings,
+			%                            decay type, and other processing flags
 			processingParameters = {};
 			processingParameters.calcSpeed =	obj.configStruct.processing.calcSpeed;
 			processingParameters.speedNFFT = obj.configStruct.processing.speedNFFT;
@@ -169,110 +187,131 @@ classdef preferences < handle
 		end
 
 		function [port, baudrate] = getConnectionPlatform(obj)
-			% getConnectionPlatform: return paramters of serial connection to the Platform
+			% getConnectionPlatform: Returns platform serial connection parameters
 			%
 			% Output:
-			% port ... serial port to use
-			% baudrate ... serial baudrate
+			%   port ... String specifying the platform's serial port (e.g., 'COM3')
+			%   baudrate ... Numeric baudrate value (e.g., 115200)
 			port = obj.configStruct.platform.port;
 			baudrate = obj.configStruct.platform.baudrate;
 		end
 
 		function [port, baudrate] = getConnectionRadar(obj)
-			% getConnectionRadar: return paramters of serial connection to the
-			% radar
+			% getConnectionRadar: Returns radar serial connection parameters
 			%
 			% Output:
-			% port ... serial port to use
-			% baudrate ... serial baudrate
+			%   port ... String specifying the radar's serial port (e.g., 'COM4')
+			%   baudrate ... Numeric baudrate value (e.g., 1000000)
 			port = obj.configStruct.radar.port;
 			baudrate = obj.configStruct.radar.baudrate;
 		end
 
 		function [debug] = getPlatformDebug(obj)
-			% getPlatformDebug: return 1 if debug from platform should be
-			% displayed
+			% getPlatformDebug: Checks if platform debug mode is enabled.
+			%
+			% If enabled debug will be displayed in log
 			%
 			% Output:
-			% debug ... 0 or 1
+			%   debug ... 1 (enabled) or 0 (disabled)
 			debug = obj.configStruct.platform.debug;
 		end
 
 
 		function header = getRadarFrontend(obj)
-			% getRadarFrontend: return header used on the radar
-			% radar
+			% getRadarFrontend: Returns the radar's frequency header
 			%
 			% Output:
-			% header ... either 122 or 24
+			%   header ... String specifying the radar frequency ('24' or '122')
 			header = obj.configStruct.radar.header;
 		end
 
 		function [spreadPatternEnabled, spreadPatternYaw, spreadPatternPitch] = getProcessingSpreadPatternParamters(obj)
+			% getProcessingSpreadPatternParamters: Returns spread pattern settings
+			%
+			% Output:
+			%   spreadPatternEnabled ... 1 (enabled) or 0 (disabled)
+			%   spreadYaw ... Numeric yaw spread in degrees
+			%   spreadPitch ... Numeric pitch spread in degrees
 			spreadPatternEnabled = obj.configStruct.processing.spreadPatternEnabled;
 			spreadPatternYaw = obj.configStruct.processing.spreadPatternYaw;
 			spreadPatternPitch = obj.configStruct.processing.spreadPatternPitch;
 		end
 
 		function period = getRadarTriggerPeriod(obj)
+			% getRadarTriggerPeriod: Returns the radar trigger period
+			%
+			% Output:
+			%   period ... Numeric trigger period in milliseconds
 			period = obj.configStruct.radar.trigger;
 		end
 
 		function bandwith = getRadarBandwidth(obj)
-			% getRadarBandwidth: return bandwidth used on the radar
-			% radar
+			% getRadarBandwidth: Returns the radar bandwidth
 			%
 			% Output:
-			% bandwidth ... number in MHz
+			%   bandwidth ... Numeric bandwidth in MHz
 			bandwith = obj.configStruct.radar.bandwidth;
 		end
 
 		function [samplesReg, samplesBin, adc ] = getRadarBasebandParameters(obj)
-			% getRadarSamples: return number of samples will take and ADC
-			% setting. Both in binary format to be pasted into baseband command
+			% getRadarBasebandParameters: Returns radar sampling parameters in binary format
 			%
 			% Output:
-			% samplesReg ... number of samples
-			% samplesBin ... string with binary
-			% adc ... string with binary
+			%   samplesReg ... Numeric number of FFT samples
+			%   samplesBin ... Protocol correct representation of samples (e.g., '011')
+			%   adc ... Protocol correct representation of ADC clock divider (e.g., '00')
 			samplesReg = obj.configStruct.radar.samples;
 			samplesBin = obj.binaryMap(obj.availableSamples==obj.configStruct.radar.samples, :);
 			adc = obj.binaryMap(obj.availableADC == obj.configStruct.radar.adc, :);
 		end
 
 		function [gain] = getRadarSystemParamters(obj)
+			% getRadarSystemParamters: Returns radar gain in binary format
+			%
+			% Output:
+			%   gain ... Binary string (e.g., '10' for 43 dB)
 			gain =  obj.binaryMap2(obj.availableGains==obj.configStruct.radar.gain, :);
 		end
 
 		function [decayType] = getDecayType(obj)
-			% getDecayType: return how values in radarCube are decayed
+			% getDecayType: Returns decay type for radar data processing
 			%
 			% Output:
-			% decayType ... 1 for speed based decay, 0 for yaw trigger
+			%   decayType ... 1 (speed-based decay) or 0 (yaw-triggered decay)
 			decayType = obj.configStruct.processing.decayType;
 		end
 
 		function [triggerYaw] = getTriggerYaw(obj)
-			% getTriggerYaw: return on which yaw will platformControl send event
-			% in case decayType is zero
+			% getTriggerYaw: Returns the yaw angle triggering platform events
+			%
+			% Only used in case decayType is zero (that is yaw based trigger is
+			% used)
 			%
 			% Output:
-			% triggerYaw ... value in degrees
+			%   triggerYaw ... Numeric yaw angle in degrees (0-360)
 			triggerYaw = obj.configStruct.processing.triggerYaw;
 		end
 
 		function batchSize = getProcessingBatchSize(obj)
+			% getProcessingBatchSize: Returns batch size for radar data processing
+			%
+			% Output:
+			%   batchSize ... Numeric batch size
 			batchSize = obj.configStruct.processing.batchSize;
 		end
 
 		function [offsetYaw, offsetPitch, stepCountYaw, stepCountPitch] = getPlatformParamters(obj)
-			% getPlatformParamters: return mounting paramters of the platform
+			% getPlatformParamters: Returns platform parameters
 			%
+			% offset enabled to compensate for platform zero not being aligned with user desired zero
+			% step counts will be sent to the platform to maintain correct
+			% configuration
 			%
 			% Output:
-			% offsetYaw ... yaw angle at which radar is poiting straight
-			% offsetPitch ... pitch angle at which radar is poiting straight (PCB is perpendicular to the ground)
-			% radar PCB
+			%   offsetYaw ... Yaw offset in degrees
+			%   offsetPitch ... Pitch offset in degrees
+			%   stepCountYaw ... Step count for yaw movement
+			%   stepCountPitch ... Step count for pitch movement
 			offsetPitch = obj.configStruct.platform.offsetPitch;
 			offsetYaw = obj.configStruct.platform.offsetYaw;
 			stepCountPitch = 	obj.configStruct.platform.stepCountPitch;
@@ -282,35 +321,55 @@ classdef preferences < handle
 
 
 		function time = getRampTime(obj)
+			% getRampTime: Calculates the radar chirp ramp time
+			%
+			% Output:
+			%   time ... Numeric ramp time in milliseconds
 			samples = obj.configStruct.radar.samples;
 			adc = obj.adcSamplingTime(obj.configStruct.radar.adc == obj.availableADC);
 			time = adc*(samples+85)/36e3;
 		end
 
 		function maxSpeed = getMaxSpeed(obj)
+			% getMaxSpeed: Computes the maximal detectable speed.
+			%
+			% Output:
+			%   maxSpeed ... Numeric speed in meters per second
 			maxSpeed = physconst('LightSpeed')/((obj.configStruct.radar.trigger/1000)*4*obj.configStruct.radar.header*1e9);
 		end
 
 		function binWidth = getRangeBinWidth(obj)
+			% getRangeBinWidth: Computes the range resolution bin width
+			%
+			% Output:
+			%   binWidth ... Numeric bin width in meters
 			binWidth = physconst('LightSpeed')*(obj.configStruct.radar.samples+85) ...
 				/(2*obj.configStruct.radar.bandwidth*1e6*obj.configStruct.processing.rangeNFFT);
 		end
 
 
 		function binWidth = getSpeedBinWidth(obj)
+			% getSpeedBinWidth: Computes the speed resolution bin width
+			%
+			% Output:
+			%   binWidth ... Numeric bin width in meters per second
 			binWidth = physconst('LightSpeed')*(obj.configStruct.radar.trigger/1000)/ ...
 				(2*obj.configStruct.processing.speedNFFT*obj.configStruct.radar.header*1e9);
 		end
 
 
 		function storeConfig(obj)
-			%storeConfig: stores current config to file
+			% storeConfig: Saves the current configuration to the INI file (fmcw.conf)
+			%
+			% Uses struct2ini to convert the internal configStruct to the file.
 
 			struct2ini(obj.configFilePath, obj.configStruct);
 		end
 
 		function loadConfig(obj)
-			% loadConfig: loads config from file to internal structure
+			% loadConfig: Loads configuration from fmcw.conf into configStruct.
+			%
+			% Validates ports, baudrates, and other parameters. Handles missing sections or invalid entries.
 
 			fprintf('Prefernces | loadConfig | loading config\n');
 			if ~isfile(obj.configFilePath)
@@ -373,7 +432,10 @@ classdef preferences < handle
 	methods (Access = private)
 
 		function constructGUI(obj)
-			% constructGUI: initializes all GUI elements
+			% constructGUI: Initializes all GUI elements (dropdowns, buttons, switches)
+			%
+			% Positions elements for serial, platform, radar, and processing configurations
+			% Calls configToGUI to sync UI with configStruct
 
 			platformConfigOffset = 140;
 			radarConfigOffset = 250;
@@ -426,7 +488,7 @@ classdef preferences < handle
 				'ButtonPushedFcn', @(src,event) obj.refreshSerial());
 
 
-			%% PlatformConfig
+			%% Platform config
 			uilabel(obj.hFig, 'Position', [20, figSize(2)-platformConfigOffset, 140, 25], 'Text', 'PLATFORM CONFIG', 'FontWeight','bold');
 
 			% Pitch offset
@@ -484,7 +546,7 @@ classdef preferences < handle
 				'String',"", ...
 				'HorizontalAlignment', 'left');
 
-			%% Radar setting
+			%% Radar config
 
 			uilabel(obj.hFig, 'Position', [20, figSize(2)-radarConfigOffset, 140, 25], 'Text', 'RADAR CONFIG', 'FontWeight','bold');
 
@@ -508,9 +570,6 @@ classdef preferences < handle
 				'Max',1, ...
 				'String',"", ...
 				'HorizontalAlignment', 'left');
-
-
-
 
 			uilabel(obj.hFig, ...
 				'Position', [320, figSize(2)-radarConfigOffset-80, 140, 25], ...
@@ -571,7 +630,7 @@ classdef preferences < handle
 				'String',"", ...
 				'HorizontalAlignment', 'left');
 
-			%% Processing settings
+			%% Processing config
 
 
 			uilabel(obj.hFig, 'Position', [20, figSize(2)-processingOffset, 240, 25], 'Text', 'PROCESSING CONFIG', 'FontWeight','bold');
@@ -781,10 +840,9 @@ classdef preferences < handle
 
 
 		function configToGUI(obj)
-			% configToGUI: sets values of GUI elements to correspond to
-			% those saved in internal config structure
-
-
+			% configToGUI: Updates GUI elements to reflect current configStruct values
+			%
+			% Sets dropdowns, switches, and text fields based on stored configurations
 
 			%% Serial config
 			list=cat(2, 'none', serialportlist);
@@ -806,7 +864,6 @@ classdef preferences < handle
 			end
 
 			%% Platform config
-
 
 			set(obj.hEditPlatOffsetPitch, 'String', obj.configStruct.platform.offsetPitch);
 			set(obj.hEditPlatOffsetYaw, 'String', obj.configStruct.platform.offsetYaw);
@@ -851,6 +908,7 @@ classdef preferences < handle
 
 			speed = obj.getMaxSpeed();
 			set(obj.hTextMaxSpeed, 'String', speed);
+
 			%% Processing config
 
 			if any(matches(obj.configStruct.processing.visualization,obj.availableVisualization))
@@ -918,7 +976,7 @@ classdef preferences < handle
 		end
 
 		function refreshSerial(obj)
-			% refreshSerial: refreshes list of available serial ports
+			% refreshSerial: Refreshes the list of available serial ports in the GUI dropdowns
 
 			list=cat(2, 'none', serialportlist);
 			set(obj.hDropPlatformPort, 'Items', list);
@@ -926,8 +984,11 @@ classdef preferences < handle
 		end
 
 		function  processConfig(obj)
-			% processConfig: gathers all values from GUI elements and stores them
-			% into config structure
+			% processConfig: Validates and saves GUI input to configStruct
+			%
+			% Checks for valid numerical inputs, updates radar/processing parameters, and triggers newConfigEvent
+			% Displays warnings for invalid inputs and saves the configuration to file
+
 
 			%% Serial config
 			err=false;
@@ -1018,14 +1079,14 @@ classdef preferences < handle
 
 			speed = obj.getMaxSpeed();
 			set(obj.hTextMaxSpeed, 'String', speed);
-			%% Processing
+
+			%% Processing config
 
 			obj.configStruct.processing.visualization = obj.hDropProVisualization.Value;
 
 			if ~err
 				uialert(obj.hFig, 'Config applied', 'Config', 'icon', 'info', 'CloseFcn','uiresume(gcbf)');
 				uiwait(gcbf);
-				% XXX set(obj.hFig, 'Visible', 'off');
 			end
 
 			obj.configStruct.processing.speedNFFT=str2double(obj.hDropProSpeedNFFT.Value);

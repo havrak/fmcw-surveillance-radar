@@ -5,6 +5,8 @@ classdef app < handle
 		hBtnConnectRadar;      % uicontrol/pushBtn - new program
 		hBtnConnectPlatform;   % uicontrol/pushBtn - delete a program
 		hBtnToggleProcessing;
+		hBtnStopPlatform;
+		hBtnSaveScene;
 		hPanelView;
 		hTextTelemetry;        % uicontrol/text - basic telemetry
 
@@ -115,6 +117,16 @@ classdef app < handle
 				'Callback', @(src, event) obj.toggleProcessing(), ...
 				'BackgroundColor', '#66BB6A');
 
+			obj.hBtnSaveScene = uicontrol('Style', 'pushbutton', ...
+				'Parent', obj.hPanelBtn, ...
+				'String', 'Save scene', ...
+				'Callback', @(src, event) obj.hDataProcessor.saveScene());
+
+				obj.hBtnStopPlatform = uicontrol('Style', 'pushbutton', ...
+				'Parent', obj.hPanelBtn, ...
+				'String', 'STOP PLATFORM', ...
+				'Callback', @(src, event) obj.hPlatformControl.stopPlatform());
+
 			set(obj.hFig, 'SizeChangedFcn', @(src, event) obj.resizeUI());
 
 			obj.resizeUI();
@@ -130,12 +142,13 @@ classdef app < handle
 				set(obj.hBtnConnectPlatform, 'BackgroundColor', '#E57373');
 			end
 		end
+		
 
 		function toggleProcessing(obj)
 			if obj.hDataProcessor.toggleProcessing()
-				set(obj.hBtnConnectPlatform, 'BackgroundColor', '#66BB6A');
+				set(obj.hBtnToggleProcessing, 'BackgroundColor', '#66BB6A');
 			else
-				set(obj.hBtnConnectPlatform, 'BackgroundColor', '#E57373');
+				set(obj.hBtnToggleProcessing, 'BackgroundColor', '#E57373');
 			end
 		end
 
@@ -170,6 +183,9 @@ classdef app < handle
 			obj.hBtnConnectRadar.Position = [10, height - 50 - 2 * (buttonHeight + spacing), buttonPanelWidth - 30, buttonHeight];
 
 			obj.hBtnToggleProcessing.Position = [10, height - 50 - 3 * (buttonHeight + spacing), buttonPanelWidth - 30, buttonHeight];
+			obj.hBtnSaveScene.Position = [10, height - 50 - 4 * (buttonHeight + spacing), buttonPanelWidth - 30, buttonHeight];
+			
+			obj.hBtnStopPlatform.Position = [10, 20, buttonPanelWidth - 30, buttonHeight];
 			obj.hPanelView.Position = [10, 130, width-200, height-140];
 
 			% resize callback gets called right after creating gui so before hDataProcessor is even initialized

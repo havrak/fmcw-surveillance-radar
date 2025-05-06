@@ -669,14 +669,6 @@ ParsingGCodeResult StepperControl::parseGCodeNonScheduledCommands(const char* gc
 #ifdef CONFIG_COMM_DEBUG
 		ESP_LOGI(TAG, "parseGCode | M80");
 #endif /* CONFIG_COMM_DEBUG */
-		gpio_set_level((gpio_num_t)CONFIG_STEPPER_Y_PIN_EN, 0);
-		gpio_set_level((gpio_num_t)CONFIG_STEPPER_P_PIN_EN, 0);
-
-		return ParsingGCodeResult::SUCCESS;
-	} else if (strncmp(gcode, "M81", 3) == 0) { // power up high voltage supply
-#ifdef CONFIG_COMM_DEBUG
-		ESP_LOGI(TAG, "parseGCode | M81");
-#endif /* CONFIG_COMM_DEBUG */
 		activeProgram = nullptr;
 		programmingMode.store(ProgrammingMode::NO_PROGRAMM);
 		xSemaphoreTake(noProgrammQueueLock, (TickType_t)1000);
@@ -689,6 +681,14 @@ ParsingGCodeResult StepperControl::parseGCodeNonScheduledCommands(const char* gc
 		xSemaphoreGive(noProgrammQueueLock);
 		steppers.stopNowStepper(stepperHalYaw);
 		steppers.stopNowStepper(stepperHalPitch);
+		gpio_set_level((gpio_num_t)CONFIG_STEPPER_Y_PIN_EN, 0);
+		gpio_set_level((gpio_num_t)CONFIG_STEPPER_P_PIN_EN, 0);
+
+		return ParsingGCodeResult::SUCCESS;
+	} else if (strncmp(gcode, "M81", 3) == 0) { // power up high voltage supply
+#ifdef CONFIG_COMM_DEBUG
+		ESP_LOGI(TAG, "parseGCode | M81");
+#endif /* CONFIG_COMM_DEBUG */
 		gpio_set_level((gpio_num_t)CONFIG_STEPPER_Y_PIN_EN, 1);
 		gpio_set_level((gpio_num_t)CONFIG_STEPPER_P_PIN_EN, 1);
 		return ParsingGCodeResult::SUCCESS;
