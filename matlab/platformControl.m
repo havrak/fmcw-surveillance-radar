@@ -1,49 +1,53 @@
 classdef platformControl < handle
+	% platformControl:  Manages rotary platform communication, data acquisition, and configuration
+	%
+	% Handles serial communication with a rotary platform,  processes incoming 
+	% data streams, and dynamically updates configurations via a preferences 
+	% object. Supports real-time data buffering and event-driven processing.
 
 	properties (Access = private)
 
 		% GUI %
-		hFig;                  % uifigure - main figure
-		hListboxSidebar;       % listbox - sidebar with different programs
-		hEditCommand;          % uicontrol/edit - text field for commands
-		hEditProgramHeader;    % uicontrol/edit - large text field for program declaration
-		hEditProgramMain;      % uicontrol/edit - large text field for program declaration
+		hFig;                  % Main GUI figure window
+		hListboxSidebar;       % Listbox for program selection
+		hEditCommand;          % Quick command input field - gets sent to platform immediately
+		hEditProgramHeader;    % Editor window for program header section
+		hEditProgramMain;      % Editor window for program main section
 
-		hPanelBtn              % uipanel - panel to group buttons
-		hBtnNew;               % uicontrol/pushBtn - new program
-		hBtnDelete;            % uicontrol/pushBtn - delete a program
-		hBtnStore;             % uicontrol/pushBtn - store programs to file
-		hBtnSave;              % uicontrol/pushBtn - save program form form to struct
-		hBtnUpload;            % uicontrol/pushBtn - upload program to device
-		hBtnStart;             % uicontrol/pushBtn - upload program to device
-		hBtnClose;             % uicontrol/pushBtn - close figure
-		hLabelCommand;         % uilabel - quck commnad lable
-		hTextOut;              % uicontrol/text - output from platfrom
+		hPanelBtn              % Panel to group buttons
+		hBtnNew;               % Create a new program
+		hBtnDelete;            % Delete a program
+		hBtnStore;             % Store programs in permanent config
+		hBtnSave;              % Save program form form to struct
+		hBtnUpload;            % Upload current program to the platform
+		hBtnStart;             % Send start command with correct program name to the platform
+		hBtnClose;             % Close figure button
+		hLabelCommand;         % Label for quick command text box
+		hTextOut;              % Output display for data coming from the platform
 
 
 		% OTHER VARS%
-		hPreferences preferences;
-		hSerial = [];
-		programs;
-		currentProgramName;
+		hPreferences preferences;     % Handle to preferences object
+		hSerial = [];                 % Serial port object for platform communication
+		programs;                     % Struct storing all platform programs
+		currentProgramName;           % Name of currently selected program
 
-		bufferSize double = 500;
+		bufferSize double = 500;      % Size of circular position buffers (default: 500)
 		positionTimes;                % Array of timestamps (seconds since start)
 		positionYaw;                  % Array of yaw positions
 		positionPitch;                % Array of pitch positions
-		currentIdx double = 1;
+		currentIdx double = 1;        % Circular buffer write index
 
-		angleOffsetYaw = 0;
-		angleOffsetPitch = 0;
-		stepCountYaw = 200;
-		stepCountPitch = 200;
-		angleTriggerYaw =10000;
-		angleTriggerYawTorelance = 2; % how far can we be for trigger to trigger
-		angleTriggerYawTimestamp = 0; % just for debounce
+		angleOffsetYaw = 0;           % Yaw calibration offset (degrees)
+		angleOffsetPitch = 0;         % Pitch calibration offset (degrees)
+		stepCountYaw = 200;           % Stepper motor steps per full yaw rotation
+		stepCountPitch = 200;         % Stepper motor steps per full pitch rotation
+		angleTriggerYaw =10000;       % Target yaw angle for event triggering (-1 = disabled)
+		angleTriggerYawTorelance = 2; % How far can we be for trigger to trigger
+		angleTriggerYawTimestamp = 0; % Just for debounce yaw trigger
 
-
-		log cell = {};
-		startTime uint64;
+		log cell = {};      % Console output history cell array
+		startTime uint64;   % Base timestamp (uint64) for relative timing
 
 	end
 
@@ -156,8 +160,9 @@ classdef platformControl < handle
 		end
 
 		function resizeUI(obj)
-			% resizeUI: resizes GUI to fit current window size
-			% called on change of size of the main figure
+			% resizeUI: Dynamically adjusts GUI layout on window resize
+			%
+			% called by callback from the figure
 
 			figPos = get(obj.hFig, 'Position');
 			width = figPos(3);
@@ -191,8 +196,7 @@ classdef platformControl < handle
 		end
 
 		function loadProgram(obj)
-			% loadProgram: loads transcript of program picked in sidebar to the
-			% main editor window
+			% loadProgram: Loads selected program into editor windows
 
 			fprintf('PlatformControl | loadProgram\n');
 			selected = obj.hListboxSidebar.Value; % Get selected index
@@ -217,8 +221,7 @@ classdef platformControl < handle
 		end
 
 		function callbackQuickCommand(obj)
-			% callbackQuickCommand: sends value of quick command text fiedl to
-			% the platform over serial
+			% callbackQuickCommand: sends command from text field to the platform
 
 			value = append(get(obj.hEditCommand, 'String'));
 			set(obj.hEditCommand, 'String', '');
@@ -229,6 +232,8 @@ classdef platformControl < handle
 
 		function processIncommingData(obj, src)
 			% processIncommingData: reads next line on serial and parses the data
+			%
+			% stores current position to buffer, log is displayed in text window
 
 			line = strtrim(readline(src));
 			if isempty(line)
@@ -238,7 +243,6 @@ classdef platformControl < handle
 			if length(obj.log) > 200
 				obj.log(1) = [];
 			end
-
 
 			if strncmp(line,'!P',2)
 				tmp = char(line);
@@ -256,9 +260,6 @@ classdef platformControl < handle
 				end
 
 				obj.currentIdx = mod(obj.currentIdx, obj.bufferSize) + 1;
-
-
-
 				return;
 			elseif strncmp(line,'!R',2)
 				obj.log{end+1} = line;
@@ -276,8 +277,9 @@ classdef platformControl < handle
 		end
 
 		function newProgram(obj)
-			% newProgram: opens dialog for user to enter name of new program and
-			% than opens it in editor window
+			% newProgram: creates new program
+			%
+			% after calling text box window is generated to entry program name
 
 			userInput = inputdlg('Enter new program name', 'Create new Program', [1 50], "");
 			name = userInput{1,1};
@@ -307,7 +309,6 @@ classdef platformControl < handle
 
 		function storePrograms(obj)
 			% storePrograms: store program in permanent configuration file
-			% with aid of preferences class
 
 			obj.hPreferences.setPrograms(obj.programs);
 			obj.hPreferences.storeConfig();
@@ -315,7 +316,6 @@ classdef platformControl < handle
 
 		function saveProgram(obj)
 			% saveProgram: saves content of editor window to internal structure
-			% if not executed program description will not be the one stored
 
 			valueHeader = get(obj.hEditProgramHeader, 'String');
 			trimmedHeader = (strtrim(string(valueHeader)));
@@ -332,38 +332,33 @@ classdef platformControl < handle
 
 		function startProgram(obj)
 			% startProgram: starts picked program on the platform
-			% before starting platform is stopped, homed
 
 			flush(obj.hSerial);
 			writeline(obj.hSerial, "M82"); % stop current move
-			% writeline(obj.hSerial, "M81"); % enable stepper drivers
-			% writeline(obj.hSerial, "G28"); % home steppers
-			% writeline(obj.hSerial, "G92"); % set home to current location
 			writeline(obj.hSerial, "P1 "+obj.currentProgramName);
 			flush(obj.hSerial);
 		end
 
 		function uploadProgram(obj)
 			% uploadProgram: upload program to the platform
-			% P90 and P92 commands are automatically added
+			%
+			% P90 and P92 commands are automatically added, user is not expected
+			% to enter them in program declarations
 
-			% Empty callback for Upload Program button
-
-			% -> call to send
 			flush(obj.hSerial);
 			writeline(obj.hSerial, "P90 "+obj.currentProgramName);
 			valueHeader = get(obj.hEditProgramHeader, 'String');
 			trimmedHeader = (strtrim(string(valueHeader)));
 			for i=1:(numel(trimmedHeader)-1)
 				writeline(obj.hSerial, trimmedHeader(i));
-				pause(0.02); % incomming buffer on esp32 is not infinite so we introduce a small delay
+				pause(0.02); % incoming buffer on ESP32 is not infinite so we introduce a small delay
 			end
 			writeline(obj.hSerial, "P91");
 			valueMain = get(obj.hEditProgramMain, 'String');
 			trimmedMain = (strtrim(string(valueMain)));
 			for i=1:(numel(trimmedMain)-1)
 				writeline(obj.hSerial, trimmedMain(i));
-				pause(0.02); % incomming buffer on esp32 is not infinite so we introduce a small delay
+				pause(0.02); % incoming buffer on ESP32 is not infinite so we introduce a small delay
 			end
 
 			writeline(obj.hSerial, "P92");
@@ -371,7 +366,11 @@ classdef platformControl < handle
 		end
 
 		function onNewConfigAvailable(obj)
-			[obj.angleOffsetYaw, obj.angleOffsetPitch, localStepCountYaw, localStepCountPitch] = obj.hPreferences.getPlatformParamters();
+			% onNewConfigAvailable: Updates configuration from preferences
+			%
+			% Function is called by preference's newConfigEvent event
+			% Yaw trigger is configured, step count is sent to the platform
+ 			[obj.angleOffsetYaw, obj.angleOffsetPitch, localStepCountYaw, localStepCountPitch] = obj.hPreferences.getPlatformParamters();
 			if obj.hPreferences.getDecayType() == 0
 				obj.angleTriggerYaw = mod(obj.hPreferences.getTriggerYaw()-obj.angleTriggerYawTorelance, 360);
 			else
@@ -392,13 +391,14 @@ classdef platformControl < handle
 	methods(Access=public)
 
 		function obj = platformControl(hPreferences, startTime)
-			% platformControl: constructor for the platformControl class
+			% platformControl: Initializes platform control with preferences and timing reference
 			%
-			% INPUT:
-			% hPreferences ... handle to preferences object
-			% startTime ... output of tic command, timestamp to which all others
-			% are calculated from
-
+			% Inputs:
+			%   hPreferences ... Handle to preferences object
+			%   startTime    ... Base timestamp (output of `tic`)
+			%
+			% Output:
+			%   obj ... Initialized platformControl instance
 			obj.hPreferences = hPreferences;
 			obj.startTime = startTime;
 			obj.programs = obj.hPreferences.getPrograms();
@@ -413,8 +413,7 @@ classdef platformControl < handle
 		end
 
 		function endProcesses(obj)
-			% endProcesses: safely stops all class processes
-
+			% endProcesses: Safely stops serial communication and releases resources
 			if ~isempty(obj.hSerial)
 				configureCallback(obj.hSerial, "off");
 				delete(obj.hSerial)
@@ -422,11 +421,10 @@ classdef platformControl < handle
 		end
 
 		function status = setupSerial(obj)
-			% setupSerial: establish serial connection to the platform
+			% setupSerial: Establishes serial connection to the platform
 			%
-			% OUTPUT:
-			% status ... true if connection was established
-
+			% Output:
+			%   status ... true if connection succeeded
 			if ~isempty(obj.hSerial)
 				configureCallback(obj.hSerial, "off");
 				delete(obj.hSerial);
@@ -455,24 +453,22 @@ classdef platformControl < handle
 
 
 		function stopPlatform(obj)
+			% stopPlatform: Emergency stop command for platform
 			command = "M82"; % clears queues, issues stop requests, shuts down power
 			writeline(obj.hSerial, command);
 		end
 
 		function [timestamps, yaw, pitch] = getPositionsInInterval(obj, timeMin, timeMax)
-			% getPositionsInInterval: returns lits of position logs that fall
-			% within a given time interval in both cases timestamps closest is
-			% chosen
+			% getPositionsInInterval: Returns position data within specified time range
 			%
-			% INPUTS:
-			% timeMin ... lower bound of the interval
-			% timeMax ... upper bound of the interval
+			% Inputs:
+			%   timeMin ... Start timestamp
+			%   timeMax ... End timestamp
 			%
-			% OUTPUT:
-			% timestamps ... vector of timestamps for positions
-			% yaw ... vector yaw angles
-			% pitch ... vector of pitch angles
-
+			% Outputs:
+			%   timestamps ... Vector of timestamps
+			%   yaw        ... Corresponding yaw angles
+			%   pitch      ... Corresponding pitch angles
 			[~, idxMin] = min(abs(obj.positionTimes - timeMin));
 			[~, idxMax] = min(abs(obj.positionTimes - timeMax));
 
@@ -490,15 +486,14 @@ classdef platformControl < handle
 		end
 
 		function [yaw, pitch] = getPositionAtTime(obj, time)
-			% getPositionAtTime: retrieve the closest platform position for a given timestamp
+			% getPositionAtTime: Returns platform position closest to specified timestamp
 			%
-			% INPUT:
-			% time ... wanted timestmap of data
+			% Input:
+			%   time ... Target timestamp
 			%
-			% OUTPUT:
-			% yaw ... yaw angle [0, 360]
-			% pitch .. pitch angle [-90, 90]
-
+			% Outputs:
+			%   yaw  ... Yaw angle (0-360°)
+			%   pitch ... Pitch angle (-90°-90°)
 			if isempty(obj.positionTimes)
 				error('No position data available.');
 			end

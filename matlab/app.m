@@ -39,7 +39,6 @@ classdef app < handle
 			fprintf("App | shutdown\n")
 			obj.hRadar.endProcesses();
 			obj.hPlatformControl.endProcesses();
-			obj.hDataProcessor.endProcesses();
 		end
 
 		function constructGUI(obj)

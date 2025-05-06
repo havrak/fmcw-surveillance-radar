@@ -27,7 +27,7 @@ classdef preferences < handle
 
 		hDropRadarSample             % Number of FFT samples for chirp
 		hDropRadarGain               % Radar gain (picks from predefined options)
-		hSwitchRadarHeader;          % Radar hedear base frequency,pPick between 122 and 24 GHz header
+		hSwitchRadarHeader;          % Radar header base frequency,pPick between 122 and 24 GHz header
 		hEditRadarBandwith;          % Radar header bandwith
 		hEditRadarTriggerPeriod;     % Triggering period for chirps
 		hDropRadarADC                % ADC setting on the radar
@@ -47,8 +47,8 @@ classdef preferences < handle
 		hSwitchProCalcCFAR;          % Enable calculation of CFAR and use of respective cube
 		hSwitchProDecayType;         % Choose what decay type is used (speed based x yaw trigger)
 		hEditProBatchSize;           % Number of updates buffered before cube is updated
-		hEditProSpreadPatternPitch;  % Spread pattern pitch paramter
-		hEditProSpreadPatternYaw;    % Spread pattern yaw paramter
+		hEditProSpreadPatternPitch;  % Spread pattern pitch parameter
+		hEditProSpreadPatternYaw;    % Spread pattern yaw parameter
 		hSwitchProSpreadPattern;     % Enable use of spread pattern
 		hEditProResetYaw;            % Yaw position that will trigger cube zeroing callback
 

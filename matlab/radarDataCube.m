@@ -1,42 +1,63 @@
 classdef radarDataCube < handle
+	% radarDataCube: Manages 4D radar data cube  for raw and CFAR-processed data
+	%
+	% Stores radar data in a 4D matrix (Yaw x Pitch x Fast Time x Slow Time),
+	% handles batch processing, and applies spreading/decay patterns.
+	% Similarly CFAR data is stored in 3D matrix (Range x Yaw x Pitch).
+
 	properties(Access=public)
-		yawBinMin=0;
-		yawBinMax=359;
-		yawBins;   % 1° resolution
-		pitchBinMin=-20;
-		pitchBinMax=60;     % keeping dimension divisible by 8 to use AVX2
-		pitchBins;          % 1° resolution
+		yawBinMin=0;           % Minimum yaw angle (degrees)
+		yawBinMax=359;         % Maximum yaw angle (degrees)
+		yawBins;               % Yaw angle bins with 1 deg resolution
+		pitchBinMin=-20;       % Minimum pitch angle (degrees)
+		pitchBinMax=60;        % Maximum pitch angle (degrees)
+		pitchBins;             % Pitch angle bins with 1 deg resolution
 
-		rawCube;          % 4D matrix [Yaw x Pitch x (Fast time x Slow Time)]
-		rawCubeMap;
-		rawCubeSize;
+		rawCube;               % 4D raw data matrix [Yaw x Pitch x (Fast Time x Slow Time)]
+		rawCubeMap;            % Memory map for rawCube data
+		rawCubeSize;           % Dimensions of rawCube [Range x Doppler x Yaw x Pitch]
 
-		cfarCube;          % 4D matrix [Yaw x Pitch x (Fast time x Slow Time)]
-		cfarCubeMap;
-		cfarCubeSize;
+		cfarCube;              % 4D CFAR data matrix [Yaw x Pitch x (Fast Time x Slow Time)]
+		cfarCubeMap;           % Memory map for cfarCube data
+		cfarCubeSize;          % Dimensions of cfarCube [Range x Yaw x Pitch]
 
-		spreadPattern               % Weighting matrix [Yaw x Pitch]
-		bufferA = struct('yawIdx', [], 'pitchIdx', [], 'rangeDoppler', [], 'cfar', [], 'decay', []); % Active buffer
-		bufferB = struct('yawIdx', [], 'pitchIdx', [], 'rangeDoppler', [], 'cfar', [], 'decay', []); % Processing buffer
-		bufferActive;
-		bufferActiveWriteIdx = 1;
-		batchSize = 6;
+		spreadPattern;         % Weighting matrix for data spreading [Yaw x Pitch]
+		bufferA = struct(...   % Active buffer for batch data
+			'yawIdx', [], 'pitchIdx', [], 'rangeDoppler', [], 'cfar', [], 'decay', []);
+		bufferB = struct(...    % Secondary buffer for processing
+			'yawIdx', [], 'pitchIdx', [], 'rangeDoppler', [], 'cfar', [], 'decay', []);
+		bufferActive;          % Currently active buffer (A/B)
+		bufferActiveWriteIdx = 1; % Write index for active buffer
+		batchSize = 6;          % Number of samples per batch
 
-		decay = true;
-		requestToZero = false;
-		isProcessing = false;
-		overflow = false;
-		keepRaw;
-		keepCFAR;
+		decay = true;           % Enable/disable data decay over time
+		requestToZero = false;  % Flag to zero cubes after processing
+		isProcessing = false;   % Batch processing status flag
+		overflow = false;       % Buffer overflow flag
+		keepRaw;                % Flag to retain raw data
+		keepCFAR;               % Flag to retain CFAR data
 	end
 
 	events
-		updateFinished
+		updateFinished          % called after processBatch function finishes
 	end
 
 	methods(Static)
 
 		function mask = createSectorMask(diffYaw, diffPitch, patternSize, speed)
+			% createSectorMask: Generates a mask that will keep data in area we are
+			% moving from and use just new in the area we are moving to
+			%
+			% NOT USED ANYWHERE
+			%
+			% Inputs:
+			%   diffYaw ... Yaw angle difference from previous batch
+			%   diffPitch ... Pitch angle difference from previous batch
+			%   patternSize ... Size of the pattern matrix [rows x cols]
+			%   speed ... Motion speed (for dynamic pattern adjustment)
+			%
+			% Output:
+			%   mask ... Sector mask matrix [patternSize x patternSize]
 			if speed == 0
 				mask = zeros(patternSize);
 				return;
@@ -70,11 +91,31 @@ classdef radarDataCube < handle
 			end
 		end
 
-		function testFunction()
-			disp("Test");
-		end
+		%function testFunction()
+		%	% testFunction: placeholder function to execute in parfev
+		%	disp("Test");
+		%end
 
 		function processBatch(buffer, spreadPattern, rawCubeSize, yawBins, pitchBins, processRaw, processCFAR, decay)
+			% processBatch: Applies batch updates to raw/CFAR cubes with spreading/decay
+			%
+			% in case spread pattern is enabled range-doppler map will be spread over a
+			% larger area, otherwise just single angle is updated. This is the only
+			% behavior for CFAR.
+			%
+			% Keep in mind this function accesses same memory space for cube objects as
+			% the main thread, ensure that no functions access cubes when processBatch runs
+			%
+			% Inputs:
+			%   buffer ... Batch data structure
+			%   spreadPattern ... Weighting pattern for data spreading
+			%   rawCubeSize ... Dimensions of rawCube
+			%   yawBins ... Yaw angle bins
+			%   pitchBins ...Pitch angle bins
+			%   processRaw ... Flag to process raw data
+			%   processCFAR ... Flag to process CFAR data
+			%   decay ... Flag to enable decay
+
 			%% Updating cube for raw data
 			if(processRaw && isempty(spreadPattern))
 				m = memmapfile('rawCube.dat', ...
@@ -96,7 +137,7 @@ classdef radarDataCube < handle
 						batchDecay = single(prod(buffer.decay(i:end)));
 						scripts.decayCube_avx2(contribution, batchDecay);
 					end
-					m.Data.rawCube(:, :, yaw, pitch) = m.Data.rawCube(:, :, yaw, pitch) + contribution;
+					m.Data.rawCube(:, :, yaw, pitch) = contribution;
 				end
 			elseif(processRaw)
 				m = memmapfile('rawCube.dat', ...
@@ -153,7 +194,6 @@ classdef radarDataCube < handle
 				end
 
 				for i = 1:numel(buffer.yawIdx)
-					% time2 = tic;
 					yaw = buffer.yawIdx(i);
 					pitch = buffer.pitchIdx(i);
 
@@ -228,9 +268,14 @@ classdef radarDataCube < handle
 
 	methods(Access=private)
 		function afterBatchProcessing(obj)
+			% afterBatchProcessing: Post-batch processing callback
+			%
+			% In case zero was called while thread was processing cubes will be zeroed
+			% form here
+
 			obj.isProcessing = false;
 			if obj.requestToZero
-				obj.requestToZero = false; 
+				obj.requestToZero = false;
 				obj.zeroCubes();
 			end
 			notify(obj, 'updateFinished');
@@ -238,6 +283,14 @@ classdef radarDataCube < handle
 		end
 
 		function generateSpreadPattern(obj, spreadPatternYaw, spreadPatternPitch)
+			% generateSpreadPattern: generate pattern used to sprtead range-doppelr map
+			% over a larger area
+			%
+			% output pattern is (2*spreadPatternYaw+1) x (2*spreadPatternPitch+1)
+			%
+			% Inputs:
+			%   spreadPatternYaw .... Yaw pattern half-width
+			%   spreadPatternPitch ... Pitch pattern half-width
 			dimensionsYaw = -spreadPatternYaw:spreadPatternYaw;
 			dimensionsPitch = -spreadPatternPitch:spreadPatternPitch;
 			yawSigma = 3*spreadPatternYaw / (sqrt(8*log(2)));
@@ -253,6 +306,17 @@ classdef radarDataCube < handle
 
 
 		function obj = radarDataCube(numRangeBins, numDopplerBins, batchSize,  spreadPatternYaw, spreadPatternPitch, keepRaw, keepCFAR, decay)
+			% radarDataCube: Initializes radar data cube and associated buffers
+			%
+			% Inputs:
+			%   numRangeBins ... Number of range bins
+			%   numDopplerBins ... Number of Doppler bins
+			%   batchSize ... Samples per processing batch
+			%   spreadPatternYaw ... Yaw spreading pattern width
+			%   spreadPatternPitch ... Pitch spreading pattern width
+			%   keepRaw ... Flag to retain raw data
+			%   keepCFAR ... Flag to retain CFAR data
+			%   decay ... Enable/disable data decay
 			obj.yawBins = obj.yawBinMin:obj.yawBinMax;     % 1° resolution
 			obj.pitchBins = obj.pitchBinMin:obj.pitchBinMax;          % 1° resolution
 			obj.batchSize = batchSize;
@@ -274,9 +338,6 @@ classdef radarDataCube < handle
 			%% Initialize radar cube for raw data
 
 			if obj.keepRaw
-
-
-
 				if ~exist('rawCube.dat', 'file') % this can more easily be handled bu fsutil (win), fallocate (linux)
 					mocDataSize = obj.rawCubeSize;
 					mocDataSize(1) = floor(mocDataSize(1)*1.2); % there needs to be a little reserve
@@ -326,6 +387,14 @@ classdef radarDataCube < handle
 		end
 
 		function addData(obj, yaw, pitch, cfar, rangeDoppler, speed)
+			% addData: Adds radar detection to the active buffer
+			%
+			% Inputs:
+			%   yaw ... Yaw angle of detection (degrees)
+			%   pitch ... Pitch angle of detection (degrees)
+			%   cfar ... CFAR detection vector
+			%   rangeDoppler ... Range-Doppler matrix
+			%   speed .... Motion speed for decay calculation (optional)
 			if nargin < 6
 				speed = 0.01;
 			end
@@ -334,7 +403,7 @@ classdef radarDataCube < handle
 			[~, pitchIdx] = min(abs(obj.pitchBins - pitch));
 			decayCoef = exp(-speed/1000);
 			% fprintf("radarDataCube | addData | adding to rawCube %d: yaw %f, pitch %f, decay %f\n", obj.bufferActiveWriteIdx, yaw, pitch, decayCoef);
-			
+
 			obj.bufferA.decay(obj.bufferActiveWriteIdx) = decayCoef;
 
 			obj.bufferA.yawIdx(obj.bufferActiveWriteIdx) = yawIdx;
@@ -360,10 +429,19 @@ classdef radarDataCube < handle
 		end
 
 		function status = isBatchFull(obj)
+			% isBatchFull: Checks if the active buffer is ready for processing
+			%
+			% Output:
+			%   status ... True if buffer is full or overflowed
 			status = (obj.bufferActiveWriteIdx > obj.batchSize) || obj.overflow;
 		end
 
-		function future = startBatchProcessing(obj)
+		function startBatchProcessing(obj)
+			% startBatchProcessing: Initiates asynchronous batch processing
+			%
+			% internal buffers switch their place - one used for buffering will now be
+			% processed while new data will be coming into second buffer
+
 			if obj.isProcessing
 				fprintf("radarDataCube | startBatchProcessing | already processing\n");
 				return;
@@ -392,6 +470,7 @@ classdef radarDataCube < handle
 				obj.keepCFAR, ...
 				obj.decay);
 
+			afterAll(future, @(varargin) obj.afterBatchProcessing(varargin{:}), 0);
 
 			% NOTE: main thread execution for debug
 			% radarDataCube.processBatch(processingBuffer, ...
@@ -402,16 +481,18 @@ classdef radarDataCube < handle
 			% 	obj.keepRaw, ...
 			% 	obj.keepCFAR, ...
 			% 	obj.decay);
-			% future = parfeval(gcp, @radarDataCube.testFunction, 0);
+			% obj.afterBatchProcessing();
 
-			afterAll(future, @(varargin) obj.afterBatchProcessing(varargin{:}), 0);
 
 		end
 
 		function zeroCubes(obj)
-			if (obj.isProcessing) % processBatch is currently running, this function will run after that function finishes
+			% zeroCubes: Resets rawCube and cfarCube to zero
+			%
+			% If processing is ongoing, queues zeroing after completion
+			if (obj.isProcessing)
 				obj.requestToZero = true;
-				return; 
+				return;
 			end
 
 			if obj.keepCFAR

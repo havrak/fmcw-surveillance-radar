@@ -245,7 +245,8 @@ classdef radar < handle
 		function onNewConfigAvailable(obj)
 			% onNewConfigAvailable: Updates radar configuration dynamically when preferences change
 			%
-			% Reconfigures radar via serial commands and trigger timer
+			% Function is called by preference's newConfigEvent event
+			% Re configures radar via serial commands and trigger timer
 
 			[obj.samples, ~, ~] = obj.hPreferences.getRadarBasebandParameters();
 			obj.bufferI=zeros(obj.samples, obj.bufferSize);
