@@ -888,9 +888,56 @@ We can split processing into multiple distinct steps.
   \label{fig:radar_flow}
 \end{figure}
 
+% \begin{tikzpicture}[
+%   node distance=1.2cm,
+%   scale=0.9,
+%   startstop/.style={rectangle, rounded corners, minimum width=3cm, minimum height=0.8cm, text centered, draw=black, fill=red!30},
+%   process/.style={rectangle, minimum width=3cm, minimum height=0.8cm, text centered, draw=black, fill=blue!30},
+%   decision/.style={diamond, aspect=1.5, minimum width=2cm, minimum height=0.8cm, text centered, draw=black, fill=green!30},
+%   arrow/.style={thick,->,>=stealth}
+% ]
+%
+
+
 \subsection{2nd step -- 2D FFT and CFAR calculation}
 
-<++>
+\begin{figure}[h!]
+  \centering
+  \begin{tikzpicture}[node distance=1cm, scale=0.7]
+    % Main horizontal flow
+    \node (processor_header) [layerheader] at (6, 0) {dataProcessor.m};
+    \node (start) [startstop, below of=processor_header] {Thread start};
+    \node (rcs) [process, right = of start] {Calculate RCS};
+    \node (cfar_decision) [decision, below = of start] {CFAR?};
+    \node (raw_decision) [decision, right=1.3cm of cfar_decision] {RAW?};
+    \node (speed_decision) [decision, right=1.8cm of raw_decision] {Speed?};
+    \node (return) [startstop, below=2.6cm of speed_decision] {Return};
+
+    % CFAR branch
+    \node (cfar_proc) [process, below=of cfar_decision, align=center] {Calc\\CFAR};
+
+
+    % Speed branch
+    \node (mock) [process, below left=1.5cm and -0.4cm of speed_decision, align=center] {Mock R-G\\ map};
+    \node (fft) [process, below right=1.5cm and -0.4cm of speed_decision, align=center] {2DFFT/\\NUFFT};
+
+    % Connections
+    \draw [arrow] (start.east) -- (rcs.west);
+    \draw [arrow] (rcs.south) -- ++(0,-1) -| (cfar_decision.north);
+    \draw [arrow] (cfar_decision.east) -- node[above] {No} (raw_decision.west);
+    \draw [arrow] (cfar_decision.south) -- node[right] {Yes} (cfar_proc.north);
+    \draw [arrow] (cfar_proc.east)  -- ++(0.3,0) |- (raw_decision.west);
+    \draw [arrow] (raw_decision.south) -- ++(0,0) node[left] {No} |- (return.west);
+    \draw [arrow] (raw_decision.east) -- node[above] {Yes} (speed_decision.west);
+    \draw [arrow] (speed_decision.south) -- ++(0, -0.5) node[above, xshift=-1cm] {No} -| (mock.north);
+    \draw [arrow] (speed_decision.east) -- ++(0, 0) node[above, xshift=+0.5cm] {Yes} -| (fft.north);
+    \draw [arrow] (mock.south) -- ++(0,0) |- (return.west);
+    \draw [arrow] (fft.south) -- ++(0,0) |- (return.east);
+
+  \end{tikzpicture}
+  \caption{Processing flow - 2nd step (Feature Processing)}
+  \label{fig:feature_flow}
+\end{figure}
 
 \include{conclusion}
 

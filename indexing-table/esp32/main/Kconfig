@@ -54,7 +54,7 @@ default 38400 if COMM_RS232_BAUDRATE_38400
 default 19200 if COMM_RS232_BAUDRATE_19200
 default 9600 if COMM_RS232_BAUDRATE_9600
 
-config STEPPER_YAL_QUEUE_SIZE
+config STEPPER_HAL_QUEUE_SIZE
 int "Queue size for stepper HAL"
 range 1 100
 default 10
