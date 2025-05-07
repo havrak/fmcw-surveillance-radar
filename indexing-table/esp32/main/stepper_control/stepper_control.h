@@ -118,8 +118,8 @@ enum GCodeCommand : uint8_t {
 	P90,	// start program declaration (header) 		DONE	XXX		DONE
 	P91,	// start program declaration (main body)	DONE	XXX		DONE
 	P92,	// end programm declaration 							DONE	XXX		DONE
-	P21,	// declare for loop start 								DONE	DONE	TODO
-	P22,	// declare for loop end 									DONE	DONE	TODO
+	P21,	// declare for loop start 								DONE	DONE	DONE
+	P22,	// declare for loop end 									DONE	DONE	DONE
 	P29,	// declare infinitely looped programm 		DONE	XXX		DONE
 	W0,		// wait seconds 													DONE	XXX		DONE
 	W1,		// wait milliseconds 											DONE	DONE 	DONE
@@ -390,8 +390,6 @@ class StepperControl {
 	ParsingGCodeResult parseGCode(const char* gcode, const uint16_t length);
 
 	void init();
-
-	void printLocation();
 
 	/**
 	 * @brief starts homing routine for both steppers

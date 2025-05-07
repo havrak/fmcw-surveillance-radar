@@ -87,9 +87,9 @@ void StepperHal::initMCPWN()
 	mcpwm_timer_config_t timerYawConfig = {
 		.group_id = 0,
 		.clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
-		.resolution_hz = 100000, // 0.1 MHz resolution
+		.resolution_hz = CONFIG_STEPPER_HAL_TIMER_RESOLUTION,
 		.count_mode = MCPWM_TIMER_COUNT_MODE_UP,
-		.period_ticks = 1000, // Will adjust for RPM
+		.period_ticks = CONFIG_STEPPER_HAL_TIMER_PERIOD, // Will adjust for RPM
 	};
 	mcpwm_new_timer(&timerYawConfig, &stepperHalYaw->timer);
 
@@ -97,9 +97,9 @@ void StepperHal::initMCPWN()
 	mcpwm_timer_config_t timerPitchConfig = {
 		.group_id = 0,
 		.clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
-		.resolution_hz = 100000,
+		.resolution_hz = CONFIG_STEPPER_HAL_TIMER_RESOLUTION,
 		.count_mode = MCPWM_TIMER_COUNT_MODE_UP,
-		.period_ticks = 1000,
+		.period_ticks = CONFIG_STEPPER_HAL_TIMER_PERIOD,
 	};
 	mcpwm_new_timer(&timerPitchConfig, &stepperHalPitch->timer);
 

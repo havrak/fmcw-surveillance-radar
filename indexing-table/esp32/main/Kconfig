@@ -61,6 +61,20 @@ default 10
 help
 	Queue size for stepper HAL
 
+config STEPPER_HAL_TIMER_RESOLUTION
+int "Timer resolution for stepper HAL"
+range 1 10000000
+default 100000
+help
+	Timer resolution for stepper HAL, in Hz. Determines frequency of timer tick.
+
+config STEPPER_HAL_TIMER_PERIOD
+int "Timer period for stepper HAL"
+range 1 10000000
+default 1000
+help
+	Timer period for stepper HAL, in ms. Determines number of ticks inside of period. Adjust depending on the timer resolution and desired RPM.
+
 config STEPPER_MAX_SPEED
 int "Maximum motor speed in RPM"
 range 1 60

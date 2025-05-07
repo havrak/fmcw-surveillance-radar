@@ -51,14 +51,14 @@ Distance measurement using radar predates FMCW technology by several decades.
 Early radar systems primarily relied on pulsed electromagnetic signals, measuring the time taken for the signal to reflect back.
 In such systems, speed can be determined using the Doppler effect as
 \begin{equation}
-	v = \frac{f_\mathrm{dop} c_o}{2f_\mathrm{rad}},
-	\label{eq:dopler}
+  v = \frac{f_\mathrm{dop} c_o}{2f_\mathrm{rad}},
+  \label{eq:dopler}
 \end{equation}
 where $f_\mathrm{dop}$ is doppler frequency, $c_o$ is speed of light and $f_\mathrm{rad}$ is frequency of the radar signal.
 Distance is derived from the time of flight $t$ of the signal as
 \begin{equation}
-	d = \frac{c_o \cdot t}{2}.
-	\label{eq:distance}
+  d = \frac{c_o \cdot t}{2}.
+  \label{eq:distance}
 \end{equation}
 
 While this approach is conceptually straightforward, it has several limitations, particularly in applications requiring high precision at close range.
@@ -81,51 +81,51 @@ Especially in case of triangle when multiple targets are present \cite{jankirama
 \sidar kit technically uses a segmented linear frequency modulation due to its limited computational power \cite{sidarPRO} but for the sake of simplicity we will stick to the ideal sawtooth waveform.
 
 \begin{figure}[h!]
-	\centering
-\begin{tikzpicture}[>=latex, scale=1]
+  \centering
+  \begin{tikzpicture}[>=latex, scale=1]
 
-% Axes
-\draw[->] (0, 0) -- (8, 0) node[below] {$t$};
-\draw[->] (0, 0) -- (0, 5) node[left] {$f$};
+    % Axes
+    \draw[->] (0, 0) -- (8, 0) node[below] {$t$};
+    \draw[->] (0, 0) -- (0, 5) node[left] {$f$};
 
-% Horizontal lines for BW
-\draw[dashed] (0, 4.5) -- (7.5, 4.5);
-\draw[dashed] (0, 1) -- (7.5, 1);
-\draw[dashed] (2.5, -0.05) -- (2.5, 4.7);
+    % Horizontal lines for BW
+    \draw[dashed] (0, 4.5) -- (7.5, 4.5);
+    \draw[dashed] (0, 1) -- (7.5, 1);
+    \draw[dashed] (2.5, -0.05) -- (2.5, 4.7);
 
-% Labels for fc and BW
-\node[left] at (0, 1) {$f_c$};
-\draw[<->] (-0.5, 1) -- (-0.5, 4.5) node[midway,left] {$BW$};
+    % Labels for fc and BW
+    \node[left] at (0, 1) {$f_c$};
+    \draw[<->] (-0.5, 1) -- (-0.5, 4.5) node[midway,left] {$BW$};
 
-% Triangular wave for Tx
-\draw[thick,blue] (0, 1) -- (2.5, 4.5);
-\draw[thick,blue]	(2.5, 1) -- (5, 4.5);
-\draw[thick, dashed, blue] (5, 1) -- (6, 2.4);
+    % Triangular wave for Tx
+    \draw[thick,blue] (0, 1) -- (2.5, 4.5);
+    \draw[thick,blue]	(2.5, 1) -- (5, 4.5);
+    \draw[thick, dashed, blue] (5, 1) -- (6, 2.4);
 
-% Triangular wave for Rx (offset version)
-\draw[thick,red] (0.5, 1) -- (3, 4.5);
-\draw[thick,red] (3, 1) -- (5.5, 4.5);
-\draw[thick, dashed, red] (5.4, 1) -- (6.4, 2.4);
+    % Triangular wave for Rx (offset version)
+    \draw[thick,red] (0.5, 1) -- (3, 4.5);
+    \draw[thick,red] (3, 1) -- (5.5, 4.5);
+    \draw[thick, dashed, red] (5.4, 1) -- (6.4, 2.4);
 
-% Label for Tch
-	\draw[-] (2.5, -0.05) -- (2.5, 0.05) node[below] {$T_{\text{ch}}$};
+    % Label for Tch
+    \draw[-] (2.5, -0.05) -- (2.5, 0.05) node[below] {$T_{\text{ch}}$};
 
-% Labels for Tx and Rx
-\node[blue] at (4.2, 4.1) {\small Tx};
-\node[red] at (5.3, 3.7) {\small Rx};
+    % Labels for Tx and Rx
+    \node[blue] at (4.2, 4.1) {\small Tx};
+    \node[red] at (5.3, 3.7) {\small Rx};
 
-% Sweep slope and fb
-\draw[<->] (1, 1) arc[start angle=0, end angle=55, radius=1];
-\node at (1.5, 1.3) {\small $k_{\text{sw}}$};
-\draw[<->] (1.5, 2.37) -- (1.5, 3.12) node[above, left] {$f_b$};
+    % Sweep slope and fb
+    \draw[<->] (1, 1) arc[start angle=0, end angle=55, radius=1];
+    \node at (1.5, 1.3) {\small $k_{\text{sw}}$};
+    \draw[<->] (1.5, 2.37) -- (1.5, 3.12) node[above, left] {$f_b$};
 
-% Small time delay (tau)
-\draw[<->] (2.5, 0.7) -- (3, 0.7) node[midway,below] {$\tau$};
+    % Small time delay (tau)
+    \draw[<->] (2.5, 0.7) -- (3, 0.7) node[midway,below] {$\tau$};
 
-\end{tikzpicture}
+  \end{tikzpicture}
 
-	\caption[Ideal relation of frequency and time for received and sent signal]{Ideal relation of frequency and time for received and sent signal}
-	\label{fig:fmcw_ideal}
+  \caption[Ideal relation of frequency and time for received and sent signal]{Ideal relation of frequency and time for received and sent signal}
+  \label{fig:fmcw_ideal}
 \end{figure}
 
 We can clearly see that in given time $t$ the frequency spread from sent signal to received signal is proportional to the time delay $\tau$.
@@ -134,51 +134,51 @@ However doing some simple subtraction in spectrogram of the both signals isn't r
 
 Let us define the chirp slope $k_\mathrm{sw}$ we can describe the change in frequency of the received signal as
 \begin{equation}
-	\Delta f_\mathrm{s}(t) = k_\mathrm{sw}t = \frac{BW}{T_\mathrm{ch}} t,
-	\label{eq:deltaf}
+  \Delta f_\mathrm{s}(t) = k_\mathrm{sw}t = \frac{BW}{T_\mathrm{ch}} t,
+  \label{eq:deltaf}
 \end{equation}
 where $t$ is the time goes from 0 to chirp length $T_\mathrm{ch}$.
 Standard equation of FM signal can be written as
 \begin{equation}
-	s_\mathrm{t}(t) = A \cos\left(\omega_c t + 2\pi \int_{0}^{t} f_\mathrm{s}(t) \mathrm{d}t\right),
-	\label{eq:fm}
+  s_\mathrm{t}(t) = A \cos\left(\omega_c t + 2\pi \int_{0}^{t} f_\mathrm{s}(t) \mathrm{d}t\right),
+  \label{eq:fm}
 \end{equation}
 where $A$ is amplitude of the signal, $\omega_c$ is carrier frequency and $f(s)$ is frequency of the signal.
 Substituting (\ref{eq:deltaf}) into (\ref{eq:fm}) we get the signal borrowed from the radar
 \begin{equation}
-	s_\mathrm{t}(t) = A \cos(\omega_c t + \pi k_\mathrm{sw}t^2).
-	\label{eq:fm2}
+  s_\mathrm{t}(t) = A \cos(\omega_c t + \pi k_\mathrm{sw}t^2).
+  \label{eq:fm2}
 \end{equation}
 
 Signal bounced back from the target will have the same equation with the only difference being the time delay $\tau$,
 \begin{equation}
-	s_\mathrm{r}(t) = A \cos(\omega_c (t - \tau) + \pi k_\mathrm{sw}(t - \tau)^2).
-	\label{eq:fm3}
+  s_\mathrm{r}(t) = A \cos(\omega_c (t - \tau) + \pi k_\mathrm{sw}(t - \tau)^2).
+  \label{eq:fm3}
 \end{equation}
 Now we can calculate the product of the two signals, this can be done easily in the real world using a frequency mixer.
 The result of the multiplication is
 \begin{align}
-	s(t) = s_\mathrm{r}(t) \cdot  s_\mathrm{t}(t) &= \frac{A^2}{2}\cos\left(2(\omega_c - 2\pi k_\mathrm{sw}T_\tau)t + 2\pi k_{sw}t^2 + (\pi k_\mathrm{sw} \tau^2 - \omega_c \tau) \right)+ \nonumber \\
-	&+\frac{A^2}{2} \cos\left(2\pi k_\mathrm{sw} \tau t + (\omega_c \tau - \pi k_\mathrm{sw} \tau^2)\right).
-	\label{eq:fm4}
+  s(t) = s_\mathrm{r}(t) \cdot  s_\mathrm{t}(t) & = \frac{A^2}{2}\cos\left(2(\omega_c - 2\pi k_\mathrm{sw}T_\tau)t + 2\pi k_{sw}t^2 + (\pi k_\mathrm{sw} \tau^2 - \omega_c \tau) \right)+ \nonumber \\
+                                                & +\frac{A^2}{2} \cos\left(2\pi k_\mathrm{sw} \tau t + (\omega_c \tau - \pi k_\mathrm{sw} \tau^2)\right).
+  \label{eq:fm4}
 \end{align}
 First additive term will lead to a signal with very high frequency, well above $2\omega_c$, this term doesn't carry any useful information and is usually filtered out -- either by low pass filter or the frequency mixer itself \cite{graham2005}.
 Second term is so call beat signal whose frequency is directly proportional to the time delay $\tau$.
 Applying a first time derivative to the cosine argument we get the frequency of the beat signal.
 \begin{equation}
-	f_\mathrm{b} = \frac{1}{2\pi}\frac{\partial}{\partial t} \left(2\pi k_\mathrm{sw} \tau t + (\omega_c \tau - \pi k_\mathrm{sw} \tau^2)\right) = k_\mathrm{sw} \tau.
-	\label{eq:fb}
+  f_\mathrm{b} = \frac{1}{2\pi}\frac{\partial}{\partial t} \left(2\pi k_\mathrm{sw} \tau t + (\omega_c \tau - \pi k_\mathrm{sw} \tau^2)\right) = k_\mathrm{sw} \tau.
+  \label{eq:fb}
 \end{equation}
 
 Calculating the distance to the target is now trivial, delay $\tau$ is equal to the time it takes for the signal to travel to the target and back
 \begin{equation}
-	R = \frac{c_0 \tau}{2},
-	\label{eq:distance2}
+  R = \frac{c_0 \tau}{2},
+  \label{eq:distance2}
 \end{equation}
 By substituting (\ref{eq:fb}) into (\ref{eq:distance2}) we get the equation for distance
 \begin{equation}
-	R = \frac{c_0 f_\mathrm{b}}{2k_\mathrm{sw}}= \frac{c_o f_\mathrm{b} T_{\mathrm{ch}}}{2 BW}.
-	\label{eq:distance3}
+  R = \frac{c_0 f_\mathrm{b}}{2k_\mathrm{sw}}= \frac{c_o f_\mathrm{b} T_{\mathrm{ch}}}{2 BW}.
+  \label{eq:distance3}
 \end{equation}
 
 
@@ -191,20 +191,20 @@ That gives us an maximal limit on beat frequency $f_\mathrm{b} = BW$.
 However in most case the limit will imposed not by $T_\mathrm{ch}$ respectively $BW$ but by sampling frequency $f_\mathrm{s}$.
 In order to avoid aliasing the Nyquist-Shannon theorem must be satisfied thus limiting the maximal beat frequency to $f_\mathrm{s}/2$ and resulting in maximal distance of
 \begin{equation}
-	R = \frac{c_o f_\mathrm{s}}{4k_\mathrm{sw}}.
-	\label{eq:distance4max}
+  R = \frac{c_o f_\mathrm{s}}{4k_\mathrm{sw}}.
+  \label{eq:distance4max}
 \end{equation}
 
 While sampling with frequency $f_\mathrm{s}$ we get $N =\mathrm{f}_\mathrm{s} T_\mathrm{ch}$ samples applying a DFT to the signal we get $N$ samples in spectrum with frequency resolution of
 \begin{equation}
-	\Delta f_\mathrm{b} = \frac{f_\mathrm{s}}{N} = \frac{1}{T_{ch}}.
-	\label{eq:resolution}
+  \Delta f_\mathrm{b} = \frac{f_\mathrm{s}}{N} = \frac{1}{T_{ch}}.
+  \label{eq:resolution}
 \end{equation}
 We can see that the resolution of spectrum is only inversely proportional to the chirp length and doesn't have any relation to sampling frequency \cite{jankiraman2018}.
 Now we can enter $\Delta f_\mathrm{b}$ into (\ref{eq:distance3}) to get the minimal distance that can be measured as
 \begin{equation}
-	\Delta R = \frac{c_o}{2BW}
-	\label{eq:distance5min}
+  \Delta R = \frac{c_o}{2BW}
+  \label{eq:distance5min}
 \end{equation}
 Thus in order to increase resolution in range a wider bandwidth is needed.
 
@@ -218,21 +218,21 @@ Both are however largely compensated in modern radar systems by using a closed f
 
 In order to demonstrate the effect of moving target on the beat frequency we can redefine the time delay $\tau$ as
 \begin{equation}
-	\tau = \frac{2(R_0+vt)}{c_o}
-	\label{eq:tau}
+  \tau = \frac{2(R_0+vt)}{c_o}
+  \label{eq:tau}
 \end{equation}
 where $R_0$ is the initial distance to the target and $v$ is the radial speed of the target.
 Within a single chirp there is no way to distinguish between the effects distance and speed of the target -- thus multiple chirps are needed.
 Rewriting \label{eq:tau} as
 \begin{equation}
-	\tau = \frac{2(R_0 v(nT_\mathrm{ch} + t_\mathrm{s}))}{c_0}
-	\label{eq:tau2}
+  \tau = \frac{2(R_0 v(nT_\mathrm{ch} + t_\mathrm{s}))}{c_0}
+  \label{eq:tau2}
 \end{equation}
 where $n$ is the number of chirps, $T_\mathrm{ch}$ is the chirp length (or in case of segmented signal whole cycle duration) and $t_\mathrm{s}$ denotes time withing  a single chirp ($0 \leq t_\mathrm{s} \leq T_\mathrm{ch}$).
 Substituting (\ref{eq:tau2}) into low frequency part (\ref{eq:fm4}) leads to very complex equation, however according to \cite{suleymanov2016} most of the terms can be neglected leading us to
 \begin{equation}
-	s(t_\mathrm{s}, n) = \frac{A^2}{2} \cos\left(\frac{4\pi k_\mathrm{sw} R_0}{c_0} t_\mathrm{s} + \frac{2\omega_c v n}{c_0} T_\mathrm{ch} + \varphi_0 \right),
-	\label{eq:fb2}
+  s(t_\mathrm{s}, n) = \frac{A^2}{2} \cos\left(\frac{4\pi k_\mathrm{sw} R_0}{c_0} t_\mathrm{s} + \frac{2\omega_c v n}{c_0} T_\mathrm{ch} + \varphi_0 \right),
+  \label{eq:fb2}
 \end{equation}
 where $\varphi_0$ is a phase shift given by the initial distance to the target.
 Its clear that first element describes predominantly the distance to the target and the second one the speed of the target.
@@ -240,8 +240,8 @@ We can also see that speed will not affect a beat frequency in a single spectrum
 
 In order to calculate doppler shift frequency
 \begin{equation}
-	f_\mathrm{d} = \frac{2f_\mathrm{c}v}{c_0},
-	\label{eq:doppler2}
+  f_\mathrm{d} = \frac{2f_\mathrm{c}v}{c_0},
+  \label{eq:doppler2}
 \end{equation}
 where $f_c$ is the center frequency, 2D Fourier transform can be used.
 At first FFT is run on each individual chirps and then another FFT is applied to these individual outputs in order ot determine phase shift.
@@ -250,13 +250,13 @@ This will lead to a so called range-Doppler map which on one axis contains infor
 
 Speed resolution is derived from a number of chirps $N$ we are analyzing and their length $T_{\mathrm{ch}}$ as
 \begin{equation}
-	\Delta v = \frac{c_0}{2f_c} \frac{1}{NT_{\mathrm{ch}}}.
-	\label{eq:doppler3}
+  \Delta v = \frac{c_0}{2f_c} \frac{1}{NT_{\mathrm{ch}}}.
+  \label{eq:doppler3}
 \end{equation}
 Maximal speed is dictated by how large of a phase shift can we measure without ambiguity -- that is $\pm \pi$.
 From (\ref{eq:fb2}) we can see formulate the upper limit as
 \[
-	v_\mathrm{max} = \frac{c_0}{4f_c T_\mathrm{ch}}.
+  v_\mathrm{max} = \frac{c_0}{4f_c T_\mathrm{ch}}.
 \]
 according to \cite{fmcwSpeed}.
 
@@ -268,11 +268,11 @@ Out of the box, it offers two headers a 24~GHz and a 122~GHz module both based o
 Both are strictly SISO IC with two antennas -- one for receiving another for transmitting so azimuth estimation is not possible by default.
 
 \begin{figure}[h!]
-	\centering
-	\includegraphics[width=0.6\textwidth]{../img/sidar.png}
+  \centering
+  \includegraphics[width=0.6\textwidth]{../img/sidar.png}
 
-	\caption[\sidar \cite{sidarMANOld}]{\sidar  24~GHz configuration}
-	\label{fig:sidar}
+  \caption[\sidar \cite{sidarMANOld}]{\sidar  24~GHz configuration}
+  \label{fig:sidar}
 \end{figure}
 
 Direct communication with the radar board itself is not possible, or at least, the communication interface is undocumented.
@@ -281,10 +281,10 @@ To this microcontroller does the user connect either directly with UART over USB
 Both are relatively low bandwidth communication -- the serial maxing at baudrate of 1~000~0000.
 
 \begin{figure}[h!]
-	\centering
-	\includegraphics[width=0.7\textwidth]{../img/sidar_flow.png}
-	\caption[Flow of Radar Measurement on \sidar \cite{sidarPRO}]{Flow of Radar Measurement on \sidar}
-	\label{fig:sidarFlow}
+  \centering
+  \includegraphics[width=0.7\textwidth]{../img/sidar_flow.png}
+  \caption[Flow of Radar Measurement on \sidar \cite{sidarPRO}]{Flow of Radar Measurement on \sidar}
+  \label{fig:sidarFlow}
 \end{figure}
 
 The devkit is designed for easy integration into existing projects; however, this unfortunately poses limitations for this thesis.
@@ -294,8 +294,8 @@ This entire sequence can be triggered either internally (driven by a configurabl
 Once trigger is received the device carries out a user configured number of chirps.
 The chirp length is determined by the number of sampling steps and the ADC sampling time as follows:
 \begin{equation}
-	t_\mathrm{ramp} = \frac{t_\mathrm{ADC} \cdot  (N_\mathrm{samples} + 85)}{36\,\, \mathrm{MHz}} \,\, \mu\mathrm{s},
-	\label{eq:sampling}
+  t_\mathrm{ramp} = \frac{t_\mathrm{ADC} \cdot  (N_\mathrm{samples} + 85)}{36\,\, \mathrm{MHz}} \,\, \mu\mathrm{s},
+  \label{eq:sampling}
 \end{equation}
 with the manufacturer recommending an optimal time of 1~ms for good SNR \cite{sidarPRO}.
 What happens to the sampled ramps remains unclear, as the manufacturer has not provided details.
@@ -319,8 +319,8 @@ Thus all processing estimates that chirp was broadcasted shortly after last data
 
 Per radars manual \cite{sidarPRO} following equation was used to calculate width of a single range bin
 \begin{equation}
-	\Delta R = \frac{c_0 (N+85)}{2\cdot BW\cdot NFFT},
-	\label{eq:rangeBin}
+  \Delta R = \frac{c_0 (N+85)}{2\cdot BW\cdot NFFT},
+  \label{eq:rangeBin}
 \end{equation}
 where variable $N$ denotes number of samples and $NFFT$ number of DFT points used to calculate the spectrum.
 Except the corrective constant of 85 it closely follows the formula (\ref{eq:distance3}).
@@ -378,10 +378,10 @@ Fortunately, the TRX-024-007 datasheet includes a board stack-up for the chip's 
 It was assumed that the same stack-up would be used—18~$\mu$m copper for the traces and ground plane, with a 250~$\mu$m thick Rogers RO4350B substrate \cite{sidarTRX24}.
 
 \begin{figure}[ht!]
-	\centering
-	\includegraphics[width=0.6\textwidth]{../img/boundaries.png}
-	\caption[Simulated 24 GHz header with boundary conditions showed]{Simulated 24 GHz header with boundary conditions showed}
-	\label{fig:boundaries}
+  \centering
+  \includegraphics[width=0.6\textwidth]{../img/boundaries.png}
+  \caption[Simulated 24 GHz header with boundary conditions showed]{Simulated 24 GHz header with boundary conditions showed}
+  \label{fig:boundaries}
 \end{figure}
 
 After measuring the dimensions of the array using an optical microscope, the entire array was redrawn in CST Studio.
@@ -396,42 +396,42 @@ The main lobe width was measured at approximately 16 degrees (Figure \ref{fig:fa
 For the 90-degree norm, the main lobe width (Figure \ref{fig:farfield90}) was 30 degrees, with side-lobe suppression of -10~dB.
 
 \begin{figure}[h!]
-	\centering
-	\includegraphics[width=0.9\textwidth]{../img/s11.png}
-	\caption[$s_{11}$ parameter of the 24~GHz header]{$s_{11}$ parameter of the 24~GHz header}
-	\label{fig:s11}
+  \centering
+  \includegraphics[width=0.9\textwidth]{../img/s11.png}
+  \caption[$s_{11}$ parameter of the 24~GHz header]{$s_{11}$ parameter of the 24~GHz header}
+  \label{fig:s11}
 \end{figure}
 
 
 \begin{figure}[h!]
-	\centering
-	\includegraphics[width=0.43\textwidth]{../img/farfield3d.png}
-	\caption[Radiation pattern of 24~GHz header -- 3D view]{Radiation pattern of 24~GHz header -- 3D view}
-	\label{fig:farfield3d}
+  \centering
+  \includegraphics[width=0.43\textwidth]{../img/farfield3d.png}
+  \caption[Radiation pattern of 24~GHz header -- 3D view]{Radiation pattern of 24~GHz header -- 3D view}
+  \label{fig:farfield3d}
 \end{figure}
 
 \begin{figure}[h!]
-	\centering
-	\includegraphics[width=0.9\textwidth]{../img/farfield180.png}
-	\caption[Radiation pattern of 24~GHz header -- 180° norm]{Radiation pattern of 24~GHz header -- 180° norm}
-	\label{fig:farfield180}
+  \centering
+  \includegraphics[width=0.9\textwidth]{../img/farfield180.png}
+  \caption[Radiation pattern of 24~GHz header -- 180° norm]{Radiation pattern of 24~GHz header -- 180° norm}
+  \label{fig:farfield180}
 \end{figure}
 
 \begin{figure}[h!]
-	\centering
-	\includegraphics[width=0.9\textwidth]{../img/farfield90.png}
-	\caption[Radiation pattern of 24~GHz header -- 90° norm]{Radiation pattern of 24~GHz header -- 90° norm}
-	\label{fig:farfield90}
+  \centering
+  \includegraphics[width=0.9\textwidth]{../img/farfield90.png}
+  \caption[Radiation pattern of 24~GHz header -- 90° norm]{Radiation pattern of 24~GHz header -- 90° norm}
+  \label{fig:farfield90}
 \end{figure}
 
 
 \section{122~GHz Header}
 
 \begin{figure}[h!]
-	\centering
-	\includegraphics[width=0.5\textwidth]{../img/sidar122.png}
-	\caption[\sidar with 122~GHz header \cite{sidarPRO}]{\sidar with 122~GHz header}
-	\label{fig:sidar122}
+  \centering
+  \includegraphics[width=0.5\textwidth]{../img/sidar122.png}
+  \caption[\sidar with 122~GHz header \cite{sidarPRO}]{\sidar with 122~GHz header}
+  \label{fig:sidar122}
 \end{figure}
 
 The 122~GHz header is based on the TRX-120-001 transceiver, which, in addition to the essential components required for RF transmission and reception, also incorporates two on-chip antennas.
@@ -443,10 +443,10 @@ However, this can be significantly improved using the supplied collimator lens, 
 
 
 \begin{figure}[h!]
-	\centering
-	\includegraphics[width=0.85\textwidth]{../img/sidar122rad.jpg}
-	\caption[Radiation pattern of 122~GHz header comparison \cite{sidarTRX122col}]{Radiation pattern of 122~GHz header comparison}
-	\label{fig:sidar122rad}
+  \centering
+  \includegraphics[width=0.85\textwidth]{../img/sidar122rad.jpg}
+  \caption[Radiation pattern of 122~GHz header comparison \cite{sidarTRX122col}]{Radiation pattern of 122~GHz header comparison}
+  \label{fig:sidar122rad}
 \end{figure}
 
 
@@ -726,11 +726,11 @@ Nevertheless, when measuring time of 24,000 steps at 120 RPM, the relative error
 \end{table}
 
 \begin{figure}[h!]
-	\centering
-	\includegraphics[width=0.7\textwidth]{../img/120rpm_to60_1.jpg}
-	\includegraphics[width=0.7\textwidth]{../img/120rpm_to60_2.jpg}
-	\caption[Moment of change between commands with 120RPM and 60RPM]{Moment of change between commands (120RPM $\Rightarrow$  60RPM)}
-	\label{fig:switching}
+  \centering
+  \includegraphics[width=0.7\textwidth]{../img/120rpm_to60_1.jpg}
+  \includegraphics[width=0.7\textwidth]{../img/120rpm_to60_2.jpg}
+  \caption[Moment of change between commands with 120RPM and 60RPM]{Moment of change between commands (120RPM $\Rightarrow$  60RPM)}
+  \label{fig:switching}
 \end{figure}
 
 An attempt was made to also measure the delay  between switching commands, displayed in figure \ref{fig:switching}.
@@ -756,10 +756,10 @@ Here output from radar is displayed, connection to platform and radar establishe
 Preferences are hidden behind the paper icon, platform control interface behind the cube icon.
 
 \begin{figure}[h!]
-	\centering
-	\includegraphics[width=0.9\textwidth]{../img/main_window.jpg}
-	\caption[Main application window]{Main application window}
-	\label{fig:main_window}
+  \centering
+  \includegraphics[width=0.9\textwidth]{../img/main_window.jpg}
+  \caption[Main application window]{Main application window}
+  \label{fig:main_window}
 \end{figure}
 
 \section{MATLAB Control Interface}
@@ -776,17 +776,17 @@ From preferences menu \ref{fig:preferences_platform} user can configure serial p
 It is necessary to point out that number of steps must correspond to microstepping ratio used on the hardware.
 
 \begin{figure}[h!]
-	\centering
-	\includegraphics[width=0.7\textwidth]{../img/platform_preferences.jpg}
-	\caption[Platform related part of preferences menu]{Platform related part of preferences menu}
-	\label{fig:preferences_platform}
+  \centering
+  \includegraphics[width=0.7\textwidth]{../img/platform_preferences.jpg}
+  \caption[Platform related part of preferences menu]{Platform related part of preferences menu}
+  \label{fig:preferences_platform}
 \end{figure}
 
 \begin{figure}[h!]
-	\centering
-	\includegraphics[width=0.9\textwidth]{../img/platform_control.jpg}
-	\caption[GUI of the platform control]{GUI of the platform control}
-	\label{fig:platformControl}
+  \centering
+  \includegraphics[width=0.9\textwidth]{../img/platform_control.jpg}
+  \caption[GUI of the platform control]{GUI of the platform control}
+  \label{fig:platformControl}
 \end{figure}
 
 Managing platform programs is done with separate window as shown in figure \ref{fig:platformControl}.
@@ -809,89 +809,88 @@ This mechanism enables the program to clear stored radar data after each rotatio
 
 \section{Radar Data Processing}
 
-First it is neccesay to outline what are inputs and outputs of the whole processing pipeline.
-Data used in processing come from two sources -- radar and platform.
-These data are then processed according to users settings in preferences.
-User can pick whether to calculate CFAR data, whether to keep raw radar cube data and in that case if speed calculation is needed.
-Output is then stored in classical radar data cube \cite{richards2022} enabling integration of more advanced algorithms in the future.
+First it is necessary to outline what are inputs and outputs of the whole processing pipeline.
+Data to the applications comes from sources - serial connections to the radar and to the platform.
+These two streams are then paired together based on timestamps logged upon receiving the data.
+Processing than does calculations based on user preferences -- parts such as CFAR calculation, speed calculation and so on can be turned on or off.
+Output data is stored in radar cube, common method to store radar's data that enables easy integration of more complex algorithms in the future \cite{richards2022}.
 
-As there are two possible distinct output there are two cubes used.
+As application can calculate both CFAR or keep raw data there are two cubes used.
 One is 4D structure with dimensions of fast time $\times$ slow time $\times$ yaw $\times$ pitch, this stores complete range doppler map for each spatial degree.
-In this thesis this structure is only used for visualizing of raw data for given fixed pitch angle.
-Second cube is 3D structure with dimensions of fast time $\times$ slow time $\times$ range and is used to store CFAR output.
+In this thesis this structure is only used for visualizing of raw data for given fixed pitch angle or showing range doppler map for given yaw and pitch.
+Any more complex visualization styles would be too cluttered and hard to interpret.
+Second cube is 3D structure with dimensions of fast time $\times$ slow time $\times$ range, this one is used to store CFAR output.
 
-Main complicating factor with radar data processing was the need to keep main thread responsive.
+Main complicating factor with the radar data processing was the need to keep main thread responsive.
 Most time critical aspect of this thread is timely reading of incoming serial data, be it from platform or radar.
-As radar frames aren't timestamp slowdown in reading of them would lead to incorrect interpretation of the data in relation to platform position.
+If data can't be read in time attributed timestamps will be incorrect and visualization will be wrong.
 In addition GUI starts to be quite unresponsive if the resources of main thread are stretched too thin.
 
 To solve this problem processing heavily leverages MATLAB's parallel computing toolbox, offloading as much as possible to different cores.
 Through whole processing pipeline there are mechanism of buffering data into larger batches and if needed discarding some in case software is unable to keep up with incoming data.
-We can split processing into three distinct components -- first part is reading data from serial, running basic FFT and storing them into buffer.
-Second is running 2D FFT and CFAR on the data and them storing them into ping-pong buffer
-And finally last part processes filled ping-pong buffer -- updating radar cube.
+We can split processing into multiple distinct steps.
+\begin{enumerate}
+  \item Data are read, simple FFT is calculated and data are buffered into a circular buffer.
+  \item Data re retrived in circular buffer paird with positions are processed -- CFAR or speed calculation. This step runs in a separate thread.
+  \item Processed data are buffered into a ping-pong buffer. In case buffer is full the cube update routine is launched.
+  \item After cubes are updated data re visualized in user chosen format.
+\end{enumerate}
+
+\subsection{1st step -- Data acquisition}
 
 \begin{figure}[h!]
-	\centering
-  \begin{tikzpicture}[scale=0.9, node distance=1.5cm]
+  \centering
+  \begin{tikzpicture}[node distance=1.5cm, scale=0.85]
 
     % Layer headers
-		\node (comm_layer) [layerheaderT, top left text=XXXXXXXXXXXX] at (0,0) {Main Layer};
-		% \node (comm_layer) [layerheader] at (0, 0) {Serial Layer};
-		\node (app_layer) [layerheader] at (6, 0) {CFAR/2D FFT Layer};
-		\node (hal_layer) [layerheader] at (12, 0) {Cube update Layer};
+    \node (radar_header) [layerheader] at (0, 0) {radar.m};
+    \node (processor_header) [layerheader] at (6, 0) {dataProcessor.m};
 
-    % Communication Layer
-    \node (comm_start) [startstop, below of=comm_layer, yshift=-0.3cm] {Start};
-		\node (wait_serial) [process, below of=comm_start] {(M) Wait for serial data};
-    \node (notify_data) [process, below of=wait_serial] {(M) Notify data processor};
-		\node (fft_calc) [process, below of=notify_data] {(M) Calculate FFT};
-		\node (store_chirp) [process, below of=fft_calc, align=center] {Store data to buffer};
+    % Radar Module
+    \node (radar_start) [startstop, below of=radar_header, yshift=-0.3cm] {Start};
+    \node (read_serial) [process, below of=radar_start] {Read serial data};
+    \node (buffer_raw) [process, below of=read_serial] {Buffer raw data};
+    \node (notify) [process, below of=buffer_raw] {Notify observers};
 
-    % Arrows in Communication Layer
-    \draw [arrow] (comm_start) -- (wait_serial);
-    \draw [arrow] (wait_serial) -- (fft_calc);
-    \draw [arrow] (fft_calc) -- (store_chirp);
-    \draw [arrow] (store_chirp.west) -- ++(-0.5, 0) |- (wait_serial.west);
+    % Data Processor Module
+    \node (proc_start) [startstop, below of=processor_header, yshift=-0.3cm] {On notify};
+    \node (read_radar) [process, below of=proc_start] {Read radar data};
+    \node (calc_fft) [process, below of=read_radar, align=center] {Calculate FFT\\ Buffer spectrum};
+    \node (check_pos) [decision, below of=calc_fft, yshift=-1cm, align=center] {Position\\ changed?};
+    \node (get_spectrums) [process, right of=read_radar, xshift=4cm, align=center] {Get spectrums};
+    \node (get_positions) [process, below of=get_spectrums] {Get positions};
+    \node (cfar_process) [process, below of=get_positions, align=center] {Launch 2D/CFAR\\ processing};
+    \node (proc_stop) [startstop, below of=check_pos, yshift=-1.3cm] {End};
 
-    % Application Layer
-    \node (app_start) [startstop, below of=app_layer, yshift=-0.3cm] {Start};
-    \node (update_position) [process, below of=app_start] {Update position};
-    \node (check_queues) [decision, below of=update_position, yshift=-1.3cm] {Queues full?};
-    \node (load) [process, below of=check_queues, align=center, yshift=-1.5cm] {Load command \\ queue ? program};
-    \node (process_command) [process, below of=load,yshift=-0.25cm] {Process command};
-    \node (store_command) [process, align=center, below of=process_command] {Add command \\ to stepper queue};
+    % Arrows for Radar Module
+    \draw [arrow] (radar_start) -- (read_serial);
+    \draw [arrow] (read_serial) -- (buffer_raw);
+    \draw [arrow] (buffer_raw) -- (notify);
+    \draw [arrow] (notify.west) -- ++(-1,0) |- (read_serial.west);
+    %
+    % % Arrows for Data Processor Module
+    \draw [arrow] (proc_start) -- (read_radar);
+    \draw [arrow] (read_radar) -- (calc_fft);
+    \draw [arrow] (calc_fft) -- (check_pos);
+    %
+    % % Yes branch
+    \draw [arrow] (check_pos.east) -- ++(1,0) node[right] {Yes} |- (get_spectrums.west);
+    \draw [arrow] (get_spectrums) -- (get_positions);
+    \draw [arrow] (get_positions) -- (cfar_process);
+    %
+    % % No branch
+    \draw [arrow] (check_pos.south) -- node[right] {No} (proc_stop.north);
 
-    % Arrows in Application Layer
-    \draw [arrow] (app_start) -- (update_position);
-    \draw [arrow] (update_position) -- (check_queues);
-    \draw [arrow] (check_queues.east) -- ++(1, 0) |- (update_position.east) node[midway, left, xshift=0.2cm, yshift=+0.25cm,xshift=0.2cm] {Yes};
-    \draw [arrow] (check_queues.south) -- ++(0, -0.5) -| (load.north) node[midway, right, yshift=+0.1cm] {No};
-    \draw [arrow] (load.south) -- ++(0, -0.5) -- (process_command.north);
-    \draw [arrow] (process_command) -- (store_command);
-    \draw [arrow] (store_command.west) -- ++(-0.5, 0) |- (update_position.west);
-
-
-    \node (hal_start) [startstop, below of=hal_layer, yshift=-0.3cm] {Start};
-    \node (wait_queue) [process, below of=hal_start] {Wait on queue};
-    \node (execute_command) [process, below of=wait_queue] {Execute command};
-    \node (wait_command) [process, below of=execute_command] {Wait on command};
-    \node (update_info) [process, align=center, below of=wait_command] {Update last \\command};
-
-    % Arrows in HAL Layer
-    \draw [arrow] (hal_start) -- (wait_queue);
-    \draw [arrow] (wait_queue) -- (execute_command);
-    \draw [arrow] (execute_command) -- (wait_command);
-    \draw [arrow] (wait_command) -- (update_info);
-    \draw [arrow] (update_info.west) -- ++(-0.5, 0) |- (wait_queue.west);
-
+    % \draw [arrow] (cfar_process.south) -- ++(0,-1.7) -| (proc_stop.east);
+    \draw [arrow] (cfar_process.south) |- (proc_stop.east);
   \end{tikzpicture}
-
-  \caption[Program flow diagram]{Program flow diagram}
-  \label{fig:code_diag}
+  \caption{Processing flow - 1st step}
+  \label{fig:radar_flow}
 \end{figure}
 
+\subsection{2nd step -- 2D FFT and CFAR calculation}
 
+<++>
 
 \include{conclusion}
 
@@ -904,4 +903,3 @@ And finally last part processes filled ping-pong buffer -- updating radar cube.
 \clearpage
 \openright
 \end{document}
-
