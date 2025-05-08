@@ -355,8 +355,8 @@ classdef preferences < handle
 			%
 			% Output:
 			%   binWidth ... Numeric bin width in meters per second
-			binWidth = physconst('LightSpeed')*(obj.configStruct.radar.trigger/1000)/ ...
-				(2*obj.configStruct.processing.speedNFFT*obj.configStruct.radar.header*1e9);
+			binWidth = physconst('LightSpeed')/ ...
+				(2*obj.configStruct.radar.trigger/1000*obj.configStruct.processing.speedNFFT*obj.configStruct.radar.header*1e9);
 		end
 
 

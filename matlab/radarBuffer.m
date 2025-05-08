@@ -53,6 +53,18 @@ classdef radarBuffer < handle
 			batchTimes = obj.timestamps(idxs);
 		end
 
+		function [batchFFTs, batchTimes] = getSlidingBatchOld(obj)
+			% getSlidingBatchOld: Retrieves the latest contiguous batch of FFT data and
+			% timestamps, last added spectrum will not be present
+			%
+			% Outputs:
+			%   batchFFTs ... FFT data matrix [rangeNFFT x bufferSize]
+			%   batchTimes ... Timestamps vector [bufferSize x 1]
+			idxs = mod((obj.currentIdx : obj.currentIdx+obj.bufferSize-2), obj.bufferSize) + 1;
+			batchFFTs = obj.FFTData(:,idxs);
+			batchTimes = obj.timestamps(idxs);
+		end
+
 		function [minTime, maxTime] = getTimeInterval(obj)
 			% getTimeInterval: Returns the minimum and maximum timestamps in the buffer
 			%

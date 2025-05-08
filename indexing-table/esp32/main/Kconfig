@@ -84,7 +84,7 @@ help
 
 config STEPPER_Y_STEP_COUNT
 int "Yaw motor rotation step count"
-range 1 1000
+range 1 1600
 default 200
 help
 	Number of steps to rotate one revolution the motor in yaw, include mechanical reduction or microstepping
@@ -129,8 +129,8 @@ help
 
 config STEPPER_P_STEP_COUNT
 int "Pitch motor rotation step count"
-range 1 1000
-default 200
+range 1 1600
+default 400
 help
 	number of steps to rotate one revolution the motor in pitch, include mechanical reduction or microstepping
 

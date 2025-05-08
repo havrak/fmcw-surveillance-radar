@@ -96,7 +96,7 @@ classdef dataProcessor < handle
 				timeElapsed = posTimes(end) - posTimes(1);
 				speed = sqrt((sum(rawDiffYaw)^2 + sum(rawDiffPitch)^2)) / (timeElapsed + 1e-6); % speed falls to zero for some reason
 				% fprintf("No speed calculations, exitting\n");
-				rangeDoppler = [zeros(processingParamters.rangeNFFT/2, (processingParamters.speedNFFT)-1), rangeProfile];
+				rangeDoppler = rangeProfile;
 				yaw = posYaw(end);
 				pitch = posPitch(end);
 				return;
@@ -271,6 +271,14 @@ classdef dataProcessor < handle
 			obj.processingParamters = obj.hPreferences.getProcessingParamters();
 			visual=obj.hPreferences.getProcessingVisualization();
 			obj.decayType = obj.hPreferences.getDecayType();
+			obj.hRadarBuffer = radarBuffer(floor(obj.processingParamters.speedNFFT*1.5), obj.processingParamters.rangeNFFT); % we need 
+
+			if obj.processingParamters.calcSpeed
+				speedNFFT = obj.processingParamters.speedNFFT;
+			else
+				obj.processingParamters.speedNFFT = 1;
+			end
+
 			obj.hDataCube = radarDataCube( ...
 				obj.processingParamters.rangeNFFT/2, ...
 				obj.processingParamters.speedNFFT, ...
@@ -281,7 +289,7 @@ classdef dataProcessor < handle
 				obj.processingParamters.calcCFAR, ...
 				obj.decayType ...
 				);
-			obj.hRadarBuffer = radarBuffer(floor(obj.processingParamters.speedNFFT*1.5), obj.processingParamters.rangeNFFT);
+
 
 
 			if strcmp(visual, 'Range-Azimuth') && ~strcmp(obj.currentVisualizationStyle, 'Range-Azimuth')
@@ -335,16 +343,27 @@ classdef dataProcessor < handle
 
 				diffYaw = abs((mod(yaw(end)-obj.lastProcesingYaw + 180, 360) - 180));
 				distance = sqrt(diffYaw^2 + (pitch(end)-obj.lastProcesingPitch)^2);
-				if obj.processingParamters.requirePosChange == 1 && distance < 1
-					% I can process every single frame without issue but there no needz
-					% to process frames where position has not changed, this data is
-					% only usefull for speed calculation
-					return;
+				if obj.processingParamters.requirePosChange == 1
+					if distance < 1
+						% I can process every single frame without issue but there no needz
+						% to process frames where position has not changed, this data is
+						% only useful for speed calculation
+						return;
+					else
+						% we exclude last frame as that one will have different position that the
+						% previous one
+						[batchRangeFFTs, batchTimes] = obj.hRadarBuffer.getSlidingBatchOld();
+						[posTimes, yaw, pitch] = obj.hPlatform.getPositionsInInterval(min(batchTimes), max(batchTimes));
+					end
+				else
+					[batchRangeFFTs, batchTimes] = obj.hRadarBuffer.getSlidingBatch();
+
 				end
 
-				[batchRangeFFTs, batchTimes] = obj.hRadarBuffer.getSlidingBatch();
+				% this needs to stay this way regardless if we take last frame or not;
 				obj.lastProcesingYaw = yaw(end);
 				obj.lastProcesingPitch = pitch(end);
+
 
 
 				% [ yaw, pitch, cfar, rangeDoppler, speed] = dataProcessor.processBatch( ...
@@ -575,7 +594,7 @@ classdef dataProcessor < handle
 		function obj = dataProcessor(radarObj, platformObj, preferencesObj, panelObj)
 			% dataProcessor: Initializes radar data processor
 			%
-			% Parallel pooled is also launcehd from here
+			% Parallel pooled is also launched from here
 			%
 			% Inputs:
 			%   radarObj ........... Initialized radar hardware object

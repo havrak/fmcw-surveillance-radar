@@ -91,6 +91,40 @@ classdef radarDataCube < handle
 			end
 		end
 
+		function allocateRadarCubeFile(sizeArray, fileName)
+			% allocateRadarCubeFile: Ensure binary file exists with sufficient space for radar data
+			% allocateRadarCubeFile(sizeArray, fileName)
+			%
+			% Creates a binary file with space for 1.2×proud(sizeArray) elements
+			%
+			% Inputs:
+			%   sizeArray  - Base dimensions of the data cube [numRangeBins, numDopplerBins, ...]
+			%   fileName   - Path to the output binary file
+			%
+
+
+			expandedSize = sizeArray;
+			expandedSize(1) = floor(sizeArray(1) * 1.2);
+
+			% Check file status
+			fileExists = exist(fileName, 'file') == 2;
+			needsCreation = ~fileExists;
+
+			if fileExists
+				fileInfo = dir(fileName);
+				needsCreation = (fileInfo.bytes < prod(expandedSize)*4);
+			end
+
+			% Create or recreate file if necessary
+			if needsCreation
+				dummyData = randn(expandedSize, 'single'); % Generate random data (prevents filesystem compression)
+
+				fid = fopen(fileName, 'w');
+				fwrite(fid, dummyData, 'single');
+				fclose(fid);
+			end
+		end
+
 		%function testFunction()
 		%	% testFunction: placeholder function to execute in parfev
 		%	disp("Test");
@@ -338,18 +372,13 @@ classdef radarDataCube < handle
 			%% Initialize radar cube for raw data
 
 			if obj.keepRaw
-				if ~exist('rawCube.dat', 'file') % this can more easily be handled bu fsutil (win), fallocate (linux)
-					mocDataSize = obj.rawCubeSize;
-					mocDataSize(1) = floor(mocDataSize(1)*1.2); % there needs to be a little reserve
-					data = randn(mocDataSize, 'single');  % matlab applyes some sort of compression, so we need data to be random in order to correctly allocate enough space
-					save('rawCube.dat', 'data');
-				end
 
+
+				radarDataCube.allocateRadarCubeFile(obj.rawCubeSize, 'rawCube.dat');
 				fprintf("radarDataCube | radarDataCube | Initializing rawCube with yaw %f, pitch %f, range %d, doppler %f\n", length(obj.yawBins), length(obj.pitchBins), numRangeBins, numDopplerBins)
 
 				obj.bufferA.rangeDoppler = zeros([numRangeBins, numDopplerBins, obj.batchSize], 'single');
 				obj.bufferB.rangeDoppler = zeros([numRangeBins, numDopplerBins, obj.batchSize], 'single');
-
 
 				% Create memory map
 				obj.rawCubeMap = memmapfile('rawCube.dat', ...
@@ -367,13 +396,8 @@ classdef radarDataCube < handle
 			if obj.keepCFAR
 				obj.bufferA.cfar = zeros([numRangeBins, obj.batchSize], 'single');
 				obj.bufferB.cfar = zeros([numRangeBins, obj.batchSize], 'single');
-
-				if ~exist('cfarCube.dat', 'file')
-					mocDataSize = obj.rawCubeSize([1 3 4]);
-					mocDataSize(1) = floor(mocDataSize(1)*1.2);
-					data = randn(mocDataSize, 'single');
-					save('cfarCube.dat', 'data');
-				end
+				obj.cfarCubeSize = obj.rawCubeSize([1 3 4]);
+				radarDataCube.allocateRadarCubeFile(obj.cfarCubeSize, 'cfarCube.dat');
 
 				% Create memory map
 				obj.cfarCubeMap = memmapfile('cfarCube.dat', ...
