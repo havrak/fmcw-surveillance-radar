@@ -905,8 +905,8 @@ We can split processing into multiple distinct steps.
   \centering
   \begin{tikzpicture}[node distance=1cm, scale=0.7]
     % Main horizontal flow
-    \node (processor_header) [layerheader] at (6, 0) {dataProcessor.m};
-    \node (start) [startstop, below of=processor_header] {Thread start};
+    \node (processor_header) [layerheader] at (0, 0) {dataProcessor.m};
+    \node (start) [startstop, below =of processor_header] {Thread start};
     \node (rcs) [process, right = of start] {Calculate RCS};
     \node (cfar_decision) [decision, below = of start] {CFAR?};
     \node (raw_decision) [decision, right=1.3cm of cfar_decision] {RAW?};
@@ -937,6 +937,61 @@ We can split processing into multiple distinct steps.
   \end{tikzpicture}
   \caption{Processing flow - 2nd step (Feature Processing)}
   \label{fig:feature_flow}
+\end{figure}
+
+	\subsubsection{3rd step}
+
+	<++>
+PLACE HODER
+\begin{figure}[h!]
+  \centering
+  \begin{tikzpicture}[node distance=1cm, scale=0.7]
+    % dataProcessor.m flow
+    \node (processor_header) [layerheader] at (0, 0) {dataProcessor.m};
+    \node (proc_event) [startstop, below=of processor_header, align=center] {Chirp processed};
+    \node (add_buffer) [process, below=of proc_event] {Add to ping-pong buffer};
+    \node (buffer_full) [decision, below=of add_buffer] {Buffer full?};
+    \node (start_update) [process, below=of buffer_full] {Start cube update};
+    \node (end_func) [startstop, below=of start_update] {End function};
+
+    % radarDataCube.m flow
+    \node (cube_header) [layerheader] at (8, 0) {radarDataCube.m};
+    \node (cube_start) [startstop, below = of cube_header] {Update started};
+    \node (keep_raw) [decision, below = of cube_start] {Keep RAW?};
+    \node (use_spread) [decision, right=of keep_raw, align=center, xshift=+0.7cm] {Use spread\\pattern?};
+    \node (direct_update) [process, below=of use_spread, align=center] {Update\\ cube};
+    \node (create_subcube) [process, below=of direct_update] {Create subcube};
+		\node (aggregate) [process, below =of create_subcube, align=center] {Aggregate updates\\Update cube};
+    \node (keep_cfar) [decision, below=2cm of keep_raw] {Keep CFAR?};
+    \node (update_cfar) [process, below=of keep_cfar, align=center] {Update CFAR\\ cube};
+    \node (cube_return) [startstop, below= of update_cfar] {Return};
+
+    % Connections
+    \draw [arrow] (proc_event) -- (add_buffer);
+    \draw [arrow] (add_buffer) -- (buffer_full);
+    \draw [arrow] (buffer_full.south) -- node[right] {Yes} (start_update.north);
+		\draw [arrow] (start_update.south) -- (end_func.north);
+		\draw [arrow] (buffer_full.west) -- ++(-1,0) node[left] {No} |- (end_func.west);
+    %
+    \draw [arrow] (cube_header) -- (cube_start);
+    \draw [arrow] (cube_start) -- (keep_raw);
+    \draw [arrow] (keep_raw.east) -- node[above] {Yes} (use_spread.west);
+    \draw [arrow] (keep_raw.south) -- node[right] {No} (keep_cfar.north);
+    \draw [arrow] (use_spread.south) -- node[right] {No} (direct_update.north);
+		\draw [arrow] (direct_update.west) -- ++(0,0) -| (keep_cfar.north);
+		\draw [arrow] (use_spread.east) -- ++(1,0) node[above] {Yes} |- (create_subcube.east);
+    \draw [arrow] (create_subcube) -- (aggregate);
+		\draw [arrow] (aggregate.west) -| ++(-0.5,5.922 ) -| (keep_cfar.north);
+    % \draw [arrow] (aggregate.south) |- (keep_cfar.east);
+    % \draw [arrow] (keep_raw.east) -| ++(1.5,0) |- (keep_cfar.north);
+    %
+		\draw [arrow] (keep_cfar.west) -- ++(-1,0) node[left] {No} |- (cube_return.west);
+    \draw [arrow] (keep_cfar.south) -- node[right] {Yes} (update_cfar.north);
+    \draw [arrow] (update_cfar.south) -- (cube_return.north);
+    %
+  \end{tikzpicture}
+  \caption{Processing flow - Final stage (Data Cube Management)}
+  \label{fig:cube_flow}
 \end{figure}
 
 \include{conclusion}
