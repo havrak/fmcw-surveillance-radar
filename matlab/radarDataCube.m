@@ -13,14 +13,15 @@ classdef radarDataCube < handle
 		pitchBinMax=60;        % Maximum pitch angle (degrees)
 		pitchBins;             % Pitch angle bins with 1 deg resolution
 
-		rawCube;               % 4D raw data matrix [Yaw x Pitch x (Fast Time x Slow Time)]
-		rawCubeMap;            % Memory map for rawCube data
-		rawCubeSize;           % Dimensions of rawCube [Range x Doppler x Yaw x Pitch]
+		rawCube = [];          % 4D raw data matrix [Yaw x Pitch x (Fast Time x Slow Time)]
+		rawCubeMap = [];            % Memory map for rawCube data
+		rawCubeSize = [];           % Dimensions of rawCube [Range x Doppler x Yaw x Pitch]
+		rawCubePoolHandle =[];
 
-		cfarCube;              % 4D CFAR data matrix [Yaw x Pitch x (Fast Time x Slow Time)]
-		cfarCubeMap;           % Memory map for cfarCube data
-		cfarCubeSize;          % Dimensions of cfarCube [Range x Yaw x Pitch]
-
+		cfarCube = [];         % 4D CFAR data matrix [Yaw x Pitch x (Fast Time x Slow Time)]
+		cfarCubeMap = [];           % Memory map for cfarCube data
+		cfarCubeSize = [];          % Dimensions of cfarCube [Range x Yaw x Pitch]
+		cfarCubePoolHandle = [];
 		spreadPattern;         % Weighting matrix for data spreading [Yaw x Pitch]
 		bufferA = struct(...   % Active buffer for batch data
 			'yawIdx', [], 'pitchIdx', [], 'rangeDoppler', [], 'cfar', [], 'decay', []);
@@ -36,6 +37,8 @@ classdef radarDataCube < handle
 		overflow = false;       % Buffer overflow flag
 		keepRaw;                % Flag to retain raw data
 		keepCFAR;               % Flag to retain CFAR data
+		parallelPool;           % Thread pool
+		tmpTime;
 	end
 
 	events
@@ -130,7 +133,7 @@ classdef radarDataCube < handle
 		%	disp("Test");
 		%end
 
-		function processBatch(buffer, spreadPattern, rawCubeSize, yawBins, pitchBins, processRaw, processCFAR, decay)
+		function processBatch(buffer, rawCube, cfarCube, spreadPattern, rawCubeSize, yawBins, pitchBins, processRaw, processCFAR, decay)
 			% processBatch: Applies batch updates to raw/CFAR cubes with spreading/decay
 			%
 			% in case spread pattern is enabled range-doppler map will be spread over a
@@ -151,15 +154,18 @@ classdef radarDataCube < handle
 			%   decay ... Flag to enable decay
 
 			%% Updating cube for raw data
+			fid = fopen("out.txt", "a+");
+
 			if(processRaw && isempty(spreadPattern))
-				m = memmapfile('rawCube.dat', ...
-					'Format', {'single', rawCubeSize, 'rawCube'}, ...
-					'Writable', true, ...
-					'Repeat', 1);
+				% rawCube = memmapfile('rawCube.dat', ...
+				% 	'Format', {'single', rawCubeSize, 'rawCube'}, ...
+				% 	'Writable', true, ...
+				% 	'Repeat', 1);
 
 				if(decay)
 					batchDecay = single(prod([buffer.decay]));
-					scripts.decayCube_avx2(m.Data.rawCube, batchDecay);
+					% scripts.
+					decayCube_avx2(rawCube.Data.rawCube, batchDecay);
 				end
 
 				for i = 1:numel(buffer.yawIdx)
@@ -169,15 +175,19 @@ classdef radarDataCube < handle
 
 					if(decay)
 						batchDecay = single(prod(buffer.decay(i:end)));
-						scripts.decayCube_avx2(contribution, batchDecay);
+						%scripts.
+						decayCube_avx2(contribution, batchDecay);
 					end
-					m.Data.rawCube(:, :, yaw, pitch) = contribution;
+					rawCube.Data.rawCube(:, :, yaw, pitch) = contribution;
 				end
 			elseif(processRaw)
-				m = memmapfile('rawCube.dat', ...
-					'Format', {'single', rawCubeSize, 'rawCube'}, ...
-					'Writable', true, ...
-					'Repeat', 1);
+
+				fprintf(fid,"START PROCESS RAW\n");
+				% rawCube = memmapfile('rawCube.dat', ...
+				% 	'Format', {'single', rawCubeSize, 'rawCube'}, ...
+				% 	'Writable', true, ...
+				% 	'Repeat', 1);
+				fprintf(fid,"MEMMAPFILE LOADED\n");
 
 				% --- 1. Calculate composite region ---
 				halfYaw = floor(size(spreadPattern, 1)/2);
@@ -187,12 +197,12 @@ classdef radarDataCube < handle
 				% Get raw min/max indices
 				% --- 1.1 Expand Yar range for each update ---
 				%  we need to find most distant elements -> let's label them min and
-				%  max (don't correspond to actuall minimums)
+				%  max (don't correspond to actual minimums)
 				%  max + halfYaw and min - halfYaw are ok -> great
 				%  max + halfYaw results in overflow, min-halfYaw doesn't -> create array max-halfYaw->end and 1-> min+halfYaw
 				%  ...
 				%  -> calculate all intervals we want to fill in
-				%  -> concart into larger array and remove duplicat elements, mode
+				%  -> contract into larger array and remove duplicate elements, mode
 				%  that array
 				%  find breaks in this array (wrap fro 360 to 1) -> fill in elements
 				expandedYaws = arrayfun(@(y) [(y-halfYaw):(y+halfYaw)], [buffer.yawIdx], 'UniformOutput', false);
@@ -222,12 +232,19 @@ classdef radarDataCube < handle
 
 				% --- 3. Apply updates into subrawCube ---
 
+
+				fprintf(fid,"MEMMAPFILE LOADED 2\n");
+
 				yawMap = containers.Map('KeyType', 'double', 'ValueType', 'double');
 				for i = 1:length(yawIndices)
 					yawMap(yawIndices(i)) = i; % Maps original yaw index to subrawCube position
 				end
 
+				fprintf(fid,"MEMMAPFILE LOADED 3\n");
+
+
 				for i = 1:numel(buffer.yawIdx)
+
 					yaw = buffer.yawIdx(i);
 					pitch = buffer.pitchIdx(i);
 
@@ -239,50 +256,71 @@ classdef radarDataCube < handle
 					localPitchOffset = validPitch(1) - minPitch + 1;
 					localPitch = localPitchOffset : (localPitchOffset + length(validPitch) - 1);
 
+					fprintf(fid,"MEMMAPFILE LOADED 3.1\n");
 					% --- 3.2 Adjust pattern ---
 					startPitchPat = max(1,(halfPitch+1)-(pitch-validPitch(1)));
 					endPitchPat = min(size(spreadPattern, 2), startPitchPat + length(validPitch) - 1);
 					adjPattern = spreadPattern(:, startPitchPat:endPitchPat)*prod(buffer.decay(i:end));
 
+					fprintf(fid,"MEMMAPFILE LOADED 3.2\n");
 					% --- 3.3 Spread contribution into 4D with pattern ---
 					rangerDoppler = buffer.rangeDoppler(:, :, i);
 					if(decay)
 						batchDecay = single(prod([buffer.decay(i:end)]));
-						scripts.decayCube_avx2(rangerDoppler, batchDecay);
-					end
-					contribution = scripts.applyPattern(adjPattern, rangerDoppler);
+						fprintf(fid,"MEMMAPFILE LOADED 3.3.1\n");
 
+						decayCube_avx2(rangerDoppler, batchDecay);
+						fprintf(fid,"MEMMAPFILE LOADED 3.3.2\n");
+
+					end
+					%contribution = scripts.applyPattern(adjPattern, rangerDoppler);
+					contribution = applyPattern(adjPattern, rangerDoppler);
+
+					fprintf(fid,"MEMMAPFILE LOADED 3.3\n");
 
 
 					% --- 3.4 Update subrawCube with contribution ---
 					%%subCube(:, :, localYaw, localPitch) = ...
 					%	subCube( :, :, localYaw, localPitch) + contribution;
-					scripts.updateCube(subCube, contribution, localYaw, localPitch);
+					% scripts.
+					updateCube(subCube, contribution, localYaw, localPitch);
+
+					fprintf(fid,"MEMMAPFILE LOADED 3.4\n");
 				end
+
+
+
 
 
 				% --- 4. Decay rawCube ---
 				if(decay)
 					batchDecay = single(prod([buffer.decay]));
-					scripts.decayCube_avx2(m.Data.rawCube, batchDecay); % speed varies widely, probalby due to non consistent memory managment
+					%scripts.
+					decayCube_avx2(rawCube.Data.rawCube, batchDecay); % speed varies widely, probalby due to non consistent memory managment
 				end
+				fprintf(fid,"MEMMAPFILE LOADED 4\n");
 
 				% --- 5. Merge data ---
-				scripts.updateCube(m.Data.rawCube, subCube, yawIndices, pitchIndices);
+				%scripts.
+				updateCube(rawCube.Data.rawCube, subCube, yawIndices, pitchIndices);
 				% m.Data.rawCube(:, :,yawIndices, pitchIndices) = m.Data.rawCube( :, :,yawIndices, pitchIndices) + subCube;
+
+				fprintf(fid,"MEMMAPFILE LOADED 5\n");
+
 			end
 
 			%% Updating cube for CFAR data
 			if(processCFAR)
-				cfarCubeSize=rawCubeSize([1 3 4]);
-				m = memmapfile('cfarCube.dat', ...
-					'Format', {'single', cfarCubeSize, 'cfarCube'}, ...
-					'Writable', true, ...
-					'Repeat', 1);
+				% cfarCubeSize=rawCubeSize([1 3 4]);
+				% cfarCube = memmapfile('cfarCube.dat', ...
+				% 	'Format', {'single', cfarCubeSize, 'cfarCube'}, ...
+				% 	'Writable', true, ...
+				% 	'Repeat', 1);
 
 				if(decay)
 					batchDecay = single(prod([buffer.decay]));
-					scripts.decayCube_avx2(m.Data.cfarCube, batchDecay);
+					%scripts.
+					decayCube_avx2(cfarCube.Data.cfarCube, batchDecay);
 				end
 
 
@@ -291,12 +329,14 @@ classdef radarDataCube < handle
 					contribution =  buffer.cfar(:, i);
 					if(decay)
 						batchDecay = single(prod(buffer.decay(i:end)));
-						scripts.decayCube_avx2(contribution, batchDecay);
+						%scripts.
+						decayCube_avx2(contribution, batchDecay);
 					end
-					m.Data.cfarCube(:, buffer.yawIdx(i), buffer.pitchIdx(i)) = contribution;
+					cfarCube.Data.cfarCube(:, buffer.yawIdx(i), buffer.pitchIdx(i)) = contribution;
 				end
-
 			end
+
+			
 		end
 	end
 
@@ -306,7 +346,7 @@ classdef radarDataCube < handle
 			%
 			% In case zero was called while thread was processing cubes will be zeroed
 			% form here
-
+			toc(obj.tmpTime)
 			obj.isProcessing = false;
 			if obj.requestToZero
 				obj.requestToZero = false;
@@ -355,6 +395,7 @@ classdef radarDataCube < handle
 			obj.pitchBins = obj.pitchBinMin:obj.pitchBinMax;          % 1° resolution
 			obj.batchSize = batchSize;
 			obj.bufferActive = obj.bufferA;
+			obj.parallelPool = gcp('nocreate');
 			if(spreadPatternYaw == 0 || spreadPatternPitch == 0)
 				obj.spreadPattern = [];
 			else
@@ -385,10 +426,12 @@ classdef radarDataCube < handle
 					'Format', {'single', obj.rawCubeSize, 'rawCube'}, ...
 					'Writable', true, ...
 					'Repeat', 1);
-
-
-				scripts.zeroCube(obj.rawCubeMap.Data.rawCube);
+				obj.rawCubePoolHandle = parallel.pool.Constant(obj.rawCubeMap);
+				%scripts.
+				zeroCube(obj.rawCubeMap.Data.rawCube);
 				obj.rawCube = obj.rawCubeMap.Data.rawCube;
+			else
+				obj.rawCubePoolHandle.Value = [];
 			end
 
 			%% Initialize radar cube for cfar
@@ -405,8 +448,14 @@ classdef radarDataCube < handle
 					'Writable', true, ...
 					'Repeat', 1);
 
-				scripts.zeroCube(obj.cfarCubeMap.Data.cfarCube);
+
+				obj.cfarCubePoolHandle = parallel.pool.Constant(obj.cfarCubeMap);
+
+				% scripts.
+				zeroCube(obj.cfarCubeMap.Data.cfarCube);
 				obj.cfarCube = obj.cfarCubeMap.Data.cfarCube;
+			else
+				obj.cfarCubePoolHandle.Value = [];
 			end
 		end
 
@@ -425,7 +474,7 @@ classdef radarDataCube < handle
 			% disp(sum(cfar))
 			[~, yawIdx] = min(abs(obj.yawBins - yaw));
 			[~, pitchIdx] = min(abs(obj.pitchBins - pitch));
-			decayCoef = exp(-speed/1000);
+			decayCoef = exp(-speed/100);
 			% fprintf("radarDataCube | addData | adding to rawCube %d: yaw %f, pitch %f, decay %f\n", obj.bufferActiveWriteIdx, yaw, pitch, decayCoef);
 
 			obj.bufferA.decay(obj.bufferActiveWriteIdx) = decayCoef;
@@ -472,7 +521,6 @@ classdef radarDataCube < handle
 			end
 
 
-			fprintf("radarDataCube | startBatchProcessing | starting processing\n");
 
 			obj.isProcessing = true;
 			obj.overflow = false;
@@ -482,30 +530,48 @@ classdef radarDataCube < handle
 			obj.bufferB = processingBuffer; % Assign to processing buffer
 			obj.bufferActiveWriteIdx = 1;
 
-			future = parfeval(gcp, ...
-				@radarDataCube.processBatch, ...
-				0, ...
-				processingBuffer, ...
-				obj.spreadPattern, ...
-				obj.rawCubeSize, ...
-				obj.yawBins, ...
-				obj.pitchBins, ...
-				obj.keepRaw, ...
-				obj.keepCFAR, ...
-				obj.decay);
 
-			afterAll(future, @(varargin) obj.afterBatchProcessing(varargin{:}), 0);
 
-			% NOTE: main thread execution for debug
-			% radarDataCube.processBatch(processingBuffer, ...
-			% 	obj.spreadPattern, ...
-			% 	obj.rawCubeSize, ...
-			% 	obj.yawBins, ...
-			% 	obj.pitchBins, ...
-			% 	obj.keepRaw, ...
-			% 	obj.keepCFAR, ...
-			% 	obj.decay);
-			% obj.afterBatchProcessing();
+			obj.tmpTime = tic();
+			if obj.parallelPool.NumWorkers > obj.parallelPool.Busy
+
+				fprintf("radarDataCube | startBatchProcessing | starting processing\n");
+				% NOTE: main thread execution for debug
+				
+				% future = parfeval(gcp, ...
+				% 	@radarDataCube.processBatch, ...
+				% 	0, ...
+				% 	processingBuffer, ...
+				% 	obj.rawCubePoolHandle.Value, ...
+				% 	obj.cfarCubePoolHandle.Value, ...
+				% 	obj.spreadPattern, ...
+				% 	obj.rawCubeSize, ...
+				% 	obj.yawBins, ...
+				% 	obj.pitchBins, ...
+				% 	obj.keepRaw, ...
+				% 	obj.keepCFAR, ...
+				% 	obj.decay);
+				% 
+				% afterAll(future, @(varargin) obj.afterBatchProcessing(varargin{:}), 0);
+
+
+				radarDataCube.processBatch( ...
+					processingBuffer, ...
+					obj.rawCubePoolHandle.Value, ...
+					obj.cfarCubePoolHandle.Value, ...
+					obj.spreadPattern, ...
+					obj.rawCubeSize, ...
+					obj.yawBins, ...
+					obj.pitchBins, ...
+					obj.keepRaw, ...
+					obj.keepCFAR, ...
+					obj.decay);
+				obj.afterBatchProcessing();
+			else
+				fprintf("radarDataCube | startBatchProcessing | pool empty\n");
+
+				obj.afterBatchProcessing();
+			end
 
 
 		end
@@ -520,10 +586,12 @@ classdef radarDataCube < handle
 			end
 
 			if obj.keepCFAR
-				scripts.zeroCube(obj.cfarCube)
+				%scripts.
+				zeroCube(obj.cfarCube)
 			end
 			if obj.keepRaw
-				scripts.zeroCube(obj.rawCube)
+				%scripts.
+				zeroCube(obj.rawCube)
 			end
 		end
 

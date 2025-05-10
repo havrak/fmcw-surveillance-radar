@@ -8,7 +8,7 @@ classdef app < handle
 		hBtnStopPlatform;
 		hBtnSaveScene;
 		hPanelView;
-		hTextTelemetry;        % uicontrol/text - basic telemetry
+		% hTextTelemetry;        % uicontrol/text - basic telemetry
 
 
 		% OTHER VARS%
@@ -25,12 +25,29 @@ classdef app < handle
 
 	methods(Access=private)
 		function obj = app()
+			fprintf('App | launching application\n');
+			addpath("scripts");
 			obj.constructGUI();
+
+			parallelPool = gcp('nocreate'); % Start parallel pool
+
+			if isempty(parallelPool)
+				fprintf("App | starting paraller pool\n");
+				% maxNumCompThreads(6);
+				% maxNumCompThreads(6)
+				% maxNumCompThreads(6)
+				% parallel.defaultProfile("Threads");
+				%obj.parallelPool = parpool("Threads", 4, AttachedFiles=["dataProcessor.m","radarDataCube.m"]);\
+				% parpool("Threads", 4);
+				parpool("Processes", 4);
+			end
+
 			time = tic; % establish common time base, call to get unix timestamp si rather lengthy
 			obj.hPreferences = preferences();
 			obj.hPlatformControl = platformControl(obj.hPreferences, time);
 			obj.hRadar = radar(obj.hPreferences, time);
 			obj.hDataProcessor = dataProcessor(obj.hRadar, obj.hPlatformControl, obj.hPreferences, obj.hPanelView);
+
 		end
 
 
@@ -90,12 +107,12 @@ classdef app < handle
 				'Tag', 'ButtonPanel', ...
 				'Units', 'pixels');
 
-			obj.hTextTelemetry =  uicontrol('Style', 'edit', ...
-				'Parent', obj.hFig, ...
-				'Tag', 'ProgramDisplay', ...
-				'Max', 100, ...
-				'HorizontalAlignment', 'left', ...
-				'String', 'LOG');
+			% obj.hTextTelemetry =  uicontrol('Style', 'edit', ...
+			% 	'Parent', obj.hFig, ...
+			% 	'Tag', 'ProgramDisplay', ...
+			% 	'Max', 100, ...
+			% 	'HorizontalAlignment', 'left', ...
+			% 	'String', 'LOG');
 
 			obj.hBtnConnectPlatform = uicontrol('Style', 'pushbutton', ...
 				'Parent', obj.hPanelBtn, ...
@@ -121,7 +138,7 @@ classdef app < handle
 				'String', 'Save scene', ...
 				'Callback', @(src, event) obj.hDataProcessor.saveScene());
 
-				obj.hBtnStopPlatform = uicontrol('Style', 'pushbutton', ...
+			obj.hBtnStopPlatform = uicontrol('Style', 'pushbutton', ...
 				'Parent', obj.hPanelBtn, ...
 				'String', 'STOP PLATFORM', ...
 				'Callback', @(src, event) obj.hPlatformControl.stopPlatform());
@@ -141,7 +158,7 @@ classdef app < handle
 				set(obj.hBtnConnectPlatform, 'BackgroundColor', '#E57373');
 			end
 		end
-		
+
 
 		function toggleProcessing(obj)
 			if obj.hDataProcessor.toggleProcessing()
@@ -171,8 +188,8 @@ classdef app < handle
 			height = figPos(4);
 
 			displayWidth = width - 180;
-
-			obj.hTextTelemetry.Position = [10, 20, displayWidth-20, 100];
+			%hTextTelemetryHeight = = 100;
+			% obj.hTextTelemetry.Position = [10, 20, displayWidth-20, 100];
 
 			buttonPanelWidth = 180;
 			obj.hPanelBtn.Position = [displayWidth, 20, buttonPanelWidth-10, height - 30];
@@ -183,9 +200,9 @@ classdef app < handle
 
 			obj.hBtnToggleProcessing.Position = [10, height - 50 - 3 * (buttonHeight + spacing), buttonPanelWidth - 30, buttonHeight];
 			obj.hBtnSaveScene.Position = [10, height - 50 - 4 * (buttonHeight + spacing), buttonPanelWidth - 30, buttonHeight];
-			
+
 			obj.hBtnStopPlatform.Position = [10, 20, buttonPanelWidth - 30, buttonHeight];
-			obj.hPanelView.Position = [10, 130, width-200, height-140];
+			obj.hPanelView.Position = [10, 20, width-200, height-30];
 
 			% resize callback gets called right after creating gui so before hDataProcessor is even initialized
 			if ~isempty(obj.hDataProcessor) && isvalid(obj.hDataProcessor)
@@ -202,7 +219,7 @@ classdef app < handle
 			% getInstance: access method to app's singleton instance
 			persistent instanceStatic;
 			if isempty(instanceStatic) || (~isempty(instanceStatic.hToolbar) && ~isvalid(instanceStatic.hToolbar))
-				fprintf('App | getInstance | Creating new instance\n');
+
 				instanceStatic = app();
 			end
 			handle=instanceStatic;
