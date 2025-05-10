@@ -974,6 +974,7 @@ When speed calculation is on program firstly cuts of samples that are from to fa
 After that timing of chirps is also analyzed and NUFFT or 2DFFT transformation is used.
 Decision which transformation to use is based solely on the ratio of maximal deviation of the chirp intervals to the median of the chirp intervals, .
 For more accurate detection more complex method should have been used but as the radar is not capable of detecting high speeds this was deemed sufficient.
+For simmilar resasons no correction for the rotation of the platform is done.
 
 \begin{figure}[h!]
   \centering
@@ -1077,26 +1078,44 @@ This approach might lead to some performance issues if the cube is too large and
 
 Update routine for CFAR cube and raw cube, in case spread pattern is disabled, are quite similar.
 New data are just added to the cube to their respective positions where they replace old.
-In case cube is set to decay whole cube is multipled by decay factor that is derived from speed (The slower the platform moves the slower the decay).
+In case cube is set to decay whole cube is multiplied by decay factor that is derived from speed (The slower the platform moves the slower the decay).
 Using this option will lead to output more visually resembling radar output of traditional analogue radar systems where most recent data were brighter than the older ones.
 However user needs to keep in mind that color changes doesn't mean a change in sensed RCS at that position.
 If such behavior would be undesirable decay based on speed can be turned off in the settings in favour of hard reset of the cube based on trigger on specified yaw position.
 
 
 Enabling spread pattern leads to degradation of quality of the data in exchange for better visualization -- especially in range-azimuth visualization style.
-Instead of adding new data just to one position in the cube the range doppler maps will be spread over a larger area with a aid of additional 2D matrix.
-This matrix contains a weighting pattern made up on 2D Gaussian function.
-As subsequent data are usually for similar position instead of constantly updating the whole cube smaller subcube is created into which these contributions are added.
-Than the whole subcube is added to the original cube.
+Instead of adding new data just to one position in the cube the range doppler maps will be spread over a larger area with a aid of 2D matrix, containg a 2D Gaussian function.
+As the data in series are usually close to each other in terms of position instead of directly adding these contributions to the full cube much smaller cube is created that covers the are of given batch.
+This enables significant speedup thanks to smaller memory size requirements enabling better cacheing.
+After each update is aggregated to the subcube the original cube is update in one go.
 
 Due to lacking performance of MATLAB operations on author's machine some parts of the cube update routine were implemented in C++ with the aid of MATLAB's MEX interface.
 This enabled the use of AVX2 x86 instruction set extension to speed up floating point operations.
 Chiefly decaying of the cube exhibited a large perforace increase while leveraging SIMD instructions.
+With batch size of 6 and cube dimensions of $256 \times 16 \times 360 \times 81$ the update routine for batch the size of 6 takes around 80ms to run, giving 40 ms reserver with 20 ms trigger.
 
 
 \section{Visualization}
 
+After cube update finishes program returns to the main thread and the data are visualized to the user.
+Other than graphical access to the data is not possible.
+However the application offers a number of different visualization styles.
 
+\begin{enumerate}
+	\item Range-Azimuth map: Data are displayed in a polar plot with variable range and azimuth while pitch is fixed.
+	\item Range-Doppler map / Range-RCS map: Range doppler map for a single fixed pitch and yaw angle is displayed. In case speed calculation is disabled the data showed as a simple range-RCS plot. Only raw data are displayed in this method.
+	\item Target-3D: CFAR data are displayed in 3D cartesian space. In case DBSCAN is turned on clustering is run on CFARed date before.
+\end{enumerate}
+
+\subsection{Range-Azimuth map}
+
+As opposed to calculating projection into horizontal plane data are displayed ina  conical projection - that is no calculations are run on the angle and simply the cone we get by fixing the pitch angle is stretched to a circle.
+The data visualized changed based on user preferences either only raw data are displayed or CFAR or sum of both.
+In case of raw data it is not possible to display both targets RCS value and speed thus the data the cube is first summed up in the speed dimension.
+
+To control which angle is displayed user can use the textbox at the bottom left corner of the screen.
+Update of the plot takes place right after next cube update is finished,
 
 \include{conclusion}
 

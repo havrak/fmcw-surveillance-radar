@@ -259,7 +259,7 @@ void StepperControl::commandSchedulerTask(void* arg)
 		printf("!P %lld, %f, %f\n", esp_timer_get_time()/1000, STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParYaw.position + steppers.getStepsTraveledOfCurrentCommand(stepperHalYaw), stepperHalYaw->stepCount), stepperHalYaw->stepCount), STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParPitch.position + steppers.getStepsTraveledOfCurrentCommand(stepperHalPitch), stepperHalPitch->stepCount), stepperHalPitch->stepCount));
 		// if queues are filled we will wait
 
-		if (steppers.getQueueLength(stepperHalYaw) == CONFIG_STEPPER_YAL_QUEUE_SIZE || steppers.getQueueLength(stepperHalPitch) == CONFIG_STEPPER_YAL_QUEUE_SIZE) {
+		if (steppers.getQueueLength(stepperHalYaw) == CONFIG_STEPPER_HAL_QUEUE_SIZE || steppers.getQueueLength(stepperHalPitch) == CONFIG_STEPPER_HAL_QUEUE_SIZE) {
 			vTaskDelay(20 / portTICK_PERIOD_MS);
 			continue;
 		}

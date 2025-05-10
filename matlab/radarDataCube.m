@@ -181,7 +181,6 @@ classdef radarDataCube < handle
 					rawCube.Data.rawCube(:, :, yaw, pitch) = contribution;
 				end
 
-				fprintf("CUBE SUM %d\n", sum(rawCube.Data.rawCube(:)));
 			elseif(processRaw)
 
 				rawCube = memmapfile('rawCube.dat', ...

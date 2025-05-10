@@ -71,6 +71,7 @@ classdef dataProcessor < handle
 			distance = (0:(processingParameters.rangeNFFT/2-1))*processingParameters.rangeBinWidth;
 
 			lastFFT = abs(batchRangeFFTs(:,end))';
+
 			rangeProfile = lastFFT(1:processingParameters.rangeNFFT/2);
 			rangeProfile = ((rangeProfile.^2).*distance.^4)';
 
@@ -100,7 +101,6 @@ classdef dataProcessor < handle
 			if ~processingParameters.calcSpeed
 				timeElapsed = posTimes(end) - posTimes(1);
 				speed = sqrt((sum(rawDiffYaw)^2 + sum(rawDiffPitch)^2)) / (timeElapsed + 1e-6); % speed falls to zero for some reason
-				% fprintf("No speed calculations, exiting\n");
 				rangeDoppler = rangeProfile;
 				yaw = posYaw(end);
 				pitch = posPitch(end);
@@ -285,6 +285,7 @@ classdef dataProcessor < handle
 					set(obj.hImage, 'CData', data);
 				else
 					data = squeeze(sum(obj.hDataCube.rawCube(:, :, obj.yawIndex, obj.pitchIndex),2));
+					ylim(obj.hAxes, [0, max(data)]);
 					set(obj.hPlot, 'YData', data);
 				end
 			end
@@ -633,7 +634,6 @@ classdef dataProcessor < handle
 				title(obj.hAxes, 'Range-RCS Map');
 				xlabel(obj.hAxes, 'Range [m]');
 				ylabel(obj.hAxes, '~RCS');
-				ylim(obj.hAxes, [0, 20000]);
 				obj.hAxes.YDir = 'normal';  % Ensure y-axis is not reversed
 			end
 			obj.resizeUI();
@@ -705,6 +705,11 @@ classdef dataProcessor < handle
 					type = "RR";
 				end
 			end
+
+			if ~exist('images', 'dir')
+				mkdir('images')
+			end
+			
 			exportgraphics(obj.hAxes, fullfile("images", type+string(datetime('now','Format','d_M_HH:mm:ss'))+".jpg"));
 		end
 

@@ -114,7 +114,7 @@ while true
 
 	% time(index) =  (posixtime(datetime('now'))-dataTimestamp) * 1000;
 	%dataTimestamp = posixtime(datetime('now'));
-	% fprintf("Data %f\n", time(index) )
+	fprintf("FFT %d\n", sum( (fftIQ(1:distanceNFFT/2).^2)) );
 
 	fftI = abs(fft(DataI));
 	fftQ= abs(fft(DataQ));
@@ -122,6 +122,8 @@ while true
 	fftIQ = (fftIQ(1:distanceNFFT/2).^2).*distance';
 	fftI = (fftI(1:distanceNFFT/2).^2).*distance';
 	fftQ = (fftQ(1:distanceNFFT/2).^2).*distance';
+
+	fprintf("RANGE PROFILE %d\n", sum(fftIQ) );
 
 
 	set(hLine2, 'XData', 1:2:nData, 'YData', DataI);

@@ -42,8 +42,8 @@ void StepperHal::initStepperTasks()
 	stepperHalYaw->stepCount = CONFIG_STEPPER_Y_STEP_COUNT;
 	stepperHalPitch->stepCount = CONFIG_STEPPER_P_STEP_COUNT;
 
-	stepperHalYaw->commandQueue = xQueueCreate(CONFIG_STEPPER_YAL_QUEUE_SIZE, sizeof(stepper_hal_command_t));
-	stepperHalPitch->commandQueue = xQueueCreate(CONFIG_STEPPER_YAL_QUEUE_SIZE, sizeof(stepper_hal_command_t));
+	stepperHalYaw->commandQueue = xQueueCreate(CONFIG_STEPPER_HAL_QUEUE_SIZE, sizeof(stepper_hal_command_t));
+	stepperHalPitch->commandQueue = xQueueCreate(CONFIG_STEPPER_HAL_QUEUE_SIZE, sizeof(stepper_hal_command_t));
 	stepperHalYaw->stepperCommand = new stepper_hal_command_t(); // Don't really know why we need it, but
 	stepperHalPitch->stepperCommand = new stepper_hal_command_t();
 	stepperHalYaw->stepperCommandPrev = new stepper_hal_command_t();
