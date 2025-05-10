@@ -284,7 +284,7 @@ classdef radar < handle
 				status = true;
 
 				obj.triggerTimer = timer;
-				obj.triggerTimer.StartDelay = 4;
+				obj.triggerTimer.StartDelay = 2;
 				obj.triggerTimer.Period = obj.hPreferences.getRadarTriggerPeriod()/1000;
 				obj.triggerTimer.ExecutionMode = 'fixedSpacing';
 				obj.triggerTimer.UserData = 0;

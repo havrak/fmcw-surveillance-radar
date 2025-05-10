@@ -1,8 +1,8 @@
 classdef platformControl < handle
 	% platformControl:  Manages rotary platform communication, data acquisition, and configuration
 	%
-	% Handles serial communication with a rotary platform,  processes incoming 
-	% data streams, and dynamically updates configurations via a preferences 
+	% Handles serial communication with a rotary platform,  processes incoming
+	% data streams, and dynamically updates configurations via a preferences
 	% object. Supports real-time data buffering and event-driven processing.
 
 	properties (Access = private)
@@ -46,6 +46,10 @@ classdef platformControl < handle
 		angleTriggerYawTorelance = 2; % How far can we be for trigger to trigger
 		angleTriggerYawTimestamp = 0; % Just for debounce yaw trigger
 
+		mockDataTimer;
+		mockDataYaw=0;
+		mockDataPeriod=0.02;
+
 		log cell = {};      % Console output history cell array
 		startTime uint64;   % Base timestamp (uint64) for relative timing
 
@@ -57,6 +61,28 @@ classdef platformControl < handle
 
 	methods(Access=private)
 
+		function mockData(obj)
+			% mockData: simulates rotation in yaw axes
+			%
+			% used solely for debug
+
+			RMP = 1;
+			addition = RMP*6*obj.mockDataPeriod; % deg/s* mockDataPeriod
+			obj.mockDataYaw = mod(obj.mockDataYaw+addition, 360);
+			obj.positionTimes(obj.currentIdx) = toc(obj.startTime);
+			obj.positionYaw(obj.currentIdx) = mod(obj.mockDataYaw-obj.angleOffsetYaw,360);
+			obj.positionPitch(obj.currentIdx) = 0;
+
+			if obj.angleTriggerYaw ~= -1 && ...
+					(mod(obj.positionYaw(obj.currentIdx) - obj.angleTriggerYaw, 360) <= 2*obj.angleTriggerYawTorelance) && ...
+					toc(obj.angleTriggerYawTimestamp) > 1
+				obj.angleTriggerYawTimestamp = tic;
+				notify(obj, 'positionTriggerHit');
+			end
+
+			obj.currentIdx = mod(obj.currentIdx, obj.bufferSize) + 1;
+
+		end
 		function constructGUI(obj)
 			% constructGUI: initializes all GUI elements
 
@@ -304,7 +330,7 @@ classdef platformControl < handle
 				set(obj.hListboxSidebar, 'Value', 1);
 				obj.loadProgram();
 			end
-
+			
 		end
 
 		function storePrograms(obj)
@@ -370,7 +396,7 @@ classdef platformControl < handle
 			%
 			% Function is called by preference's newConfigEvent event
 			% Yaw trigger is configured, step count is sent to the platform
- 			[obj.angleOffsetYaw, obj.angleOffsetPitch, localStepCountYaw, localStepCountPitch] = obj.hPreferences.getPlatformParamters();
+			[obj.angleOffsetYaw, obj.angleOffsetPitch, localStepCountYaw, localStepCountPitch] = obj.hPreferences.getPlatformParamters();
 			if obj.hPreferences.getDecayType() == 0
 				obj.angleTriggerYaw = mod(obj.hPreferences.getTriggerYaw()-obj.angleTriggerYawTorelance, 360);
 			else
@@ -418,6 +444,11 @@ classdef platformControl < handle
 				configureCallback(obj.hSerial, "off");
 				delete(obj.hSerial)
 			end
+			if ~isempty(obj.mockDataTimer)
+				stop(obj.mockDataTimer);
+				delete(obj.mockDataTimer);
+			end
+	
 		end
 
 		function status = setupSerial(obj)
@@ -425,6 +456,22 @@ classdef platformControl < handle
 			%
 			% Output:
 			%   status ... true if connection succeeded
+
+
+
+			% DEBUG
+			obj.mockDataTimer = timer;
+			obj.mockDataTimer.StartDelay = 2;
+			obj.mockDataTimer.Period = obj.mockDataPeriod;
+			obj.mockDataTimer.ExecutionMode = 'fixedSpacing';
+			obj.mockDataTimer.UserData = 0;
+			obj.mockDataTimer.TimerFcn = @(~,~) obj.mockData();
+			start(obj.mockDataTimer);
+
+			status = true;
+			return;
+			
+			% NORMAL
 			if ~isempty(obj.hSerial)
 				configureCallback(obj.hSerial, "off");
 				delete(obj.hSerial);

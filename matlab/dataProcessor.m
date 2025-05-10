@@ -74,7 +74,7 @@ classdef dataProcessor < handle
 			rangeProfile = lastFFT(1:processingParameters.rangeNFFT/2);
 			rangeProfile = ((rangeProfile.^2).*distance.^4)';
 
-			if  ~processingParameters.calcCFAR
+			if processingParameters.calcCFAR == 1
 				cfarDetector = phased.CFARDetector('NumTrainingCells',processingParameters.cfarTraining, ...
 					'NumGuardCells',processingParameters.cfarGuard);
 				cfarDetector.ThresholdFactor = 'Auto';
@@ -208,7 +208,9 @@ classdef dataProcessor < handle
 					cfarData = squeeze(obj.hDataCube.cfarCube(:, :, obj.pitchIndex));
 					toDraw = toDraw+cfarData.*max(toDraw);
 				elseif obj.processingParameters.calcRaw
+					sum( sum(obj.hDataCube.rawCube(:)))
 					data = sum(obj.hDataCube.rawCube, 2);
+					sum(data(:))
 					toDraw = squeeze(data(:, 1, :, obj.pitchIndex));
 				elseif obj.processingParameters.calcCFAR
 					toDraw = squeeze(obj.hDataCube.cfarCube(:, :, obj.pitchIndex));
@@ -274,7 +276,7 @@ classdef dataProcessor < handle
 				if obj.processingParameters.calcSpeed == 1
 					fprintf("Updating Range-Doppler Map\n");
 
-					data = squeeze(obj.hDataCube.rangeDopplerCube(:, :, obj.yawIndex, obj.yawIndex));
+					data = squeeze(obj.hDataCube.rawCube(:, :, obj.yawIndex, obj.yawIndex));
 
 					if isempty(data)
 						data = zeros(obj.processingParameters.rangeNFFT/2, ...
@@ -282,7 +284,7 @@ classdef dataProcessor < handle
 					end
 					set(obj.hImage, 'CData', data);
 				else
-					data = squeeze(sum(obj.hDataCube.rangeDopplerCube(:, :, obj.yawIndex, obj.pitchIndex),2));
+					data = squeeze(sum(obj.hDataCube.rawCube(:, :, obj.yawIndex, obj.pitchIndex),2));
 					set(obj.hPlot, 'YData', data);
 				end
 			end
@@ -631,6 +633,7 @@ classdef dataProcessor < handle
 				title(obj.hAxes, 'Range-RCS Map');
 				xlabel(obj.hAxes, 'Range [m]');
 				ylabel(obj.hAxes, '~RCS');
+				ylim(obj.hAxes, [0, 20000]);
 				obj.hAxes.YDir = 'normal';  % Ensure y-axis is not reversed
 			end
 			obj.resizeUI();

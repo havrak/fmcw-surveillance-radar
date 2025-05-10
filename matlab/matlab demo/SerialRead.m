@@ -67,7 +67,7 @@ end
 
 triggerTimer = timer;
 triggerTimer.StartDelay = 3;
-triggerTimer.Period = 0.3;
+triggerTimer.Period = 0.4;
 triggerTimer.ExecutionMode = 'fixedSpacing';
 triggerTimer.UserData = 0;
 
@@ -85,63 +85,29 @@ distance = distance.^4;
 
 while true
 	
-	% buf = char(readline(SerialObj));
-	% disp(buf);
-	% 
-	% if isempty(buf)
-	% 	continue;
-	% end
-	% 
-	% if ~strcmp(buf(1:2),'!M')
-	% 	continue;
-	% end
-	% 
-	% charData = buf(13:end);
-	% cislavCelle = split(charData, char(9));
-	% cisla = cellfun(@str2double, cislavCelle);
-	% 
-	% nData = length(cisla);
-	% DataI = cisla(1:2:nData);
-	% DataQ = cisla(2:2:nData);
-	% disp(size(DataI));
-	%buf = 
-	buf = fgets(SerialObj);
-	%disp(size(lineWW));
-	
-	
-	if(length(buf) == 40)
+	buf = char(readline(SerialObj));
+	disp(buf);
+
+	if isempty(buf)
 		continue;
 	end
 
-	process = [oldBuf buf];
-	fprintf("BUF:");
-	disp(size(buf));
-	fprintf("OLDBUF: ");
-	disp(size(oldBuf));
-	if length(process) ~= (4*distanceNFFT+11)
-		if length(process) > (4*distanceNFFT+11)
-			oldBuf = [];
-		else
-			fprintf("STORING OLD");
-			oldBuf = buf;
-		end
+	if ~strcmp(buf(1:2),'!M')
 		continue;
 	end
-	oldBuf = [];
 
-	if(process(5) ~= 77)
-		continue;
-	end
+	charData = buf(13:end);
+	cislavCelle = split(charData, char(9));
+	data = cellfun(@str2double, cislavCelle);
+	
 	% disp(size(process));
 	% dataCount = process(9)*256+process(8);
 	% disp(dataCount);
 	dataCount = distanceNFFT*2;
-	tmp = process(11:2:(9+dataCount*2)) * 256+ process(10:2:(9+dataCount*2)) ;
-	data = typecast(uint16(tmp), 'int16');
 	nData = numel(data);
 	DataI = double(data(1:2:nData));
 	DataQ = double(data(2:2:nData));
-	DataIQ = DataI+1j*DataQ;
+	DataIQ = DataI(2:end)+1j*DataQ;
 	% 
 
 	fftIQ = abs(fft(DataIQ));
@@ -153,9 +119,9 @@ while true
 	fftI = abs(fft(DataI));
 	fftQ= abs(fft(DataQ));
 	
-	fftIQ = (fftIQ(1:distanceNFFT/2).^2).*distance;
-	fftI = (fftI(1:distanceNFFT/2).^2).*distance;
-	fftQ = (fftQ(1:distanceNFFT/2).^2).*distance;
+	fftIQ = (fftIQ(1:distanceNFFT/2).^2).*distance';
+	fftI = (fftI(1:distanceNFFT/2).^2).*distance';
+	fftQ = (fftQ(1:distanceNFFT/2).^2).*distance';
 
 
 	set(hLine2, 'XData', 1:2:nData, 'YData', DataI);

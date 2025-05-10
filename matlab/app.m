@@ -39,7 +39,7 @@ classdef app < handle
 				% parallel.defaultProfile("Threads");
 				%obj.parallelPool = parpool("Threads", 4, AttachedFiles=["dataProcessor.m","radarDataCube.m"]);\
 				% parpool("Threads", 4);
-				parpool("Processes", 4);
+				parpool("Threads", 4);
 			end
 
 			time = tic; % establish common time base, call to get unix timestamp si rather lengthy
