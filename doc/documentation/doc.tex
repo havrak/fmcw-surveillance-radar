@@ -543,13 +543,13 @@ Still in supplied 3D models these issues were fixed.
   \centering
   \begin{subfigure}[b]{0.45\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../img/whole_assembly_2.png} % Replace with your image path
+    \includegraphics[width=\textwidth]{../img/whole_assembly_2.png}
     \caption{3D render}
   \end{subfigure}
   \hspace{0.05\textwidth} % Adjust spacing
   \begin{subfigure}[b]{0.45\textwidth}
     \centering
-    \includegraphics[width=0.75\textwidth]{../img/assembly_photo.jpg} % Replace with your image path
+    \includegraphics[width=0.75\textwidth]{../img/assembly_photo.jpg}
     \caption{Photo}
   \end{subfigure}
   \caption{Form of the final assembly}
@@ -774,7 +774,7 @@ Preferences are hidden behind the paper icon, platform control interface behind 
 
 \begin{figure}[h!]
   \centering
-  \includegraphics[width=0.9\textwidth]{../img/main_window.jpg}
+  \includegraphics[width=0.9\textwidth]{../img/vis_range_azimuth.jpg}
   \caption[Main application window]{Main application window}
   \label{fig:main_window}
 \end{figure}
@@ -962,6 +962,7 @@ In the first step last spectrum is converted to values proportional to the radar
 Starting with equation \ref{eq:radar_eq} we can see that the target's RCS is proportional to the received power divided by fourth power of the distance to the target.
 Range can be calculated from manufacturer's equation \ref{eq:rangeBin} and power is proportional to the square of values reported from the radar.
 Given that constants of the radar equation changed based on user preference and therefore calibration would be required after each change output values are only proportional to the real RCS of the target.
+From onwards when refering to RCS we will be refering to the values proportional to the RCS and not real RCS of the object.
 
 Rest of the processing here is rather simple.
 Based on user preferences CFAR can be calculated, which enables basic target detection in the radar data \cite{richards2022}.
@@ -1103,19 +1104,52 @@ Other than graphical access to the data is not possible.
 However the application offers a number of different visualization styles.
 
 \begin{enumerate}
-	\item Range-Azimuth map: Data are displayed in a polar plot with variable range and azimuth while pitch is fixed.
-	\item Range-Doppler map / Range-RCS map: Range doppler map for a single fixed pitch and yaw angle is displayed. In case speed calculation is disabled the data showed as a simple range-RCS plot. Only raw data are displayed in this method.
-	\item Target-3D: CFAR data are displayed in 3D cartesian space. In case DBSCAN is turned on clustering is run on CFARed date before.
+	\item Range-Azimuth map: Polar plot with range on the radius and azimuth on the angle.
+	\item Range-Doppler map / Range-RCS map: Classical xy plot with range on x axis and doppler on y axis, if speed is not calculated the y axis is replaced with RCS value.
+	\item Target-3D: CFAR data are displayed in 3D cartesian space
 \end{enumerate}
 
 \subsection{Range-Azimuth map}
 
-As opposed to calculating projection into horizontal plane data are displayed ina  conical projection - that is no calculations are run on the angle and simply the cone we get by fixing the pitch angle is stretched to a circle.
-The data visualized changed based on user preferences either only raw data are displayed or CFAR or sum of both.
-In case of raw data it is not possible to display both targets RCS value and speed thus the data the cube is first summed up in the speed dimension.
+This visualization style is used to display the data in polar plot for fixed pitch angle.
+Which pitch angle is used is chosen via the small textbox at the bottom left corner of the screen.
+The demonstration of Range-Azimuth map can be seen on figure \ref{fig:main_window}, which captures testing with 122~GHz header with rather large bandwidth of 5~GHz giving only some 3 meters of range.
 
-To control which angle is displayed user can use the textbox at the bottom left corner of the screen.
-Update of the plot takes place right after next cube update is finished,
+As for the form of the data instead of calculation projection into horizontal plane the data are displayed in a conical projection.
+That is no additional calculations are are and the cone we get by fixing the pitch angle is simply stretched to a circle.
+To aid with orientation in a plot simple line markers are added to provide range and angle reference points.
+
+It necessary to point out that as 24~Ghz header radiation pattern in pitch is rather large at relatively low angles the radar provides information about a larger area of the scene.
+And if the user wishes using the spread patterns allows to range-azimuth map to include data even from different pitch angles.
+
+\subsection{Range-Doppler map}
+
+Picking this visualization style from the preferences menu will display the data in a classical xy plot for a fixed yaw and pitch angle.
+Just as with Range-Azimuth map both angles are configurable via the textboxes at the bottom of the screen.
+In cases when speed calculation is disabled the y axis is replaced with RCS value.
+
+Main purpose of this visualization style is to provide verification method for the radar data processing and setting.
+As the devkit doesn't report much of a useful errors and its technical documentation is sometimes incorrect (e.g. in allowed bandwidth values) it is useful to have a way to verify that the radar is working correctly.
+
+\begin{figure}[h!]
+  \centering
+  \begin{subfigure}[b]{0.45\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{../img/vis_range_dop.jpg}
+    \caption{Range-Doppler map}
+  \end{subfigure}
+  \hspace{0.05\textwidth}
+  \begin{subfigure}[b]{0.45\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{../img/vis_range_rcs.jpg}
+    \caption{Range-RCS }
+  \end{subfigure}
+	\caption{Range-Doppler and Range-RCS maps}
+  \label{fig:rd_rr_map}
+\end{figure}
+
+On figure \ref{fig:rd_rr_map} we can see two different visualization styles both displaying the same static scene.
+As previously stated given rather poor sampling rate speed calculation is not very useful and thus no complex testing has taken.
 
 \include{conclusion}
 
