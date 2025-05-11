@@ -32,14 +32,21 @@ classdef app < handle
 			parallelPool = gcp('nocreate'); % Start parallel pool
 
 			if isempty(parallelPool)
+				filesToAttach = {
+					'app.m', 'cfarCube.dat', 'dataProcessor.m', 'main.m', ...
+					'platformControl.m', 'preferences.m', 'radar.m', ...
+					'radarBuffer.m', 'radarDataCube.m', 'rawCube.dat', ...
+					'scripts/', ... % Attach entire scripts directory
+					'matlab demo/'  % Attach demo folder if needed
+					};
 				fprintf("App | starting paraller pool\n");
-				% maxNumCompThreads(6);
-				% maxNumCompThreads(6)
-				% maxNumCompThreads(6)
-				% parallel.defaultProfile("Threads");
-				%obj.parallelPool = parpool("Threads", 4, AttachedFiles=["dataProcessor.m","radarDataCube.m"]);\
-				% parpool("Threads", 4);
-				parpool("Threads", 4);
+
+				% If MATLAB's paralelizaiton toolkit wasn't broken mess this could have
+				% been declared as Threads insted of processes. But it is and memmafile's
+				% don't work in threads memory sharing doesn't work with threads and
+				% calling external scripts even if they are in path doesn't work with
+				% threads. So I need to wait ages and 
+				parpool('Processes', 3, 'AttachedFiles', filesToAttach);
 			end
 
 			time = tic; % establish common time base, call to get unix timestamp si rather lengthy

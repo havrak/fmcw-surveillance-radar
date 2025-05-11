@@ -460,16 +460,16 @@ classdef platformControl < handle
 
 
 			% DEBUG
-			obj.mockDataTimer = timer;
-			obj.mockDataTimer.StartDelay = 2;
-			obj.mockDataTimer.Period = obj.mockDataPeriod;
-			obj.mockDataTimer.ExecutionMode = 'fixedSpacing';
-			obj.mockDataTimer.UserData = 0;
-			obj.mockDataTimer.TimerFcn = @(~,~) obj.mockData();
-			start(obj.mockDataTimer);
-
-			status = true;
-			return;
+			% obj.mockDataTimer = timer;
+			% obj.mockDataTimer.StartDelay = 2;
+			% obj.mockDataTimer.Period = obj.mockDataPeriod;
+			% obj.mockDataTimer.ExecutionMode = 'fixedSpacing';
+			% obj.mockDataTimer.UserData = 0;
+			% obj.mockDataTimer.TimerFcn = @(~,~) obj.mockData();
+			% start(obj.mockDataTimer);
+			% 
+			% status = true;
+			% return;
 			
 			% NORMAL
 			if ~isempty(obj.hSerial)

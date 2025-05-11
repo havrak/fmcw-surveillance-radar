@@ -158,7 +158,9 @@ classdef dataProcessor < handle
 				freqDoppler = (-processingParameters.speedNFFT/2 : processingParameters.speedNFFT/2-1) * (1 / timeTotal);
 				% Vectorized NUFFT along slow-time (dim=1), hopefully this is correct
 				tmp = nufft(spectrumns', timeRelative, freqDoppler,1 );
-				tmp = abs(fftshift(tmp,1))';
+				tmp = abs(tmp)';
+				%tmp = abs(fftshift(tmp,1))'; % NUFFT spectrum doesn't need shift to be
+				%correct
 			else
 				tmp = abs(fftshift(fft(spectrumns, processingParameters.speedNFFT, 2),2));
 			end
@@ -208,9 +210,7 @@ classdef dataProcessor < handle
 					cfarData = squeeze(obj.hDataCube.cfarCube(:, :, obj.pitchIndex));
 					toDraw = toDraw+cfarData.*max(toDraw);
 				elseif obj.processingParameters.calcRaw
-					sum( sum(obj.hDataCube.rawCube(:)))
 					data = sum(obj.hDataCube.rawCube, 2);
-					sum(data(:))
 					toDraw = squeeze(data(:, 1, :, obj.pitchIndex));
 				elseif obj.processingParameters.calcCFAR
 					toDraw = squeeze(obj.hDataCube.cfarCube(:, :, obj.pitchIndex));
@@ -260,10 +260,10 @@ classdef dataProcessor < handle
 						Y = range' .* cosd(pitch) .* sind(-yaw+90);
 						Z = range' .* sind(pitch);
 						% fprintf("dataProcessor | updateFinished | X:%d, Y:%d, Z%d. limX = [%d, %d], limY = [%d, %d], limZ = [%d, %d]\n", ...
-						% 	length(X), length(Y), length(Z), ...
-						% 	min(X), max(X), ...
-						% 	min(Y), max(Y), ...
-						% 	min(Z), max(Z));
+						%		length(X), length(Y), length(Z), ...
+						%		min(X), max(X), ...
+						%		min(Y), max(Y), ...
+						%		min(Z), max(Z));
 						%set(obj.hScatter3D, 'XData', [0, 1], 'YData', [0, 1], 'ZData', [0,1], 'CData', [0,-Inf]);
 
 						set(obj.hScatter3D, 'XData', X, 'YData', Y, 'ZData', Z, 'CData', obj.hDataCube.cfarCube(idx));
@@ -275,14 +275,9 @@ classdef dataProcessor < handle
 			elseif strcmp(obj.currentVisualizationStyle, 'Range-Doppler')
 				if obj.processingParameters.calcSpeed == 1
 					fprintf("Updating Range-Doppler Map\n");
+					data = squeeze(obj.hDataCube.rawCube(:, :, obj.yawIndex, obj.pitchIndex));
 
-					data = squeeze(obj.hDataCube.rawCube(:, :, obj.yawIndex, obj.yawIndex));
-
-					if isempty(data)
-						data = zeros(obj.processingParameters.rangeNFFT/2, ...
-							obj.processingParameters.speedNFFT/2);
-					end
-					set(obj.hImage, 'CData', data);
+					set(obj.hImage, 'CData', data');
 				else
 					data = squeeze(sum(obj.hDataCube.rawCube(:, :, obj.yawIndex, obj.pitchIndex),2));
 					ylim(obj.hAxes, [0, max(data)]);
@@ -420,12 +415,12 @@ classdef dataProcessor < handle
 
 
 				% [ yaw, pitch, cfar, rangeDoppler, speed] = dataProcessor.processBatch( ...
-				% 	batchRangeFFTs,  ...
-				% 	batchTimes, ...
-				% 	posTimes, ...
-				% 	yaw, ...
-				% 	pitch, ...
-				% 	obj.processingParameters);
+				%		batchRangeFFTs,  ...
+				%		batchTimes, ...
+				%		posTimes, ...
+				%		yaw, ...
+				%		pitch, ...
+				%		obj.processingParameters);
 				%
 				% obj.mergeResults(yaw, pitch, cfar, rangeDoppler, speed);
 
@@ -512,7 +507,7 @@ classdef dataProcessor < handle
 
 			view(obj.hAxes, 2);
 			axis(obj.hAxes, 'equal', 'off');
-			colormap(obj.hAxes, 'jet');
+			colormap(obj.hAxes, 'abyss');
 
 			title(obj.hAxes, 'Azimuth-Range Polar Map');
 
@@ -527,6 +522,30 @@ classdef dataProcessor < handle
 				'Text', 'Pitch [deg]:');
 
 			axis(obj.hAxes, 'equal'); % otherwise circle wont be much of an circle
+			hold(obj.hAxes, 'on');
+
+			
+			circleRadii = linspace(0, obj.processingParameters.rangeNFFT/2, 6);
+
+			markerColor = [0.9 0.9 0.9];
+			for r = circleRadii(2:end)
+				theta = linspace(0, 2*pi, 100);
+				[x, y] = pol2cart(theta, r);
+				plot(obj.hAxes, x, y, ':', 'Color', markerColor, 'LineWidth', 1);
+				text(obj.hAxes, 6, r, sprintf('%3.3f m', r* obj.processingParameters.rangeBinWidth), 'VerticalAlignment', 'top', ...
+					'HorizontalAlignment', 'center', 'Color', markerColor, 'FontSize', 10);
+			end
+
+			%Angle markers at 0°, 90°, 180°, 270°
+			angles = [0, 45, 90, 135, 180, 225, 270, 315];
+			for angle = angles
+				th = -deg2rad(angle) + pi/2;  % Match coordinate system rotation
+				[x, y] = pol2cart(th, obj.processingParameters.rangeNFFT/2);
+				plot(obj.hAxes, [0, x], [0, y], '--', 'Color', markerColor, 'LineWidth', 1/ (mod(angle,2)+1));
+			end
+
+
+			hold(obj.hAxes, 'off');
 
 			obj.resizeUI();
 		end
@@ -709,7 +728,7 @@ classdef dataProcessor < handle
 			if ~exist('images', 'dir')
 				mkdir('images')
 			end
-			
+
 			exportgraphics(obj.hAxes, fullfile("images", type+string(datetime('now','Format','d_M_HH:mm:ss'))+".jpg"));
 		end
 
