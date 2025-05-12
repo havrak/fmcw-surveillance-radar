@@ -765,15 +765,15 @@ Most importantly, the platform’s timely and predictable behavior ensures that 
 
 \chapter{Control application}
 
-As previously stated on PC side whole radar is controlled using MALTAB application.
+As previously stated control application for the whole system is written in MATLAB.
 This application is split into two distinct parts - one is managing rotary platform and the other is processing radar data.
-Alongside these there are some basic shared components, such as preferences.
+Alongside these there are some shared components, such as preferences menu.
 
 \section{Main application interface}
 
-Upon starting the application user is presented with the main window \ref{fig:main_window}.
-Here output from radar is displayed, connection to platform and radar established and by clicking on the icons in top bar user can access other windows.
-Preferences are hidden behind the paper icon, platform control interface behind the cube icon.
+Upon starting the application user is presented with the main window (Figure \ref{fig:main_window}).
+Here output from radar is displayed, on the sidebar are buttons to establish serial connections.
+Lastly from the topbar user can access preferences and platform control interface.
 
 \begin{figure}[h!]
   \centering
@@ -785,16 +785,15 @@ Preferences are hidden behind the paper icon, platform control interface behind 
 \subsection{Configuration options}
 
 As this thesis concerns itself with rather generic implementation of surveillance radar system the application is designed to be as flexible as possible.
-For this purpose GUI menu was designed to enable configuration of all elements - from settings of the platform, through radar settings to the visualization/processing of the data.
-However it is necessary to point out that user is required to have some knowledge radar data processing in order to achieve suitable results for given application.
-Firstly limits GUI impose are more guided by mathematical requirements than what is actually practical.
-Secondly configuration of components such a CFAR or DBSCAN strongly  depended on bandwidth used (by extension width of a single range bin) among other things.
-CFAR guard parameter of 3 might be small on 5~GHz bandwidth where width of single range bin is only 50~mm, but if used on 24~GHz header with $BW=500$~MHz where range bin is 50~cm it could be way too large.
+For this purpose GUI menu was designed to enable configuration of all important elements - configuring the platform, radar, data processing and data visualization.
+However it is necessary to point out that given extensive configuration options user is expected to have some knowledge about the subject to achieve satisfactory results in given application.
+Firstly most limits GUI imposes are guided more by mathematical requirements and what configuration allows than by practical limitations.
+Secondly configuration of components such a CFAR or DBSCAN strongly depended on bandwidth used, respectively width of a single range bin, among other things.
+CFAR guard parameter of 3 might be too small on 5~GHz bandwidth where width of single range bin is only 50~mm, but if used on 24~GHz header with $BW=500$~MHz where range bin width is 50~cm it could be way too large.
 
-Picture \ref{fig:preferences} shows the preferences menu accessible from the main window of the application via the topbar.
-There are four main sections.
-First configures serial port connection to the radar and platform.
-Second handles configuration of the platform and is followed by a section designated for radar configuration.
+Figure \ref{fig:preferences} shows the preferences menu, user can see that there are four main sections.
+First configures serial port connections to the radar and the platform.
+Second handles configuration of the platform, followed by a section designated for radar configuration.
 Last section configures how the data are processed and via which method they are visualized.
 
 \begin{figure}[h!]
@@ -804,26 +803,22 @@ Last section configures how the data are processed and via which method they are
   \label{fig:preferences}
 \end{figure}
 
-User's preferences are stored in a INI file format in directory depending on the operating system.
-In Windows location of \texttt{\%APPDATA\%/Local/fmcw/fmcw.conf} is used while on Linux it is \texttt{\$HOME/.config/fmcw/fmcw.conf}.
-As this format is easily human readable and editable it is possible to edit the file directly.
+User's preferences are stored in a INI file format in directory whose path depends on the operating system -- \texttt{\%APPDATA\%/Local/fmcw/fmcw.conf} on Windows and \texttt{\$HOME/.config/fmcw/fmcw.conf} for unix based systems.
+As INI format is easily human readable and editable it is possible to edit the file directly.
 
 
 \section{Platform Control Interface}
 
-It is necessary to emphasizes that the platform control is entirely independent of the radar.
-User loads up program to the platform, starts it execution and then is only receiving current position of the platform with no other communication taking place.
-There is no feedback from the radar to the platform based on processed data, although as platform enables direct access to the stepper queues so it would be possible to implement such a feature.
+It is necessary to emphasizes that the platform control is entirely independent of the radar operation.
+User loads up program to the platform, starts its execution and from then application is only processing current position reports comming from the platform.
+There is no feedback from the radar to the platform based on processed data, although as the platform enables direct access to the stepper queues it would be possible to implement such a feature.
 Nor does processing take into account from which movements is platform program comprised.
 
-Still as only one process can access platform's serial interface at a time platform control is part of a larger program together with radar data processing.
-From the application user can also manage platform's configuration and create, edit and upload programs to the platform.
-
 In preferences menu \ref{fig:preferences} user can configure static offsets to the platform.
-This is useful if the platform zero position is not aligned with what user want's to be zero in visualization.
+This is useful in case zero positionof the platform is not aligned with what user want's to be zero in data.
 Aside form offset step count configuration is also available here.
 As the platform doesn't store step count in non volatile memory this command is sent to the platform each time it is connected or config is changed.
-Lastly user can toggle to display complete platform debug output at the bottom of the window \ref{fig:platformControl}.
+Lastly user can toggle wheter platform debug message should be displayed.
 
 
 
@@ -834,72 +829,74 @@ Lastly user can toggle to display complete platform debug output at the bottom o
   \label{fig:platformControl}
 \end{figure}
 
-Managing platform programs is done with a separate window shown in figure \ref{fig:platformControl}.
+Managing platform programs is done via a separate window (Figure \ref{fig:platformControl}).
 In it the user can load, edit and send programs to the platform.
-Program persists in the same configuration file as the preferences.
+Program persists in the same configuration file as preferences.
 
-Left sidebar allows user to load stored programs.
-Middle windows is used to edit programs header (top part) and program body (bottom part).
+Left sidebar allows user to load stored programs by clicking on their name.
+Middle text boxes are used to edit programs header (top part) and program body (bottom part).
 Command used to denote start of program, end of header and so on are automatically sent to the device after program is saved and uploaded.
 To validate whether program was parsed correctly user can consult the text window at the bottom of the screen which forwards platforms debug output to the user.
 
-Backend side of platform control is rather straightforward forward.
-After connection to platform is established MATLAB serial interface calls a callback each time terminator sequence is found in receiving data.
+Backend side of the platform control is rather straightforward.
+After connection is established MATLAB serial interface calls a callback each time terminator sequence is found in received data.
 Received message is then parsed with debug output being forwarded to the user and positions logged with timestamp in a rotary buffer.
-Radar data processing part can then request positions list in given time interval.
+Radar data processing part can then request list of positions for given time interval.
 
-Platform control can also emit an event when platform finds itself close to a predetermined position, specificed in preferences (figure \ref{fig:preferences}) option yaw reset.
-This event is used to request zeroing of the radar cube.
+Platform control can also emit an event when platform finds itself close to a predetermined position, specificed in preferences (Figure \ref{fig:preferences}) option \texttt{Yaw reset}.
+This event is used to request zeroing of the radar cube in case \texttt{Old removal} method is switched to \texttt{Yaw} option.
 
 \section{Radar configuration}
 
-Given that radar output is displayed in the main window there isn't any specialized interface dedicated to radar functions.
+Given that the radar's output is displayed in the main window there isn't any specialized interface dedicated just to the radar.
 Still in preferences menu (figure \ref{fig:preferences}) there are some paramters that can be configured.
 
-Radar frequency toggles between 24~GHz and 122~GHz header.
-However change of base frequency required reflashing the radar with different firmare.
+Radar frequency toggles between 24~GHz and 122~GHz header, this need to be done in conjunction with reflashing of the radar's firmware.
 After base frequency radar bandwidth can also be configred, both positive and negative values are accepted however manual verification is required to verify that radar is working as expected.
-While manufacturer statesd 3~GHz limit on the 24~GHz header and 5~GHz on the 122~GHz header \cite{sidarPRO}, in practice especially with the 24~GHz radar achievable bandwidth was usually much lower.
+While manufacturer statesd 3~GHz limit on the 24~GHz header and 5~GHz on the 122~GHz header \cite{sidarPRO}, in practice, especially with the 24~GHz header, achievable bandwidth was usually much lower.
 
-User can also configure the number of samples per chirp and ADC sampling rate -- based on these two paramters time of ramp is calcualted from equation \ref{eq:sampling}.
-Together with gain ramp time plays a crutial role in securing correct signal to noise ratio.
+User can also configure the number of samples per chirp and ADC sampling rate -- based on these two paramters influence time of a single ramp which is calcualted with equation \ref{eq:sampling}.
+Together with gain, ramp time plays a crutial role in maintaining correct signal to noise ratio.
 However as with other things manual confirmation of the settings is required for any given configuration.
 
 Last paramters is trigger period which dictates how often will computer send a trigger to the radar to start the next chirp.
-As previously stated the radar is at best capable of around 50~Hz update rate or 20~ms per chirp.
+As previously stated the radar is at best capable of around 50~Hz update rate or 20~ms per chirp with slightly more stable performace at some 22~ms.
 
 
 \chapter{Radar Data Processing}
 
-First it is necessary to outline what are inputs and outputs of the whole processing pipeline.
-Data to the applications comes from sources - serial connections to the radar and to the platform.
-These two streams are then paired together based on timestamps logged upon receiving the data.
-Processing than does calculations based on user preferences -- parts such as CFAR calculation, speed calculation and so on can be turned on or off.
-Output data is stored in radar cube, common method to store radar's data that enables easy integration of more complex algorithms in the future \cite{richards2022}.
+Firstly it is necessary to outline what inputs and outputs of the whole processing pipeline are.
+Data to the applications comes from two sources - serial connections to the radar and to the platform.
+These two streams are then paired together based on timestamps logged when a data is received.
+Processing than does user chosen calculations -- parts such as CFAR calculation, speed calculation and so on can be turned on or off.
+Output data are then stored in radar cube, common method to manage radar's data that enables easy integration of more complex algorithms in the future \cite{richards2022}.
 
-As application can calculate both CFAR or keep raw data there are two cubes used.
-One is 4D structure with dimensions of fast time $\times$ slow time $\times$ yaw $\times$ pitch, this stores complete range doppler map for each spatial degree.
-In this thesis this structure is only used for visualizing of raw data for given fixed pitch angle or showing range doppler map for given yaw and pitch.
-Any 3D visualization styles would be too cluttered and hard to interpret.
-Second cube is 3D structure with dimensions of range $\times$ yaw $\times$ pitch, this one is used to store CFAR output.
-Yaw resolution is 1 degree thus the cube is 360 degrees wide.
-As for pitch same resolution was kept with angles form -20 degress to +80 degress being covered.
+Given that both CFAR and raw data calculation might need to be stored application has two cubes.
+One is a 4D structure with dimensions of fast time $\times$ slow time $\times$ yaw $\times$ pitch, used to store complete range-doppler map for each spatial degree.
+In this thesis this structure is only used for visualizing of raw data for given fixed pitch angle or showing range-doppler map for given yaw and pitch.
+Any 3D visualization style of the raw data would be too cluttered and hard to interpret.
+Second cube is a 3D structure with dimensions of range $\times$ yaw $\times$ pitch, this one is used to store CFAR output.
+
+In each case yaw resolution is fixed 1 degree thus the cube is 360° wide.
+Given quality of radar mounting bracket, 1.8° resolution of stepper and tighthness of radiation pattern 1° degree was deemed sufficient.
+As for pitch same resolution was kept with angles rangeing form -20° to +80° being covered.
 Lower bound is limited by the radar's mounting bracket and upper bound is more or less arbitrary, slightly guided by attempt to perevent radar from seeing behind itself.
 
-Main complicating factor with the radar data processing was the need to keep main thread responsive.
-Most time critical aspect of this thread is timely reading of incoming serial data, be it from platform or radar.
-If data can't be read right after arrival assigned timestamps will be incorrect and visualization will be wrong.
+Main complicating factor in the processing was the need to keep main thread responsive.
+Most time critical thing main thread does is timely readout of data at serial ports.
+If data can't be read right after its arrival assigned timestamps will be incorrect and visualization will be wrong.
 In addition GUI starts to be quite unresponsive if the resources of main thread are stretched too thin.
 
 To solve this problem processing heavily leverages MATLAB's parallel computing toolbox, offloading as much as possible to different cores.
-Through whole processing pipeline there are mechanism of buffering data into larger batches and if needed discarding some in case software is unable to keep up with incoming data.
-Unfortunately as MATLAB's parallelization capabilities with threads are rather limited with external language interface or certain file/memory mapping functions missing \cite{matlabParallel}, the parallelization is done with multiple processes.
+Thorough whole processing pipeline there are mechanism of buffering data into larger batches and if needed discarding some in case software is unable to keep up.
+Unfortunately as MATLAB's parallelization capabilities with threads are rather limited  -- external language interface don't work and so is the case for certain file/memory mapping functions \cite{matlabParallel}.
+Thus the parallelization needs to be done with processes.
 This restrict the application to machines with at least 16~GB of RAM as each process (of which there are three) requires around 2~GB of RAM.
 
-We can split processing into multiple distinct steps.
+Procesisng pipeline can be divided into multiple distinct steps as follow:
 \begin{enumerate}
   \item Data acquisition: Data are read, simple FFT is calculated and data are buffered into a circular buffer.
-  \item Data processing: Data re retrived in circular buffer paird with positions are processed -- CFAR or speed calculation. This step runs in a separate thread.
+  \item Data processing: Data retrived from the  circular buffer paired with positions and processed.
   \item Cube update: Processed data are buffered into a ping-pong buffer. In case buffer is full the cube update routine is launched.
   \item Visualization: After cubes are updated data are visualized in user chosen format.
 \end{enumerate}
