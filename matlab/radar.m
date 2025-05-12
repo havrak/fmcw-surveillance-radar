@@ -254,7 +254,9 @@ classdef radar < handle
 
 
 			if ~isempty(obj.hSerial)
+				stop(obj.triggerTimer);
 				obj.triggerTimer.Period = obj.hPreferences.getRadarTriggerPeriod()/1000;
+				start(obj.triggerTimer);
 				obj.configureRadar();
 			end
 		end

@@ -921,11 +921,11 @@ Afte the check chirps are retrieved from the circular buffer, positions that fal
 
 \begin{figure}[h!]
   \centering
-  \begin{tikzpicture}[node distance=1.5cm, scale=0.85]
+  \begin{tikzpicture}[node distance=1.5cm, scale=0.6]
 
     % Layer headers
     \node (radar_header) [layerheader] at (0, 0) {radar.m};
-    \node (processor_header) [layerheader] at (6, 0) {dataProcessor.m};
+    \node (processor_header) [layerheader] at (7.5, 0) {dataProcessor.m};
 
     % Radar Module
     \node (radar_start) [startstop, below of=radar_header, yshift=-0.3cm] {Start};
@@ -994,14 +994,14 @@ For simmilar resasons no correction for the rotation of the platform is done.
 
 \begin{figure}[h!]
   \centering
-  \begin{tikzpicture}[node distance=1cm, scale=0.7]
+  \begin{tikzpicture}[node distance=1cm, scale=0.5]
     % Main horizontal flow
     \node (processor_header) [layerheader] at (0, 0) {dataProcessor.m};
     \node (start) [startstop, below =of processor_header] {Thread start};
     \node (rcs) [process, right = of start] {Calculate RCS};
     \node (cfar_decision) [decision, below = of start] {CFAR?};
-    \node (raw_decision) [decision, right=1.3cm of cfar_decision] {RAW?};
-    \node (speed_decision) [decision, right=1.8cm of raw_decision] {Speed?};
+    \node (raw_decision) [decision, right=1cm of cfar_decision] {RAW?};
+    \node (speed_decision) [decision, right=1.5cm of raw_decision] {Speed?};
     \node (return) [startstop, below=2.6cm of speed_decision] {Return};
 
     % CFAR branch
@@ -1043,7 +1043,7 @@ This approach might lead to some performance issues if the cube is too large and
 
 \begin{figure}[h!]
   \centering
-  \begin{tikzpicture}[node distance=1cm, scale=0.7]
+  \begin{tikzpicture}[node distance=1cm, scale=0.5]
     % dataProcessor.m flow
     \node (processor_header) [layerheader] at (0, 0) {dataProcessor.m};
     \node (proc_event) [startstop, below=of processor_header, align=center] {Chirp processed};
@@ -1053,7 +1053,7 @@ This approach might lead to some performance issues if the cube is too large and
     \node (end_func) [startstop, below=of start_update] {End function};
 
     % radarDataCube.m flow
-    \node (cube_header) [layerheader] at (8, 0) {radarDataCube.m};
+    \node (cube_header) [layerheader] at (9.5, 0) {radarDataCube.m};
     \node (cube_start) [startstop, below = of cube_header] {Update started};
     \node (keep_raw) [decision, below = of cube_start] {Keep RAW?};
     \node (use_spread) [decision, right=of keep_raw, align=center, xshift=+0.7cm] {Use spread\\pattern?};
@@ -1070,7 +1070,7 @@ This approach might lead to some performance issues if the cube is too large and
     \draw [arrow] (add_buffer) -- (buffer_full);
     \draw [arrow] (buffer_full.south) -- node[right] {Yes} (start_update.north);
     \draw [arrow] (start_update.south) -- (end_func.north);
-    \draw [arrow] (buffer_full.west) -- ++(-1,0) node[left] {No} |- (end_func.west);
+    \draw [arrow] (buffer_full.west) -- ++(-1.5,0) node[left] {No} |- (end_func.west);
     %
     \draw [arrow] (cube_header) -- (cube_start);
     \draw [arrow] (cube_start) -- (keep_raw);
@@ -1081,9 +1081,9 @@ This approach might lead to some performance issues if the cube is too large and
     \draw [arrow] (use_spread.east) -- ++(1,0) node[above] {Yes} |- (create_subcube.east);
     \draw [arrow] (create_subcube) -- (aggregate);
     \draw [arrow] (aggregate) -- (aggregate2);
-    \draw [arrow] (aggregate2.west) -| ++(-0.5,8.856 ) -| (keep_cfar.north);
+    \draw [arrow] (aggregate2.west) -| ++(-0.5,12.396 ) -| (keep_cfar.north);
     %
-    \draw [arrow] (keep_cfar.west) -- ++(-1,0) node[left] {No} |- (cube_return.west);
+    \draw [arrow] (keep_cfar.west) -- ++(-1,0) node[above] {No} |- (cube_return.west);
     \draw [arrow] (keep_cfar.south) -- node[right] {Yes} (update_cfar.north);
     \draw [arrow] (update_cfar.south) -- (cube_return.north);
     %
@@ -1171,8 +1171,9 @@ As previously stated given rather poor sampling rate speed calculation is not ve
 This visualization style is used to display CFAR data in 3D cartesian space (Figure \ref{fig:vis3d}).
 Visualization method is rather simple with just positions being recalculated from the range, azimuth and pitch angles to x, y and z coordinates using trigonometric functions.
 In case decay is enabled then small threshold is used to remove points whose values was sufficiently regraded.
-If environment is too cluttered and CFAR generates too many points the user can enable basic clustering with matlab's built in DBSCAN function \cite{matlab_dbscan}.
+To aid with orientation within the plot curret yaw and pitch of the platform at time of the update is also displayed as a red line;
 
+If environment is too cluttered and CFAR generates too many points the user can enable basic clustering with matlab's built in DBSCAN function \cite{matlab_dbscan}.
 Gerneral idea of DBSCAN is that to a given point in the dataset distances to other points are calculated and compared with user defined threshold $\varepsilon$, in case sufficient number $N$ of points is found within the threshold the point is marked as a cluster centers \cite{Kellner2012}.
 In MATLAB's in algorithm distance threshold and minimal number of points are both configurable variables with other input being just the points list \cite{matlab_dbscan}.
 As original data are in polar coordinates system problem arises with calculating distances given that in such system distance between two points of given fixed yaw and pitch varies widely with range.
@@ -1184,6 +1185,7 @@ However as in this thesis as DBSCAN is more of an illustration of possible postp
 Paramter $\varepsilon$ of DBSCAN is always set to 1, instead user can configure scaling for range and angle individually.
 Number of points to for a cluster $N$ is also user configurable.
 Distance between points is calculated using standard euclidean formula after being converted to cartesian coordinates.
+
 
 \begin{figure}[h!]
 	\centering

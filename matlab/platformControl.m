@@ -330,7 +330,7 @@ classdef platformControl < handle
 				set(obj.hListboxSidebar, 'Value', 1);
 				obj.loadProgram();
 			end
-			
+
 		end
 
 		function storePrograms(obj)
@@ -448,7 +448,7 @@ classdef platformControl < handle
 				stop(obj.mockDataTimer);
 				delete(obj.mockDataTimer);
 			end
-	
+
 		end
 
 		function status = setupSerial(obj)
@@ -467,10 +467,10 @@ classdef platformControl < handle
 			% obj.mockDataTimer.UserData = 0;
 			% obj.mockDataTimer.TimerFcn = @(~,~) obj.mockData();
 			% start(obj.mockDataTimer);
-			% 
+			%
 			% status = true;
 			% return;
-			
+
 			% NORMAL
 			if ~isempty(obj.hSerial)
 				configureCallback(obj.hSerial, "off");
@@ -505,6 +505,17 @@ classdef platformControl < handle
 			writeline(obj.hSerial, command);
 		end
 
+		function [yaw, pitch] = getLastPosition(obj)
+			% getLastPosition: return last position of the platform
+			% 
+			% Outputs:
+			%   yaw ... yaw angle  (0-360°)
+			%   pitch ... Pitch angle (-90°-90°)
+			idx = mod(obj.currentIdx-1, obj.bufferSize);
+			yaw = obj.positionYaw(idx);
+			pitch = obj.positionPitch(idx);
+		end
+
 		function [timestamps, yaw, pitch] = getPositionsInInterval(obj, timeMin, timeMax)
 			% getPositionsInInterval: Returns position data within specified time range
 			%
@@ -514,8 +525,8 @@ classdef platformControl < handle
 			%
 			% Outputs:
 			%   timestamps ... Vector of timestamps
-			%   yaw        ... Corresponding yaw angles
-			%   pitch      ... Corresponding pitch angles
+			%   yaw        ... Corresponding yaw angles vector 
+			%   pitch      ... Corresponding pitch angles vector
 			[~, idxMin] = min(abs(obj.positionTimes - timeMin));
 			[~, idxMax] = min(abs(obj.positionTimes - timeMax));
 

@@ -20,6 +20,7 @@ classdef dataProcessor < handle
 		hPlot = [];                % Basic plot used to display (Range-"RCS")
 		hAxes = [];                % Axes handle for current visualization
 		hScatter3D = [];           % 3D scatter plot handle (Target-3D)
+		hLine = [];
 
 		% Display configuration
 		yawIndex = 1;              % Selected yaw index for Range-Doppler view
@@ -75,7 +76,8 @@ classdef dataProcessor < handle
 				(Xx - Yx.').^2 + ...
 				(Xy - Yy.').^2 + ...
 				(Xz - Yz.').^2 ...
-				);
+				)';
+			D=D./((Xrange+Yrange)/10); % scale linearly with distance
 		end
 		function [yaw, pitch, cfar, rangeDoppler, speed] = ...
 				processBatch(batchRangeFFTs, batchTimes, posTimes, posYaw, posPitch, processingParameters)
@@ -257,7 +259,20 @@ classdef dataProcessor < handle
 
 				obj.hSurf.CData = toDraw;
 			elseif strcmp(obj.currentVisualizationStyle, 'Target-3D')
-				
+				% Update platform direction line
+				[yaw_platform, pitch_platform] = obj.hPlatform.getLastPosition();
+				maxRange = (obj.processingParameters.rangeNFFT/2) * obj.processingParameters.rangeBinWidth;
+
+				Xline = maxRange * cosd(pitch_platform) * cosd(-yaw_platform + 90);
+				Yline = maxRange * cosd(pitch_platform) * sind(-yaw_platform + 90);
+				Zline = maxRange * sind(pitch_platform);
+
+				set(obj.hLine, ...
+					'XData', [0, Xline], ...
+					'YData', [0, Yline], ...
+					'ZData', [0, Zline]);
+
+				% Update data itself
 				idx = find(obj.hDataCube.cfarCube >= obj.cfarDrawThreshold);
 				[rangeBin, yawBin, pitchBin] = ind2sub(size(obj.hDataCube.cfarCube), idx);
 				range = (rangeBin - 1) * obj.processingParameters.rangeBinWidth;
@@ -270,17 +285,18 @@ classdef dataProcessor < handle
 				elseif obj.processingParameters.dbscanEnable == 1
 
 					fprintf("dataProcessor | updateFinished | updating 3D plot | DBSCAN\n");
-					normalizedRange = range' / obj.processingParameters.dbscanRangeT;
+					normalizedRange = range / obj.processingParameters.dbscanRangeT;
 					normalizedYaw = yaw / obj.processingParameters.dbscanAngleT;
 					normalizedPitch = pitch / obj.processingParameters.dbscanAngleT;
 
 					epsilon = 1.0;   % Points must be within 1 normalized unit in ALL dimensions
-					points_scaled = [normalizedRange, normalizedYaw, normalizedPitch];
-					labels = dbscan(points_scaled, epsilon, obj.processingParameters.dbscanMinDetections, 'Distance', @(X,Y) polarToCartDistance(X, Y));
+					points = [normalizedRange, normalizedYaw', normalizedPitch'];
+					numel(normalizedRange)
+					labels = dbscan(points, epsilon, obj.processingParameters.dbscanMinDetections, 'Distance', @(X,Y) dataProcessor.polarEuclidDistance(X, Y));
 
 					validLabels = labels(labels ~= -1); % remove garbage
-					validPoints = points_scaled(labels ~= -1, :);
-
+					validPoints = points(labels ~= -1, :);
+					numel(validLabels)
 					clusteredRange = validPoints(:, 1) * obj.processingParameters.dbscanRangeT;
 					clusteredYaw = validPoints(:, 2) * obj.processingParameters.dbscanAngleT;
 					clusteredPitch = validPoints(:, 3) * obj.processingParameters.dbscanAngleT;
@@ -452,10 +468,10 @@ classdef dataProcessor < handle
 				% 		yaw, ...
 				% 		pitch, ...
 				% 		obj.processingParameters);
-				% 
+				%
 				% obj.mergeResults(yaw, pitch, cfar, rangeDoppler, speed);
 
-				fprintf("dataProcessor | onNewDataAvailable | processing: yaw: %f, pitch %f\n", yaw(end), pitch(end));
+				%fprintf("dataProcessor | onNewDataAvailable | processing: yaw: %f, pitch %f\n", yaw(end), pitch(end));
 				future = parfeval(obj.parallelPool, ...
 					@dataProcessor.processBatch, 5, ...
 					batchRangeFFTs, ...
@@ -503,10 +519,22 @@ classdef dataProcessor < handle
 			if ~isempty(obj.hLabelPitch) && isvalid(obj.hLabelPitch)
 				delete(obj.hLabelPitch)
 			end
+
+			if ~isempty(obj.hLine) && isvalid(obj.hLine)
+				delete(obj.hLine)
+			end
+			if ~isempty(obj.hPlot) && isvalid(obj.hPlot)
+				delete(obj.hPlot)
+			end
 			obj.hAxes = [];
 			obj.hSurf = [];
 			obj.hEditPitch = [];
 			obj.hEditYaw = [];
+			obj.hImage = [];
+			obj.hPlot = [];
+			obj.hLine = [];
+			obj.hLabelPitch = [];
+			obj.hLabelYaw = [];
 		end
 
 		function initializeARDisplay(obj)
@@ -625,6 +653,9 @@ classdef dataProcessor < handle
 				'MarkerEdgeColor', [0 0 0], ...  % Black border
 				'DisplayName', 'Radar' ...
 				);
+			obj.hLine = plot3(obj.hAxes, [0, 0], [0, 0], [0, 0], ...
+				'Color', 'r', 'LineWidth', 2, 'Visible', 'on');
+
 			hold(obj.hAxes, 'off');
 
 			if obj.processingParameters.dbscanEnable == 1
