@@ -1,0 +1,132 @@
+%%% TitlePage
+
+\def\TypeBc{bc}
+\def\TypeMgr{mgr}
+\def\TypePhD{phd}
+\def\TypeRig{rig}
+\def\TypeSem{sem}
+
+\ifx\ThesisType\TypeBc
+\def\ThesisTypeName{bachelor}
+\def\ThesisTypeTitle{BACHELOR THESIS}
+\fi
+
+\ifx\ThesisType\TypeMgr
+\def\ThesisTypeName{master}
+\def\ThesisTypeTitle{MASTER THESIS}
+\fi
+
+\ifx\ThesisType\TypePhD
+\def\ThesisTypeName{doctoral}
+\def\ThesisTypeTitle{DOCTORAL THESIS}
+\fi
+
+\ifx\ThesisType\TypeRig
+\def\ThesisTypeName{rigorosum}
+\def\ThesisTypeTitle{RIGOROSUM THESIS}
+\fi
+
+\ifx\ThesisType\TypeSem
+\def\ThesisTypeName{semestral}
+\def\ThesisTypeTitle{SEMESTRAL PROJECT}
+\fi
+
+\pagestyle{empty}
+\hypersetup{pageanchor=false}
+
+\begin{center}
+
+{\LARGE\bfseries\Institution}
+
+\vspace{-18mm}
+\vfill
+
+{\LARGE\Department}
+
+\vfill
+
+\centerline{\mbox{\def\svgwidth{\columnwidth}\scalebox{0.28}{\input{../img/logo.tex}}}}
+
+\vspace{-8mm}
+\vfill
+
+{\bf\Large \ThesisTypeTitle}
+
+\vfill
+
+
+\vspace{15mm}
+
+{\LARGE\bfseries\ThesisTitle}
+
+
+\vfill
+
+
+{
+\centerline{\vbox{\halign{\hbox to 0.45\hsize{\hfil #}&\hskip 0.5em\parbox[t]{0.45\hsize}{\raggedright #}\cr
+Supervisor of the \ThesisTypeName{} thesis:&\Supervisor \cr
+\ifx\ThesisType\TypeRig\else
+\noalign{\vspace{2mm}}
+Study programme:&\StudyProgramme \cr
+\fi
+}}}}
+
+\vspace{15mm}
+Prague \MontSubmitted \ \YearSubmitted
+
+\end{center}
+
+
+\includepdf{../img/Declaration.pdf}
+\newpage
+\hypersetup{pageanchor=true}
+\protect\pagestyle{plain}
+\pagenumbering{roman}
+
+
+\openright
+
+{\InfoPageFont
+
+\vtop to 0.46\vsize{
+\setlength\parindent{0mm}
+\setlength\parskip{5mm}
+
+\textbf{Title:} \ThesisTitle \\
+\textbf{Author:} \ThesisAuthor \\
+\textbf{\DepartmentType:} \Department \\
+\textbf{Supervisor:} \Supervisor, \SupervisorsDepartment \\
+
+\textbf{Abstract:}  \Abstract \\
+
+\textbf{Keywords:}
+{\def\sep{\unskip, }\ThesisKeywords}
+
+\vfil
+}
+
+
+\vtop to 0.46\vsize{
+\setlength\parindent{0mm}
+\setlength\parskip{5mm}
+
+\textbf{Název práce:} \ThesisTitleCS \\
+\textbf{Autor:} \ThesisAuthor \\
+\textbf{\DepartmentTypeCS:} \DepartmentCS \\
+\textbf{Vedoucí práce:} \Supervisor, \SupervisorsDepartmentCS \\
+
+\textbf{Abstrakt:} \AbstractCS \\
+
+\textbf{Klíčová slova:}
+{\def\sep{\unskip, }\ThesisKeywordsCS}
+
+\vfil
+}
+}
+
+
+\newpage
+
+\openright
+

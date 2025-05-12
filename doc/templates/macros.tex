@@ -1,0 +1,192 @@
+%%% This file contains definitions of various useful macros and environments %%%
+%%% Please add more macros here instead of cluttering other files with them. %%%
+
+\def\LangCS{cs}
+\def\LangEN{en}
+
+
+%%% Minor tweaks of style
+
+% These macros employ a little dirty trick to convince LaTeX to typeset
+% chapter headings sanely, without lots of empty space above them.
+% Feel free to ignore.
+\makeatletter
+\def\@makechapterhead#1{
+  {\parindent \z@ \raggedright \normalfont
+   \Huge\bfseries \thechapter. #1
+   \par\nobreak
+   \vskip 20\p@
+}}
+\def\@makeschapterhead#1{
+  {\parindent \z@ \raggedright \normalfont
+   \Huge\bfseries #1
+   \par\nobreak
+   \vskip 20\p@
+}}
+\makeatother
+
+% make chaptermark non uppercase
+\renewcommand{\chaptermark}[1]{%
+  \markboth{#1}{}}
+
+% This macro defines a chapter, which is not numbered, but is included in the table of contents.
+\def\chapwithtoc#1{
+\chapter*{#1}
+\addcontentsline{toc}{chapter}{#1}
+}
+
+% Slightly less strict rules for placing breaklines inside words
+\lefthyphenmin=2
+\righthyphenmin=2
+
+% Draw black "slugs" whenever a line overflows, so that we can spot it easily.
+% \overfullrule=1mm
+
+% Empty page
+
+\ifx\DocLanguage\LangEN
+\newcommand\blankpage{
+\newpage
+\begin{center}
+\vspace*{\fill}
+  {Empty page}
+\vspace*{\fill}
+\end{center}
+}
+
+\else
+\newcommand\blankpage{
+\newpage
+\begin{center}
+\vspace*{\fill}
+  {Prázdná strana}
+\vspace*{\fill}
+\end{center}
+}
+\fi
+
+
+%%% Macros for definitions, theorems, claims, examples, ... (requires amsthm package)
+\makeatletter
+\def\th@plain{%
+  \thm@notefont{}% same as heading font
+  \itshape % body font
+}
+\def\th@definition{%
+  \thm@notefont{}% same as heading font
+  \normalfont % body font
+}
+\makeatother
+
+\ifx\DocLanguage\LangEN
+\theoremstyle{plain}
+\newtheorem{thm}{Theorem}
+\newtheorem{lemma}[thm]{Lemma}
+\newtheorem{claim}[thm]{Claim}
+\newtheorem{defn}{Definition}
+
+\theoremstyle{remark}
+\newtheorem*{cor}{Corollary}
+\newtheorem*{rem}{Remark}
+\newtheorem*{example}{Example}
+
+\else
+\theoremstyle{plain}
+\newtheorem{thm}{Teorém}
+\newtheorem{lemma}[thm]{Lemma}
+\newtheorem{claim}[thm]{Tvrzení}
+\newtheorem{defn}{Definice}
+
+\theoremstyle{remark}
+\newtheorem*{cor}{Důsledek}
+\newtheorem*{rem}{Připomínka}
+\newtheorem*{example}{Například}
+
+\fi
+
+
+%%% Tweaks for tables
+\newcommand{\pulrad}[1]{\raisebox{1.5ex}[0pt]{#1}}
+\newcommand{\mc}[1]{\multicolumn{1}{c}{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+
+%%% TODO items
+\newcommand{\xxx}[1]{\textcolor{red!}{#1}}
+
+
+%%% Groups of different numbers, average value
+\DeclareMathOperator{\R}{\mathbb{R}}
+\DeclareMathOperator{\N}{\mathbb{N}}
+\DeclareMathOperator{\Q}{\mathbb{Q}}
+\DeclareMathOperator{\C}{\mathbb{C}}
+\DeclareMathOperator{\F}{\mathbb{F}}
+\DeclareMathOperator{\Z}{\mathbb{Z}}
+
+\DeclareMathOperator{\coord}{\text{coord}}
+\DeclareMathOperator{\mgrad}{\text{grad}\,}
+\DeclareMathOperator{\mdiv}{\mathrm{div}\,}
+\DeclareMathOperator{\mrot}{\mathrm{rot}\,}
+
+%%% Comments inside of mathematical equations, useful for simple substitutions and such
+\newcommand{\lcom}{\left\langle\left\langle} %% deprecated
+\newcommand{\rcom}{\right\rangle\right\rangle} %% deprecated
+\newcommand{\com}[1]{\left\langle\left\langle #1 \right\rangle\right\rangle}
+
+%%% Equals with text over it
+\DeclareMathOperator{\eqlh}{\mathrel{\stackrel{\makebox[0pt]{\mbox{\normalfont\tiny L'H}}}{=}}}
+\DeclareMathOperator{\eqpp}{\mathrel{\stackrel{\makebox[0pt]{\mbox{\normalfont\tiny PP}}}{=}}}
+\newcommand{\eqi}[1]{\mathrel{\stackrel{\makebox[0pt]{\mbox{\normalfont\tiny $#1$}}}{=}}}
+\newcommand{\rai}[1]{\mathrel{\stackrel{\makebox[0pt]{\mbox{\normalfont\tiny $#1$}}}{\rightarrow}}}
+
+%% Different lines under text
+\newcommand*{\ucheck}[1]{\underaccent{\check}{#1}}
+\newcommand*{\uwidecheck}[1]{\underaccent{\widecheck{\hphantom{#1}}}{#1}}
+\def\doubleunderline#1{\underline{\underline{#1}}}\makeatletter
+
+%%% Handle " in tikzcd
+\newenvironment{tikzcdi}{\shorthandoff{"}\begin{tikzcd}}{\end{tikzcd}\shorthandon{"}}%
+
+%%% Macros for statistics and probability theory
+\DeclareMathOperator{\pr}{\textsf{P}}
+\DeclareMathOperator{\E}{\textsf{E}\,}
+\DeclareMathOperator{\var}{\textrm{var}}
+\DeclareMathOperator{\sd}{\textrm{sd}}
+\DeclareMathOperator{\ED}{\mathbb{E}}
+
+%%% Other math tweaks
+\newcommand{\goto}{\rightarrow}
+\newcommand{\gotop}{\stackrel{P}{\longrightarrow}}
+\newcommand{\maon}[1]{o(n^{#1})}
+\newcommand{\abs}[1]{\left|{#1}\right|}
+\ExplSyntaxOn
+\NewDocumentCommand{\intd}{m}
+{
+    \int \clist_map_inline:nn { #1 } { \mathrm{d} ##1 \, }
+}
+\ExplSyntaxOff % expands \intd{x,y} into \int \mathrm{d}x \mathrm{d}y, used primarily in quantum physics
+\newcommand{\isqr}[1]{\frac{1}{\sqrt{#1}}}
+\newcommand{\T}[1]{#1^\top}
+
+%% braket notation
+\DeclarePairedDelimiter\bra{\langle}{\rvert}
+\DeclarePairedDelimiter\ket{\lvert}{\rangle}
+\DeclarePairedDelimiterX\braket[2]{\langle}{\rangle}{#1\,\delimsize\vert\,\mathopen{}#2}
+
+%%% Environment with different font size
+\newenvironment{localsize}[1]
+{%
+  \clearpage
+  \let\orignewcommand\newcommand
+  \let\newcommand\renewcommand
+  \makeatletter
+  \input{bk#1.clo}%
+  \makeatother
+  \let\newcommand\orignewcommand
+}
+{%
+  \clearpage
+}
+
+%%% Prostředí pro tabulky s centrováním textu v buňce
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+

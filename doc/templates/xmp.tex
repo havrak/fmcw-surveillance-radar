@@ -1,0 +1,24 @@
+% Generate XMP metadata file (*.xmpdata)
+% one needs to set AuthorXMP, TitleXMP, KeywordsXMP, AbstractXMP
+
+{
+\catcode`\%=12
+\global\edef\percenthack{%}
+}
+
+{
+\def\xxx#1{#1}
+\def\sep{\string\sep\space}
+\let~=\space
+
+\newwrite\xmp
+\immediate\openout\xmp=\jobname.xmpdata
+\immediate\write\xmp{\percenthack\space Generated automatically from metadata.tex}
+\def\xmpitem#1#2{\immediate\write\xmp{\string#1{#2}}}
+\xmpitem\Author\AuthorXMP
+\xmpitem\Title\TitleXMP
+\xmpitem\Keywords\KeywordsXMP
+\xmpitem\Subject\AbstractXMP
+\xmpitem\Publisher{Czech Technical University in Prague}
+\immediate\closeout\xmp
+}

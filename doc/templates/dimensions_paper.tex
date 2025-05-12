@@ -1,0 +1,67 @@
+%%% Different page dimensions used on thesis
+\def\PageLayoutSingle{single}
+\def\PageLayoutSingleNoPrint{single-no-print}
+\def\PageLayoutDouble{double}
+\def\PageLayoutDoubleNoPrint{double-no-print}
+
+
+
+%% Single page print
+\ifx\PageLayout\PageLayoutSingle
+\documentclass[a4paper,oneside,12pt]{report}
+\setlength\textwidth{145mm}
+\setlength\textheight{251mm}
+\setlength\oddsidemargin{15mm}
+\setlength\evensidemargin{15mm}
+\setlength\topmargin{-0.4in}
+\setlength\headsep{10mm}
+\setlength\headheight{0mm}
+\let\openright=\clearpage
+\fi
+
+%% Double page print
+\ifx\PageLayout\PageLayoutDouble
+% \documentclass[12pt,a4paper,twoside,openright]{report} % chapter will always start on the right side
+\documentclass[12pt,a4paper,twoside]{report}
+\setlength\textwidth{145mm}
+\setlength\textheight{251mm}
+\setlength\oddsidemargin{14.2mm}
+\setlength\evensidemargin{0mm}
+\setlength\topmargin{-0.4in}
+\setlength\headsep{10mm}
+\setlength\headheight{0mm}
+\let\openright=\clearpage
+% \let\openright=\cleardoublepage
+\fi
+
+%% Double page without space left for binding
+\ifx\PageLayout\PageLayoutDoubleNoPrint
+% \documentclass[12pt,a4paper,twoside,openright]{report} % chapter will always start on the right side
+\documentclass[12pt,a4paper,twoside]{report}
+\setlength\textwidth{145mm}
+\setlength\textheight{251mm}
+\setlength\oddsidemargin{9mm}
+\setlength\evensidemargin{9mm}
+\setlength\topmargin{-0.4in}
+\setlength\headsep{10mm}
+\setlength\headheight{0mm}
+\let\openright=\clearpage
+% \let\openright=\cleardoublepage
+\fi
+
+%% Single page without space left for binding
+\ifx\PageLayout\PageLayoutSingleNoPrint
+\documentclass[12pt,a4paper]{report}
+\setlength\textwidth{145mm}
+\setlength\textheight{251mm}
+\setlength\oddsidemargin{9mm}
+\setlength\evensidemargin{9mm}
+\setlength\topmargin{-0.4in}
+\setlength\headsep{10mm}
+\setlength\headheight{0mm}
+\let\openright=\clearpage
+
+\fi
+
+
+

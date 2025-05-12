@@ -3,14 +3,15 @@
 \def\PackagesIncludeTikz{yes}
 \def\PackagesIncludeBib{yes}
 
-\input{dimensions_paper}
-\input{packages}
 \input{metadata}
-\input{macros}
-\input{xmp}
-\input{doc_paper}
+\input{../templates/dimensions_paper}
+\input{../templates/packages}
+\input{../templates/macros}
+\input{../templates/xmp}
+\input{../templates/doc_paper}
 
 \addbibresource{bibliography.bib}
+\usepackage{pdfpages}
 
 \newcommand{\sidar}{SiRad Easy\textsuperscript{\copyright} }
 \newcommand{\boldred}[1]{\textbf{\textcolor{red}{#1}}}
@@ -20,7 +21,7 @@
 
 \begin{document}
 
-\include{doc_paper_title_page_en}
+\include{title_page}
 
 \tableofcontents
 
@@ -965,7 +966,7 @@ Afte the check chirps are retrieved from the circular buffer, positions that fal
     % \draw [arrow] (cfar_process.south) -- ++(0,-1.7) -| (proc_stop.east);
     \draw [arrow] (cfar_process.south) |- (proc_stop.east);
   \end{tikzpicture}
-  \caption{Processing flow - 1st step}
+  \caption{Processing flow - Data acquisition}
   \label{fig:radar_flow}
 \end{figure}
 
@@ -1026,7 +1027,7 @@ For simmilar resasons no correction for the rotation of the platform is done.
     \draw [arrow] (fft.south) -- ++(0,0) |- (return.east);
 
   \end{tikzpicture}
-  \caption{Processing flow - 2nd step (Feature Processing)}
+  \caption{Processing flow - Data processing}
   \label{fig:feature_flow}
 \end{figure}
 
@@ -1088,7 +1089,7 @@ This approach might lead to some performance issues if the cube is too large and
     \draw [arrow] (update_cfar.south) -- (cube_return.north);
     %
   \end{tikzpicture}
-  \caption{Processing flow - Final stage (Data Cube Management)}
+  \caption{Processing flow - Cube update}
   \label{fig:cube_flow}
 \end{figure}
 

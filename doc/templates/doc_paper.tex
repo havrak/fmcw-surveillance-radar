@@ -1,0 +1,93 @@
+
+\def\PageLayoutSingle{single}
+\def\PageLayoutSingleNoPrint{single-no-print}
+\def\PageLayoutDouble{double}
+\def\PageLayoutDoubleNoPrint{double-no-print}
+
+% Overwrite default chapter behaviour to control what style is used
+\makeatletter
+    \let\stdchapter\chapter
+    \renewcommand*\chapter{%
+    \@ifstar{\starchapter}{\@dblarg\nostarchapter}}
+    \newcommand*\starchapter[1]{%
+        \stdchapter*{#1}
+        \thispagestyle{plain}
+        \markboth{\MakeUppercase{#1}}{}
+    }
+    \def\nostarchapter[#1]#2{%
+        \stdchapter[{#1}]{#2}
+        \thispagestyle{fancy}
+    }
+\makeatother
+
+
+
+
+%%% Style for TOC, introduction, conclusion, bibliography and such
+\fancypagestyle{plain}{
+  \fancyhf{}
+  \renewcommand{\headrulewidth}{0.4pt}
+  \renewcommand{\footrulewidth}{0.4pt}
+  \fancyhead[C]{}
+  \fancyhead[L]{}
+  \fancyfoot[L]{\Institution}
+  \fancyfoot[C]{}
+  \fancyfoot[R]{\thepage}
+}
+
+\ifx\PageLayout\PageLayoutDouble
+\fancypagestyle{fancy}{%
+  \fancyhf{}%
+  \renewcommand{\headrulewidth}{0.4pt}%
+  \renewcommand{\footrulewidth}{0.4pt}%
+  \fancyhead[C]{}
+	\fancyhead[LE]{\textbf{\thechapter. \leftmark}}
+	\fancyhead[RO]{\textbf{\rightmark}}
+  \fancyfoot[L]{\Institution}
+  \fancyfoot[C]{}
+  \fancyfoot[R]{\thepage}
+}
+\fi
+
+\ifx\PageLayout\PageLayoutDoubleNoPrint
+\fancypagestyle{fancy}{%
+  \fancyhf{}%
+  \renewcommand{\headrulewidth}{0.4pt}%
+  \renewcommand{\footrulewidth}{0.4pt}%
+  \fancyhead[C]{}
+	\fancyhead[LE]{\textbf{\thechapter. \leftmark}}
+	\fancyhead[RO]{\textbf{\rightmark}}
+  \fancyfoot[L]{\Institution}
+  \fancyfoot[C]{}
+  \fancyfoot[R]{\thepage}
+}
+\fi
+
+
+\ifx\PageLayout\PageLayoutSingle
+\fancypagestyle{fancy}{%
+  \fancyhf{}%
+  \renewcommand{\headrulewidth}{0.4pt}%
+  \renewcommand{\footrulewidth}{0.4pt}%
+  \fancyhead[C]{}
+	\fancyhead[L]{\textbf{\thechapter. \leftmark}}
+  \fancyfoot[L]{\Institution}
+  \fancyfoot[C]{}
+  \fancyfoot[R]{\thepage}
+}
+
+\fi
+
+\ifx\PageLayout\PageLayoutSingleNoPrint
+\fancypagestyle{fancy}{%
+  \fancyhf{}%
+  \renewcommand{\headrulewidth}{0.4pt}%
+  \renewcommand{\footrulewidth}{0.4pt}%
+  \fancyhead[C]{}
+	\fancyhead[L]{\textbf{\thechapter. \leftmark}}
+  \fancyfoot[L]{\Institution}
+  \fancyfoot[C]{}
+  \fancyfoot[R]{\thepage}
+	}
+
+\fi
