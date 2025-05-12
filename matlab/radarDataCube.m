@@ -38,6 +38,8 @@ classdef radarDataCube < handle
 		keepRaw;                % Flag to retain raw data
 		keepCFAR;               % Flag to retain CFAR data
 		parallelPool;           % Thread pool
+		lastYaw                 % last updated yaw angle
+		lastPitch               % last updated pitch angle
 		tmpTime;
 	end
 
@@ -133,7 +135,7 @@ classdef radarDataCube < handle
 		%	disp("Test");
 		%end
 
-		function processBatch(buffer, spreadPattern, rawCubeSize, yawBins, pitchBins, processRaw, processCFAR, decay)
+		function [lastYawIdx, lastPitchIdx] = processBatch(buffer, spreadPattern, rawCubeSize, yawBins, pitchBins, processRaw, processCFAR, decay)
 			% processBatch: Applies batch updates to raw/CFAR cubes with spreading/decay
 			%
 			% in case spread pattern is enabled range-doppler map will be spread over a
@@ -152,7 +154,13 @@ classdef radarDataCube < handle
 			%   processRaw ... Flag to process raw data
 			%   processCFAR ... Flag to process CFAR data
 			%   decay ... Flag to enable decay
+			% Outputs
+			%   lastYawIdx ... index of last yaw position in the buffer
+			%   lastPitchIdx ... index of last pitch position in the buffer
 
+			lastYawIdx = buffer.yawIdx(end);
+
+			lastPitchIdx = buffer.pitchIdx(end);
 			%% Updating cube for raw data
 			% fid = fopen("out.txt", "a+");
 			if(processRaw && isempty(spreadPattern))
@@ -171,7 +179,7 @@ classdef radarDataCube < handle
 					yaw = buffer.yawIdx(i);
 					pitch = buffer.pitchIdx(i);
 					contribution = buffer.rangeDoppler(:, :, i);
-					
+
 					if(decay)
 						batchDecay = single(prod(buffer.decay(i:end)));
 						decayCube_avx2(contribution, batchDecay);
@@ -298,7 +306,7 @@ classdef radarDataCube < handle
 
 
 				for i = 1:numel(buffer.yawIdx)
-		%			fprintf("CFAR | YAW=%f, PITCH=%f, SUM=%f\n",buffer.yawIdx(i), buffer.pitchIdx(i), sum(buffer.cfar(:, i)));
+					%			fprintf("CFAR | YAW=%f, PITCH=%f, SUM=%f\n",buffer.yawIdx(i), buffer.pitchIdx(i), sum(buffer.cfar(:, i)));
 					contribution =  buffer.cfar(:, i);
 					if(decay)
 						batchDecay = single(prod(buffer.decay(i:end)));
@@ -313,7 +321,7 @@ classdef radarDataCube < handle
 	end
 
 	methods(Access=private)
-		function afterBatchProcessing(obj)
+		function afterBatchProcessing(obj, lastYawIdx, lastPitchIdx)
 			% afterBatchProcessing: Post-batch processing callback
 			%
 			% In case zero was called while thread was processing cubes will be zeroed
@@ -323,6 +331,8 @@ classdef radarDataCube < handle
 			%fprintf("CUBE SUM FINAL %d\n", sum(obj.rawCubeMap.Data.rawCube(:)));
 
 			%fprintf("CUBE SUM FINAL %d\n", sum(obj.rawCube(:)));
+			obj.lastYaw = obj.yawBins(lastYawIdx);
+			obj.lastPitch = obj.yawBins(lastPitchIdx);
 			toc(obj.tmpTime)
 			obj.isProcessing = false;
 			if obj.requestToZero
@@ -477,6 +487,16 @@ classdef radarDataCube < handle
 
 		end
 
+		function [yaw, pitch] = getLastPosition(obj)
+			% getLastPosition: return position of the last update
+			%
+			% Outputs:
+			%   yaw ... yaw angle  (0-360°)
+			%   pitch ... Pitch angle (-90°-90°)
+			
+			yaw = obj.lastYaw;
+			pitch = obj.lastPitch;
+		end
 		function status = isBatchFull(obj)
 			% isBatchFull: Checks if the active buffer is ready for processing
 			%
@@ -516,7 +536,7 @@ classdef radarDataCube < handle
 
 				future = parfeval(gcp, ...
 					@radarDataCube.processBatch, ...
-					0, ...
+					2, ...
 					processingBuffer, ...
 					obj.spreadPattern, ...
 					obj.rawCubeSize, ...
@@ -528,7 +548,7 @@ classdef radarDataCube < handle
 
 				afterAll(future, @(varargin) obj.afterBatchProcessing(varargin{:}), 0);
 
-				% radarDataCube.processBatch( ...
+				% [lastYawIdx, lastPitchIdx] = radarDataCube.processBatch( ...
 				% 	processingBuffer, ...
 				% 	obj.spreadPattern, ...
 				% 	obj.rawCubeSize, ...
@@ -537,7 +557,7 @@ classdef radarDataCube < handle
 				% 	obj.keepRaw, ...
 				% 	obj.keepCFAR, ...
 				% 	obj.decay);
-				% obj.afterBatchProcessing();
+				% obj.afterBatchProcessing(lastYawIdx, lastPitchIdx);
 
 			else
 				fprintf("radarDataCube | startBatchProcessing | pool empty\n");

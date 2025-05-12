@@ -235,6 +235,18 @@ classdef dataProcessor < handle
 			% Function is called by radarDataCube's updateFinished event
 
 			if strcmp(obj.currentVisualizationStyle,'Range-Azimuth')
+				[lastUpdateYaw, lastUpdatePitch] = obj.hDataCube.getLastPosition();
+
+				% Find the closest pitch bin to the last update's pitch
+				[~, computedPitchIndex] = min(abs(obj.hDataCube.pitchBins - lastUpdatePitch));
+				lineTheta = -deg2rad(lastUpdateYaw) + pi/2;
+				[lineX, lineY] = pol2cart(lineTheta,  obj.processingParameters.rangeNFFT/2);
+				set(obj.hLine, 'XData', [0, lineX], 'YData', [0, lineY]);
+				if computedPitchIndex == obj.pitchIndex
+					set(obj.hLine, 'Color', 'r'); % red
+				else
+					set(obj.hLine, 'Color', 'y'); % yellow
+				end
 
 				if obj.processingParameters.calcRaw && obj.processingParameters.calcCFAR
 					fprintf("dataProcessor | updateFinished | Range-Azimuth | RAW + CFAR\n");
@@ -260,12 +272,12 @@ classdef dataProcessor < handle
 				obj.hSurf.CData = toDraw;
 			elseif strcmp(obj.currentVisualizationStyle, 'Target-3D')
 				% Update platform direction line
-				[yaw_platform, pitch_platform] = obj.hPlatform.getLastPosition();
+				[lastUpdateYaw, lastUpdatePitch] = obj.hDataCube.getLastPosition();
 				maxRange = (obj.processingParameters.rangeNFFT/2) * obj.processingParameters.rangeBinWidth;
 
-				Xline = maxRange * cosd(pitch_platform) * cosd(-yaw_platform + 90);
-				Yline = maxRange * cosd(pitch_platform) * sind(-yaw_platform + 90);
-				Zline = maxRange * sind(pitch_platform);
+				Xline = maxRange * cosd(lastUpdatePitch) * cosd(-lastUpdateYaw + 90);
+				Yline = maxRange * cosd(lastUpdatePitch) * sind(-lastUpdateYaw + 90);
+				Zline = maxRange * sind(lastUpdatePitch);
 
 				set(obj.hLine, ...
 					'XData', [0, Xline], ...
@@ -606,7 +618,7 @@ classdef dataProcessor < handle
 				plot(obj.hAxes, [0, x], [0, y], '--', 'Color', markerColor, 'LineWidth', 1/ (mod(angle,2)+1));
 			end
 
-
+			obj.hLine = plot(obj.hAxes, [0, 0], [0, 0], 'Color', 'r', 'LineWidth', 2);
 			hold(obj.hAxes, 'off');
 
 			obj.resizeUI();
@@ -749,7 +761,7 @@ classdef dataProcessor < handle
 				warndlg('Yaw must be a number');
 				return;
 			end
-			[~, obj.yawIndex] = min(abs(obj.hDataCube.pitchBins - inputYaw));
+			[~, obj.yawIndex] = min(abs(obj.hDataCube.yawBins - inputYaw));
 		end
 	end
 
