@@ -55,7 +55,7 @@ In such systems, speed can be determined using the Doppler effect as
   v = \frac{f_\mathrm{dop} c_o}{2f_\mathrm{rad}},
   \label{eq:dopler}
 \end{equation}
-where $f_\mathrm{dop}$ is doppler frequency, $c_o$ is speed of light and $f_\mathrm{rad}$ is frequency of the radar signal.
+where $f_\mathrm{dop}$ is Doppler frequency, $c_o$ is speed of light and $f_\mathrm{rad}$ is frequency of the radar signal.
 Distance is derived from the time of flight $t$ of the signal as
 \begin{equation}
   d = \frac{c_o \cdot t}{2}.
@@ -239,10 +239,10 @@ where $\varphi_0$ is a phase shift given by the initial distance to the target.
 Its clear that first element describes predominantly the distance to the target and the second one the speed of the target.
 We can also see that speed will not affect a beat frequency in a single spectrum but will lead to a phase shift across multiple spectrums.
 
-In order to calculate doppler shift frequency
+In order to calculate Doppler shift frequency
 \begin{equation}
   f_\mathrm{d} = \frac{2f_\mathrm{c}v}{c_0},
-  \label{eq:doppler2}
+  \label{eq:Doppler2}
 \end{equation}
 where $f_c$ is the center frequency, 2D Fourier transform can be used.
 At first FFT is run on each individual chirps and then another FFT is applied to these individual outputs in order ot determine phase shift.
@@ -252,7 +252,7 @@ This will lead to a so called range-Doppler map which on one axis contains infor
 Speed resolution is derived from a number of chirps $N$ we are analyzing and their length $T_{\mathrm{ch}}$ as
 \begin{equation}
   \Delta v = \frac{c_0}{2f_c} \frac{1}{NT_{\mathrm{ch}}}.
-  \label{eq:doppler3}
+  \label{eq:Doppler3}
 \end{equation}
 Maximal speed is dictated by how large of a phase shift can we measure without ambiguity -- that is $\pm \pi$.
 From (\ref{eq:fb2}) we can see formulate the upper limit as
@@ -341,7 +341,7 @@ Per radars manual \cite{sidarPRO} following equation was used to calculate width
 \end{equation}
 where variable $N$ denotes number of samples and $NFFT$ number of DFT points used to calculate the spectrum.
 Except the corrective constant of 85 it closely follows the formula (\ref{eq:distance3}).
-As for velocity the manufacturer doesn't recommend any formula so (\ref{eq:doppler3}) was used with $T_\mathrm{ch}$ substituted by user-chosen trigger period.
+As for velocity the manufacturer doesn't recommend any formula so (\ref{eq:Doppler3}) was used with $T_\mathrm{ch}$ substituted by user-chosen trigger period.
 However as the minimal period of chirps is still rather high not to mention the radar doesn't maintain constant intervals between chirps, the velocity measurement is not very practical.
 Were we to use 24~GHz header with 25~ms trigger we get maximal speed of 0.124~m/s and even with low 8 NFFT steps the resolution is only $0.031$~ms$^{-1}$.
 
@@ -361,7 +361,7 @@ Even with irregular chirp intervals rough speed estimation can still be done.
 As deviation isn't that large the error of using standard FFT should still be within acceptable limits.
 If not there is the possibility of easily swapping to non uniform DFT and basing chirp intervals in reporting intervals.
 For any speed estimation to be possible however the number of ramps withing a group must be fixed at one.
-As any averaging would destroy information about doppler shift.
+As any averaging would destroy information about Doppler shift.
 
 Another parameter to consider in relation to rotary application is AGC.
 Using it adds two additional ramps that are used solely to set gain value but it also can lead to inconsistent weights of values between two neighboring data sets.
@@ -859,15 +859,16 @@ This event allows rest of the code to delete stored data and start gathering new
 Given that the radar's output is displayed in the main window there isn't any specialized interface dedicated just to the radar.
 Still in preferences menu (figure \ref{fig:preferences}) there are some paramters that can be configured.
 
-Radar frequency toggles between 24~GHz and 122~GHz header, this need to be done in conjunction with reflashing of the radar's firmware.
-After base frequency radar bandwidth can also be configred, both positive and negative values are accepted however manual verification is required to verify that radar is working as expected.
-While manufacturer statesd 3~GHz limit on the 24~GHz header and 5~GHz on the 122~GHz header \cite{sidarPRO}, in practice, especially with the 24~GHz header, achievable bandwidth was usually much lower.
+\texttt{Radar frequency} toggle chooses between 24~GHz and 122~GHz header.
+However this only affect configuration sent to the radar, it doesn't reflash the firmware what is also necessary to do.
+After base frequency \texttt{Radar bandwidth} can also be configred, both positive and negative values are accepted however manual verification is required to verify that the radar is working as expected.
+While manufacturer states a 3~GHz limit on the 24~GHz header and 5~GHz on the 122~GHz header \cite{sidarPRO}, in practice, especially with the 24~GHz header, achievable bandwidth was usually much lower.
 
-User can also configure the number of samples per chirp and ADC sampling rate -- based on these two paramters influence time of a single ramp which is calcualted with equation \ref{eq:sampling}.
+User can also configure the number of samples per chirp via \texttt{Chirp samples} and ADC rate with \texttt{ADC ClkDiv}.
+These two paramters determine time of a single ramp which is calcualted with equation \ref{eq:sampling}.
 Together with gain, ramp time plays a crutial role in maintaining correct signal to noise ratio.
-However as with other things manual confirmation of the settings is required for any given configuration.
 
-Last paramters is trigger period which dictates how often will computer send a trigger to the radar to start the next chirp.
+Last paramters is \texttt{Trigger period} which dictates how often will the application send a trigger command to the radar.
 As previously stated the radar is at best capable of around 50~Hz update rate or 20~ms per chirp with slightly more stable performace at some 22~ms.
 
 
@@ -879,9 +880,9 @@ These two streams are then paired together based on timestamps logged when a dat
 Processing than does user chosen calculations -- parts such as CFAR calculation, speed calculation and so on can be turned on or off.
 Output data are then stored in radar cube, common method to manage radar's data that enables easy integration of more complex algorithms in the future \cite{richards2022}.
 
-Given that both CFAR and raw data (That is individual range-doppler maps.) calculation might need to be stored application has two cubes.
-One is a 4D structure with dimensions of fast time $\times$ slow time $\times$ yaw $\times$ pitch, used to store complete range-doppler map for each spatial degree.
-In this thesis this structure is only used for visualizing of raw data for given fixed pitch angle or showing range-doppler map for given yaw and pitch.
+Given that both CFAR and raw data (That is individual range-Doppler maps.) calculation might need to be stored application has two cubes.
+One is a 4D structure with dimensions of fast time $\times$ slow time $\times$ yaw $\times$ pitch, used to store complete range-Doppler map for each spatial degree.
+In this thesis this structure is only used for visualizing of raw data for given fixed pitch angle or showing range-Doppler map for given yaw and pitch.
 Any 3D visualization style of the raw data would be too cluttered and hard to interpret.
 Second cube is a 3D structure with dimensions of range $\times$ yaw $\times$ pitch, this one is used to store CFAR output.
 
@@ -915,12 +916,17 @@ Basic workflow of this step is showned on figure \ref{fig:radar_flow}.
 Action starts as soon as MATLAB detects line terminator within incoming data stream.
 After whole frame from the radar is read, the data are timestamped and I and Q channels buffered.
 Observer \texttt{dataProcessor.m} is then notified and left to  retrieves the data when main thread is free.
-After retrieval basic 1D FFT is run on windowed data (Hamming window is used.) and the result is again buffered.
-This steps leaves us with mutliple timestamp FFT spectrums -- allowing us to calculate range-doppler map.
 
-Program then verifies if the platform has moved (Unless user disabled this check.).
+
+After retrieval inphase and quadrature channels are merged to for an complex singla which is multiplied by Hamming window.
+Basic 1D FFT is then calculated with $NFFT$ equal to \texttt{Range NFFT}, in case fft order is larger than the number of samples zero padding is added.
+Resulting spectrum is again buffered, as spectrums will be subjected to futher processing they are kept in original complex form.
+Following this step program has multiple FFT spectrums computed -- those can be leveraged to enable range-Doppler map computation.
+
+Program then verifies if the platform has moved.
 This check enables to save processing resources by not computing R-D map that would be immediately rewritten.
-Afte the check chirps and their platform position data are retrieved and further processing is launched in a parallel thread.
+After movement code than takes all spectrums (Except the last one when platform changed position.) and launches another processing step in a separate thread.
+In case user wishes for procesisng to always take place (e.g. they are verifying radar settings when platform is static) this check can be skipped by toggeling \texttt{Require pos change}.
 
 
 
@@ -976,8 +982,8 @@ Afte the check chirps and their platform position data are retrieved and further
 
 \section{Data processing}
 
-Outline of the processing flow is shown in figure \ref{fig:feature_flow}.
-This whole step is done in a separate thread, launched after latest chirp spectrum is buffered.
+This parallel process takes calculated FFT spectrums and their accompanying positions and processes them into single range-Doppler map and CFAR array .
+Basic outline of the processing flow is shown in figure \ref{fig:feature_flow}.
 
 \begin{figure}[h!]
   \centering
@@ -996,7 +1002,7 @@ This whole step is done in a separate thread, launched after latest chirp spectr
 
 
     % Speed branch
-    \node (mock) [process, below left=1.5cm and -0.4cm of speed_decision, align=center] {Mock R-G\\ map};
+    \node (mock) [process, below left=1.5cm and -0.4cm of speed_decision, align=center] {Use last chirp\\ RCS array};
     \node (fft) [process, below right=1.5cm and -0.4cm of speed_decision, align=center] {2DFFT/\\NUFFT};
 
     % Connections
@@ -1017,26 +1023,29 @@ This whole step is done in a separate thread, launched after latest chirp spectr
   \label{fig:feature_flow}
 \end{figure}
 
-Parallel process takes calculated FFT spectrums and their accompanying positions and processes them into single range-doppler map and CFAR array.
 In the first step last spectrum is converted to values proportional to the radar cross section (RCS) of the target.
 Starting with equation \ref{eq:radar_eq} we can see that the target's RCS is proportional to the received power divided by fourth power of the distance to the target.
 Range can be calculated from manufacturer's equation \ref{eq:rangeBin} and power is proportional to the square of values reported from the radar.
 Given that constants of the radar equation changed based on configuration calibration would be required in ordet to get real RCS values.
 However this calibration is not supported and thus onwards when refering to RCS we will be refering to the values proportional to the RCS and not real RCS of the object.
 
-After RCS conversion based on user preferences CFAR can be calculated.
+After RCS conversion if \texttt{Calc CFAR} is enabled CFAR will be runned on latest chirp in the batch.
 CFAR is a simple algorithm that enables basic target detection in the radar data.
-This is done by comparing value at given range bin againts average values accross it's neighborhood, that separated by bin under test by a number of guard bins \cite{richards2022}.
+This is done using adaptive thresholding when value at each bit is compared againts mean of values in its neighborhood which is separated from bin under test by a number of guard cells \cite{richards2022}.
+Algorithm than simply detects if compared to its surrounding there is a peak in the data suggesting a targer is there.
 In this application simple 1D CFAR from MATLAB's Phased Array System Toolbox is used which parametrized with two variables -- number of guard bins (Those are excluded from the average and are right next to bin we are testing.) and number of training bins (Those are used to calculate the average.) \cite{matlab_cfar}.
-As already stated due wide varriation in bin widths for different bandwidth both paramters are left to be configured to the user.
+Both these paramters are configurable from preferences menu with \texttt{CFAR training} and \texttt{CFAR guard}.
+As already stated, due wide varriation in bin widths for different bandwidth both paramters are left to be configured to the user.
 
-If raw data calculation is enabled the program takes one of two paths depending on whether speed calculation is toggled on or off.
+If raw data calculation is enabled (Using \texttt{Calc raw cube} toggle.) the program takes one of two paths depending on whether speed calculation is toggled on or off with \texttt{Calc speed}.
 In case speed calculation is disabled the program just returns half of the original spectrum converted to RCS.
+
 When speed calculation is on program firstly cuts of samples that are too far away from position of the latest chirp.
 After that timing of chirps is also analyzed choosing wheter NUFFT or 2DFFT transformation should be used.
-Decision which transformation to use is based solely on the ratio of maximal deviation of the chirp intervals to the median of the chirp intervals, .
+Decision which transformation to use is based solely on the ratio of maximal deviation of the chirp intervals to the median of the chirp intervals -- if this ration is over 20~\% NUFFT is used.
 For more accurate measurement more complex method should have been used but as the radar timing data is not very precise not to mention radar can track only very slow moving objects, this method was deemed sufficient.
-For simmilar resasons no correction for the rotation of the platform is done.
+For simmilar resasons no correction for the rotation of the platform is done and the threshold for distance isn't user configurable.
+Output range-Doppler map is then shifted in order to get 2D array with \texttt{Range NFFT} $\times$ \texttt{Speed NFFT} number of elements with speed going from $-\frac{\text{Speed NFFT}}{2}\cdot w $ to  $\left(\frac{\text{Speed NFFT}}{2}-1\right)\cdot w $, where $w$ is speed bin widht calcualted with (\ref{eq:Doppler3}).
 
 
 \section{Cube update}
@@ -1047,7 +1056,7 @@ Upon filling the buffer they switch roles and cube update routine is launched.
 
 As matlab processes do not share same memory space by default in order not to have redundant copies of cube matlab's memory mapping is used.
 Using function \texttt{memmapfile} the cube is mapped to a file on the disk which can be shared between two processes \cite{matlab_memory}.
-This approach might lead to some performance degradation if the cube is too large and cannot be held in RAM but in testing it was found that for cubes of size 512MB (roughly cube for range doppler map of 256 $\times$ 16 ) the program was still able to keep up with the radar.
+This approach might lead to some performance degradation if the cube is too large and cannot be held in RAM but in testing it was found that for cubes of size 512MB (roughly cube for range-Doppler map of 256 $\times$ 16 ) the program was still able to keep up with the radar.
 
 
 \begin{figure}[h!]
@@ -1109,7 +1118,7 @@ However user needs to keep in mind that color changes doesn't mean a change in R
 If change of value would be undesirable behaviour decay can be turned off in the settings in favour of hard reset of the cube based on trigger on specified yaw position.
 
 Enabling spread pattern leads to degradation of quality of the data in exchange for better visualization quality -- especially in range-azimuth visualization style.
-Instead of adding new data just to one position in the cube the range-doppler map is spread over a larger area with a aid of 2D matrix, containg a 2D Gaussian function.
+Instead of adding new data just to one position in the cube the range-Doppler map is spread over a larger area with a aid of 2D matrix, containg a 2D Gaussian function.
 As the data in series are usually close to each other in terms of position instead of directly adding these contributions to the full cube much smaller cube is created that covers only the area needed for the batch.
 This enables significant speedup as smaller memory size enables better cacheing.
 After each update is aggregated to the subcube the original cube is update in one go.
@@ -1127,7 +1136,7 @@ However the application offers a number of different visualization styles to sui
 
 \begin{enumerate}
 	\item Range-Azimuth: Polar plot with range on the radius and azimuth on the angle.
-	\item Range-Doppler: Classical xy plot with range on x axis and doppler on y axis, if speed is not calculated the y axis is replaced with RCS value.
+	\item Range-Doppler: Classical xy plot with range on x axis and Doppler on y axis, if speed is not calculated the y axis is replaced with RCS value.
 	\item Target-3D: CFAR data are displayed in 3D cartesian space
 \end{enumerate}
 
