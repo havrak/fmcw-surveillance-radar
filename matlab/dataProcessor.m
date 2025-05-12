@@ -46,6 +46,37 @@ classdef dataProcessor < handle
 
 	methods(Static, Access=public)
 
+		function D = polarEuclidDistance(X, Y)
+			% polarEuclidDistance: calculate euclidean distance of two points specified
+			% by their polar coordinates
+			%
+			% Inputs:
+			%   X ... point X position [range, yaw, pitch]
+			%   Y ... point Y position [range, yaw, pitch]
+			% Outputs:
+			%   D ... distance
+			Xrange = X(:,1);
+			Xyaw = X(:,2);
+			Xpitch = X(:,3);
+
+			Yrange = Y(:,1);
+			Yyaw = Y(:,2);
+			Ypitch = Y(:,3);
+
+			Xx = Xrange .* cosd(Xpitch) .* cosd(Xyaw); % I don't need to do the 90-Xyaw here
+			Xy = Xrange .* cosd(Xpitch) .* sind(Xyaw);
+			Xz = Xrange .* sind(Xpitch);
+
+			Yx = Yrange .* cosd(Ypitch) .* cosd(Yyaw);
+			Yy = Yrange .* cosd(Ypitch) .* sind(Yyaw);
+			Yz = Yrange .* sind(Ypitch);
+
+			D = sqrt(...
+				(Xx - Yx.').^2 + ...
+				(Xy - Yy.').^2 + ...
+				(Xz - Yz.').^2 ...
+				);
+		end
 		function [yaw, pitch, cfar, rangeDoppler, speed] = ...
 				processBatch(batchRangeFFTs, batchTimes, posTimes, posYaw, posPitch, processingParameters)
 			% processBatch: Processes FFT batch into CFAR detections and Range-Doppler maps
@@ -202,39 +233,50 @@ classdef dataProcessor < handle
 			% Function is called by radarDataCube's updateFinished event
 
 			if strcmp(obj.currentVisualizationStyle,'Range-Azimuth')
-				fprintf("dataProcessor | updateFinished | drawing r-a map\n");
 
 				if obj.processingParameters.calcRaw && obj.processingParameters.calcCFAR
+					fprintf("dataProcessor | updateFinished | Range-Azimuth | RAW + CFAR\n");
 					data = sum(obj.hDataCube.rawCube, 2);
 					toDraw = squeeze(data(:, 1, :, obj.pitchIndex));
 					cfarData = squeeze(obj.hDataCube.cfarCube(:, :, obj.pitchIndex));
-					toDraw = toDraw+cfarData.*max(toDraw);
+					cfarData(cfarData > obj.cfarDrawThreshold) = max(toDraw); % give cfar data distinct value
+					toDraw = toDraw+cfarData;
+
 				elseif obj.processingParameters.calcRaw
+					fprintf("dataProcessor | updateFinished | Range-Azimuth | RAW\n");
 					data = sum(obj.hDataCube.rawCube, 2);
 					toDraw = squeeze(data(:, 1, :, obj.pitchIndex));
 				elseif obj.processingParameters.calcCFAR
+					fprintf("dataProcessor | updateFinished | Range-Azimuth | CFAR\n");
 					toDraw = squeeze(obj.hDataCube.cfarCube(:, :, obj.pitchIndex));
+					toDraw(toDraw < obj.cfarDrawThreshold) = 0;
 				else
+					fprintf("dataProcessor | updateFinished | Range-Azimuth | NO DATA\n");
 					toDraw = zeros(obj.hDataCube.rawCubeSize([1 3]));
 				end
 
 				obj.hSurf.CData = toDraw;
 			elseif strcmp(obj.currentVisualizationStyle, 'Target-3D')
-				fprintf("dataProcessor | updateFinished | updating 3D plot\n");
-				if obj.processingParameters.dbscanEnable == 1
-					idx = find(obj.hDataCube.cfarCube >= obj.cfarDrawThreshold);
-					[rangeBin, yawBin, pitchBin] = ind2sub(size(obj.hDataCube.cfarCube), idx);
-					range = (rangeBin - 1) * obj.processingParameters.rangeBinWidth;
-					yaw = obj.hDataCube.yawBins(yawBin);
-					pitch = obj.hDataCube.pitchBins(pitchBin);
+				
+				idx = find(obj.hDataCube.cfarCube >= obj.cfarDrawThreshold);
+				[rangeBin, yawBin, pitchBin] = ind2sub(size(obj.hDataCube.cfarCube), idx);
+				range = (rangeBin - 1) * obj.processingParameters.rangeBinWidth;
+				yaw = obj.hDataCube.yawBins(yawBin);
+				pitch = obj.hDataCube.pitchBins(pitchBin);
 
+				if isempty(rangeBin)
+					fprintf("dataProcessor | updateFinished | updating 3D plot | no data\n");
+					set(obj.hScatter3D, 'XData', [], 'YData', [], 'ZData', []);
+				elseif obj.processingParameters.dbscanEnable == 1
+
+					fprintf("dataProcessor | updateFinished | updating 3D plot | DBSCAN\n");
 					normalizedRange = range' / obj.processingParameters.dbscanRangeT;
 					normalizedYaw = yaw / obj.processingParameters.dbscanAngleT;
 					normalizedPitch = pitch / obj.processingParameters.dbscanAngleT;
 
 					epsilon = 1.0;   % Points must be within 1 normalized unit in ALL dimensions
 					points_scaled = [normalizedRange, normalizedYaw, normalizedPitch];
-					labels = dbscan(points_scaled, epsilon, obj.processingParameters.dbscanMinDetections, 'Distance', 'chebychev');
+					labels = dbscan(points_scaled, epsilon, obj.processingParameters.dbscanMinDetections, 'Distance', @(X,Y) polarToCartDistance(X, Y));
 
 					validLabels = labels(labels ~= -1); % remove garbage
 					validPoints = points_scaled(labels ~= -1, :);
@@ -249,32 +291,21 @@ classdef dataProcessor < handle
 
 					set(obj.hScatter3D, 'XData', X, 'YData', Y, 'ZData', Z, 'CData', validLabels);
 				else
-					idx = find(obj.hDataCube.cfarCube >= obj.cfarDrawThreshold);
-					[rangeBin, yawBin, pitchBin] = ind2sub(size(obj.hDataCube.cfarCube), idx);
-
-					if ~isempty(rangeBin)
-						range = (rangeBin - 1) * obj.processingParameters.rangeBinWidth;
-						yaw = obj.hDataCube.yawBins(yawBin);
-						pitch = obj.hDataCube.pitchBins(pitchBin);
-						X = range' .* cosd(pitch) .* cosd(-yaw+90);
-						Y = range' .* cosd(pitch) .* sind(-yaw+90);
-						Z = range' .* sind(pitch);
-						% fprintf("dataProcessor | updateFinished | X:%d, Y:%d, Z%d. limX = [%d, %d], limY = [%d, %d], limZ = [%d, %d]\n", ...
-						%		length(X), length(Y), length(Z), ...
-						%		min(X), max(X), ...
-						%		min(Y), max(Y), ...
-						%		min(Z), max(Z));
-						%set(obj.hScatter3D, 'XData', [0, 1], 'YData', [0, 1], 'ZData', [0,1], 'CData', [0,-Inf]);
-
-						set(obj.hScatter3D, 'XData', X, 'YData', Y, 'ZData', Z, 'CData', obj.hDataCube.cfarCube(idx));
-
-					else
-						set(obj.hScatter3D, 'XData', [], 'YData', [], 'ZData', []);
-					end
+					fprintf("dataProcessor | updateFinished | updating 3D plot | CFAR\n");
+					X = range' .* cosd(pitch) .* cosd(-yaw+90);
+					Y = range' .* cosd(pitch) .* sind(-yaw+90);
+					Z = range' .* sind(pitch);
+					% fprintf("dataProcessor | updateFinished | X:%d, Y:%d, Z%d. limX = [%d, %d], limY = [%d, %d], limZ = [%d, %d]\n", ...
+					%		length(X), length(Y), length(Z), ...
+					%		min(X), max(X), ...
+					%		min(Y), max(Y), ...
+					%		min(Z), max(Z));
+					%set(obj.hScatter3D, 'XData', [0, 1], 'YData', [0, 1], 'ZData', [0,1], 'CData', [0,-Inf]);
+					set(obj.hScatter3D, 'XData', X, 'YData', Y, 'ZData', Z, 'CData', obj.hDataCube.cfarCube(idx));
 				end
 			elseif strcmp(obj.currentVisualizationStyle, 'Range-Doppler')
 				if obj.processingParameters.calcSpeed == 1
-					fprintf("Updating Range-Doppler Map\n");
+					fprintf(dataProcessor | updateFinished | "Updating Range-Doppler Map\n");
 					data = squeeze(obj.hDataCube.rawCube(:, :, obj.yawIndex, obj.pitchIndex));
 
 					set(obj.hImage, 'CData', data');
@@ -415,13 +446,13 @@ classdef dataProcessor < handle
 
 
 				% [ yaw, pitch, cfar, rangeDoppler, speed] = dataProcessor.processBatch( ...
-				%		batchRangeFFTs,  ...
-				%		batchTimes, ...
-				%		posTimes, ...
-				%		yaw, ...
-				%		pitch, ...
-				%		obj.processingParameters);
-				%
+				% 		batchRangeFFTs,  ...
+				% 		batchTimes, ...
+				% 		posTimes, ...
+				% 		yaw, ...
+				% 		pitch, ...
+				% 		obj.processingParameters);
+				% 
 				% obj.mergeResults(yaw, pitch, cfar, rangeDoppler, speed);
 
 				fprintf("dataProcessor | onNewDataAvailable | processing: yaw: %f, pitch %f\n", yaw(end), pitch(end));
@@ -508,8 +539,15 @@ classdef dataProcessor < handle
 			view(obj.hAxes, 2);
 			axis(obj.hAxes, 'equal', 'off');
 			colormap(obj.hAxes, 'abyss');
-
-			title(obj.hAxes, 'Azimuth-Range Polar Map');
+			if obj.processingParameters.calcRaw && obj.processingParameters.calcCFAR
+				title(obj.hAxes, 'Azimuth-Range Polar Map (RAW+CFAR)');
+			elseif obj.processingParameters.calcRaw
+				title(obj.hAxes, 'Azimuth-Range Polar Map (RAW)');
+			elseif obj.processingParameters.calcCFAR
+				title(obj.hAxes, 'Azimuth-Range Polar Map (CFAR)');
+			else
+				title(obj.hAxes, 'Azimuth-Range Polar Map (NO DATA)');
+			end
 
 			obj.hEditPitch = uicontrol(obj.hPanel, ...
 				'Style', 'edit', ...
@@ -524,7 +562,7 @@ classdef dataProcessor < handle
 			axis(obj.hAxes, 'equal'); % otherwise circle wont be much of an circle
 			hold(obj.hAxes, 'on');
 
-			
+
 			circleRadii = linspace(0, obj.processingParameters.rangeNFFT/2, 6);
 
 			markerColor = [0.9 0.9 0.9];
@@ -590,7 +628,7 @@ classdef dataProcessor < handle
 			hold(obj.hAxes, 'off');
 
 			if obj.processingParameters.dbscanEnable == 1
-				title(obj.hAxes, '3D Target Visualization, DBScan');
+				title(obj.hAxes, '3D Target Visualization (DBSCAN)');
 			else
 				title(obj.hAxes, '3D Target Visualization');
 			end
@@ -640,7 +678,11 @@ classdef dataProcessor < handle
 					initialData);
 
 				%obj.hAxes.YAxis.Exponent = 3;
-				title(obj.hAxes, 'Range-Doppler Map');
+				if obj.processingParameters.calcRaw
+					title(obj.hAxes, 'Range-Doppler Map');
+				else
+					title(obj.hAxes, 'Range-Doppler Map (NO DATA)');
+				end
 				xlabel(obj.hAxes, 'Range [m]');
 				ylabel(obj.hAxes, 'Speed [mm/s]');
 				colormap(obj.hAxes, 'jet');
@@ -650,7 +692,12 @@ classdef dataProcessor < handle
 				initialData = zeros(length(rangeBins));  % Row vector for initial YData
 
 				obj.hPlot = plot(obj.hAxes, rangeBins, initialData);
-				title(obj.hAxes, 'Range-RCS Map');
+
+				if obj.processingParameters.calcRaw
+					title(obj.hAxes, 'Range-RCS Map');
+				else
+					title(obj.hAxes, 'Range-Doppler Map (NO DATA)');
+				end
 				xlabel(obj.hAxes, 'Range [m]');
 				ylabel(obj.hAxes, '~RCS');
 				obj.hAxes.YDir = 'normal';  % Ensure y-axis is not reversed
@@ -724,9 +771,9 @@ classdef dataProcessor < handle
 					type = "RR";
 				end
 			end
-
-			if ~exist('images', 'dir')
-				mkdir('images')
+			pathDir = fullfile(pwd,+'images');
+			if ~exist(pathDir, 'file')
+				mkdir(pathDir);
 			end
 
 			exportgraphics(obj.hAxes, fullfile("images", type+string(datetime('now','Format','d_M_HH:mm:ss'))+".jpg"));

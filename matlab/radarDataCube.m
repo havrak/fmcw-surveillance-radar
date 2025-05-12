@@ -329,8 +329,9 @@ classdef radarDataCube < handle
 				obj.requestToZero = false;
 				obj.zeroCubes();
 			end
-			notify(obj, 'updateFinished');
+
 			fprintf("radarDataCube | updateFinished\n");
+			notify(obj, 'updateFinished');
 		end
 
 		function generateSpreadPattern(obj, spreadPatternYaw, spreadPatternPitch)

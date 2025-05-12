@@ -117,7 +117,7 @@ classdef preferences < handle
 			obj.configStruct.processing.spreadPatternYaw=7;
 			obj.configStruct.processing.spreadPatternPitch=14;
 			obj.configStruct.processing.batchSize = 6;
-			
+
 			obj.configStruct.processing.dbscanMinDetections = 0;
 			obj.configStruct.processing.dbscanEnable = 1;
 			obj.configStruct.processing.dbscanRangeT = 0.05;
@@ -358,7 +358,7 @@ classdef preferences < handle
 			% Output:
 			%   binWidth ... Numeric bin width in meters
 			binWidth = physconst('LightSpeed')*(obj.configStruct.radar.samples+85) ...
-				/(2*obj.configStruct.radar.bandwidth*1e6*obj.configStruct.processing.rangeNFFT);
+				/(2*abs(obj.configStruct.radar.bandwidth)*1e6*obj.configStruct.processing.rangeNFFT);
 		end
 
 
@@ -1257,7 +1257,7 @@ classdef preferences < handle
 			if (isnan(tmp) || tmp < 0)
 				warndlg('DB scan rangle threshold must be a positive number');
 			else
-				obj.configStruct.processing.dbscanRangeT=floor(tmp);
+				obj.configStruct.processing.dbscanRangeT=tmp;
 			end
 
 			tmp = str2double(get(obj.hEditProDBSCANMinDetections, 'String'));

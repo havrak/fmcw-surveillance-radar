@@ -327,9 +327,11 @@ However from time to time they were outlier when report came in only after 30~ms
 In order to rule out that the problem isn't only in reporting output signal from the radar was captured by Rohde \& Schwarz FSW26 Signal and Spectrum Analyzer.
 By analyzing some 40 samples, measured with same triggering interval of 20~ms, the average time between chirps was 20.7~ms with standard deviation of 0.7876~ms.
 
-Unfortunately radar doesn't maintain constant intervals between chirps which severely limits accuracy of speed measurement.
-In addition trying to establish relation between when a chirp was broadcasted and when data were received would be quite challenging.
-Thus all processing estimates that chirp was broadcasted shortly after last data were received.
+Unfortunately as the radar doesn't maintain constant intervals between chirps speed measurement precision is severely limited.
+This could be partially mitigated if we knew when the chirp was broadcasted, giving us ability to introduce a correction.
+However no such information is provided by the radar.
+Thus each chip is timestamp with it's time of arrival which is assumed to be the time of chirp broadcast.
+Respectively broadcast took time a trigger period before but this shift is irrelevant to the outcome.
 
 Per radars manual \cite{sidarPRO} following equation was used to calculate width of a single range bin
 \begin{equation}
@@ -783,12 +785,15 @@ Preferences are hidden behind the paper icon, platform control interface behind 
 
 As this thesis concerns itself with rather generic implementation of surveillance radar system the application is designed to be as flexible as possible.
 For this purpose GUI menu was designed to enable configuration of all elements - from settings of the platform, through radar settings to the visualization/processing of the data.
-Concrete meaning of different settings will be outlined in the following sections.
+However it is necessary to point out that user is required to have some knowledge radar data processing in order to achieve suitable results for given application.
+Firstly limits GUI impose are more guided by mathematical requirements than what is actually practical.
+Secondly configuration of components such a CFAR or DBSCAN strongly  depended on bandwidth used (by extension width of a single range bin) among other things.
+CFAR guard parameter of 3 might be small on 5~GHz bandwidth where width of single range bin is only 50~mm, but if used on 24~GHz header with $BW=500$~MHz where range bin is 50~cm it could be way too large.
 
 Picture \ref{fig:preferences} shows the preferences menu accessible from the main window of the application via the topbar.
 There are four main sections.
 First configures serial port connection to the radar and platform.
-Second handles configuration of the platform followed by section for radar settings, which is sent to the radar.
+Second handles configuration of the platform and is followed by a section designated for radar configuration.
 Last section configures how the data are processed and via which method they are visualized.
 
 \begin{figure}[h!]
@@ -800,6 +805,7 @@ Last section configures how the data are processed and via which method they are
 
 User's preferences are stored in a INI file format in directory depending on the operating system.
 In Windows location of \texttt{\%APPDATA\%/Local/fmcw/fmcw.conf} is used while on Linux it is \texttt{\$HOME/.config/fmcw/fmcw.conf}.
+As this format is easily human readable and editable it is possible to edit the file directly.
 
 
 \section{Platform Control Interface}
@@ -846,15 +852,20 @@ This event is used to request zeroing of the radar cube.
 
 \section{Radar configuration}
 
-Given that radar output is displayed in the main window there isn't any specialized interface for communication with the radar.
+Given that radar output is displayed in the main window there isn't any specialized interface dedicated to radar functions.
 Still in preferences menu (figure \ref{fig:preferences}) there are some paramters that can be configured.
-Radar frequency toggles between 24~GHz and 122~GHz header, though it is neccesary to not that in order to change the header the radar must have it's firmware reflashed with corresponding version.
+
+Radar frequency toggles between 24~GHz and 122~GHz header.
+However change of base frequency required reflashing the radar with different firmare.
+After base frequency radar bandwidth can also be configred, both positive and negative values are accepted however manual verification is required to verify that radar is working as expected.
+While manufacturer statesd 3~GHz limit on the 24~GHz header and 5~GHz on the 122~GHz header \cite{sidarPRO}, in practice especially with the 24~GHz radar achievable bandwidth was usually much lower.
 
 User can also configure the number of samples per chirp and ADC sampling rate -- based on these two paramters time of ramp is calcualted from equation \ref{eq:sampling}.
-Another paramters that are sent to the radar are radar's bandwidth and amplifier gain settings.
+Together with gain ramp time plays a crutial role in securing correct signal to noise ratio.
+However as with other things manual confirmation of the settings is required for any given configuration.
 
-Last paramters is trigger period which dictates how often will computer send trigger to the radar to start the next chirp.
-As previously stated the radar is at best capable of around 50~Hz update rate or 20ms per chirp.
+Last paramters is trigger period which dictates how often will computer send a trigger to the radar to start the next chirp.
+As previously stated the radar is at best capable of around 50~Hz update rate or 20~ms per chirp.
 
 
 \chapter{Radar Data Processing}
@@ -868,19 +879,22 @@ Output data is stored in radar cube, common method to store radar's data that en
 As application can calculate both CFAR or keep raw data there are two cubes used.
 One is 4D structure with dimensions of fast time $\times$ slow time $\times$ yaw $\times$ pitch, this stores complete range doppler map for each spatial degree.
 In this thesis this structure is only used for visualizing of raw data for given fixed pitch angle or showing range doppler map for given yaw and pitch.
-Any more complex visualization styles would be too cluttered and hard to interpret.
+Any 3D visualization styles would be too cluttered and hard to interpret.
 Second cube is 3D structure with dimensions of range $\times$ yaw $\times$ pitch, this one is used to store CFAR output.
 Yaw resolution is 1 degree thus the cube is 360 degrees wide.
 As for pitch same resolution was kept with angles form -20 degress to +80 degress being covered.
-Lower bound is limited by the radar's mounting bracket and upper bound is more or less arbitrary.
+Lower bound is limited by the radar's mounting bracket and upper bound is more or less arbitrary, slightly guided by attempt to perevent radar from seeing behind itself.
 
 Main complicating factor with the radar data processing was the need to keep main thread responsive.
 Most time critical aspect of this thread is timely reading of incoming serial data, be it from platform or radar.
-If data can't be read in time attributed timestamps will be incorrect and visualization will be wrong.
+If data can't be read right after arrival assigned timestamps will be incorrect and visualization will be wrong.
 In addition GUI starts to be quite unresponsive if the resources of main thread are stretched too thin.
 
 To solve this problem processing heavily leverages MATLAB's parallel computing toolbox, offloading as much as possible to different cores.
 Through whole processing pipeline there are mechanism of buffering data into larger batches and if needed discarding some in case software is unable to keep up with incoming data.
+Unfortunately as MATLAB's parallelization capabilities with threads are rather limited with external language interface or certain file/memory mapping functions missing \cite{matlabParallel}, the parallelization is done with multiple processes.
+This restrict the application to machines with at least 16~GB of RAM as each process (of which there are three) requires around 2~GB of RAM.
+
 We can split processing into multiple distinct steps.
 \begin{enumerate}
   \item Data acquisition: Data are read, simple FFT is calculated and data are buffered into a circular buffer.
@@ -965,9 +979,10 @@ Given that constants of the radar equation changed based on user preference and 
 From onwards when refering to RCS we will be refering to the values proportional to the RCS and not real RCS of the object.
 
 Rest of the processing here is rather simple.
-Based on user preferences CFAR can be calculated, which enables basic target detection in the radar data \cite{richards2022}.
-As simple 1D version is used matlab's built in implementation as part of Phased Array System Toolbox is used \cite{matlab_cfar}.
-Given that cell can vary widely in width depending on chosen bandwidth both number of guard cells and the number of training cells are left to be configured by the user.
+Based on user preferences CFAR can be calculated, which enables basic target detection in the radar data by comparing value at given range bit againts average power accross it's neighborhood \cite{richards2022}.
+In this application simple 1D CFAR from MATLAB's Phased Array System Toolbox is used \cite{matlab_cfar}.
+Parametrization of it is handed via two variables -- number of guard bins (Those are excluded from the average and are right next to bin we are testing.) and number of training bins (Those are used to calculate the average.).
+As already stated due wide varriation in bin widths for different bandwidth both paramters are left to be configured to the user.
 
 If raw data is toggled to be calculated the program takes one of two paths depending on whether speed calculation is enabled or not.
 In case speed calculation is disabled the program just returns single half of the original spectrum converted to RCS.
@@ -1101,15 +1116,15 @@ With batch size of 6 and cube dimensions of $256 \times 16 \times 360 \times 81$
 
 After cube update finishes program returns to the main thread and the data are visualized to the user.
 Other than graphical access to the data is not possible.
-However the application offers a number of different visualization styles.
+However the application offers a number of different visualization styles that can be chosen from the preferences menu.
 
 \begin{enumerate}
-	\item Range-Azimuth map: Polar plot with range on the radius and azimuth on the angle.
-	\item Range-Doppler map / Range-RCS map: Classical xy plot with range on x axis and doppler on y axis, if speed is not calculated the y axis is replaced with RCS value.
+	\item Range-Azimuth: Polar plot with range on the radius and azimuth on the angle.
+	\item Range-Doppler: Classical xy plot with range on x axis and doppler on y axis, if speed is not calculated the y axis is replaced with RCS value.
 	\item Target-3D: CFAR data are displayed in 3D cartesian space
 \end{enumerate}
 
-\subsection{Range-Azimuth map}
+\subsection{Range-Azimuth}
 
 This visualization style is used to display the data in polar plot for fixed pitch angle.
 Which pitch angle is used is chosen via the small textbox at the bottom left corner of the screen.
@@ -1122,7 +1137,7 @@ To aid with orientation in a plot simple line markers are added to provide range
 It necessary to point out that as 24~Ghz header radiation pattern in pitch is rather large at relatively low angles the radar provides information about a larger area of the scene.
 And if the user wishes using the spread patterns allows to range-azimuth map to include data even from different pitch angles.
 
-\subsection{Range-Doppler map}
+\subsection{Range-Doppler}
 
 Picking this visualization style from the preferences menu will display the data in a classical xy plot for a fixed yaw and pitch angle.
 Just as with Range-Azimuth map both angles are configurable via the textboxes at the bottom of the screen.
@@ -1150,6 +1165,33 @@ As the devkit doesn't report much of a useful errors and its technical documenta
 
 On figure \ref{fig:rd_rr_map} we can see two different visualization styles both displaying the same static scene.
 As previously stated given rather poor sampling rate speed calculation is not very useful and thus no complex testing has taken.
+
+\subsection{Target-3D}
+
+This visualization style is used to display CFAR data in 3D cartesian space (Figure \ref{fig:vis3d}).
+Visualization method is rather simple with just positions being recalculated from the range, azimuth and pitch angles to x, y and z coordinates using trigonometric functions.
+In case decay is enabled then small threshold is used to remove points whose values was sufficiently regraded.
+If environment is too cluttered and CFAR generates too many points the user can enable basic clustering with matlab's built in DBSCAN function \cite{matlab_dbscan}.
+
+Gerneral idea of DBSCAN is that to a given point in the dataset distances to other points are calculated and compared with user defined threshold $\varepsilon$, in case sufficient number $N$ of points is found within the threshold the point is marked as a cluster centers \cite{Kellner2012}.
+In MATLAB's in algorithm distance threshold and minimal number of points are both configurable variables with other input being just the points list \cite{matlab_dbscan}.
+As original data are in polar coordinates system problem arises with calculating distances given that in such system distance between two points of given fixed yaw and pitch varies widely with range.
+Aside from that we also have significantly more points closer to the radar as space is much more densely scanned there compared to the far end of the range.
+Both these factors lead to problems with choosing both $N$ and $\varepsilon$ paramters.
+
+For accurate results these problems can be overcome using many different methods like using adaptive thresholds in relation to radium \cite{Kellner2012} or relying on more clever axis systems then just polar or cartesian \cite{Sun2024}.
+However as in this thesis as DBSCAN is more of an illustration of possible postprocessing that can be added to existing base no such complex methods were implemented.
+Paramter $\varepsilon$ of DBSCAN is always set to 1, instead user can configure scaling for range and angle individually.
+Number of points to for a cluster $N$ is also user configurable.
+Distance between points is calculated using standard euclidean formula after being converted to cartesian coordinates.
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=0.7\textwidth]{../img/vis_3d.jpg}
+	\caption[3D Space visualization method]{3D Space visualization method}
+	\label{fig:vis3d}
+\end{figure}
+
 
 \include{conclusion}
 
