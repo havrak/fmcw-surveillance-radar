@@ -53,7 +53,7 @@ classdef preferences < handle
 		hEditProResetYaw;            % Yaw position that will trigger cube zeroing callback
 		hSwitchProDBScanEnable;      % Enable DBScan
 		hEditProDBSCANRange;         % Normalization threshold in range for DBSCAN
-		hEditProDBSCANAngle;         % Normalization threshold in angle for DBSCAN
+		hEditProDBSCANEpsilon;         % Normalization threshold in angle for DBSCAN
 		hEditProDBSCANMinDetections;     % Minimal number of detections to form a cluster
 
 		% OTHER VARS %
@@ -120,8 +120,8 @@ classdef preferences < handle
 
 			obj.configStruct.processing.dbscanMinDetections = 0;
 			obj.configStruct.processing.dbscanEnable = 1;
-			obj.configStruct.processing.dbscanRangeT = 0.05;
-			obj.configStruct.processing.dbscanAngleT = 2;
+			obj.configStruct.processing.dbscanRange = 0.05;
+			obj.configStruct.processing.dbscanEpsilon = 2;
 
 			obj.configStruct.programs=[];
 
@@ -195,8 +195,8 @@ classdef preferences < handle
 			processingParameters.calcRaw  = obj.configStruct.processing.calcRaw;
 			processingParameters.requirePosChange = obj.configStruct.processing.requirePosChange;
 			processingParameters.dbscanEnable	= obj.configStruct.processing.dbscanEnable;
-			processingParameters.dbscanRangeT	= obj.configStruct.processing.dbscanRangeT;
-			processingParameters.dbscanAngleT = obj.configStruct.processing.dbscanAngleT;
+			processingParameters.dbscanRange	= obj.configStruct.processing.dbscanRange;
+			processingParameters.dbscanEpsilon = obj.configStruct.processing.dbscanEpsilon;
 			processingParameters.dbscanMinDetections =	obj.configStruct.processing.dbscanMinDetections;
 		end
 
@@ -818,9 +818,9 @@ classdef preferences < handle
 
 			uilabel(obj.hFig, ...
 				'Position', [20, figSize(2)-processingOffset-290, 170, 25], ...
-				'Text', 'DBScan angle [def]:');
+				'Text', 'DBScan epsilon:');
 
-			obj.hEditProDBSCANAngle  = uicontrol('Style', 'edit', ...
+			obj.hEditProDBSCANEpsilon  = uicontrol('Style', 'edit', ...
 				'Parent',obj.hFig,  ...
 				'Position', [150, figSize(2)-processingOffset-290, 140, 25], ...
 				'Max',1, ...
@@ -1030,8 +1030,8 @@ classdef preferences < handle
 			set(obj.hTextProBinWidthRange, 'String', bin);
 
 			set(obj.hEditProDBSCANMinDetections, 'String', obj.configStruct.processing.dbscanMinDetections);
-			set(obj.hEditProDBSCANAngle, 'String', obj.configStruct.processing.dbscanAngleT);
-			set(obj.hEditProDBSCANRange, 'String', obj.configStruct.processing.dbscanRangeT);
+			set(obj.hEditProDBSCANEpsilon, 'String', obj.configStruct.processing.dbscanEpsilon);
+			set(obj.hEditProDBSCANRange, 'String', obj.configStruct.processing.dbscanRange);
 			set(obj.hEditProCFARGuard, 'String', obj.configStruct.processing.cfarGuard);
 			set(obj.hEditProBatchSize, 'String', obj.configStruct.processing.batchSize);
 			set(obj.hEditProCFARGuard, 'String', obj.configStruct.processing.cfarGuard);
@@ -1245,25 +1245,25 @@ classdef preferences < handle
 				obj.configStruct.processing.batchSize=floor(tmp);
 			end
 
-			tmp = str2double(get(obj.hEditProDBSCANAngle, 'String'));
-			if (isnan(tmp) || tmp < 0 || tmp > 360)
-				warndlg('DB scan angle threshold must be between 0° and 360°');
+			tmp = str2double(get(obj.hEditProDBSCANEpsilon, 'String'));
+			if (isnan(tmp) || tmp < 0)
+				warndlg('DBSCAN epsilon must be a positive number');
 			else
-				obj.configStruct.processing.dbscanAngleT=floor(tmp);
+				obj.configStruct.processing.dbscanEpsilon=floor(tmp);
 			end
 
 			tmp = str2double(get(obj.hEditProDBSCANRange, 'String'));
 
 			if (isnan(tmp) || tmp < 0)
-				warndlg('DB scan rangle threshold must be a positive number');
+				warndlg('DBSCAN rangle threshold must be a positive number');
 			else
-				obj.configStruct.processing.dbscanRangeT=tmp;
+				obj.configStruct.processing.dbscanRange=tmp;
 			end
 
 			tmp = str2double(get(obj.hEditProDBSCANMinDetections, 'String'));
 
 			if (isnan(tmp) || tmp < 0)
-				warndlg('DB scan minimal number of detections cannot be a negative number');
+				warndlg('DBSCAN minimal number of detections cannot be a negative number');
 			else
 				obj.configStruct.processing.dbscanMinDetections=floor(tmp);
 			end

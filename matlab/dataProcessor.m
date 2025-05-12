@@ -77,7 +77,7 @@ classdef dataProcessor < handle
 				(Xy - Yy.').^2 + ...
 				(Xz - Yz.').^2 ...
 				)';
-			D=D./((Xrange+Yrange)/10); % scale linearly with distance
+			D=D./((Xrange+Yrange)/2); % scale linearly with distance
 		end
 		function [yaw, pitch, cfar, rangeDoppler, speed] = ...
 				processBatch(batchRangeFFTs, batchTimes, posTimes, posYaw, posPitch, processingParameters)
@@ -285,21 +285,17 @@ classdef dataProcessor < handle
 				elseif obj.processingParameters.dbscanEnable == 1
 
 					fprintf("dataProcessor | updateFinished | updating 3D plot | DBSCAN\n");
-					normalizedRange = range / obj.processingParameters.dbscanRangeT;
-					normalizedYaw = yaw / obj.processingParameters.dbscanAngleT;
-					normalizedPitch = pitch / obj.processingParameters.dbscanAngleT;
+					normalizedRange = range / obj.processingParameters.dbscanRange;
 
-					epsilon = 1.0;   % Points must be within 1 normalized unit in ALL dimensions
-					points = [normalizedRange, normalizedYaw', normalizedPitch'];
-					numel(normalizedRange)
-					labels = dbscan(points, epsilon, obj.processingParameters.dbscanMinDetections, 'Distance', @(X,Y) dataProcessor.polarEuclidDistance(X, Y));
+					points = [normalizedRange, yaw', pitch'];
+					labels = dbscan(points, obj.processingParameters.dbscanEpsilon, obj.processingParameters.dbscanMinDetections, 'Distance', @(X,Y) dataProcessor.polarEuclidDistance(X, Y));
 
 					validLabels = labels(labels ~= -1); % remove garbage
 					validPoints = points(labels ~= -1, :);
-					numel(validLabels)
-					clusteredRange = validPoints(:, 1) * obj.processingParameters.dbscanRangeT;
-					clusteredYaw = validPoints(:, 2) * obj.processingParameters.dbscanAngleT;
-					clusteredPitch = validPoints(:, 3) * obj.processingParameters.dbscanAngleT;
+
+					clusteredRange = validPoints(:, 1) * obj.processingParameters.dbscanRange;
+					clusteredYaw = validPoints(:, 2);
+					clusteredPitch = validPoints(:, 3);
 
 					X = clusteredRange .* cosd(clusteredPitch) .* cosd(-clusteredYaw + 90);
 					Y = clusteredRange .* cosd(clusteredPitch) .* sind(-clusteredYaw + 90);
