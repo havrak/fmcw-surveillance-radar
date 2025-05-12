@@ -772,8 +772,9 @@ Alongside these there are some shared components, such as preferences menu.
 \section{Main application interface}
 
 Upon starting the application user is presented with the main window (Figure \ref{fig:main_window}).
-Here output from radar is displayed, on the sidebar are buttons to establish serial connections.
-Lastly from the topbar user can access preferences and platform control interface.
+This window is primarily used to display radar data and control basic functionality of the application.
+On the sidebar user can enable serial connections to the radar and the platform, pause processing, save current visualization to jpg and in case of an emergency stop the platform.
+Lastly topbar is used to access preferences and platform control interface.
 
 \begin{figure}[h!]
   \centering
@@ -787,13 +788,15 @@ Lastly from the topbar user can access preferences and platform control interfac
 As this thesis concerns itself with rather generic implementation of surveillance radar system the application is designed to be as flexible as possible.
 For this purpose GUI menu was designed to enable configuration of all important elements - configuring the platform, radar, data processing and data visualization.
 However it is necessary to point out that given extensive configuration options user is expected to have some knowledge about the subject to achieve satisfactory results in given application.
-Firstly most limits GUI imposes are guided more by mathematical requirements and what configuration allows than by practical limitations.
-Secondly configuration of components such a CFAR or DBSCAN strongly depended on bandwidth used, respectively width of a single range bin, among other things.
+Firstly -- most limits imposes by the GUI on user chosen values are guided more by mathematical requirements and what configuration allows (In case of SiRad related options.) than by what would be practical.
+Secondly -- configuration of components such a CFAR or DBSCAN strongly depended on bandwidth used, respectively width of a single range bin, among other things.
 CFAR guard parameter of 3 might be too small on 5~GHz bandwidth where width of single range bin is only 50~mm, but if used on 24~GHz header with $BW=500$~MHz where range bin width is 50~cm it could be way too large.
+To aid with choosing correct parameters the application provides some basic information like dimensions of the bins however it is up to the user to make the final decision.
 
-Figure \ref{fig:preferences} shows the preferences menu, user can see that there are four main sections.
+Figure \ref{fig:preferences} shows the preferences menu, as one can see there are four main sections.
 First configures serial port connections to the radar and the platform.
-Second handles configuration of the platform, followed by a section designated for radar configuration.
+However baudrates are usually fixed  -- 230400 or 1000000 for the radar, depending on the firmware used and 115200 for the platform.
+Second section handles configuration of the platform, followed by a section designated for radar configuration.
 Last section configures how the data are processed and via which method they are visualized.
 
 \begin{figure}[h!]
@@ -803,7 +806,7 @@ Last section configures how the data are processed and via which method they are
   \label{fig:preferences}
 \end{figure}
 
-User's preferences are stored in a INI file format in directory whose path depends on the operating system -- \texttt{\%APPDATA\%/Local/fmcw/fmcw.conf} on Windows and \texttt{\$HOME/.config/fmcw/fmcw.conf} for unix based systems.
+User's preferences are stored in a INI file format in directory whose path depends on used operating system -- \texttt{\%APPDATA\%/Local/fmcw/fmcw.conf} on Windows and \texttt{\$HOME/.config/fmcw/fmcw.conf} for unix based systems.
 As INI format is easily human readable and editable it is possible to edit the file directly.
 
 
@@ -814,13 +817,13 @@ User loads up program to the platform, starts its execution and from then applic
 There is no feedback from the radar to the platform based on processed data, although as the platform enables direct access to the stepper queues it would be possible to implement such a feature.
 Nor does processing take into account from which movements is platform program comprised.
 
-In preferences menu \ref{fig:preferences} user can configure static offsets to the platform.
+In preferences menu \ref{fig:preferences} user can configure static offsets to the platform with the \texttt{Pitch offset} and \texttt{Yaw offset} options.
 This is useful in case zero positionof the platform is not aligned with what user want's to be zero in data.
-Aside form offset step count configuration is also available here.
-As the platform doesn't store step count in non volatile memory this command is sent to the platform each time it is connected or config is changed.
-Lastly user can toggle wheter platform debug message should be displayed.
-
-
+Aside form offset step count configuration is also available here with \texttt{Step count pitch} and \texttt{Step count yaw}.
+Step count takes into accoun both microstepping and physical down gearing ratio.
+It is important to note that as platform doesn't store step count in non volatile memory this setting is essential to maintain propper operation of the platform.
+The step count command is sent to the platform each time it is connected or config is changed.
+Lastly \texttt{Platform debug} toggle enables full debug output to be visible in platform control window.
 
 \begin{figure}[h!]
   \centering
@@ -830,21 +833,26 @@ Lastly user can toggle wheter platform debug message should be displayed.
 \end{figure}
 
 Managing platform programs is done via a separate window (Figure \ref{fig:platformControl}).
-In it the user can load, edit and send programs to the platform.
-Program persists in the same configuration file as preferences.
-
+This interface allows user to load, edit and send programs to the platform.
 Left sidebar allows user to load stored programs by clicking on their name.
-Middle text boxes are used to edit programs header (top part) and program body (bottom part).
-Command used to denote start of program, end of header and so on are automatically sent to the device after program is saved and uploaded.
+Middle text boxes are used to edit programs header (top part) and program body (middle part) with bottom text field being used to display platforms debug output.
+On the right side are then buttons that handle basic operations over program -- load, save, store to file, upload and start.
+
+Commands are written one per line in G-code like syntax.
+Control commands used to denote start of program, end of header and so on are automatically sent to the device when rest of the program is uploaded.
 To validate whether program was parsed correctly user can consult the text window at the bottom of the screen which forwards platforms debug output to the user.
+In case user clicks the store button the program is stored in same INI file as preferences.
+
 
 Backend side of the platform control is rather straightforward.
 After connection is established MATLAB serial interface calls a callback each time terminator sequence is found in received data.
-Received message is then parsed with debug output being forwarded to the user and positions logged with timestamp in a rotary buffer.
-Radar data processing part can then request list of positions for given time interval.
+Received message is then parsed with debug output being forwarded to the user and positions logged with timestamp in a circular buffer.
+Radar data processing part can then request a list of positions for given time interval.
 
-Platform control can also emit an event when platform finds itself close to a predetermined position, specificed in preferences (Figure \ref{fig:preferences}) option \texttt{Yaw reset}.
-This event is used to request zeroing of the radar cube in case \texttt{Old removal} method is switched to \texttt{Yaw} option.
+Platform control can also emit an event when platform finds itself close to a predetermined position.
+This location is specified in option \texttt{Yaw reset} with tolerance zone fixed at two degress on either side.
+In orde to prevent multiple emission of the event the platform will only emit it once per 1~s.
+This event allows rest of the code to delete stored data and start gathering new one in next cycle.
 
 \section{Radar configuration}
 
@@ -968,26 +976,8 @@ Afte the check chirps and their platform position data are retrieved and further
 
 \section{Data processing}
 
-Parallel process takes calculated FFT spectrums and their accompanying positions and processes them into single range-doppler map and CFAR array.
-In the first step last spectrum is converted to values proportional to the radar cross section (RCS) of the target.
-Starting with equation \ref{eq:radar_eq} we can see that the target's RCS is proportional to the received power divided by fourth power of the distance to the target.
-Range can be calculated from manufacturer's equation \ref{eq:rangeBin} and power is proportional to the square of values reported from the radar.
-Given that constants of the radar equation changed based on configuration calibration would be required in ordet to get real RCS values.
-However this calibration is not supported and thus onwards when refering to RCS we will be refering to the values proportional to the RCS and not real RCS of the object.
-
-After RCS conversion based on user preferences CFAR can be calculated.
-CFAR is a simple algorithm that enables basic target detection in the radar data.
-This is done by comparing value at given range bin againts average values accross it's neighborhood, that separated by bin under test by a number of guard bins \cite{richards2022}.
-In this application simple 1D CFAR from MATLAB's Phased Array System Toolbox is used which parametrized with two variables -- number of guard bins (Those are excluded from the average and are right next to bin we are testing.) and number of training bins (Those are used to calculate the average.) \cite{matlab_cfar}.
-As already stated due wide varriation in bin widths for different bandwidth both paramters are left to be configured to the user.
-
-If raw data calculation is enabled the program takes one of two paths depending on whether speed calculation is toggled on or off.
-In case speed calculation is disabled the program just returns half of the original spectrum converted to RCS.
-When speed calculation is on program firstly cuts of samples that are too far away from position of the latest chirp.
-After that timing of chirps is also analyzed choosing wheter NUFFT or 2DFFT transformation should be used.
-Decision which transformation to use is based solely on the ratio of maximal deviation of the chirp intervals to the median of the chirp intervals, .
-For more accurate measurement more complex method should have been used but as the radar timing data is not very precise not to mention radar can track only very slow moving objects, this method was deemed sufficient.
-For simmilar resasons no correction for the rotation of the platform is done.
+Outline of the processing flow is shown in figure \ref{fig:feature_flow}.
+This whole step is done in a separate thread, launched after latest chirp spectrum is buffered.
 
 \begin{figure}[h!]
   \centering
@@ -1026,6 +1016,28 @@ For simmilar resasons no correction for the rotation of the platform is done.
   \caption{Processing flow - Data processing}
   \label{fig:feature_flow}
 \end{figure}
+
+Parallel process takes calculated FFT spectrums and their accompanying positions and processes them into single range-doppler map and CFAR array.
+In the first step last spectrum is converted to values proportional to the radar cross section (RCS) of the target.
+Starting with equation \ref{eq:radar_eq} we can see that the target's RCS is proportional to the received power divided by fourth power of the distance to the target.
+Range can be calculated from manufacturer's equation \ref{eq:rangeBin} and power is proportional to the square of values reported from the radar.
+Given that constants of the radar equation changed based on configuration calibration would be required in ordet to get real RCS values.
+However this calibration is not supported and thus onwards when refering to RCS we will be refering to the values proportional to the RCS and not real RCS of the object.
+
+After RCS conversion based on user preferences CFAR can be calculated.
+CFAR is a simple algorithm that enables basic target detection in the radar data.
+This is done by comparing value at given range bin againts average values accross it's neighborhood, that separated by bin under test by a number of guard bins \cite{richards2022}.
+In this application simple 1D CFAR from MATLAB's Phased Array System Toolbox is used which parametrized with two variables -- number of guard bins (Those are excluded from the average and are right next to bin we are testing.) and number of training bins (Those are used to calculate the average.) \cite{matlab_cfar}.
+As already stated due wide varriation in bin widths for different bandwidth both paramters are left to be configured to the user.
+
+If raw data calculation is enabled the program takes one of two paths depending on whether speed calculation is toggled on or off.
+In case speed calculation is disabled the program just returns half of the original spectrum converted to RCS.
+When speed calculation is on program firstly cuts of samples that are too far away from position of the latest chirp.
+After that timing of chirps is also analyzed choosing wheter NUFFT or 2DFFT transformation should be used.
+Decision which transformation to use is based solely on the ratio of maximal deviation of the chirp intervals to the median of the chirp intervals, .
+For more accurate measurement more complex method should have been used but as the radar timing data is not very precise not to mention radar can track only very slow moving objects, this method was deemed sufficient.
+For simmilar resasons no correction for the rotation of the platform is done.
+
 
 \section{Cube update}
 
@@ -1096,23 +1108,22 @@ Using this option will lead to output more visually resembling radar output of t
 However user needs to keep in mind that color changes doesn't mean a change in RCS values at that position.
 If change of value would be undesirable behaviour decay can be turned off in the settings in favour of hard reset of the cube based on trigger on specified yaw position.
 
-Enabling spread pattern leads to degradation of quality of the data in exchange for better visualization -- especially in range-azimuth visualization style.
-Instead of adding new data just to one position in the cube the range doppler maps will be spread over a larger area with a aid of 2D matrix, containg a 2D Gaussian function.
-As the data in series are usually close to each other in terms of position instead of directly adding these contributions to the full cube much smaller cube is created that covers the are of given batch.
-This enables significant speedup thanks to smaller memory size requirements enabling better cacheing.
+Enabling spread pattern leads to degradation of quality of the data in exchange for better visualization quality -- especially in range-azimuth visualization style.
+Instead of adding new data just to one position in the cube the range-doppler map is spread over a larger area with a aid of 2D matrix, containg a 2D Gaussian function.
+As the data in series are usually close to each other in terms of position instead of directly adding these contributions to the full cube much smaller cube is created that covers only the area needed for the batch.
+This enables significant speedup as smaller memory size enables better cacheing.
 After each update is aggregated to the subcube the original cube is update in one go.
 
-Due to lacking performance of MATLAB operations on author's machine some parts of the cube update routine were implemented in C++ with the aid of MATLAB's MEX interface.
+Due to lacking performance of MATLAB on author's machine some parts of the cube update routine were implemented in C++ with the aid of MATLAB's MEX interface.
 This enabled the use of AVX2 x86 instruction set extension to speed up floating point operations.
-Chiefly decaying of the cube exhibited a large perforace increase while leveraging SIMD instructions.
-With batch size of 6 and cube dimensions of $256 \times 16 \times 360 \times 81$ the update routine for batch the size of 6 takes around 80ms to run, giving 40 ms reserver with 20 ms trigger.
+Chiefly decaying of the cube exhibited roughly two fold perforace increase thanks to SIMD instructions.
 
 
 \section{Visualization}
 
-After cube update finishes program returns to the main thread and the data are visualized to the user.
+After cube update finishes program returns to the main thread and the data are visualized.
 Other than graphical access to the data is not possible.
-However the application offers a number of different visualization styles that can be chosen from the preferences menu.
+However the application offers a number of different visualization styles to suit the user's needs.
 
 \begin{enumerate}
 	\item Range-Azimuth: Polar plot with range on the radius and azimuth on the angle.
