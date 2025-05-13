@@ -1115,6 +1115,8 @@ New data are just added to the cube to their respective positions where they rep
 In case cube is set to decay whole cube is multiplied by decay factor that is derived from platforms speed of movement (The slower the platform moves the slower the decay).
 Using this option will lead to output more visually resembling radar output of traditional analogue radar systems where most recent data were brighter than the older ones.
 However user needs to keep in mind that color changes doesn't mean a change in RCS values at that position.
+In addition this operation is rather computationally expensive and is the primary reason updates to the cube must be buffered.
+Even on smaller cubes of around 256~MB this operations takes around 50~ms to complete on a laptop i7-10210U CPU.
 If change of value would be undesirable behaviour decay can be turned off in the settings in favour of hard reset of the cube based on trigger on specified yaw position.
 
 Enabling spread pattern leads to degradation of quality of the data in exchange for better visualization quality -- especially in range-azimuth visualization style.
@@ -1182,7 +1184,15 @@ As the devkit doesn't report much of a useful errors and its technical documenta
 On figure \ref{fig:rd_rr_map} we can see two different visualization styles both displaying the same static scene.
 As previously stated given rather poor sampling rate speed calculation is not very useful and thus no complex testing has taken.
 
+\newpage
 \subsection{Target-3D}
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=0.9\textwidth]{../img/vis_3d.jpg}
+	\caption[3D Space visualization method]{3D Space visualization method}
+	\label{fig:vis3d}
+\end{figure}
 
 This visualization style is used to display CFAR data in 3D cartesian space (Figure \ref{fig:vis3d}).
 Visualization method is rather simple with just positions being recalculated from the range, azimuth and pitch angles to x, y and z coordinates using trigonometric functions.
@@ -1198,17 +1208,30 @@ Both these factors lead to problems with choosing both $N$ and $\varepsilon$ par
 
 For accurate results these problems can be overcome using many different methods like using adaptive thresholds in relation to radius \cite{Kellner2012} or relying on more clever axis systems then just polar or cartesian \cite{Sun2024}.
 However as in this thesis as DBSCAN is more of an illustration of possible postprocessing that can be added to existing base no such complex methods were implemented.
-Both $\varepsilon$ and $N$ parameters are left to the user to configured and are constant.
-In addition scaling for range can be introduced if needed to achieve better results.
-Distance between points is calculated using standard euclidean formula after being converted to cartesian coordinates.
+Both $\varepsilon$ and $N$ parameters are left to the user to configure.
+Distance between points is the firstly converted to cartesian coordinates then metric is calculated using standard euclidean formula after which is later divided by average radius of the two points.
+Still it needs to be said that, while dividing by the mean of distances is sometimes used when working with spherical data \cite{Fisher1993}, author is not aware of any literature that would suggest use in DBSCAN.
+Especially on longer distance this methods will lead to significant errors.
 
 
-\begin{figure}[h!]
-	\centering
-	\includegraphics[width=0.7\textwidth]{../img/vis_3d.jpg}
-	\caption[3D Space visualization method]{3D Space visualization method}
-	\label{fig:vis3d}
-\end{figure}
+
+
+\section{Scalability of the processing pipeline}
+
+Whole processing is written in a way that if radar module was exchanged for a faster one capabilities could be much more extended while keeping most of the codebase similar.
+Aside from different function reading the data from the radar all code is relatively lightweight till the point position change is detected and multiple fft spectrums are being processed.
+
+Thus radar with just increased chirp frequency would only lead to better speed recognition.
+Especially if platform movement remained the same.
+In case  of increase of platform rotation possible corrections would need to be done in the processing pipeline.
+
+In case number of FFT points both in speed or range would be significantly larger that what has been tested (Maximal cube dimensions of around 500~MB were validated) different approach to cube update would be required.
+First possibility is using GPU's acceleration to handed operations in the cube update.
+Specifically the decaying of the cube would be possible for much larger dimensions.
+In case of solely CPU based processing decay functions probably would be possible and the cube would need to be split into smaller chunks where only few ones would be loaded in RAM depending on the current position of the platform and direction of travel.
+
+
+
 
 
 \include{conclusion}

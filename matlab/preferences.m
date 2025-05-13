@@ -52,7 +52,7 @@ classdef preferences < handle
 		hSwitchProSpreadPattern;     % Enable use of spread pattern
 		hEditProResetYaw;            % Yaw position that will trigger cube zeroing callback
 		hSwitchProDBScanEnable;      % Enable DBScan
-		hEditProDBSCANRange;         % Normalization threshold in range for DBSCAN
+		% hEditProDBSCANRange;         % Normalization threshold in range for DBSCAN
 		hEditProDBSCANEpsilon;         % Normalization threshold in angle for DBSCAN
 		hEditProDBSCANMinDetections;     % Minimal number of detections to form a cluster
 
@@ -120,7 +120,7 @@ classdef preferences < handle
 
 			obj.configStruct.processing.dbscanMinDetections = 0;
 			obj.configStruct.processing.dbscanEnable = 1;
-			obj.configStruct.processing.dbscanRange = 0.05;
+			% obj.configStruct.processing.dbscanRange = 0.05;
 			obj.configStruct.processing.dbscanEpsilon = 2;
 
 			obj.configStruct.programs=[];
@@ -195,7 +195,7 @@ classdef preferences < handle
 			processingParameters.calcRaw  = obj.configStruct.processing.calcRaw;
 			processingParameters.requirePosChange = obj.configStruct.processing.requirePosChange;
 			processingParameters.dbscanEnable	= obj.configStruct.processing.dbscanEnable;
-			processingParameters.dbscanRange	= obj.configStruct.processing.dbscanRange;
+			% processingParameters.dbscanRange	= obj.configStruct.processing.dbscanRange;
 			processingParameters.dbscanEpsilon = obj.configStruct.processing.dbscanEpsilon;
 			processingParameters.dbscanMinDetections =	obj.configStruct.processing.dbscanMinDetections;
 		end
@@ -804,16 +804,16 @@ classdef preferences < handle
 				'String',"", ...
 				'HorizontalAlignment', 'left');
 
-			uilabel(obj.hFig, ...
-				'Position', [20, figSize(2)-processingOffset-260, 170, 25], ...
-				'Text', 'DBScan range [m]:');
-
-			obj.hEditProDBSCANRange  = uicontrol('Style', 'edit', ...
-				'Parent',obj.hFig,  ...
-				'Position', [150, figSize(2)-processingOffset-260, 140, 25], ...
-				'Max',1, ...
-				'String',"", ...
-				'HorizontalAlignment', 'left');
+			% uilabel(obj.hFig, ...
+			% 	'Position', [20, figSize(2)-processingOffset-260, 170, 25], ...
+			% 	'Text', 'DBScan range [m]:');
+			%
+			% obj.hEditProDBSCANRange  = uicontrol('Style', 'edit', ...
+			% 	'Parent',obj.hFig,  ...
+			% 	'Position', [150, figSize(2)-processingOffset-260, 140, 25], ...
+			% 	'Max',1, ...
+			% 	'String',"", ...
+			% 	'HorizontalAlignment', 'left');
 
 
 			uilabel(obj.hFig, ...
@@ -839,12 +839,12 @@ classdef preferences < handle
 				'HorizontalAlignment', 'left');
 
 			uilabel(obj.hFig, ...
-				'Position', [20, figSize(2)-processingOffset-350, 170, 25], ...
+				'Position', [20, figSize(2)-processingOffset-260, 170, 25], ...
 				'Text', 'Update batch size:');
 
 			obj.hEditProBatchSize = uicontrol('Style', 'edit', ...
 				'Parent',obj.hFig,  ...
-				'Position', [150, figSize(2)-processingOffset-350, 140, 25], ...
+				'Position', [150, figSize(2)-processingOffset-260, 140, 25], ...
 				'Max',1, ...
 				'String',"", ...
 				'HorizontalAlignment', 'left');
@@ -1031,7 +1031,7 @@ classdef preferences < handle
 
 			set(obj.hEditProDBSCANMinDetections, 'String', obj.configStruct.processing.dbscanMinDetections);
 			set(obj.hEditProDBSCANEpsilon, 'String', obj.configStruct.processing.dbscanEpsilon);
-			set(obj.hEditProDBSCANRange, 'String', obj.configStruct.processing.dbscanRange);
+			% set(obj.hEditProDBSCANRange, 'String', obj.configStruct.processing.dbscanRange);
 			set(obj.hEditProCFARGuard, 'String', obj.configStruct.processing.cfarGuard);
 			set(obj.hEditProBatchSize, 'String', obj.configStruct.processing.batchSize);
 			set(obj.hEditProCFARGuard, 'String', obj.configStruct.processing.cfarGuard);
@@ -1252,13 +1252,13 @@ classdef preferences < handle
 				obj.configStruct.processing.dbscanEpsilon=floor(tmp);
 			end
 
-			tmp = str2double(get(obj.hEditProDBSCANRange, 'String'));
-
-			if (isnan(tmp) || tmp < 0)
-				warndlg('DBSCAN rangle threshold must be a positive number');
-			else
-				obj.configStruct.processing.dbscanRange=tmp;
-			end
+			% tmp = str2double(get(obj.hEditProDBSCANRange, 'String'));
+			%
+			% if (isnan(tmp) || tmp < 0)
+			% 	warndlg('DBSCAN rangle threshold must be a positive number');
+			% else
+			% 	obj.configStruct.processing.dbscanRange=tmp;
+			% end
 
 			tmp = str2double(get(obj.hEditProDBSCANMinDetections, 'String'));
 

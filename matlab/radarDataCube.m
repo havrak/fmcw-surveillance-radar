@@ -159,8 +159,8 @@ classdef radarDataCube < handle
 			%   lastPitchIdx ... index of last pitch position in the buffer
 
 			lastYawIdx = buffer.yawIdx(end);
-
 			lastPitchIdx = buffer.pitchIdx(end);
+			
 			%% Updating cube for raw data
 			% fid = fopen("out.txt", "a+");
 			if(processRaw && isempty(spreadPattern))

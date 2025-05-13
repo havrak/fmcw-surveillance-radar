@@ -72,12 +72,14 @@ classdef dataProcessor < handle
 			Yy = Yrange .* cosd(Ypitch) .* sind(Yyaw);
 			Yz = Yrange .* sind(Ypitch);
 
+			correctiveCoeff = (Xrange+Yrange)/2;
 			D = sqrt(...
 				(Xx - Yx.').^2 + ...
 				(Xy - Yy.').^2 + ...
 				(Xz - Yz.').^2 ...
 				)';
-			D=D./((Xrange+Yrange)/2); % scale linearly with distance
+
+			D=D./correctiveCoeff; % scale linearly with distance
 		end
 		function [yaw, pitch, cfar, rangeDoppler, speed] = ...
 				processBatch(batchRangeFFTs, batchTimes, posTimes, posYaw, posPitch, processingParameters)
@@ -297,7 +299,7 @@ classdef dataProcessor < handle
 				elseif obj.processingParameters.dbscanEnable == 1
 
 					fprintf("dataProcessor | updateFinished | updating 3D plot | DBSCAN\n");
-					normalizedRange = range / obj.processingParameters.dbscanRange;
+					normalizedRange = range;
 
 					points = [normalizedRange, yaw', pitch'];
 					labels = dbscan(points, obj.processingParameters.dbscanEpsilon, obj.processingParameters.dbscanMinDetections, 'Distance', @(X,Y) dataProcessor.polarEuclidDistance(X, Y));
@@ -305,7 +307,7 @@ classdef dataProcessor < handle
 					validLabels = labels(labels ~= -1); % remove garbage
 					validPoints = points(labels ~= -1, :);
 
-					clusteredRange = validPoints(:, 1) * obj.processingParameters.dbscanRange;
+					clusteredRange = validPoints(:, 1);
 					clusteredYaw = validPoints(:, 2);
 					clusteredPitch = validPoints(:, 3);
 

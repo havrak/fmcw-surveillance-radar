@@ -1,9 +1,10 @@
 classdef radar < handle
 	% radar: Manages radar hardware communication, data acquisition, and configuration
 	%
-	% Handles serial communication with a radar device,  processes incoming 
-	% data streams, and dynamically updates configurations via a preferences 
+	% Handles serial communication with a radar device,  processes incoming
+	% data streams, and dynamically updates configurations via a preferences
 	% object. Supports real-time data buffering and event-driven processing.
+	%
 
 	properties(Access = public)
 
@@ -13,7 +14,7 @@ classdef radar < handle
 
 		chunkLengths = [];         % Stores lengths of incoming data chunks for buffer management
 		rawBuffer = [];            % Temporary storage for raw serial data before processing
-		samples = 256;             % Number of samples per radar chirp 
+		samples = 256;             % Number of samples per radar chirp
 		startTime uint64;          % Base timestamp (uint64) for calculating relative timestamps
 		triggerTimer;
 
@@ -37,8 +38,7 @@ classdef radar < handle
 			%    bin ... String with binary code
 			% Outputs:
 			%    hexCode ... String with hex code
-			nBin = length(bin);
-			nParts = nBin/4;
+			nParts = length(bin)/4;
 			hexCode = repmat('0', 1, nParts);
 			for iPart = 1:nParts
 				thisBin = bin((iPart-1)*4+1:iPart*4);
@@ -100,6 +100,8 @@ classdef radar < handle
 		function sysConfig = generateSystemConfig(obj)
 			% generateSystemConfig: Generates system configuration command (hex) for the radar
 			%
+	    % Base forms of function was provided by CTU FEL courtesy of Ing. Viktor Adler, Ph.D.
+			%
 			% Output:
 			%   sysConfig ... Hex command string
 			SelfTrigDelay='000';  % 0 ms delay
@@ -141,6 +143,8 @@ classdef radar < handle
 
 		function basebandCommand = generateBasebandCommand(obj)
 			% generateBasebandCommand: Generates baseband configuration command for the radar
+			%
+	    % Base forms of function was provided by CTU FEL courtesy of Ing. Viktor Adler, Ph.D.
 			%
 			% Output:
 			%   basebandCommand ... Hex command string
@@ -222,7 +226,7 @@ classdef radar < handle
 			fprintf('Radar | radar | constructing object\n');
 			obj.hPreferences = hPreferences;
 			obj.startTime = startTime;
-			
+
 			[obj.samples, ~, ~] = obj.hPreferences.getRadarBasebandParameters();
 			obj.bufferI=zeros(obj.samples, obj.bufferSize);
 			obj.bufferQ=zeros(obj.samples, obj.bufferSize);
