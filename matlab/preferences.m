@@ -31,6 +31,7 @@ classdef preferences < handle
 		hEditRadarBandwith;          % Radar header bandwith
 		hEditRadarTriggerPeriod;     % Triggering period for chirps
 		hDropRadarADC                % ADC setting on the radar
+		hDropRadarRamps              % Number of ramps for coherent averaging
 		hTextRadarRampTime;          % Text field to display how long does the chirp take
 		hTextRadarMaxSpeed;          % Text field to display maximal detectable speed
 
@@ -61,6 +62,7 @@ classdef preferences < handle
 		availableGains = [8 21 43 56];                             % available gains in the SiDAR
 		availableSamples = [32 64 128 256 512 1024 2048 ];         % available number of samples on the SiDAR
 		availableNFFT = [4 8 16 32 64 128 256 512 1024 2048 4096]; % available NFFT's
+		availableRamps = [1 2 4 8 16 32 64 128];
 		availableADC = [2571 2400 2118 1800 1125 487 186 59];      % available ADC settings on the SiDAR
 		adcSamplingTime = [13 15 17 20 32 74 194 614];             % available sampling times on the SiDAR
 
@@ -92,6 +94,7 @@ classdef preferences < handle
 			obj.configStruct.radar.gain =obj.availableSamples(1);
 			obj.configStruct.radar.adc=obj.availableADC(1);
 			obj.configStruct.radar.trigger=25;
+			obj.configStruct.radar.ramps = obj.availableRamps(1);
 
 			obj.configStruct.platform.port='none';
 			obj.configStruct.platform.baudrate=obj.availableBaudrates(1);
@@ -267,16 +270,18 @@ classdef preferences < handle
 			bandwith = obj.configStruct.radar.bandwidth;
 		end
 
-		function [samplesReg, samplesBin, adcBin ] = getRadarBasebandParameters(obj)
+		function [samplesReg, samplesBin, adcBin, rampsBin ] = getRadarBasebandParameters(obj)
 			% getRadarBasebandParameters: Returns radar sampling parameters in binary format
 			%
 			% Output:
 			%   samplesReg ... Numeric number of FFT samples
 			%   samplesBin ... Protocol correct representation of samples (e.g., '011')
-			%   adcBin ... Protocol correct representation of ADC clock divider (e.g., '00')
+			%   adcBin ... Protocol correct representation of ADC clock divider (e.g., '001')
+			%   rampsBin ... Protocol correct representation of ramps count (e.g, '000')
 			samplesReg = obj.configStruct.radar.samples;
 			samplesBin = obj.binaryMap(obj.availableSamples==obj.configStruct.radar.samples, :);
 			adcBin = obj.binaryMap(obj.availableADC == obj.configStruct.radar.adc, :);
+			rampsBin = obj.binaryMap(obj.availableRamps == obj.configStruct.radar.ramps, :);
 		end
 
 		function [gain] = getRadarSystemParamters(obj)
@@ -453,10 +458,10 @@ classdef preferences < handle
 
 			platformConfigOffset = 140;
 			radarConfigOffset = 250;
-			processingOffset = 400;
+			processingOffset = 430;
 
 			fprintf('Preferences | constructGUI | starting gui constructions\n');
-			figSize = [620, 800];
+			figSize = [620, 860];
 			screenSize = get(groot, 'ScreenSize');
 			obj.hFig = uifigure('Name','Preferences', ...
 				'Position', [(screenSize(3:4) - figSize)/2, figSize], ...
@@ -643,6 +648,14 @@ classdef preferences < handle
 				'Max',1, ...
 				'String',"", ...
 				'HorizontalAlignment', 'left');
+
+			uilabel(obj.hFig, ...
+				'Position', [20, figSize(2)-radarConfigOffset-140, 140, 25], ...
+				'Text', 'Ramp coherent avg:');
+
+			obj.hDropRadarRamps = uidropdown(obj.hFig, ...
+				'Position', [150, figSize(2)-radarConfigOffset-140, 80, 25], ...
+				'Items', string(obj.availableRamps));
 
 			%% Processing config
 
@@ -951,6 +964,10 @@ classdef preferences < handle
 				set(obj.hDropRadarADC, 'Value', num2str(obj.configStruct.radar.adc))
 			end
 
+			if any(obj.availableRamps == obj.configStruct.radar.ramps)
+				set(obj.hDropRadarRamps, 'Value', num2str(obj.configStruct.radar.ramps))
+			end
+
 			if any(obj.availableGains == obj.configStruct.radar.gain)
 
 				set(obj.hDropRadarGain, 'Value', num2str(obj.configStruct.radar.gain))
@@ -1076,30 +1093,21 @@ classdef preferences < handle
 			end
 
 
-
 			%% Platform config
 
 			tmp = str2double(get(obj.hEditPlatOffsetPitch, 'String'));
-			if (isnan(tmp) || any(tmp <0))
-				warndlg('Offset must be a positive number');
+			if (isnan(tmp) || tmp < -360 || tmp > 360)
+				warndlg('Offset must be a between -360 and 360 degress');
 			else
 				obj.configStruct.platform.offsetPitch=tmp;
 			end
 
 			tmp = str2double(get(obj.hEditPlatOffsetYaw, 'String'));
-			if (isnan(tmp) || any(tmp <0))
-				warndlg('Offset must be a positive number');
+			if (isnan(tmp) || tmp < -360 || tmp > 360)
+				warndlg('Offset must be a between -360 and 360 degress');
 			else
 				obj.configStruct.platform.offsetYaw=tmp;
 			end
-
-			tmp = str2double(get(obj.hEditPlatOffsetYaw, 'String'));
-			if (isnan(tmp) || any(tmp <0))
-				warndlg('Offset must be a positive number');
-			else
-				obj.configStruct.platform.offsetYaw=tmp;
-			end
-
 
 			tmp = str2double(get(obj.hEditPlatStepCountYaw, 'String'));
 			if (isnan(tmp) || any(tmp <0))
@@ -1121,13 +1129,14 @@ classdef preferences < handle
 			obj.configStruct.radar.header=str2double(obj.hSwitchRadarHeader.Value);
 			obj.configStruct.radar.samples=str2double(obj.hDropRadarSample.Value);
 			obj.configStruct.radar.adc=str2double(obj.hDropRadarADC.Value);
+			obj.configStruct.radar.ramps=str2double(obj.hDropRadarRamps.Value);
 			obj.configStruct.radar.gain=str2double(obj.hDropRadarGain.Value);
 
 
 
 			tmp = str2double(get(obj.hEditRadarTriggerPeriod, 'String'));
-			if (isnan(tmp) || any(tmp <0))
-				warndlg('Trigger period must be a positive number');
+			if (isnan(tmp) || any(tmp <20))
+				warndlg('Trigger period must be bigger than 20 ms');
 			else
 				obj.configStruct.radar.trigger=floor(tmp);
 			end
@@ -1203,30 +1212,30 @@ classdef preferences < handle
 			end
 
 			tmp = str2double(get(obj.hEditProSpreadPatternYaw, 'String'));
-			if (isnan(tmp) || any(tmp < 0))
-				warndlg('Lobe width must be a positive number');
+			if (isnan(tmp) || any(tmp < 0) || any(tmp > 20))
+				warndlg('Lobe width must be a positive number, smaller than 20');
 			else
 				obj.configStruct.processing.spreadPatternYaw=floor(tmp);
 			end
 
 			tmp = str2double(get(obj.hEditProSpreadPatternPitch, 'String'));
-			if (isnan(tmp)  || any(tmp<0))
-				warndlg('Lobe width must be a positive number');
+			if (isnan(tmp)  || any(tmp<0) || any(tmp > 20))
+				warndlg('Lobe width must be a positive number, smaller than 20');
 			else
 				obj.configStruct.processing.spreadPatternPitch=floor(tmp);
 			end
 
 
 			tmp = str2double(get(obj.hEditProCFARGuard, 'String'));
-			if (isnan(tmp) || tmp < 0)
-				warndlg('CFAR guard size must be a positive number');
+			if (isnan(tmp) || tmp < 0 || tmp > obj.configStruct.processing.rangeNFFT/2)
+				warndlg('CFAR guard size must be a positive number and smaller than rangeNFFT/2');
 			else
 				obj.configStruct.processing.cfarGuard=floor(tmp);
 			end
 
 			tmp = str2double(get(obj.hEditProCFARTraining, 'String'));
-			if (isnan(tmp) || tmp < 0)
-				warndlg('CFAR training size must be a positive number');
+			if (isnan(tmp) || tmp < 0 || tmp > obj.configStruct.processing.rangeNFFT/2)
+				warndlg('CFAR training size must be a positive number and smaller than rangeNFFT/2');
 			else
 				obj.configStruct.processing.cfarTraining=floor(tmp);
 			end
@@ -1239,8 +1248,8 @@ classdef preferences < handle
 			end
 
 			tmp = str2double(get(obj.hEditProBatchSize, 'String'));
-			if (isnan(tmp) || tmp < 0)
-				warndlg('Batch size must be a positive number');
+			if (isnan(tmp) || tmp < 0 || tmp >50)
+				warndlg('Batch size must be a positive number smaller than 50');
 			else
 				obj.configStruct.processing.batchSize=floor(tmp);
 			end

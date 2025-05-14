@@ -107,7 +107,7 @@ while true
 	nData = numel(data);
 	DataI = double(data(1:2:nData));
 	DataQ = double(data(2:2:nData));
-	DataIQ = DataI(2:end)+1j*DataQ;
+	DataIQ = DataI+1j*DataQ;
 	% 
 
 	fftIQ = abs(fft(DataIQ));

@@ -14,7 +14,7 @@ classdef radarBuffer < handle
 	end
 
 	methods
-		function obj = radarBuffer(bufferSize, rangeNFFT)
+		function obj = radarBuffer(bufferSize, rangeNFFT, samples)
 			% radarBuffer: Initializes the radarBuffer with specified buffer size and FFT parameters
 			%
 			% Inputs:
@@ -25,7 +25,7 @@ classdef radarBuffer < handle
 			%   obj ... Initialized radarBuffer instance
 			obj.bufferSize = bufferSize;
 			obj.rangeNFFT = rangeNFFT;
-			obj.wn=hamming(rangeNFFT);
+			obj.wn=hann(samples);
 			obj.FFTData = complex(zeros(rangeNFFT,bufferSize));
 			obj.timestamps = zeros(bufferSize, 1);
 		end

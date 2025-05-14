@@ -252,7 +252,7 @@ classdef dataProcessor < handle
 
 				if obj.processingParameters.calcRaw && obj.processingParameters.calcCFAR
 					fprintf("dataProcessor | updateFinished | Range-Azimuth | RAW + CFAR\n");
-					data = sum(obj.hDataCube.rawCube, 2);
+					data = sum(obj.hDataCube.rawCube, 2); 
 					toDraw = squeeze(data(:, 1, :, obj.pitchIndex));
 					cfarData = squeeze(obj.hDataCube.cfarCube(:, :, obj.pitchIndex));
 					cfarData(cfarData > obj.cfarDrawThreshold) = max(toDraw); % give cfar data distinct value
@@ -377,7 +377,10 @@ classdef dataProcessor < handle
 			obj.processingParameters = obj.hPreferences.getProcessingParamters();
 			visual=obj.hPreferences.getProcessingVisualization();
 			obj.decayType = obj.hPreferences.getDecayType();
-			obj.hRadarBuffer = radarBuffer(floor(obj.processingParameters.speedNFFT*1.5), obj.processingParameters.rangeNFFT); % we need
+
+
+			[radarSamples, ~, ~, ~] = obj.hPreferences.getRadarBasebandParameters();
+			obj.hRadarBuffer = radarBuffer(floor(obj.processingParameters.speedNFFT*1.5), obj.processingParameters.rangeNFFT, radarSamples); 
 
 			if obj.processingParameters.calcSpeed == 0
 				obj.processingParameters.speedNFFT = 1;
@@ -502,38 +505,39 @@ classdef dataProcessor < handle
 		function deinitializeDisplay(obj)
 			% deinitializeDisplay: Clears current visualization components
 
-			if ~isempty(obj.hAxes) && isvalid(obj.hAxes)
+			if ~isempty(obj.hAxes) 
 				delete(obj.hAxes);
 			end
 
-			if ~isempty(obj.hSurf) && isvalid(obj.hSurf)
+			if ~isempty(obj.hSurf) 
 				delete(obj.hSurf);
 			end
 
-			if ~isempty(obj.hEditPitch) && isvalid(obj.hEditPitch)
+			if ~isempty(obj.hEditPitch) 
 				delete(obj.hEditPitch);
 			end
 
-			if ~isempty(obj.hEditYaw) && isvalid(obj.hEditYaw)
+			if ~isempty(obj.hEditYaw) 
 				delete(obj.hEditYaw);
 			end
 
-			if ~isempty(obj.hImage) && isvalid(obj.hImage)
+			if ~isempty(obj.hImage)
 				delete(obj.hImage)
 			end
 
-			if ~isempty(obj.hLabelYaw) && isvalid(obj.hLabelYaw)
+			if ~isempty(obj.hLabelYaw) 
 				delete(obj.hLabelYaw)
 			end
 
-			if ~isempty(obj.hLabelPitch) && isvalid(obj.hLabelPitch)
+			if ~isempty(obj.hLabelPitch) 
 				delete(obj.hLabelPitch)
 			end
 
-			if ~isempty(obj.hLine) && isvalid(obj.hLine)
+			if ~isempty(obj.hLine) 
 				delete(obj.hLine)
 			end
-			if ~isempty(obj.hPlot) && isvalid(obj.hPlot)
+
+			if ~isempty(obj.hPlot) 
 				delete(obj.hPlot)
 			end
 			obj.hAxes = [];
@@ -552,17 +556,17 @@ classdef dataProcessor < handle
 
 			obj.hAxes = axes('Parent', obj.hPanel, ...
 				'Units', 'pixels');
+			
 
-			[samples, ~, ~ ] = obj.hPreferences.getRadarBasebandParameters();
-			rangeBins = samples/2;
+			
 			yawBins = 360;
 
 			theta = -deg2rad(obj.hDataCube.yawBins)+pi/2; % minus to rotate counter clock wise, +pi/2 to center 0 deg
-			r = 1:rangeBins;
+			r = 1:(obj.processingParameters.rangeNFFT/2);
 			[THETA, R] = meshgrid(theta, r);
 			[X, Y] = pol2cart(THETA, R);
 
-			initialData = zeros(rangeBins, yawBins);
+			initialData = zeros((obj.processingParameters.rangeNFFT/2), yawBins);
 
 			X = [X, X(:,1)]; % Add 360° = 0°
 			Y = [Y, Y(:,1)];

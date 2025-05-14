@@ -100,13 +100,13 @@ classdef radar < handle
 		function sysConfig = generateSystemConfig(obj)
 			% generateSystemConfig: Generates system configuration command (hex) for the radar
 			%
-	    % Base forms of function was provided by CTU FEL courtesy of Ing. Viktor Adler, Ph.D.
+			% Base forms of function was provided by CTU FEL courtesy of Ing. Viktor Adler, Ph.D.
 			%
 			% Output:
 			%   sysConfig ... Hex command string
 			SelfTrigDelay='000';  % 0 ms delay
 			reserved='0';
-			LOG='0';              % MAG 0 log | 1-linear
+			LOG='1';              % MAG 0 log | 1-linear
 			FMT='0';              % 0-mm | 1-cm
 			LED='01';             % 00-off | 01-1st trget rainbow
 			reserved2='0000';
@@ -144,7 +144,7 @@ classdef radar < handle
 		function basebandCommand = generateBasebandCommand(obj)
 			% generateBasebandCommand: Generates baseband configuration command for the radar
 			%
-	    % Base forms of function was provided by CTU FEL courtesy of Ing. Viktor Adler, Ph.D.
+			% Base forms of function was provided by CTU FEL courtesy of Ing. Viktor Adler, Ph.D.
 			%
 			% Output:
 			%   basebandCommand ... Hex command string
@@ -159,10 +159,9 @@ classdef radar < handle
 			AVERAGEn='00';        % n FFTs averaged range 0-3
 			FFTsize='000';        % 000-32,64,128...,111-2048
 			DOWNsample='000';     % downsampling factor 000-0,1,2,4,8..111-64
-			RAMPS='000';          % ramps per measurement
-
-			[~, samplesBin, adcBin] = obj.hPreferences.getRadarBasebandParameters();
-			baseband=append(WIN,FIR,DC,CFAR,CFARthreshold,CFARsize,CFARgrd,AVERAGEn,FFTsize,DOWNsample,RAMPS,samplesBin,adcBin);
+		
+			[~, samplesBin, adcBin, rampsBin] = obj.hPreferences.getRadarBasebandParameters();
+			baseband=append(WIN,FIR,DC,CFAR,CFARthreshold,CFARsize,CFARgrd,AVERAGEn,FFTsize,DOWNsample,rampsBin,samplesBin,adcBin);
 			basebandHEX=radar.bin2hex(baseband);
 			basebandCommand=append('!B',basebandHEX);
 			disp(basebandCommand);
@@ -227,7 +226,7 @@ classdef radar < handle
 			obj.hPreferences = hPreferences;
 			obj.startTime = startTime;
 
-			[obj.samples, ~, ~] = obj.hPreferences.getRadarBasebandParameters();
+			[obj.samples, ~, ~, ~] = obj.hPreferences.getRadarBasebandParameters();
 			obj.bufferI=zeros(obj.samples, obj.bufferSize);
 			obj.bufferQ=zeros(obj.samples, obj.bufferSize);
 
@@ -252,7 +251,7 @@ classdef radar < handle
 			% Function is called by preference's newConfigEvent event
 			% Re configures radar via serial commands and trigger timer
 
-			[obj.samples, ~, ~] = obj.hPreferences.getRadarBasebandParameters();
+			[obj.samples, ~, ~, ~] = obj.hPreferences.getRadarBasebandParameters();
 			obj.bufferI=zeros(obj.samples, obj.bufferSize);
 			obj.bufferQ=zeros(obj.samples, obj.bufferSize);
 
@@ -275,6 +274,8 @@ classdef radar < handle
 				configureCallback(obj.hSerial, "off");
 				delete(obj.hSerial)
 				delete(obj.triggerTimer);
+				obj.hSerial = [];
+				obj.triggerTimer = [];
 				status = false;
 				return
 			end

@@ -475,6 +475,7 @@ classdef platformControl < handle
 			if ~isempty(obj.hSerial)
 				configureCallback(obj.hSerial, "off");
 				delete(obj.hSerial);
+				obj.hSerial = [];
 				status = false;
 				return;
 			end

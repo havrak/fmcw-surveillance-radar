@@ -24,9 +24,9 @@ classdef radarDataCube < handle
 		cfarCubePoolHandle = [];
 		spreadPattern;         % Weighting matrix for data spreading [Yaw x Pitch]
 		bufferA = struct(...   % Active buffer for batch data
-			'yawIdx', [], 'pitchIdx', [], 'rangeDoppler', [], 'cfar', [], 'decay', []);
+			'timestamp', [], 'yawIdx', [], 'pitchIdx', [], 'rangeDoppler', [], 'cfar', [], 'decay', []);
 		bufferB = struct(...    % Secondary buffer for processing
-			'yawIdx', [], 'pitchIdx', [], 'rangeDoppler', [], 'cfar', [], 'decay', []);
+			'timestamp', [], 'yawIdx', [], 'pitchIdx', [], 'rangeDoppler', [], 'cfar', [], 'decay', []);
 		bufferActive;          % Currently active buffer (A/B)
 		bufferActiveWriteIdx = 1; % Write index for active buffer
 		batchSize = 6;          % Number of samples per batch
@@ -40,7 +40,7 @@ classdef radarDataCube < handle
 		parallelPool;           % Thread pool
 		lastYaw                 % last updated yaw angle
 		lastPitch               % last updated pitch angle
-		tmpTime;
+		relativeTimestamp;           % relative timestamp to measure against
 	end
 
 	events
@@ -158,9 +158,19 @@ classdef radarDataCube < handle
 			%   lastYawIdx ... index of last yaw position in the buffer
 			%   lastPitchIdx ... index of last pitch position in the buffer
 
-			lastYawIdx = buffer.yawIdx(end);
-			lastPitchIdx = buffer.pitchIdx(end);
-			
+			timestamps = [buffer.timestamp];
+
+			% Check if the buffer is not empty
+			if ~isempty(timestamps)
+				% Sort timestamps in ascending order (oldest to latest) and get indices
+				[~, sortedIndices] = sort(timestamps);
+			else
+				sortedIndices = [];
+			end
+
+			lastYawIdx = buffer.yawIdx(sortedIndices(end));
+			lastPitchIdx = buffer.pitchIdx(sortedIndices(end));
+
 			%% Updating cube for raw data
 			% fid = fopen("out.txt", "a+");
 			if(processRaw && isempty(spreadPattern))
@@ -175,7 +185,7 @@ classdef radarDataCube < handle
 					decayCube_avx2(rawCube.Data.rawCube, batchDecay);
 				end
 
-				for i = 1:numel(buffer.yawIdx)
+				for i = sortedIndices
 					yaw = buffer.yawIdx(i);
 					pitch = buffer.pitchIdx(i);
 					contribution = buffer.rangeDoppler(:, :, i);
@@ -243,7 +253,7 @@ classdef radarDataCube < handle
 					yawMap(yawIndices(i)) = i; % Maps original yaw index to subrawCube position
 				end
 
-				for i = 1:numel(buffer.yawIdx)
+				for i = sortedIndices
 
 					yaw = buffer.yawIdx(i);
 					pitch = buffer.pitchIdx(i);
@@ -305,7 +315,7 @@ classdef radarDataCube < handle
 				end
 
 
-				for i = 1:numel(buffer.yawIdx)
+				for i = sortedIndices
 					%			fprintf("CFAR | YAW=%f, PITCH=%f, SUM=%f\n",buffer.yawIdx(i), buffer.pitchIdx(i), sum(buffer.cfar(:, i)));
 					contribution =  buffer.cfar(:, i);
 					if(decay)
@@ -332,8 +342,7 @@ classdef radarDataCube < handle
 
 			%fprintf("CUBE SUM FINAL %d\n", sum(obj.rawCube(:)));
 			obj.lastYaw = obj.yawBins(lastYawIdx);
-			obj.lastPitch = obj.yawBins(lastPitchIdx);
-			toc(obj.tmpTime)
+			obj.lastPitch = obj.pitchBins(lastPitchIdx);
 			obj.isProcessing = false;
 			if obj.requestToZero
 				obj.requestToZero = false;
@@ -384,6 +393,7 @@ classdef radarDataCube < handle
 			obj.batchSize = batchSize;
 			obj.bufferActive = obj.bufferA;
 			obj.parallelPool = gcp('nocreate');
+			obj.relativeTimestamp = tic;
 			if(spreadPatternYaw == 0 || spreadPatternPitch == 0)
 				obj.spreadPattern = [];
 			else
@@ -457,33 +467,31 @@ classdef radarDataCube < handle
 			if nargin < 6
 				speed = 0.01;
 			end
+
 			% disp(sum(cfar))
 			[~, yawIdx] = min(abs(obj.yawBins - yaw));
 			[~, pitchIdx] = min(abs(obj.pitchBins - pitch));
 			decayCoef = exp(-speed/500);
 			% fprintf("radarDataCube | addData | adding to rawCube %d: yaw %f, pitch %f, decay %f\n", obj.bufferActiveWriteIdx, yaw, pitch, decayCoef);
 
+			obj.bufferA.timestamp(obj.bufferActiveWriteIdx) = toc(obj.relativeTimestamp);
 			obj.bufferA.decay(obj.bufferActiveWriteIdx) = decayCoef;
-
 			obj.bufferA.yawIdx(obj.bufferActiveWriteIdx) = yawIdx;
 			obj.bufferA.pitchIdx(obj.bufferActiveWriteIdx) = pitchIdx;
+
 			if(obj.keepRaw)
 				obj.bufferA.rangeDoppler(:, :, obj.bufferActiveWriteIdx) = single(rangeDoppler);
 			end
 
 			if(obj.keepCFAR)
 				obj.bufferA.cfar(:, obj.bufferActiveWriteIdx) = single(cfar);
-				%	fprintf("AFTER SINGLE\n");
-				%disp(sum(obj.bufferA.cfar(:, obj.bufferActiveWriteIdx)));
 			end
 
+			obj.bufferActiveWriteIdx = obj.bufferActiveWriteIdx + 1;
 			if obj.bufferActiveWriteIdx > obj.batchSize
 				obj.overflow = true;
-				obj.bufferActiveWriteIdx = 1;
-			else
-				obj.bufferActiveWriteIdx = obj.bufferActiveWriteIdx + 1;
+				obj.bufferActiveWriteIdx = 1; % this means buffer will not be ordered
 			end
-
 
 		end
 
@@ -493,7 +501,7 @@ classdef radarDataCube < handle
 			% Outputs:
 			%   yaw ... yaw angle  (0-360°)
 			%   pitch ... Pitch angle (-90°-90°)
-			
+
 			yaw = obj.lastYaw;
 			pitch = obj.lastPitch;
 		end
@@ -502,7 +510,7 @@ classdef radarDataCube < handle
 			%
 			% Output:
 			%   status ... True if buffer is full or overflowed
-			status = (obj.bufferActiveWriteIdx > obj.batchSize) || obj.overflow;
+			status = obj.overflow;
 		end
 
 		function startBatchProcessing(obj)
@@ -528,7 +536,6 @@ classdef radarDataCube < handle
 
 
 
-			obj.tmpTime = tic();
 			if obj.parallelPool.NumWorkers > obj.parallelPool.Busy
 
 				fprintf("radarDataCube | startBatchProcessing | starting processing\n");
