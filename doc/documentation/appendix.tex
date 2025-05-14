@@ -1,0 +1,136 @@
+\chapter*{Appendix}
+
+\section*{Appendix A -- G-code glossary}
+
+\setlist[itemize]{nosep, topsep=3pt, partopsep=3pt, leftmargin=*}
+\setlist[description]{nosep, topsep=1pt, partopsep=1pt, leftmargin=*}
+Following sections acts as glossary of all G-code commands used in the platform control. Mode indepth description of the commands can be found in the source code.
+
+\subsection{Constants}
+\begin{itemize}
+  \item Parameters defined in Kconfig (require firmware recompilation):
+  \item \texttt{STEPPER\_Y\_STEP\_COUNT}, \texttt{STEPPER\_P\_STEP\_COUNT}: Steps per rotation (modifiable via \texttt{M92}, non-persistent)
+  \item \texttt{STEPPER\_[Y/P]\_PIN\_DIR}, \texttt{STEPPER\_[Y/P]\_PIN\_STEP}: GPIO pins for direction/step signals
+  \item \texttt{STEPPER\_[Y/P]\_PIN\_ENDSTOP}: Endstop detection pins
+  \item \texttt{STEPPER\_MAX\_SPEED}: Maximum RPM (hardware limit)
+  \item \texttt{STEPPER\_DEFAULT\_SPEED}: Default motion RPM
+  \item \texttt{STEPPER\_MIN\_SPINDLE\_TIME}: Minimum step interval of rotation in spindle mode
+  \item \texttt{STEPPER\_HAL\_TIMER\_PERIOD/RESOLUTION}: PWM timer period/resolution, affects achievable RPM range
+\end{itemize}
+
+\subsection{Features}
+\begin{itemize}
+  \item \textbf{Units}: Switch between degrees and steps using \texttt{G20}/\texttt{G21} respectively
+  \item \textbf{Positioning Modes}:
+    \begin{itemize}
+      \item Absolute (\texttt{G90}): Automatically normalizes angles to [0, 360°] or [0, STEP\_COUNT]
+      \item Relative (\texttt{G91}): Limited to $\pm$32767 steps per command, or respective angle counterpart
+      \item in absolute positioning devices moves in the shortest path to the target
+    \end{itemize}
+  \item \textbf{Spindle}: continous rotation mode
+  \item \textbf{Limits}: Limits on rotation can be imposed on both axes
+    \begin{itemize}
+      \item limits are applied only to one rotation -- it is not possible to restrict to e.g. two full rotations in one direction a nd one in the other
+      \item \texttt{low < high}: Valid range [low, high]
+      \item \texttt{low > high}: Valid range [low, 360°] $\cup$ [0, high]
+      \item Out-of-range targets snap to nearest valid position
+    \end{itemize}
+  \item \textbf{Programming}: G-code program can be upload to the device and executed
+  \item \textbf{Synchronization}: If command is issued to both axes they will wait for each other, of not other axis will be free to execute next command
+\end{itemize}
+\newpage
+
+\subsection*{Motion Control Commands}
+
+Axes are denoted as \texttt{Y} for yaw and \texttt{P} for pitch. The \texttt{S} parameter is used for speed for both axes, while \texttt{SY} and \texttt{SP} are used for speed of yaw and pitch respectively. In case of spindle \texttt{Y} or \texttt{P} are not followed by step count/angle but instead rotation direction.
+
+\begin{description}
+  \item[\texttt{M80}] Enable high-voltage power (enables drivers)
+  \item[\texttt{M81}] Disable high-voltage power (disables drivers)
+  \item[\texttt{M82}] Emergency stop (clears command queues)
+  \item[\texttt{G20}] Set units to degrees
+  \item[\texttt{G21}] Set units to steps
+  \item[\texttt{G90 [Y/P]}] Set absolute positioning Mode
+    \begin{itemize}
+      \item  absolute positioning is not available in spindle mode, if you issue a M03 command to stepper in absolute positioning mode, it will be automatically switched to relative positioning and throw an error
+      \item if no argument is provided both axis are switched to relative positioning
+    \end{itemize}
+  \item[\texttt{G91 [Y/P]}] Set relative positioning Mode
+  \item[\texttt{G28 [Y/P]}] Auto-home specified axis(es)
+  \item[\texttt{G92 [Y/P]}] Set current position as zero
+  \item[\texttt{G0 Y<val> P<val> [SY/SP<rpm>]}] Stepper-mode movement
+  \item[\texttt{M03 Y/P<+/-> [SY/SP<rpm>]}] Start spindle mode (continuous rotation)
+  \item[\texttt{M05 [Y/P]}] Stop spindle mode
+  \item[\texttt{M201 LY/HY/LP/HP<angle>}] Set angular limits (degrees/steps)
+  \item[\texttt{M202 [Y/P]}] Disable limits
+\end{description}
+
+\subsection*{Special Commands}
+
+These commands bypass certain sections and safety checks of the firmware. Use with caution.
+
+\begin{description}
+  \item[\texttt{G3 Y/P<steps> [SY/SP<rpm>]}] Bypass scheduler and adds movement directly to the queue
+		\begin{itemize}
+			\item limits are not and cannot be checked
+			\item absolute positioning is not available
+			\item all values are interpreted as steps regardless of current unit setting
+			\item \textit{Warning}: Use \texttt{M82} before \texttt{G3} to maintain position integrity
+		\end{itemize}
+  \item[\texttt{W3 T<ms>}] Application-layer delay
+		\begin{itemize}
+			\item useful to wait for end of homing process
+		\end{itemize}
+\end{description}
+
+\subsection*{Programming Commands}
+\begin{description}
+  \item[\texttt{P90 <id>}] Start programming mode (overwrites existing program if any)
+  \item[\texttt{P91}] Transition from header to main program body
+  \item[\texttt{P92}] Finalize program (discarded if loops unclosed)
+  \item[\texttt{P21 I<iterations>}] For-loop declaration
+  \item[\texttt{P22}] End loop block
+  \item[\texttt{P29}] Infinite loop marker (header only) - main body will be executed infinitely
+  \item[\texttt{W0 Y/P<sec>}] Wait in seconds
+  \item[\texttt{W1 Y/P<ms>}] Wait in milliseconds
+\end{description}
+
+
+\subsection*{Uplink Protocol}
+
+\begin{itemize}
+  \item \texttt{!P <timestamp>, <yaw>, <pitch>}: Position update (20ms interval)
+  \item \texttt{!R OK}: Command acknowledgment
+  \item \texttt{!R ERR <code>}: Command error
+\end{itemize}
+
+\begin{tabular}{ll}
+  \hline
+  \texttt{Code} & Description                          \\
+  \hline
+  1             & Malformed command syntax             \\
+  2             & Invalid arguments                    \\
+  3             & Queue lock failure                   \\
+  4             & Unsupported command                  \\
+  5             & System busy (homing/program running) \\
+  6             & Runtime exception                    \\
+  7             & Unclosed loop in program             \\
+  8             & Invalid context                      \\
+  \hline
+\end{tabular}
+
+
+\subsection*{Example Program}
+\begin{tabular}{lll}
+  \hline
+  \texttt{Command}       & Mode   & Purpose                   \\
+  \hline
+  \texttt{P90 prog}      & Header & Initialize program ID=1   \\
+  \texttt{G91}           & Header & Set relative positioning  \\
+  \texttt{P29}           & Header & Enable infinite looping   \\
+  \texttt{M03 SY6 Y+}    & Body   & Start Yaw spindle (6 RPM) \\
+  \texttt{G0 SP30 P100}  & Body   & Pitch movement            \\
+  \texttt{G0 SP30 P-100} & Body   & Return pitch              \\
+  \texttt{P92}           & Body   & Finalize program          \\
+  \hline
+\end{tabular}
