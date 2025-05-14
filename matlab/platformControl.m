@@ -467,7 +467,7 @@ classdef platformControl < handle
 			% obj.mockDataTimer.UserData = 0;
 			% obj.mockDataTimer.TimerFcn = @(~,~) obj.mockData();
 			% start(obj.mockDataTimer);
-			%
+			% 
 			% status = true;
 			% return;
 
