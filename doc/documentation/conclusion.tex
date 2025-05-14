@@ -4,8 +4,42 @@
 
 Goal of this thesis was to realize a surveillance radar system based on FMCW technology.
 This technology should enable accurate distance measurements of targets with a relatively low power consumption.
+Instead of more conventional MIMO systems, a simpler solution was proposed with a single RX and TX antenna that relies on mechanical steering of the radar beam.
 
-This was achieved by using \sidar evaluation board and developing custom rotary platform.
+Using off-the-shelf components and 3D printed parts a custom rotary platform was designed and constructed.
+All be it minor issues in regards to the belt tension on pitch axes in enables controlling of the radar position in both yaw and pitch directions.
+Quality of life features such a automatic homing system or limits to the rotation were also implemented.
+Whole system is controlled by an ESP32C6 microcontroller which interprets G-code like commands and drives the stepper motors.
+Due to its similarities to other G-code base systems it should be readily adaptable to other systems.
+In addition the platform was designed to support capabilities that aren't strictly necessary for the purpose of this thesis.
+
+Capabilities of \sidar evaluation board were analyzed and were found to be suitable for the purpose of this thesis.
+However not much room is left to improvement of the system as the board is limited by its low sampling rate and relatively slow microcontroller.
+This limits the maximum detectable speed to tens of mm per second which effectively eliminates any possibility of tracking moving targets.
+However it's ability to switch headers between 24~GHz and 122~GHz allows for a wide range of applications.
+
+Control application for the system was developed in MATLAB.
+This integrates both the rotary platform management and radar data processing.
+Given rather generic design requirements of the application, larger degree of customization is allowed with simpler GUI menu.
+The data processing pipeline is relatively standard reling on common techniques such as FFT, CFAR, DBSCAN and others.
+Major downside is that configuration must be tailored to specific application and therefore the user must have a good understanding radar processing and some knowledge of the processing pipeline.
+No predefined configurations for specific usecase are provided in the application.
+
+
+FIX TODO
+
+In addition whole processing is written in a way that if radar module was exchanged for a faster one capabilities could be much more extended without requring
+keeping most of the codebase similar.
+Aside from different function reading the data from the radar all code is relatively lightweight till the point position change is detected and multiple fft spectrums are being processed.
+
+Thus radar with just increased chirp frequency would only lead to better speed recognition.
+Especially if platform movement remained the same.
+In case  of increase of platform rotation possible corrections would need to be done in the processing pipeline.
+
+In case number of FFT points both in speed or range would be significantly larger that what has been tested (Maximal cube dimensions of around 500~MB were validated) different approach to cube update would be required.
+First possibility would be leverages GPU acceleration to handle operations in the cube update.
+Specifically the decaying of the cube would be possible for much larger dimensions.
+In case of solely CPU based processing decay functions probably would be impractical for much larger cubes and the cube would need to be split into smaller chunks where only few ones would be loaded into RAM at one time -- depending on the current position of the platform and direction of travel.
 
 
 

@@ -246,7 +246,7 @@ In order to calculate Doppler shift frequency
 \end{equation}
 where $f_c$ is the center frequency, 2D Fourier transform can be used.
 At first FFT is run on each individual chirps and then another FFT is applied to these individual outputs in order ot determine phase shift.
-Given that FFT spectrum is calculated from complex data both halves of the specturm contain useful information -- after applying \verb|fftshift| we get spectrum from negative radial speeds (moving away from the radar) to positive (moving towards the radar) with zero in the middle.
+Given that FFT spectrum is calculated from complex data both halves of the spectrum contain useful information -- after applying \verb|fftshift| we get spectrum from negative radial speeds (moving away from the radar) to positive (moving towards the radar) with zero in the middle.
 This will lead to a so called range-Doppler map which on one axis contains information about speed and on second distance of the target \cite{suleymanov2016}
 
 Speed resolution is derived from a number of chirps $N$ we are analyzing and their length $T_{\mathrm{ch}}$ as
@@ -263,9 +263,9 @@ according to \cite{fmcwSpeed}.
 But given the nature of FFT this speed applies to negative side of the spectrum - that is for targets moving away from the radar.
 In case target is moving towards the radar the speed limit is smaller by a single speed bin width.
 
-\subsection{Radar equation}
+\section{Radar equation}
 
-Fundamental equation to all radar systems is so called radar equation.
+Fundamental to all radar systems is so called radar equation.
 This formulate takes into account relation of transmitted/received power, RCS of the target and other system parameters to calculate the maximal range of the radar.
 Written as
 \begin{equation}
@@ -278,7 +278,7 @@ where $P_\mathrm{CW}$ is average system power in watts, $G_\mathrm{T}$ and $G_\m
 Knowing all parameters, or calibrating the system based on know reference, we can  calculate target's RCS.
 This value gives us much clear understating of the target as opposed to just displaying power received or its logarithm as the RCS is a constant value for a given target, regardless of the distance \cite{richards2022}.
 
-\subsection{Angle of Arrival/Spatial Information}
+\section{Angle of Arrival/Spatial Information}
 
 Commonly in order to get spatial information radars rely on multiple RX antennas.
 This allows for estimation of the angle of arrival (AoA) of the target by taking into analyzing phase differences between the signals received by different antennas \cite{suleymanov2016}.
@@ -293,6 +293,19 @@ While these systems allow superb performance they are also very expensive and re
 Therefore this thesis works with a simpler and older solution -- a single RX antenna and mechanical steering of the radar beam.
 This approach is not only cheaper but also allows to gather information about whole 3D space with just a single radar.
 
+\section{CFAR}
+
+
+CFAR is a simple algorithm that enables basic target detection in noisy radar data.
+For each range bin its neighborhood is analyzed and the average power level is calculated.
+This neighborhood is separated by a number guard cells that don't partake in the calculation.
+In case bin under test is greater than the scaled average power level of the neighborhood, we can assume that there is a target present \cite{jankiraman2018}.
+
+There are many different variations of CFAR, each with its own advantages and disadvantages.
+What was described is a basic cell averaging CFAR (CA-CFAR) which is the simplest implementation.
+This algorithm works best in homogeneous environments, where the noise level is relatively constant across the neighborhood.
+In case that cannot be assumed for example CFAR with greatest of the neighborhood (CAGO-CFAR) can be used.
+This algorithm works by taking the maximum value of the neighborhood and comparing it to the bin under test \cite{rohling1983}.
 
 \chapter{\sidar}
 
@@ -924,6 +937,7 @@ Thus the parallelization needs to be done with processes.
 This restrict the application to machines with at least 16~GB of RAM as each process (of which there are three) requires around 2~GB of RAM.
 
 Procesisng pipeline can be divided into multiple distinct steps as follow:
+\setlist[enumerate]{nosep, topsep=3pt, partopsep=3pt}
 \begin{enumerate}
   \item Data acquisition: Data are read, simple FFT is calculated and data are buffered into a circular buffer.
   \item Data processing: Data retrived from the  circular buffer paired with positions and processed.
@@ -1051,10 +1065,7 @@ Given that constants of the radar equation changed based on configuration calibr
 However this calibration is not supported and thus onwards when refering to RCS we will be refering to the values proportional to the RCS and not real RCS of the object.
 
 After RCS conversion if \texttt{Calc CFAR} is enabled CFAR will be runned on latest chirp in the batch.
-CFAR is a simple algorithm that enables basic target detection in the radar data.
-This is done using adaptive thresholding when value at each bit is compared againts mean of values in its neighborhood which is separated from bin under test by a number of guard cells \cite{richards2022}.
-Algorithm than simply detects if compared to its surrounding there is a peak in the data suggesting a targer is there.
-In this application simple 1D CFAR from MATLAB's Phased Array System Toolbox is used which parametrized with two variables -- number of guard bins (Those are excluded from the average and are right next to bin we are testing.) and number of training bins (Those are used to calculate the average.) \cite{matlab_cfar}.
+In this application simple 1D CA-CFAR from MATLAB's Phased Array System Toolbox is used which parametrized with two variables -- number of guard bins (Those are excluded from the average and are right next to bin we are testing.) and number of training bins (Those are used to calculate the average.) \cite{matlab_cfar}.
 Both these paramters are configurable from preferences menu with \texttt{CFAR training} and \texttt{CFAR guard}.
 As already stated, due wide varriation in bin widths for different bandwidth both paramters are left to be configured to the user.
 
@@ -1234,22 +1245,6 @@ Distance between points is the firstly converted to cartesian coordinates then m
 Still it needs to be said that, while dividing by the mean of distances is sometimes used when working with spherical data \cite{Fisher1993}, author is not aware of any literature that would suggest use in DBSCAN.
 Especially on longer distance this methods will lead to significant errors.
 
-
-
-
-\section{Scalability of the processing pipeline}
-
-Whole processing is written in a way that if radar module was exchanged for a faster one capabilities could be much more extended while keeping most of the codebase similar.
-Aside from different function reading the data from the radar all code is relatively lightweight till the point position change is detected and multiple fft spectrums are being processed.
-
-Thus radar with just increased chirp frequency would only lead to better speed recognition.
-Especially if platform movement remained the same.
-In case  of increase of platform rotation possible corrections would need to be done in the processing pipeline.
-
-In case number of FFT points both in speed or range would be significantly larger that what has been tested (Maximal cube dimensions of around 500~MB were validated) different approach to cube update would be required.
-First possibility would be leverages GPU acceleration to handle operations in the cube update.
-Specifically the decaying of the cube would be possible for much larger dimensions.
-In case of solely CPU based processing decay functions probably would be impractical for much larger cubes and the cube would need to be split into smaller chunks where only few ones would be loaded into RAM at one time -- depending on the current position of the platform and direction of travel.
 
 
 
