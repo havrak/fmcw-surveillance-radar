@@ -255,11 +255,13 @@ Speed resolution is derived from a number of chirps $N$ we are analyzing and the
   \label{eq:Doppler3}
 \end{equation}
 Maximal speed is dictated by how large of a phase shift can we measure without ambiguity -- that is $\pm \pi$.
-From (\ref{eq:fb2}) we can see formulate the upper limit as
+From (\ref{eq:fb2}) we can formulate the maximal speed measurable as
 \[
-  v_\mathrm{max} = \frac{c_0}{4f_c T_\mathrm{ch}}.
+  v_\mathrm{max} = \frac{c_0}{4f_c T_\mathrm{ch}},
 \]
 according to \cite{fmcwSpeed}.
+But given the nature of FFT this speed applies to negative side of the spectrum - that is for targets moving away from the radar.
+In case target is moving towards the radar the speed limit is smaller by a single speed bin width.
 
 \subsection{Radar equation}
 
@@ -275,6 +277,22 @@ where $P_\mathrm{CW}$ is average system power in watts, $G_\mathrm{T}$ and $G_\m
 
 Knowing all parameters, or calibrating the system based on know reference, we can  calculate target's RCS.
 This value gives us much clear understating of the target as opposed to just displaying power received or its logarithm as the RCS is a constant value for a given target, regardless of the distance \cite{richards2022}.
+
+\subsection{Angle of Arrival/Spatial Information}
+
+Commonly in order to get spatial information radars rely on multiple RX antennas.
+This allows for estimation of the angle of arrival (AoA) of the target by taking into analyzing phase differences between the signals received by different antennas \cite{suleymanov2016}.
+However usually only single series of RX antennas is employed, therefore only one angle can be estimated.
+
+More complex MIMO systems employ not only multiple RX antennas but also multiple TX antennas.
+Multiple TX antennas enable beamforming, which is the process of steering the radar beam in a specific direction.
+If antennas are still arranged in a linear array this only makes angle of estimation more accurate by effectively creating virtual RX antennas.
+However if 2D arrangement of antennas is used, the system can estimate both azimuth and elevation angles \cite{sandeep2018}.
+
+While these systems allow superb performance they are also very expensive and require a lot of processing power.
+Therefore this thesis works with a simpler and older solution -- a single RX antenna and mechanical steering of the radar beam.
+This approach is not only cheaper but also allows to gather information about whole 3D space with just a single radar.
+
 
 \chapter{\sidar}
 

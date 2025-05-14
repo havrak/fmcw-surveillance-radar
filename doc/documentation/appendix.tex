@@ -6,7 +6,8 @@
 \setlist[description]{nosep, topsep=1pt, partopsep=1pt, leftmargin=*}
 Following sections acts as glossary of all G-code commands used in the platform control. Mode indepth description of the commands can be found in the source code.
 
-\subsection{Constants}
+\subsection*{Constants}
+
 \begin{itemize}
   \item Parameters defined in Kconfig (require firmware recompilation):
   \item \texttt{STEPPER\_Y\_STEP\_COUNT}, \texttt{STEPPER\_P\_STEP\_COUNT}: Steps per rotation (modifiable via \texttt{M92}, non-persistent)
@@ -18,7 +19,8 @@ Following sections acts as glossary of all G-code commands used in the platform 
   \item \texttt{STEPPER\_HAL\_TIMER\_PERIOD/RESOLUTION}: PWM timer period/resolution, affects achievable RPM range
 \end{itemize}
 
-\subsection{Features}
+\subsection*{Features}
+
 \begin{itemize}
   \item \textbf{Units}: Switch between degrees and steps using \texttt{G20}/\texttt{G21} respectively
   \item \textbf{Positioning Modes}:

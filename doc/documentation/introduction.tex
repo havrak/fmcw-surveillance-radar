@@ -2,8 +2,14 @@
 \chapter*{Introduction}
 \addcontentsline{toc}{chapter}{Introduction}
 
-Following theses concerns itself with realization of a surveillance radar based on FMCW (Frequency Modulated Continuous Wave) technology.
-Goal of this thesis are to analyze \sidar radar system, determine its capabilities and construct a surveillance radar system based on this technology.
+Following theses concerns itself with realization of a surveillance radar based on FMCW technology.
+Commonly surveillance radars based on FMCW technology have multiple receiving antennas are realized as MIMO systems.
+In case of MIMO systems electronic steering of the radar beam is possible, allowing for a larger field of view and target detection in two directions.
+For simpler systems with just multiple receiving antennas only azimuth estimation is possible based on the phase difference analysis \cite{sandeep2018}.
+These systems however usually require more processing power and aren't able to provide information about whole 3D space.
+
+Therefore a simpler solution is proposed with radar system that has only one RX and TX antenna where mechanical steering used to control the radar beam direction.
+At first capabilities of \sidar evaluation board are analyzed and then a custom rotary platform is designed and constructed.
 This involves both hardware, in a form of two axis rotary platform, and software development be it for driving the rotary platform or processing radar data.
 
 FMCW is a radar technology that uses a continuous wave signal whose frequency is modulated over time.
@@ -11,6 +17,7 @@ By mixing sent signal over received a harmonic components are created whose freq
 Thus by applying a Fourier transform to the received signal, individual distances can be determined.
 As opposed to pulsed radar, FMCW is able provide accurate distance measurement with relatively low power consumption \cite{jankiraman2018}.
 Speed estimations of the target is also possible by using the Doppler effect.
+
 
 As already stated this thesis is focused on the \sidar radar system.
 It is a low-cost evaluation board designed to familiarize users with the FMCW technology offering both 24~GHz header and 122~GHz\cite{sidarMAN}.
@@ -25,7 +32,7 @@ Whole system is then controlled with ESP32C6 microcontroller which interpreters 
 
 Data from radar and platform then are processed and visualized using MATLAB.
 While processing pipeline is relatively standard and uses common techniques such as FFT (Fast Fourier Transform) and CFAR (Constant False Alarm Rate) \cite{richards2022}.
-However a number of steps can be turned on and off, or their behavior modified by the user allowing a gread deal of flexibility.
+However a number of steps can be turned on and off, or their behavior modified by the user allowing a great deal of flexibility.
 The data are then stored in radar cubes, common structure used in such applications \cite{richards2022}.
 Processed data can then be visualized in a number of ways depending on user needs -- from simple 2D range-azimuth plots to visualization of the whole 3D space.
 
