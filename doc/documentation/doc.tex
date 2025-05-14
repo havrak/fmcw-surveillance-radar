@@ -1226,9 +1226,9 @@ Especially if platform movement remained the same.
 In case  of increase of platform rotation possible corrections would need to be done in the processing pipeline.
 
 In case number of FFT points both in speed or range would be significantly larger that what has been tested (Maximal cube dimensions of around 500~MB were validated) different approach to cube update would be required.
-First possibility is using GPU's acceleration to handed operations in the cube update.
+First possibility would be leverages GPU acceleration to handle operations in the cube update.
 Specifically the decaying of the cube would be possible for much larger dimensions.
-In case of solely CPU based processing decay functions probably would be possible and the cube would need to be split into smaller chunks where only few ones would be loaded in RAM depending on the current position of the platform and direction of travel.
+In case of solely CPU based processing decay functions probably would be impractical for much larger cubes and the cube would need to be split into smaller chunks where only few ones would be loaded into RAM at one time -- depending on the current position of the platform and direction of travel.
 
 
 
@@ -1241,6 +1241,8 @@ In case of solely CPU based processing decay functions probably would be possibl
 \listoffigures
 
 \listoftables
+
+\include{appendix}
 
 \clearpage
 \openright

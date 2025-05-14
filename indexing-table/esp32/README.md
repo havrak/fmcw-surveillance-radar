@@ -15,6 +15,9 @@ Configuration of the device is done primarily with Kconfig under esp-idf. While 
 * STEPPER_MIN_SPINDLE_TIME - minimum time in ms between two steps in spindle Mode
 	* needed to maintain valid information about current position
 	* never set bellow ~30 ms
+* STEPPER_HAL_TIMER_PERIOD  - timer period (number of ticks per 1 period)
+* STEPPER_HAL_TIMER_RESOLUTION - timer resolution (frequency of the timer)
+	* these two influence how quickly will the 16 bit timer fill up, for higher RMP period must be lower, for lower RPM period must be higher
 
 
 # Features

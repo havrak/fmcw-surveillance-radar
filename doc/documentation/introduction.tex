@@ -2,4 +2,37 @@
 \chapter*{Introduction}
 \addcontentsline{toc}{chapter}{Introduction}
 
-TODO
+Following theses concerns itself with realization of a surveillance radar based on FMCW (Frequency Modulated Continuous Wave) technology.
+Goal of this thesis are to analyze \sidar radar system, determine its capabilities and construct a surveillance radar system based on this technology.
+This involves both hardware, in a form of two axis rotary platform, and software development be it for driving the rotary platform or processing radar data.
+
+FMCW is a radar technology that uses a continuous wave signal whose frequency is modulated over time.
+By mixing sent signal over received a harmonic components are created whose frequencies are proportional to the distance of the target \cite{graham2005}.
+Thus by applying a Fourier transform to the received signal, individual distances can be determined.
+As opposed to pulsed radar, FMCW is able provide accurate distance measurement with relatively low power consumption \cite{jankiraman2018}.
+Speed estimations of the target is also possible by using the Doppler effect.
+
+As already stated this thesis is focused on the \sidar radar system.
+It is a low-cost evaluation board designed to familiarize users with the FMCW technology offering both 24~GHz header and 122~GHz\cite{sidarMAN}.
+This allows a relatively larger range of applications with ranges from couple of meters to up to 400~m \cite{sidarMANOld} under ideal condition.
+However as \sidar offers rather low sampling rate and uses relatively low speed micrcontroller on board it is not suitable for any kind of speed measurement.
+Maximal speeds detectable are in the ranges of tens of mm per second and even then are not very accurate.
+
+For the purpose of this thesis a custom rotary platform was designed and constructed.
+While such platforms already exists \cite{standa, carl} most of them are prohibitively expensive and offer unnecessary features.
+Thus a custom solution was designed using off-the-shelf and 3D printed parts.
+Whole system is then controlled with ESP32C6 microcontroller which interpreters G-code like commands and drives the stepper motors.
+
+Data from radar and platform then are processed and visualized using MATLAB.
+While processing pipeline is relatively standard and uses common techniques such as FFT (Fast Fourier Transform) and CFAR (Constant False Alarm Rate) \cite{richards2022}.
+However a number of steps can be turned on and off, or their behavior modified by the user allowing a gread deal of flexibility.
+The data are then stored in radar cubes, common structure used in such applications \cite{richards2022}.
+Processed data can then be visualized in a number of ways depending on user needs -- from simple 2D range-azimuth plots to visualization of the whole 3D space.
+
+Thesis is split into five main chapters.
+First provides theoretical background to FMCW radar workings and its advantages over other possible radar technologies.
+Second chapter is focused on \sidar evaluation board and its capabilities specifically in relation to its application in surveillance radar.
+Third chapter describes the design requirements and the design process of custom rotary platform.
+Software needed to drive the rotary platform is also described in this chapter.
+Fourth chapter is a general overview of the MATLAB desktop application used to control the whole system and process the radar data.
+With fitch chapter focusing on the data processing pipeline and visualizations in depth.
