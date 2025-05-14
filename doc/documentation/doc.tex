@@ -506,7 +506,10 @@ where $t_{\mathrm{angle}}$ represents the time spent traveling an angle $\alpha$
 
 Given its widespread adoption as an industry standard for controlling multi-axis machines, G-code over serial is a natural choice for the platform's communication format.
 Beyond the basic functionality typically offered by G-code interpreters, the platform must support additional features to reduce the user's manual control burden.
-These features include the ability to define movement limits and preprogram sequences of movements for autonomous execution by the platform.
+These features include common features like defining movement limits, absolute/relative positioning mode, changing units from steps to degrees or enabling automatic homing.
+Specifically for  surveillance radar application spinde regime, where the radar is constantly rotating without any new commands, is needed.
+This should be done with a degree of control that what is typically offered by G-code interpreters where spindle regime requires special configuration  and on the fly can usually only be turned off and on \cite{duet}.
+Lastly the platform should support a programming interface that will allow application to send whole choreography of movements to the platform at ones and from that point only monitor its status.
 
 For uplink communication, the platform must provide real-time information about its current position and speed.
 This data enables the user to make any mathematical corrections and properly interpret radar's gathered data.
