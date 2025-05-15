@@ -252,7 +252,7 @@ classdef dataProcessor < handle
 
 				if obj.processingParameters.calcRaw && obj.processingParameters.calcCFAR
 					fprintf("dataProcessor | updateFinished | Range-Azimuth | RAW + CFAR\n");
-					data = sum(obj.hDataCube.rawCube, 2); 
+					data = sum(obj.hDataCube.rawCube, 2);
 					toDraw = squeeze(data(:, 1, :, obj.pitchIndex));
 					cfarData = squeeze(obj.hDataCube.cfarCube(:, :, obj.pitchIndex));
 					cfarData(cfarData > obj.cfarDrawThreshold) = max(toDraw); % give cfar data distinct value
@@ -380,7 +380,7 @@ classdef dataProcessor < handle
 
 
 			[radarSamples, ~, ~, ~] = obj.hPreferences.getRadarBasebandParameters();
-			obj.hRadarBuffer = radarBuffer(floor(obj.processingParameters.speedNFFT*1.5), obj.processingParameters.rangeNFFT, radarSamples); 
+			obj.hRadarBuffer = radarBuffer(floor(obj.processingParameters.speedNFFT*1.5), obj.processingParameters.rangeNFFT, radarSamples);
 
 			if obj.processingParameters.calcSpeed == 0
 				obj.processingParameters.speedNFFT = 1;
@@ -452,7 +452,7 @@ classdef dataProcessor < handle
 
 					diffYaw = abs((mod(yaw(end)-obj.lastProcesingYaw + 180, 360) - 180));
 					distance = sqrt(diffYaw^2 + (pitch(end)-obj.lastProcesingPitch)^2);
-					if distance < 1
+					if distance < 0.99
 						% I can process every single frame without issue but there no need
 						% to process frames where position has not changed, this data is
 						% only useful for speed calculation
@@ -505,19 +505,19 @@ classdef dataProcessor < handle
 		function deinitializeDisplay(obj)
 			% deinitializeDisplay: Clears current visualization components
 
-			if ~isempty(obj.hAxes) 
+			if ~isempty(obj.hAxes)
 				delete(obj.hAxes);
 			end
 
-			if ~isempty(obj.hSurf) 
+			if ~isempty(obj.hSurf)
 				delete(obj.hSurf);
 			end
 
-			if ~isempty(obj.hEditPitch) 
+			if ~isempty(obj.hEditPitch)
 				delete(obj.hEditPitch);
 			end
 
-			if ~isempty(obj.hEditYaw) 
+			if ~isempty(obj.hEditYaw)
 				delete(obj.hEditYaw);
 			end
 
@@ -525,19 +525,19 @@ classdef dataProcessor < handle
 				delete(obj.hImage)
 			end
 
-			if ~isempty(obj.hLabelYaw) 
+			if ~isempty(obj.hLabelYaw)
 				delete(obj.hLabelYaw)
 			end
 
-			if ~isempty(obj.hLabelPitch) 
+			if ~isempty(obj.hLabelPitch)
 				delete(obj.hLabelPitch)
 			end
 
-			if ~isempty(obj.hLine) 
+			if ~isempty(obj.hLine)
 				delete(obj.hLine)
 			end
 
-			if ~isempty(obj.hPlot) 
+			if ~isempty(obj.hPlot)
 				delete(obj.hPlot)
 			end
 			obj.hAxes = [];
@@ -556,9 +556,9 @@ classdef dataProcessor < handle
 
 			obj.hAxes = axes('Parent', obj.hPanel, ...
 				'Units', 'pixels');
-			
 
-			
+
+
 			yawBins = 360;
 
 			theta = -deg2rad(obj.hDataCube.yawBins)+pi/2; % minus to rotate counter clock wise, +pi/2 to center 0 deg
