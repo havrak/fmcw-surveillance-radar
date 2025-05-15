@@ -514,12 +514,12 @@ Following chapter outlines design process and the operation of a rotary platform
 As the platform needs to transmit data from the rotating section to the stationary base, a slip ring is required.
 Due to the relatively low transmission speed of the radar and the absence of special requirements such as waterproofing, an affordable model, UH3899-01-0810 from Senring, was selected.
 It is a classical contact slip ring that features a dedicated USB~2.0 connection along with 8 additional signal wires, with an advertised insertion loss of less than 2~dB \cite{slipring}.
-More problematic than loss is however cross talk between signal wires when stepper motor responsible for pitch control of the radar is running.
-This necessitated an addition of small capacitor to the endstop signal pin to filter out high frequency noise.
+More problematic than loss is however cross talk between signal wires when pitch control stepper motor is running.
+This necessitated an addition of small capacitor to the endstop signal wire to filter out high frequency noise.
 
 While USB~2.0 connection doesn't seem affected by the crosstalk it's connection still isn't ideal.
-Without signal conditioner connected directly to the slipring output signal quality is bad enough that direct connection to PC is needed.
-And even then depending on PC's wiring some ports might exhibit issues.
+Without signal conditioner connected directly to the slipring output signal quality is bad enough that direct connection to PC is needed -- thus radar needs to be some 20~cm from the PC.
+And even then depending on PC's USB port wiring some ports might exhibit issues.
 In addition the manufacturer opted for a non-standard male-male USB~2.0 connection, requiring a female-female adapter to connect the radar to the slip ring.
 
 Due to the relatively low angular resolution of the radar, high platform precision was not a requirement.
@@ -527,26 +527,26 @@ A basic 200-step stepper motor with a step size of 1.8\text{°} was deemed suffi
 In case user would require more granular control over the position it can be facilitated by microstepping.
 
 Similarly high-speed movement is unnecessary for this application.
-As was already outlined the radar is capable at best of 50~Hz update rate.
-With such update frequency even at low 8~RPM we travel a degree under 21~ms too right on the edge of what is radar capable.
-Also at these RPMs standard 40~mm NEMA17 stepper motors are powerful enough to turn the splipring.
+As was already outlined the radar is capable at best of some 50~Hz update rate.
+With such update frequency even at low 8~RPM we travel a degree under 21~ms -- any waster and we wouldn't get at least one update for each degree.
+At these RPMs standard 40~mm NEMA17 stepper motors are powerful enough to turn the rather stiff splipring.
 
 The rest of the design is relatively simple.
-The fixed section mounts the slip ring with the stepper motor positioned underneath, directly driving a shaft connected to a rotating base.
-The connection is secured using long M4 set screws that pass through the base the slip ring and hold the shaft in place.
-A 3D-printed housing serves only as a centering guide and is not responsible for connecting shaft to the rotary base.
+Fixed section mounts the slipring with a stepper motor positioned underneath, directly driving a shaft connected to a rotating base.
+The connection is secured using long M4 set screws that pass through the base, through the slip ring and hold the shaft in place.
+A 3D-printed housing serves only as a centering guide and is not under any load from shaft connection.
 
-The rotating section features a simple A-frame design that elevates the radar, which is mounted on bearings, allowing it to tilt freely.
+The rotating section features a simple A-frame design that elevates the radar, which is mounted on two ball bearings, allowing it to tilt freely.
 To control the pitch, a second stepper motor is mounted on the rotating platform and linked to the radar via a 2:1 down-gearing ratio using a standard 8~mm belt.
-An optical endstop, used for homing of the platform, is mounted on the second support strut.
+An optical endstop, used for homing of the platform, is attached on the second support strut.
 
-Unfortunately while the platform offers some ability to tension the belt in currently printed configuration the range is not sufficient to fully tighten the belt.
-While slippage is not a problem radar there is some slack in radar's tilt.
+Unfortunately while the design offers some ability to tension the belt in currently printed configuration the adjustments range is not sufficient to fully tension the belt.
+While slippage is not a problem there is some slack in radar's tilt.
 However as the radar's capabilities in pitch direction aren't particularly high it was decided not to reprint the whole assembly, only to fix issue in supplied 3D models.
 
-Given that  mechanical stresses are minimal, most parts can be 3D-printed using standard PLA filament.
+Given that mechanical stresses are minimal, most parts can be 3D-printed using standard PLA filament.
 The only non-3D-printed components are the screws, bearings, and stepper motors.
-The final assembly (Figure~\ref{fig:side_by_side}) measures approximately 33~cm in height and has a footprint of $20\times20$~cm.
+The final assembly (Figure~\ref{fig:side_by_side}) measures approximately 36~cm in height and has a footprint of roughly $20\times20$~cm.
 
 \begin{figure}[h!]
   \centering
@@ -568,15 +568,16 @@ The final assembly (Figure~\ref{fig:side_by_side}) measures approximately 33~cm 
 
 \subsection{Platform Electronics}
 
-The electronic aspect of the platform is relatively simple.
+Electronic side of the platform is relatively simple.
 Only two main problems needed to be tackled -- driving the stepper motors and implementing a homing mechanism.
 
 Given the low load on the stepper motors and the platform's inability to accumulate significant momentum, a basic stepper driver without feedback control was deemed sufficient.
 For this purpose the A4988 stepper driver was chosen due to its low cost, microstepping capabilities and basic current control \cite{a4988}.
-A minor drawback is the lack of feedback from the driver to the microcontroller, including the absence of stall detection.
+A minor drawback is the lack of any feedback from the driver to the microcontroller, including stall detection.
 To simplify the design, A4988 development kits were used and soldered onto a prototyping board, eliminating the need for a custom PCB.
-In addition if the need arieses A4988 development kit can be replaced by one with a different IC, such as TCM2209, as manufacturers keep the same pinout and dimensions on these complementary kits.
-This might be necessary in application where platform loudness would be a serious problem as A4988 produces rather noisy driving signal leading to even 20 dB higher operating volume \cite{a4988_sound}.
+In addition if the need arieses A4988 development kit can be replaced by one with a different IC, such as TCM2209, as manufacturers keep the same pinout and dimensions on these.
+This might be necessary in application where platform loudness would be a serious problem as A4988 produces rather noisy driving signal.
+More modern drivers exhibit even 20~dB lower noise levels \cite{a4988_sound}.
 
 For homing implementation, two potential solutions were considered: Hall effect sensors and optical gates.
 Hall effect sensors offer the advantage of angle sensing, allowing correction for positional drift during operation; however, they require precise alignment.
@@ -590,7 +591,7 @@ Still since the system does not require specialized peripherals or high processi
 
 \section{Platform Software}
 
-Given its widespread adoption as an industry standard for controlling multi-axis machines, G-code over serial is a natural choice for the platform's communication format.
+Given its widespread adoption as an industry standard for controlling similar machines, G-code over serial is a natural choice for the platform's communication format.
 Beyond the basic functionality typically offered by G-code interpreters, the platform must support additional features to reduce the user's manual control burden.
 These features include common features like defining movement limits, absolute/relative positioning mode, spindle mode or enabling automatic homing.
 Lastly the platform should support a programming interface that will allow application to send whole choreography of movements to the platform at ones and from that point only monitor its status.
@@ -599,14 +600,15 @@ For uplink communication, the platform must provide real-time information about 
 This data enables the user to make any mathematical corrections and properly interpret radar's gathered data.
 
 To maximize efficiency in processing commands and ensure accurate stepper motor control, the program workflow is divided into three distinct layers, as illustrated by figure \ref{fig:code_diag}.
-The commonly used two-component architecture—where one component handles communication/command parsing and the other manages execution was deemed unsuitable for this use case.
+The commonly used two-component architecture -- where one component handles communication/command parsing and the other manages execution was deemed unsuitable for this use case.
 Such approach would complicate integration of programming interface and require just-in-time processing of commands, which could lead to performance issues.
 
 In the chosen architecture, the degree of abstraction decreases with each successive layer, simplifying processing at each step.
-This design allows the final layer to operate with maximum efficiency, where transition from one command to the next is primarily limited by the inertia of stepper motors and not by the software.
+This design allows the final layer to operate with maximum efficiency, where transition from one command to next is next to instantaneous.
 
-Also it is necessary to note that the platform doesn't store any permanent configuration, including microstepping settings
-This approach was taken as platform doesn't offer any easy way to validate current setting and is expected to be only operated from computer application, which can handle this and provide user with feedback.
+It is necessary to note that the platform doesn't store any permanent configuration, including microstepping settings
+This approach was taken as platform doesn't offer any easy way to show current setting and is expected to be only operated from computer application.
+Thus instead of needing to keep track of what settings are on PC, what are stored on the platform simpler approach was taken.
 
 \begin{figure}[h!]
   \centering
@@ -675,49 +677,46 @@ This approach was taken as platform doesn't offer any easy way to validate curre
 
 \subsection{Communication Layer}
 
-The communication layer manages incoming data over the serial line.
+The communication layer processes incoming data over the serial line.
 Whose efficient handling is facilitated with the aid of RTOS queues.
-Upon receiving command string is parsed and either pushed to a queue or added to programm declaration, in case we are currently declaring program.
+Upon receiving command, string is parsed and either pushed to a queue to be executed or added to a programm declaration, in case user is currently writing a program.
 Some special commands are executed immediately, like those enabling emergency shut off.
 For complete overview of supported commands consult Appendix A.
 
-Immediately after parsing, a response is send to the user confirming whether the command was parsed correctly or not.
+Immediately after the parsing, a response is send to the user confirming whether the command was parsed correctly or not.
 However, as the communication layer does not a can not check command within context of all previous commands, it is possible that command will be parsed correctly but its execution will fail in the application layer.
-
-
 
 \subsection{Application layer}
 
-The application layer performs two primary functions: tracking the current device position and scheduling commands to be sent to stepper motors.
+The application layer performs two primary functions: tracking current device position and scheduling commands to be sent to stepper motors.
 Aside from current position the program also keeps track of the end position of the last scheduled command.
-Thanks to this the application layer make necessary calculations to facilitate absolute positioning and enforce movement limits.
+Thanks to this the application layer is able to make all necessary calculations to facilitate absolute positioning or enforce movement limits.
 
-A key departure from standard G-code interpreters, like \cite{duet}, is how the platform handles single-axis move commands.
-When a move command targets only one axis, the other axis remains free to read next command and begin its execution.
-If this behavior is undesirable, the user must issue commands for both axes.
+Key departure from standard G-code interpreters, like \cite{duet}, is how the platform handles single-axis move commands.
+When a move command targets only one axis, the other axis remains free to read a next command and begin its execution.
+If this behavior is undesirable, the user must issue commands for both axes simultaneously.
 In relative positioning mode, a zero value results in no motion; in absolute positioning mode, the command must specify the current position to prevent movement.
 
 This behavior is a necessary side effect of the spindle regime, which typically cannot be toggled on or off dynamically.
-Another consequence is the requirement for separate positioning modes for each axis.
-Continuous rotation prevents calculations of a move’s end position, making it impossible to make calculation for absolute positioning commands -- thus necessitating relative positioning.
-However it would be rather restrictive to force user to relative positioning on second axis, therefore the independent positioning settings.
+Another consequence of spindle mode is the requirement for separate positioning modes for each axis.
+Continuous rotation prevents calculating a move’s end position, making it impossible to make calculation for absolute positioning commands -- thus necessitating relative positioning.
+However it would be rather restrictive to force user to relative positioning on second axis, therefore the independent positioning modes.
 
-In order to support or possible operating regimes a manual override mode was also implementing.
+In order to support other possible applications a manual override mode was also implementing.
 This enables the user to manually push a move command directly to stepper queues totally skipping the application layer.
-Primary usecase of this mode is to allow tracking of targets or other application that require real time control of the platform.
+Primary usecase of this mode is to allow tracking of targets or usee in other application that require real time control over the platform.
 However in this regime no limits are enforced and the platform operates strictly in relative positioning mode.
-
 
 \subsection{HAL Layer}
 
 The final layer manages stepper motor control and provides the application layer with essential data for position calculations.
 In its loop, the program waits for the next command in the stepper queue.
 Upon receiving a command, it sets up execution, waits for one or both steppers to complete their movement, and then proceeds to the next command.
-Since limit and absolute positioning calculations are handled in the application layer whole routine remains highly efficient.
+Since limit and absolute positioning and limits calculations are handled in the application layer whole routine remains highly efficient -- layer just moves given number of steps.
 
-The main challenge was in generating precise PWM signals (Used to control stepper motors drivers.) and stopping signal generation after a specific number of steps.
-As generating PWM signal in approach is unpractical dedicated EPS32C6 peripherals need to be leveraged.
-Ther are two main options for this task: Remote Controlled Transceiver (RMT) and Motor Control Pulse Width Modulation (MCPWM) combined with Pulse Counter (PCNT).
+The main challenge was a generation of precise PWM signals (Used to control stepper motors drivers.) and stopping the signal generation after a specific number of steps.
+As generating PWM signal in software is unpractical dedicated EPS32C6 peripherals needed to be leveraged.
+There are two main options for this task: Remote Controlled Transceiver (RMT) and Motor Control Pulse Width Modulation (MCPWM) combined with Pulse Counter (PCNT).
 While RMT allows smooth PWM frequency adjustments, it has several drawbacks.
 Such as the fact that generating a specific number of pulses is supported only on newer ESP32 models \cite{gitRMT}, synchronization is restricted to its proprietary API and there is no straightforward way to track progress during a move \cite{espRMT}.
 
@@ -753,8 +752,8 @@ Nevertheless, when measuring time of 24,000 steps at 120 RPM, the relative error
 
 \begin{figure}[h!]
   \centering
-  \includegraphics[width=0.7\textwidth]{../img/120rpm_to60_1.jpg}
-  \includegraphics[width=0.7\textwidth]{../img/120rpm_to60_2.jpg}
+  \includegraphics[width=\textwidth]{../img/120rpm_to60_1.jpg}
+  \includegraphics[width=\textwidth]{../img/120rpm_to60_2.jpg}
   \caption[Moment of change between commands with 120RPM and 60RPM]{Moment of change between commands (120RPM $\Rightarrow$  60RPM)}
   \label{fig:switching}
 \end{figure}
@@ -765,7 +764,6 @@ Similar outcomes were also observed for other command combinations.
 
 This demonstrates the efficiency of the HAL layer in managing stepper motor control and transitioning seamlessly between commands.
 As long as stepper queues are supplied with commands in advance, the platform can operate without noticeable interruptions.
-Most importantly, the platform’s timely and predictable behavior ensures that mathematical corrections to the radar data can be applied accurately.
 
 
 
