@@ -381,7 +381,7 @@ Were we to use 24~GHz header with 25~ms trigger we get maximal speed of 0.124~m/
 This lack of perforace in this area severely limits the radar's usability with regard to surveillance.
 Most surveillance applications are designed to monitor dynamic environments, where targets is moving.
 And usually at much higher speeds than the \sidar can measure.
-This radar is completely unsuitable for such applications and is primarily useful for static environments.
+This radar is completely unsuitable for such applications and is mainly applicable to static environments.
 For example at parking lot, operator can detect if a car is parked in a given spot or not.
 However beside such binary information about presence of a target and its distance not much more can be said.
 
@@ -856,9 +856,9 @@ Received message is then parsed with debug output being forwarded to the user an
 Radar data processing part can then request a list of positions for given time interval.
 
 Platform control can also emit an event when platform finds itself close to a predetermined position.
-This location is specified in option \texttt{Yaw reset} with tolerance zone fixed at two degress on either side.
+This location is specified in option \texttt{Reset yaw} with tolerance zone fixed at two degress on either side.
 In order to prevent multiple triggering of the event the platform will only emit it once per 1~s.
-This event allows reset of stored data after one cycle is completed.
+This event allows reset of stored data after cycle is completed when \texttt{Cube decay} option is set to reset.
 
 \section{Radar configuration}
 
@@ -1118,7 +1118,7 @@ This approach might lead to some performance degradation if the cube is too larg
 
 Update routine for cubes containing CFAR or raw data, are quite simmilar, in the case if spread pattern is disabled.
 New data are just added to the cube to their respective positions where they replace old ones.
-In case cube is set to decay (\texttt{Old removal} option) whole cube is multiplied by a decay factor that is derived from platforms movement speed.
+In case cube is set to decay (\texttt{Cube decay} option is set to decay.) whole cube is multiplied by a decay factor that is derived from platforms movement speed.
 The slower the platform moves the slower the data decay.
 Using this option leads to an output more visually resembling radar  traditional analogue radar systems where most recent data were brighter than the older ones.
 However user needs to keep in mind that color changes doesn't mean a change in RCS at that position.
@@ -1222,7 +1222,7 @@ Aside from that we also have significantly more points closer to the radar as sp
 
 These problems can be overcome using many different methods like using adaptive thresholds in relation to radius \cite{Kellner2012} or relying on more clever axis systems then just polar or cartesian \cite{Sun2024}.
 However as in this thesis as DBSCAN is more of an illustration of possible postprocessing no such complex methods were implemented.
-Both $\varepsilon$ and $N$ parameters are left to the user to configure with \texttt{DBSCAN epsilon} and \texttt{DBSCAN min detections}.
+Both $\varepsilon$ and $N$ parameters are left to the user to configure with \texttt{DBSCAN epsilon} and \texttt{DBSCAN min count}.
 As for the distance metric points are at firstly converted to cartesian coordinates then distance is calculated using standard euclidean formula.
 This distance is then divided by averaging radiuses of points.
 Still it needs to be said that, while dividing by the mean of distances is sometimes used when working with spherical data \cite{Fisher1993}, author is not aware of any literature that would suggest use in DBSCAN.

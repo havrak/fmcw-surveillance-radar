@@ -46,7 +46,7 @@ classdef app < handle
 				% don't work in threads memory sharing doesn't work with threads and
 				% calling external scripts even if they are in path doesn't work with
 				% threads. So I need to wait ages and 
-				parpool('Processes', 3, 'AttachedFiles', filesToAttach);
+				% parpool('Processes', 3, 'AttachedFiles', filesToAttach);
 			end
 
 			time = tic; % establish common time base, call to get unix timestamp si rather lengthy
