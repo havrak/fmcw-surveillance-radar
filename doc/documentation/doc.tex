@@ -124,7 +124,7 @@ Especially in case of triangle modulations when multiple targets are present \ci
 
   \end{tikzpicture}
 
-	\caption[Ideal relation of frequency on time for received and sent signal \cite{adler2023}]{Ideal relation of frequency on time for received and sent signal \cite{adler202}}
+	\caption[Ideal relation of frequency on time for received and sent signal \cite{adler2023}]{Ideal relation of frequency on time for received and sent signal \cite{adler2023}}
   \label{fig:fmcw_ideal}
 \end{figure}
 
@@ -317,7 +317,7 @@ Both are strictly SISO ICs with two antennas -- one for receiving another for tr
   \centering
   \includegraphics[width=0.6\textwidth]{../img/sidar.png}
 
-  \caption[\sidar \cite{sidarMANOld}]{\sidar  24~GHz configuration}
+  \caption[\sidar  24~GHz configuration \cite{sidarMANOld}]{\sidar  24~GHz configuration \cite{sidarMANOld}}
   \label{fig:sidar}
 \end{figure}
 
@@ -329,7 +329,7 @@ Both are relatively low bandwidth communication -- the serial maxing at baudrate
 \begin{figure}[h!]
   \centering
   \includegraphics[width=0.7\textwidth]{../img/sidar_flow.png}
-  \caption[Flow of Radar Measurement on \sidar \cite{sidarPRO}]{Flow of Radar Measurement on \sidar}
+  \caption[Flow of Radar Measurement on \sidar \cite{sidarPRO}]{Flow of Radar Measurement on \sidar \cite{sidarPRO}}
   \label{fig:sidarFlow}
 \end{figure}
 
@@ -408,20 +408,18 @@ Thus making their configuration static wouldn't be a good idea.
 \section{24~GHz Header}
 
 Center of 24~GHz header is a SISO TRX-024-007 transceiver which integrates low noise amplifier, frequency mixer, filters and VCO into a single chip.
-It is primarily designed to operate in the ISM band (24.0--24.25GHz), with an additional ultra-wideband mode supporting 23--26~GHz \cite{sidarTRX24}.
+It is primarily designed to operate in the ISM band (24.0--24.25GHz), but also support an additional ultra-wideband mode with frequency range from 23~GHz to 26~GHz \cite{sidarTRX24}.
 On the \sidar there is no distinction made between  those two modes and the user is free to set any bandwidth \cite{sidarPRO} .
 The transmitter output power ranges from 2.5~dBm to 6~dBm, depending on the configuration \cite{sidarTRX24}.
 A maximum range of 400~m is advertised \cite{sidarMANOld}, though this is likely under ideal conditions when observing a large target.
-Also as previously stated the radar will operate on much lower sampling frequency than needed to achieve such results.
 
-
-As shown in Figure \ref{fig:sidar}, the chip is connected to two microstrip patch antennas.
+As shown in figure \ref{fig:sidar}, the chip is connected to two microstrip patch antennas.
 The patches are arranged in a relatively standard configuration, forming a 6×4 array with spacing approximately equal to half the wavelength at 24~GHz.
 
 Since the manufacturer did not provide any information about the radiation pattern of the array, a simulation was conducted using the CST simulation suite.
 Additionally, the manufacturer did not disclose the substrate parameters for the radar board specifically.
 Fortunately, the TRX-024-007 datasheet includes a board stack-up for the chip's evaluation board.
-It was assumed that the same stack-up would be used—18~$\mu$m copper for the traces and ground plane, with a 250~$\mu$m thick Rogers RO4350B substrate \cite{sidarTRX24}.
+It was assumed that the same stack-up would be used -- 18~$\mu$m copper for the traces and ground plane, with a 250~$\mu$m thick Rogers RO4350B substrate \cite{sidarTRX24}.
 
 \begin{figure}[ht!]
   \centering
@@ -433,13 +431,21 @@ It was assumed that the same stack-up would be used—18~$\mu$m copper for the t
 After measuring the dimensions of the array using an optical microscope, the entire array was redrawn in CST Studio.
 Figure \ref{fig:boundaries} shows the applied boundary conditions: the antenna was placed in open space, and an $H=0$ condition was set along the symmetry plane to speed up the simulation.
 
-After performing a standard time-domain simulation with an excitation signal ranging from 0 to 26GHz, the antenna array exhibited a minimum reflection coefficient $s_{11} \doteq -26.4 \mathrm{~dB}$ at 23A.478~GHz with second minimum at 24.518~GHz (Figure \ref{fig:s11}).
-Lack of minimum at 24~GHz may be attributed to measurement difficulties (The etching quality of the copper traces was suboptimal.) and the neglecting variations of substrate parameter due to interactions of different layers.
+After performing a standard time-domain simulation with an excitation signal ranging from 0 to 26GHz, the antenna array exhibited a minimum reflection coefficient $s_{11} \doteq -26.4 \mathrm{~dB}$ at 23.478~GHz with second minimum at 24.518~GHz (Figure \ref{fig:s11}).
+Lack of minimum at 24~GHz may be attributed to difficulties measuring trace widths and distances (The etching quality of the copper traces was suboptimal.) and the neglecting interactions of different PCB board layers.
 
 At both frequencies with minimal reflection, a far-field radiation pattern was calculated.
 For clarity, only the 24.518~GHz pattern is shown in Figure \ref{fig:farfield3d}.
-The main lobe width was measured at approximately 16 degrees (Figure \ref{fig:farfield180}) along the 180-degree norm (for orientation refer to the red cone on the PCB), with a peak gain of 18.6~dBi and side-lobe suppression of -13~dB.
+The main lobe width was measured at approximately 16 degrees (Figure \ref{fig:farfield180}) along the 180-degree norm (for orientation refer to the red cone on the PCB visualization), with a peak gain of 18.6~dBi and side-lobe suppression of -13~dB.
 For the 90-degree norm, the main lobe width (Figure \ref{fig:farfield90}) was 30 degrees, with side-lobe suppression of -10~dB.
+
+It's clear that especially in the 90-degree norm the accuracy isn't very good.
+Thus this header is not suitable for applications where accurate elevation information is needed.
+However if only low degree of accuracy is required or where wider field of view would be beneficial, this header is a good choice.
+Especially as the radar can gather more information about the environment faster than one with narrower beam.
+In industry some surveillance radars are also designed to have a wide beam in elevation.
+Such as some Air Traffic Control radars \cite{kratos} or even some ground radars \cite{blighter}.
+Still usually solutions such as low/high beam switching are preferred instead of relying purely on a wide beam \cite{wolfBeam}.
 
 \begin{figure}[h!]
   \centering
@@ -451,7 +457,7 @@ For the 90-degree norm, the main lobe width (Figure \ref{fig:farfield90}) was 30
 
 \begin{figure}[h!]
   \centering
-  \includegraphics[width=0.43\textwidth]{../img/farfield3d.png}
+  \includegraphics[width=0.6\textwidth]{../img/farfield3d.png}
   \caption[Radiation pattern of 24~GHz header -- 3D view]{Radiation pattern of 24~GHz header -- 3D view}
   \label{fig:farfield3d}
 \end{figure}
@@ -475,9 +481,16 @@ For the 90-degree norm, the main lobe width (Figure \ref{fig:farfield90}) was 30
 
 \begin{figure}[h!]
   \centering
-  \includegraphics[width=0.5\textwidth]{../img/sidar122.png}
-  \caption[\sidar with 122~GHz header \cite{sidarPRO}]{\sidar with 122~GHz header}
+  \includegraphics[width=0.3\textwidth]{../img/sidar122.png}
+  \caption[\sidar with 122~GHz header \cite{sidarPRO}]{\sidar with 122~GHz header \cite{sidarPRO}}
   \label{fig:sidar122}
+\end{figure}
+
+\begin{figure}[h!]
+  \centering
+  \includegraphics[width=0.85\textwidth]{../img/sidar122rad.jpg}
+	\caption[Radiation pattern of 122~GHz header comparison \cite{sidarTRX122col}]{Radiation pattern of 122~GHz header comparison \cite{sidarTRX122col}}
+  \label{fig:sidar122rad}
 \end{figure}
 
 The 122~GHz header is based on the TRX-120-001 transceiver, which, in addition to the essential components required for RF transmission and reception, also incorporates two on-chip antennas.
@@ -488,12 +501,6 @@ Out of the box performance of the system is quite bad (Figure \ref{fig:sidar122r
 However, this can be significantly improved using the supplied collimator lens, reducing the main lobe width to $\pm4\text{°}$ \cite{sidarTRX122col} (see Figure \ref{fig:sidar122rad}).
 
 
-\begin{figure}[h!]
-  \centering
-  \includegraphics[width=0.85\textwidth]{../img/sidar122rad.jpg}
-  \caption[Radiation pattern of 122~GHz header comparison \cite{sidarTRX122col}]{Radiation pattern of 122~GHz header comparison}
-  \label{fig:sidar122rad}
-\end{figure}
 
 
 
