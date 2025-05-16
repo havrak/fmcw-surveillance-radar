@@ -37,48 +37,49 @@
 
 \chapter{FMCW Radar Fundamentals}
 
-While classical Continuous Wave (CW) radars broadcast signal only on a single frequency FMCW radars make a linear sweep across given bandwidth.
-This approach enables range estimation without requiring pulsed transmissions while still allowing speed measurements using the Doppler shift.
-However, velocity calculations in FMCW radars are more complex compared to single-frequency CW radars.
+While classical Continuous Wave (CW) radars broadcast a signal only on a single frequency, Frequency-Modulated Continuous Wave (FMCW) radars make a linear sweep across a given bandwidth.
+This approach enables accurate range estimation at low power consumption and still allows speed measurements using the Doppler shift.
+However, velocity calculations in FMCW radars are more complex compared to those in single-frequency CW radars.
 
 The "MW" suffix in FMCW radar denotes that the system operates in the microwave frequency range.
-These high frequencies enable use of compact antenna arrays, that sometimes can even be integrated directly on-chip.
-Additionally, the millimeter-wave (MMW) portion of the spectrum is typically license-free \cite{spektrumCTU} and offers large bandwidths, reducing the risk of interference.
+These high frequencies enable the use of compact antenna arrays, which can sometimes even be integrated directly on-chip.
+Additionally, the millimeter-wave portion of the spectrum is typically license-free \cite{spektrumCTU} and offers large bandwidths, reducing a risk of interference.
 
 \section{Comparison FMCW Radar to Pulse Radar}
 
 Distance measurement using radar predates FMCW technology by several decades.
-Early radar systems primarily relied on pulsed signals, where distance can be calculated from the time of flight $t$ of the signal as
+Early radar systems primarily relied on pulsed signals, where distance can be calculated from the time of flight, $t$, of the signal as
 \begin{equation}
   d = \frac{c_o \cdot t}{2}.
   \label{eq:distance}
 \end{equation}
-Speed calculation is also relatively as Doppler effect is much clearer
+Speed calculation is also relatively straightforward, as the Doppler effect is quite clear
 \begin{equation}
   v = \frac{f_\mathrm{dop} c_o}{2f_\mathrm{rad}},
   \label{eq:dopler}
 \end{equation}
-where $f_\mathrm{dop}$ is Doppler frequency, $c_o$ is speed of light and $f_\mathrm{rad}$ is frequency of the radar signal \cite{jankiraman2018}.
+where $f_\mathrm{dop}$ is the Doppler frequency, $c_o$ is the speed of light and $f_\mathrm{rad}$ is the frequency of the radar signal \cite{jankiraman2018}.
 
 While this approach is conceptually straightforward, it has several limitations, particularly in applications requiring high precision at close range.
 Achieving fine resolution in distance measurement necessitates very short pulses.
-However, to maintain sufficient signal-to-noise ratio (SNR), the transmitted pulse power must remain high, regardless of the number of pulses \cite{jankiraman2018}.
+However, to maintain sufficient signal-to-noise ratio (SNR), the transmitted pulse power per pulse must remain high, regardless of its width \cite{jankiraman2018}.
 
 Maintaining high average transmission power poses legal and technical challenges.
-It increases the risk of interference with other devices and demands bulky, high-power circuitry -- often requiring high voltages and even vacuum tubes.
+Risk of interference with other devices is increased and such system demand bulky, high-power circuitry -- often with high voltages and even vacuum tubes.
 Consequently, pulsed radar is predominantly used in applications where fine range resolution is not essential, such as long-range target detection.
 
 One key advantage of pulsed radar is its relatively simple data processing.
-In contrast, FMCW radar data processing is more complex due to the interdependence of distance and velocity measurements -- both distance and velocity of a target contribute to frequency changes in the received signal.
+In contrast, FMCW radar data processing is more complex due to the interdependence of distance and velocity measurements.
+Both distance and velocity of a target cause frequency changes in the received signal.
 
 \section{Basic principles of ideal FMCW radar}
 
-Let us picture an ideal FMCW radar system sending a periodic chirp with periodically repeated frequency frequency sweep from $f_\mathrm{c}$ to $f_\mathrm{c}+BW$.
-Placed in in scene with single larger target that reflect all incoming signal.
-Aside form sawtooth waveform other modulations are also frequently used such as linear triangular modulation or segmented linear frequency modulation.
-These offer some advantages but the nature of the beat signal (which forms a sine wave with sawtooth modulation) is more complex.
-Especially in case of triangle modulations when multiple targets are present \cite{jankiraman2018}.
-\sidar kit, used in this thesis, technically uses a segmented linear frequency modulation due to its limited computational power \cite{sidarPRO} but the mathematical principles are similar as for sawtooth.
+Let us picture an ideal FMCW radar system placed in a scene with a single large target that reflects all incoming signals.
+The radar is broadcasting with a periodically repeated frequency sweep from $f_\mathrm{c}$ to $f_\mathrm{c}+BW$ creating a sawtooth waveform.
+Aside from a sawtooth, other modulations are also frequently used, such as linear triangular modulation or segmented linear frequency modulation.
+These offer some advantages, but the nature of the beat signal, which forms a sine wave with sawtooth modulation, is more complex.
+This is especially true in the case of triangle modulations when multiple targets are present \cite{jankiraman2018}.
+\sidar kit, used in this thesis, technically uses a segmented linear frequency modulation due to its limited computational power \cite{sidarPRO}, but the mathematical principles are similar to those for sawtooth.
 
 \begin{figure}[h!]
   \centering
@@ -128,8 +129,8 @@ Especially in case of triangle modulations when multiple targets are present \ci
   \label{fig:fmcw_ideal}
 \end{figure}
 
-We can clearly see that in given time $t$ the frequency spread from sent signal to received signal is proportional to the time delay $\tau$.
-However doing some simple subtraction in spectrogram of both signals isn't really feasible -- the calculation need to take a smarter approach.
+We can clearly see that, in a given time $t$, the frequency spread from the sent signal to the received signal is proportional to the time delay $\tau$.
+However, performing a simple subtraction in the spectrogram of both signals isn't really feasible; the calculation needs to take a smarter approach.
 
 
 Let us define the chirp slope $k_\mathrm{sw}$ with which we can describe the change in frequency of the broadcasted signal as
@@ -137,45 +138,46 @@ Let us define the chirp slope $k_\mathrm{sw}$ with which we can describe the cha
   \Delta f_\mathrm{s}(t) = k_\mathrm{sw}t = \frac{BW}{T_\mathrm{ch}} t,
   \label{eq:deltaf}
 \end{equation}
-where $t$ is the time goes from 0 to chirp length $T_\mathrm{ch}$.
-Standard equation of FM signal can be written as
+where $t$ is the time, ranging 0 to chirp length $T_\mathrm{ch}$.
+The standard equation of an frequency modulated signal can be written as
 \begin{equation}
   s_\mathrm{t}(t) = A \cos\left(\omega_c t + 2\pi \int_{0}^{t} f_\mathrm{s}(t) \mathrm{d}t\right),
   \label{eq:fm}
 \end{equation}
-where $A$ is amplitude of the signal, $\omega_c$ is carrier frequency and $f(s)$ is frequency of the signal.
+where $A$ is the amplitude of the signal, $\omega_c$ is the carrier frequency and $f(s)$ is the frequency of the signal.
 Substituting (\ref{eq:deltaf}) into (\ref{eq:fm}) we get the signal broadcasted by the radar \cite{suleymanov2016}
 \begin{equation}
   s_\mathrm{t}(t) = A \cos(\omega_c t + \pi k_\mathrm{sw}t^2).
   \label{eq:fm2}
 \end{equation}
 
-Signal bounced back from the target will have the same equation with the only difference being the time delay $\tau$,
+The signal bounced back from a target will have the same equation, only shifted by the time delay $\tau$,
 \begin{equation}
   s_\mathrm{r}(t) = A \cos(\omega_c (t - \tau) + \pi k_\mathrm{sw}(t - \tau)^2).
   \label{eq:fm3}
 \end{equation}
-Now we can calculate the product of the two signals, this can be done easily in the real world using a frequency mixer.
+Now we can calculate the product of the two signals; this can be done easily in the real world using a frequency mixer.
 The result of the multiplication is  \cite{suleymanov2016}
 \begin{align}
   s(t) = s_\mathrm{r}(t) \cdot  s_\mathrm{t}(t) & = \frac{A^2}{2}\cos\left(2(\omega_c - 2\pi k_\mathrm{sw}T_\tau)t + 2\pi k_{sw}t^2 + (\pi k_\mathrm{sw} \tau^2 - \omega_c \tau) \right)+ \nonumber \\
                                                 & +\frac{A^2}{2} \cos\left(2\pi k_\mathrm{sw} \tau t + (\omega_c \tau - \pi k_\mathrm{sw} \tau^2)\right).
   \label{eq:fm4}
 \end{align}
-First additive term will lead to a signal with very high frequency, well above $2\omega_c$, this term doesn't carry any useful information and is usually filtered out -- either by low pass filter or the frequency mixer itself.
-Second term is so call beat signal whose frequency is directly proportional to the time delay $\tau$.
-Deriving the second argument by time we get the frequency of the beat signal \cite{graham2005}
+The first additive term will lead to a signal with a very high frequency, well above $2\omega_c$.
+This term doesn't carry any useful information and is usually filtered out -- either by a low-pass filter or the frequency mixer itself.
+The second term is the so-called beat signal, whose frequency is directly proportional to the time delay $\tau$.
+Deriving the second argument by time, we get the frequency of the beat signal \cite{graham2005}
 \begin{equation}
   f_\mathrm{b} = \frac{1}{2\pi}\frac{\partial}{\partial t} \left(2\pi k_\mathrm{sw} \tau t + (\omega_c \tau - \pi k_\mathrm{sw} \tau^2)\right) = k_\mathrm{sw} \tau.
   \label{eq:fb}
 \end{equation}
 
-Calculating the distance to the target is now trivial, delay $\tau$ is equal to the time it takes for the signal to travel to the target and back \cite{graham2005}
+Calculating the distance to a target is now trivial as the delay $\tau$ is equal to the time it takes for the signal to travel to a target and back \cite{graham2005}
 \begin{equation}
   R = \frac{c_0 \tau}{2},
   \label{eq:distance2}
 \end{equation}
-By substituting (\ref{eq:fb}) into (\ref{eq:distance2}) we get the equation for distance \cite{graham2005}
+By substituting (\ref{eq:fb}) into (\ref{eq:distance2}), we get the equation for a distance \cite{graham2005}
 \begin{equation}
   R = \frac{c_0 f_\mathrm{b}}{2k_\mathrm{sw}}= \frac{c_o f_\mathrm{b} T_{\mathrm{ch}}}{2 BW}.
   \label{eq:distance3}
@@ -184,128 +186,130 @@ By substituting (\ref{eq:fb}) into (\ref{eq:distance2}) we get the equation for 
 
 \subsection{Limits of Range Measurement}
 
-Maximal distance is given by the time it takes for the signal to travel from the radar to the target and back.
-Would the distance be greater than a time of single chirp the signal would be interpreted as coming from a closer target.
-That gives us an maximal limit on beat frequency $f_\mathrm{b} = BW$.
+The maximal distance is given by the time it takes for the signal to travel from the radar to a target and back.
+If the distance were greater than the time of a single chirp, the signal would be interpreted as coming from a closer target.
+This gives us a maximal limit on the beat frequency, $f_\mathrm{b} = BW$.
 
-However in most case the limit will imposed not by $T_\mathrm{ch}$ respectively $BW$ but by sampling frequency $f_\mathrm{s}$.
-In order to avoid aliasing the Nyquist-Shannon theorem must be satisfied thus limiting the maximal beat frequency to $f_\mathrm{s}/2$ and resulting in maximal distance of \cite{jankiraman2018}
+However, in most cases, the limit will be imposed not by $T_\mathrm{ch}$ respectively $BW$ but by the sampling frequency $f_\mathrm{s}$.
+In order to avoid aliasing, the Nyquist-Shannon theorem must be satisfied, thus limiting the maximal beat frequency to $f_\mathrm{s}/2$ and resulting in a maximal distance of \cite{jankiraman2018}
 \begin{equation}
   R = \frac{c_o f_\mathrm{s}}{4k_\mathrm{sw}}.
   \label{eq:distance4max}
 \end{equation}
 
-While sampling with frequency $f_\mathrm{s}$ we get $N =\mathrm{f}_\mathrm{s} T_\mathrm{ch}$ samples applying a DFT to the signal we get $N$ samples in spectrum with frequency resolution of
+While sampling with frequency $f_\mathrm{s}$ we get $N =\mathrm{f}_\mathrm{s} T_\mathrm{ch}$ samples.
+Applying a DFT to the signal we get $N$ samples in spectrum with frequency resolution of
 \begin{equation}
   \Delta f_\mathrm{b} = \frac{f_\mathrm{s}}{N} = \frac{1}{T_{ch}}.
   \label{eq:resolution}
 \end{equation}
-We can see that the resolution of spectrum is only inversely proportional to the chirp length and doesn't have any relation to sampling frequency \cite{jankiraman2018}.
-Now we can enter $\Delta f_\mathrm{b}$ into (\ref{eq:distance3}) to get the minimal distance that can be measured as
+We can see that the resolution of the spectrum is only inversely proportional to the chirp length and doesn't have any relation to the sampling frequency  \cite{jankiraman2018}.
+Now we can substitute $\Delta f_\mathrm{b}$ into (\ref{eq:distance3}) to get the minimal distance that can be measured as
 \begin{equation}
   \Delta R = \frac{c_o}{2BW}
   \label{eq:distance5min}
 \end{equation}
-Thus in order to increase resolution in range a wider bandwidth is needed.
+Thus, in order to increase resolution in range, a wider bandwidth is needed \cite{graham2005}.
 
-There are of course other effect impeding the resolution of the radar system -- such a phase noise around targets or sweep nonlinearity.
-Sweep nonlinearity can be either in the ramp itself -- leading to decreasing resolution with range (with both linear and quadratic errors present) \cite{graham2005}.
-Or in sweep recovery (time to return to the start of the sweep) which leads to a constant decrease in resolution \cite{piper1995}.
-Both are however largely compensated in modern radar systems by using a closed feedback loop \cite{graham2005}.
+There are, of course, other effects impeding the resolution of the radar system, such as phase noise around targets or sweep nonlinearity.
+Sweep nonlinearity can be either in the ramp itself, leading to decreasing resolution with range (with both linear and quadratic errors present)  \cite{graham2005}, or in sweep recovery (time to return to the start of the sweep), which leads to a constant decrease in resolution \cite{piper1995}.
+Both are, however, largely compensated in modern radar systems by using a closed feedback loop  \cite{graham2005}.
 
 
 \subsection{Speed Measurement}
 
-In order to demonstrate the effect of moving target on the beat frequency we can redefine the time delay $\tau$ as
+In order to demonstrate the effect of moving target on the beat frequency, we can redefine the time delay $\tau$ as
 \begin{equation}
   \tau = \frac{2(R_0+vt)}{c_o}
   \label{eq:tau222}
 \end{equation}
-where $R_0$ is the initial distance to the target and $v$ is the radial speed of the target.
-Within a single chirp there is no way to distinguish between the effects distance and speed of the target -- thus multiple chirps are needed \cite{suleymanov2016}.
+where $R_0$ is the initial distance to a target and $v$ is the radial speed of a target.
+Within a single chirp, there is no way to distinguish between the effects of distance and speed of the target; thus, multiple chirps are needed \cite{suleymanov2016}.
 We can rewrite the equation (\ref{eq:tau222}) as
 \begin{equation}
   \tau = \frac{2(R_0 v(nT_\mathrm{ch} + t_\mathrm{s}))}{c_0}
   \label{eq:tau2}
 \end{equation}
 where $n$ is the number of chirps, $T_\mathrm{ch}$ is the chirp length (or in case of segmented signal whole cycle duration) and $t_\mathrm{s}$ denotes time within a single chirp ($0 \leq t_\mathrm{s} \leq T_\mathrm{ch}$).
-Substituting (\ref{eq:tau2}) into low frequency part (\ref{eq:fm4}) leads to very complex equation, however according to \cite{suleymanov2016} most of the terms can be neglected leading us to
+Substituting (\ref{eq:tau2}) into low-frequency part (\ref{eq:fm4}) leads to a very complex equation.
+However, according to \cite{suleymanov2016}, most of its terms can be neglected, with result being
 \begin{equation}
   s(t_\mathrm{s}, n) = \frac{A^2}{2} \cos\left(\frac{4\pi k_\mathrm{sw} R_0}{c_0} t_\mathrm{s} + \frac{2\omega_c v n}{c_0} T_\mathrm{ch} + \varphi_0 \right),
   \label{eq:fb2}
 \end{equation}
-where $\varphi_0$ is a phase shift given by the initial distance to the target.
-Its clear that first element describes predominantly the distance to the target and the second one the speed of the target.
-We can also see that speed will not affect a beat frequency in a single spectrum but will lead to a phase shift across multiple spectrums \cite{suleymanov2016}.
+where $\varphi_0$ is a phase shift given by the initial distance to a target.
+It is clear that the first element describes predominantly the distance to a target, and the second one describes the speed of a target.
+We can also see that speed will not affect the beat frequency in a single spectrum but will lead to a phase shift across multiple spectra \cite{suleymanov2016}.
 
-In order to calculate Doppler shift frequency
+In order to calculate the Doppler shift frequency,
 \begin{equation}
   f_\mathrm{d} = \frac{2f_\mathrm{c}v}{c_0},
   \label{eq:Doppler2}
 \end{equation}
-where $f_c$ is the center frequency, 2D Fourier transform can be used.
-At first FFT is run on each individual chirps and then another FFT is applied to these individual outputs in order ot determine phase shift.
-Given that FFT spectrum is calculated from complex data both halves of the spectrum contain useful information -- after applying \verb|fftshift| we get spectrum from negative radial speeds (moving away from the radar) to positive (moving towards the radar) with zero in the middle.
-This will lead to a so called range-Doppler map which on one axis contains information about speed and on second distance of the target.
+where $f_c$ is the center frequency, a 2D Fourier transform can be used.
+First, an FFT is run on each individual chirp, and then another FFT is applied to these individual outputs in order to determine the phase shift.
+Given that the FFT spectrum is calculated from complex data, both halves of the spectrum contain useful information.
+After applying \verb|fftshift|, we get a spectrum from negative radial speeds (moving away from the radar) to positive (moving towards the radar) with zero in the middle.
+This will lead to a so-called range-Doppler map, which on one axis contains information about speed and on the second axis contains information about the distance of the target.
 
-Speed resolution is derived from a number of chirps $N$ we are analyzing and their length $T_{\mathrm{ch}}$ as \cite{suleymanov2016}
+Speed resolution is derived from the number of chirps $N$ we are analyzing and their length $T_{\mathrm{ch}}$ as \cite{suleymanov2016}
 \begin{equation}
   \Delta v = \frac{c_0}{2f_c} \frac{1}{NT_{\mathrm{ch}}}.
   \label{eq:Doppler3}
 \end{equation}
-Maximal speed is dictated by how large of a phase shift can we measure without ambiguity -- that is $\pm \pi$.
-From (\ref{eq:fb2}) we can formulate the maximal speed measurable as
+The maximal speed is dictated by how large of a phase shift we can measure without ambiguity, that is $\pm \pi$.
+From (\ref{eq:fb2}), we can formulate the maximal speed measurable as
 \[
   v_\mathrm{max} = \frac{c_0}{4f_c T_\mathrm{ch}},
 \]
 according to \cite{fmcwSpeed}.
-But given the nature of FFT this speed applies to negative side of the spectrum - that is for targets moving away from the radar.
-In case target is moving towards the radar the speed limit is smaller by a single speed bin width.
+But given the nature of FFT, this speed applies to the negative side of the spectrum -- that is, for targets moving away from the radar.
+In the case where the target is moving towards the radar, the speed limit is smaller by a single speed bin width
 
 \section{Radar equation}
 
-Fundamental to all radar systems is so called radar equation.
-This formula takes establishes a relation of transmitted/received power, RCS of the target and other system parameters to maximal range of the radar.
+Fundamental to all radar systems is the so-called radar equation.
+This formula establishes a relation between the transmitted/received power, the Radar Cross Section (RCS) of the target, and other system parameters to the maximal range of the radar.
 It can be written as
 \begin{equation}
 	R_\mathrm{max}^4 = \left(\frac{P_{\mathrm{CW}}G_\mathrm{T}G_\mathrm{R}\lambda^2}{(4\pi)^3 L k T F_\mathrm{R}B_\mathrm{Ro}(SNR_\mathrm{Ro})} \sigma_T\right),
 	\label{eq:radar_eq}
 \end{equation}
-where $P_\mathrm{CW}$ is average system power in watts, $G_\mathrm{T}$ and $G_\mathrm{R}$ gain of transmitting and receiving antennas, $\sigma_T$ is radar cross section of the target, $\lambda$ is wavelength, $L$ is system loss, $k$ is Boltzmann's constant, $T$ is effective temperature of the system in Kelvin, $F_\mathrm{R}$ is receiver noise figure, $B_\mathrm{Ro}$ is receiver bandwidth and $SNR_\mathrm{Ro}$ is required signal to noise ratio \cite{jankiraman2018}.
+where $P_\mathrm{CW}$ is the average system power in watts, $G_\mathrm{T}$ and $G_\mathrm{R}$ gain of transmitting and receiving antennas, $\sigma_T$ is the radar cross section of a target, $\lambda$ is wavelength, $L$ is the system loss, $k$ is the Boltzmann's constant, $T$ is the effective temperature of the system in Kelvin, $F_\mathrm{R}$ is the receiver noise figure, $B_\mathrm{Ro}$ is the receiver bandwidth and $SNR_\mathrm{Ro}$ is required SNR \cite{jankiraman2018}.
 
 
-Knowing all parameters, or calibrating the system based on know reference, we can  calculate target's RCS.
-This value gives us much clear understating of the target as opposed to just displaying power received or its logarithm.
+Knowing all parameters, or calibrating the system based on a known reference, we can calculate the target's RCS.
+This value gives us a much clearer understanding of the target as opposed to just displaying the power received or its logarithm.
 This is due to RCS being a constant value for a given target and its orientation, regardless of the distance \cite{richards2022}.
 
 \section{Angle of Arrival/Spatial Information}
 
-Commonly in order to get spatial information radars rely on multiple RX antennas.
-This allows for estimation of the angle of arrival (AoA) of the target by taking into analyzing phase differences between the signals received by different antennas \cite{suleymanov2016}.
-However usually only single linear series of RX antennas is employed, therefore only one angle can be estimated.
+Commonly, in order to get spatial information, radars rely on multiple RX antennas.
+This allows for the estimation of the angle of arrival (AoA) of the target by analyzing phase differences between signals received on different antennas \cite{suleymanov2016}.
+However, usually, only a single linear series of RX antennas is employed; therefore, only one angle can be estimated.
 
 More complex MIMO systems employ not only multiple RX antennas but also multiple TX antennas.
 Multiple TX antennas enable beamforming, which is the process of steering the radar beam in a specific direction using positive interference.
-If antennas are still arranged in a linear array this only makes angle of estimation more accurate by effectively creating virtual RX antennas.
-However if 2D arrangement of antennas is used, the system can estimate both azimuth and elevation angles \cite{sandeep2018}.
+If antennas are still arranged in a linear array, this only makes the angle of estimation more accurate by effectively creating virtual RX antennas.
+However, if a 2D arrangement of antennas is used, the system can estimate both azimuth and elevation angles \cite{sandeep2018}.
 
-While these systems allow superb performance they are also very expensive and require a lot of processing power.
-Therefore this thesis works with a simpler and older solution -- a system with single RX antenna and TX antenna where radar is pointed to given direction mechanically.
-This approach is not only cheaper but also allows to gather information about whole 3D space with just a single radar.
+While these systems allow for superb performance, they are also very expensive and require a lot of processing power.
+Therefore, this thesis works with a simpler and older solution: a system with a single RX antenna and TX antenna, where the radar is pointed in a given direction mechanically.
+This approach is not only cheaper but also allows for the gathering of information about the whole 3D space with just a single radar.
 
 \section{CFAR}
 
 
 CFAR is a simple algorithm that enables basic target detection in noisy radar data.
-For each range bin its neighborhood is analyzed and the average power level is calculated.
-This neighborhood is separated by a number of guard cells from the cell under test that don't partake in the calculation.
-In case bin under test is greater than the scaled average power level of the neighborhood, we can assume that there is a target present \cite{jankiraman2018}.
+For each range bin, its neighborhood is analyzed, and the average power level is calculated.
+This neighborhood is separated by a number of guard cells from the cell under test, which do not partake in the calculation.
+If the bin under test is greater than the scaled average power level of the neighborhood, we can assume that there is a target present \cite{jankiraman2018}.
 
 There are many different variations of CFAR, each with its own advantages and disadvantages.
 What was described is a basic cell averaging CFAR (CA-CFAR).
 This algorithm works best in homogeneous environments, where the noise level is relatively constant across the neighborhood.
-In case this cannot be assumed for example CFAR with greatest of the neighborhood (CAGO-CFAR) can be used.
-This algorithm works by taking the maximum value of the neighborhood and comparing it to the bin under test instead of mean \cite{rohling1983}.
+In cases where this cannot be assumed, for example, CFAR with the greatest of the neighborhood (CAGO-CFAR) can be used.
+This algorithm works by taking the maximum value of the neighborhood and comparing it to the bin under test instead of the mean \cite{rohling1983}.
 
 \chapter{\sidar}
 
