@@ -15,16 +15,16 @@ Due to its similarities to other G-code base systems it should be readily adapta
 In addition the platform was designed to support capabilities that aren't strictly necessary for the purpose of this thesis.
 During tests platform was able to execute commands accurately and without noticeable delays.
 
-Capabilities of \sidar evaluation board were analyzed and were found to be rather unsatisfactory for its application in surveillance radar.
+Capabilities of \sidar evaluation board were analyzed and were found to be rather lacking for application in a surveillance radar.
 It's low and inconsistent reporting rate of 50~Hz limits the maximum detectable speed to tens of mm per second.
-This effectively eliminates any possibility of tracking moving targets which is a common use case of surveillance radars.
-Thus only analysis of essentially static scenes is possible.
-However with it's ability to switch between 24~GHz and 122~GHz headers some interesting applications are still possible.
+This effectively eliminates any possibility of tracking moving targets which is a common use case of surveillance radars and severely limited possible scope of this thesis.
+Whole system is only suitable for essentially static scenes with binary detection if target is or is not present.
+However in these cases the radar is still able to provide a good resolution across wide variety of ranges given the ability to switch between 24~GHz and 122~GHz headers.
 
 Control application for the surveillance radar was developed in MATLAB.
 It integrates both the rotary platform management and radar data processing into one combined package.
 The data processing pipeline is relatively standard relying on common techniques such as FFT, CFAR, DBSCAN and stores data in standard radar cubes.
-Also heavy parallelization was employed to ensure that the processing is done in a timely manner.
+Heavy parallelization was employed to ensure that the processing is done in a timely manner.
 This enables application to maintain speed even if costly operations, entailing millions of floating point operations, such as a decaying of the whole cube are performed.
 
 Given rather generic design requirements there is a large degree of customization possible to the processing pipeline.
@@ -46,5 +46,7 @@ First possibility would be leverages GPU acceleration to handle operations in th
 Or second in case of solely CPU the cube would need to be split into smaller chunks where only few ones would be loaded into RAM at one time -- depending on the current position of the platform and direction of travel.
 However decay as it is implemented now would be close impossible to realize.
 
-
-
+In conclusion basic surveillance radar system was successfully designed and implemented.
+It has ability to detect targets in a wide area with basic resolution of 1 degree in yaw/pitch and from centimeters to decimeters in range.
+In addition extensive customization of the processing pipeline allow user to fine tune the system to their needs.
+However due to limitations of the radar module it is not suitable for any kind of applications requiring tracking of moving targets.

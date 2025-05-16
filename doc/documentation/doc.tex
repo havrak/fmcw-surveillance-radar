@@ -378,8 +378,8 @@ As for velocity the manufacturer doesn't recommend any formula so (\ref{eq:Doppl
 However as the minimal period of chirps is still rather high not to mention the radar doesn't maintain constant intervals between chirps, the velocity measurement is not very practical.
 Were we to use 24~GHz header with 25~ms trigger we get maximal speed of 0.124~m/s and on low 8 NFFT steps the resolution is only $0.031$~ms$^{-1}$.
 
-This lack of perforace in this area severely limits the radar's usability with regard to surveillance.
-Most surveillance applications are designed to monitor dynamic environments, where targets is moving.
+This lack of perforace severely limits the radar's usability with regard to surveillance applications.
+Most surveillance radars are designed to monitor dynamic environments, where targets is moving.
 And usually at much higher speeds than the \sidar can measure.
 This radar is completely unsuitable for such applications and is mainly applicable to static environments.
 For example at parking lot, operator can detect if a car is parked in a given spot or not.
@@ -1227,6 +1227,9 @@ As for the distance metric points are at firstly converted to cartesian coordina
 This distance is then divided by averaging radiuses of points.
 Still it needs to be said that, while dividing by the mean of distances is sometimes used when working with spherical data \cite{Fisher1993}, author is not aware of any literature that would suggest use in DBSCAN.
 Especially on longer distance this methods will lead to significant errors.
+
+\newpage
+\pagestyle{plain}
 
 \include{conclusion}
 
