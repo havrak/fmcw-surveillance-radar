@@ -508,46 +508,48 @@ However, this can be significantly improved using the supplied collimator lens, 
 
 \chapter{Rotary Platform}
 
-Following chapter outlines design process and the operation of a rotary platform specifically designed for \sidar radar system.
+The following chapter outlines the design process and operational principles of a rotary platform specifically developed for the \sidar radar system.
 
 
 \section{Platform Construction}
 
-As the platform needs to transmit data from the rotating section to the stationary base, a slip ring is required.
+As the platform needs to transmit data from the rotating section to the stationary base a slip ring is required.
 Due to the relatively low transmission speed of the radar and the absence of special requirements such as waterproofing, an affordable model, UH3899-01-0810 from Senring, was selected.
-It is a classical contact slip ring that features a dedicated USB~2.0 connection along with 8 additional signal wires, with an advertised insertion loss of less than 2~dB \cite{slipring}.
-More problematic than loss is however cross talk between signal wires when pitch control stepper motor is running.
-This necessitated an addition of small capacitor to the endstop signal wire to filter out high frequency noise.
+It is a classic contact slip ring that features a dedicated USB~2.0 connection along with 8 additional signal wires.
+Advertised insertion is less than 2~dB \cite{slipring}.
+More problematic than the loss, however, is crosstalk between signal wires when the pitch control stepper motor is running.
+This necessitated the addition of a small capacitor to the endstop signal wire to filter out high-frequency noise.
 
-While USB~2.0 connection doesn't seem affected by the crosstalk it's connection still isn't ideal.
-Without signal conditioner connected directly to the slipring output signal quality is bad enough that direct connection to PC is needed -- thus radar needs to be some 20~cm from the PC.
-And even then depending on PC's USB port wiring some ports might exhibit issues.
-In addition the manufacturer opted for a non-standard male-male USB~2.0 connection, requiring a female-female adapter to connect the radar to the slip ring.
+While the USB~2.0 connection does not seem affected by the crosstalk, its connection still isn't ideal.
+Without a signal conditioner connected directly to the slip ring output, signal quality is poor enough that a direct connection to the PC is required -- thus, the radar needs to be some 20~cm from the PC.
+Even then, depending on the PC's USB port wiring, some ports might exhibit issues.
+In addition, the manufacturer opted for a non-standard male-male USB~2.0 connection, requiring a female-female adapter to connect the radar to the slip ring.
 
 Due to the relatively low angular resolution of the radar, high platform precision was not a requirement.
 A basic 200-step stepper motor with a step size of 1.8\text{°} was deemed sufficient.
-In case user would require more granular control over the position it can be facilitated by microstepping.
+In case the user requires more granular control over the position, it can be facilitated by microstepping.
 
-Similarly high-speed movement is unnecessary for this application.
-As was already outlined the radar is capable at best of some 50~Hz update rate.
-With such update frequency even at low 8~RPM we travel a degree under 21~ms -- any waster and we wouldn't get at least one update for each degree.
-At these RPMs standard 40~mm NEMA17 stepper motors are powerful enough to turn the rather stiff splipring.
+Similarly, high-speed movement was unnecessary for this application.
+As was already outlined, the radar is capable at best of some 50~Hz update rate.
+With such an update frequency, even at a low 8~RPM, we travel a degree in under 21~ms -- any faster and we would not get at least one update for each degree.
+At these RPMs, standard 40~mm NEMA17 stepper motors are powerful enough to turn the rather stiff slip ring.
 
 The rest of the design is relatively simple.
-Fixed section mounts the slipring with a stepper motor positioned underneath, directly driving a shaft connected to a rotating base.
-The connection is secured using long M4 set screws that pass through the base, through the slip ring and hold the shaft in place.
-A 3D-printed housing serves only as a centering guide and is not under any load from shaft connection.
+Slipring is mounted to a 3D printed base that elavates it slightly above ground.
+Stepper motor is then mounted directly under the slip ring, with a shaft connecting it to the rotating base.
+The connection is secured using long M4 set screws that pass through the base, through the slip ring, and hold the shaft in place.
+A 3D-printed housing serves only as a centering guide and is not under any load from the shaft connection.
 
 The rotating section features a simple A-frame design that elevates the radar, which is mounted on two ball bearings, allowing it to tilt freely.
 To control the pitch, a second stepper motor is mounted on the rotating platform and linked to the radar via a 2:1 down-gearing ratio using a standard 8~mm belt.
-An optical endstop, used for homing of the platform, is attached on the second support strut.
+An optical endstop, used for homing the platform, is attached to the second support strut.
 
-Unfortunately while the design offers some ability to tension the belt in currently printed configuration the adjustments range is not sufficient to fully tension the belt.
-While slippage is not a problem there is some slack in radar's tilt.
-However as the radar's capabilities in pitch direction aren't particularly high it was decided not to reprint the whole assembly, only to fix issue in supplied 3D models.
+Unfortunately, while the design offers some ability to tension the belt, in the currently printed configuration the adjustment range is not sufficient to fully tension the belt.
+While slippage is not a problem, there is some slack in the radar's tilt.
+However, as the radar's capabilities in the pitch direction are not particularly high, it was decided not to reprint the whole assembly, but only to fix the issue in supplied 3D models.
 
 Given that mechanical stresses are minimal, most parts can be 3D-printed using standard PLA filament.
-The only non-3D-printed components are the screws, bearings, and stepper motors.
+The only non-3D-printed components are the screws, shaft, bearings and stepper motors.
 The final assembly (Figure~\ref{fig:side_by_side}) measures approximately 36~cm in height and has a footprint of roughly $20\times20$~cm.
 
 \begin{figure}[h!]
@@ -570,47 +572,47 @@ The final assembly (Figure~\ref{fig:side_by_side}) measures approximately 36~cm 
 
 \subsection{Platform Electronics}
 
-Electronic side of the platform is relatively simple.
-Only two main problems needed to be tackled -- driving the stepper motors and implementing a homing mechanism.
+The electronic side of the platform is relatively simple.
+Only two problems needed to be tackled: driving the stepper motors and implementing a homing mechanism.
 
 Given the low load on the stepper motors and the platform's inability to accumulate significant momentum, a basic stepper driver without feedback control was deemed sufficient.
-For this purpose the A4988 stepper driver was chosen due to its low cost, microstepping capabilities and basic current control \cite{a4988}.
+For this purpose, the A4988 stepper driver was chosen due to its low cost, up to 1:16 microstepping capabilities, and basic current control \cite{a4988}.
 A minor drawback is the lack of any feedback from the driver to the microcontroller, including stall detection.
 To simplify the design, A4988 development kits were used and soldered onto a prototyping board, eliminating the need for a custom PCB.
-In addition if the need arieses A4988 development kit can be replaced by one with a different IC, such as TCM2209, as manufacturers keep the same pinout and dimensions on these.
-This might be necessary in application where platform loudness would be a serious problem as A4988 produces rather noisy driving signal.
-More modern drivers exhibit even 20~dB lower noise levels \cite{a4988_sound}.
+In addition, if the need arises, the A4988 development kits can be replaced by ones with a different IC, such as the TCM2209, as manufacturers keep the same pinout and dimensions on these.
+This might be necessary in applications where platform loudness would be a serious problem, as the A4988 produces a rather noisy driving signal.
+More modern drivers exhibit up to 20~dB lower noise levels \cite{a4988_sound}.
 
 For homing implementation, two potential solutions were considered: Hall effect sensors and optical gates.
 Hall effect sensors offer the advantage of angle sensing, allowing correction for positional drift during operation; however, they require precise alignment.
-If the orthogonal Hall effect sensor is not perfectly placed along the axis of rotation, calibration becomes necessary \cite{hall}.
+If the Hall effect sensor is not perfectly placed along the axis of rotation, calibration becomes necessary \cite{hall}.
 While feedback would be beneficial, the microcontroller already tracks each step taken by the motor during normal operation, making it possible to determine the platform's position purely in software.
-Thus for simplicity and ease of integration, optical gates were selected.
+Thus, for simplicity and ease of integration, optical gates were selected.
 
 The system is controlled by an ESP32 microcontroller.
 The ESP32-C6 version was chosen due to the author's extensive experience with this particular model.
-Still since the system does not require specialized peripherals or high processing power most other microcontrollers could have been use instead.
+Still, since the system does not require specialized peripherals or high processing power, most other microcontrollers could have been used instead.
 
 \section{Platform Software}
 
 Given its widespread adoption as an industry standard for controlling similar machines, G-code over serial is a natural choice for the platform's communication format.
-Beyond the basic functionality typically offered by G-code interpreters, the platform must support additional features to reduce the user's manual control burden.
-These features include common features like defining movement limits, absolute/relative positioning mode, spindle mode or enabling automatic homing.
-Lastly the platform should support a programming interface that will allow application to send whole choreography of movements to the platform at ones and from that point only monitor its status.
+Beyond the basic functionality typically offered by basic G-code interpreters, the platform should support additional features to reduce the user's manual control burden.
+These include common features such as defining movement limits, absolute/relative positioning modes, spindle mode and automatic homing.
+Lastly, the platform should support a programming interface that allows an application to send an entire choreography of movements to the platform at once, after which it only needs to monitor its status.
 
-For uplink communication, the platform must provide real-time information about its current position and speed.
-This data enables the user to make any mathematical corrections and properly interpret radar's gathered data.
+For uplink communication, the platform must provide real-time information about its current position.
+This data then enables the user to make necessary mathematical corrections and properly interpret the radar's gathered data.
 
-To maximize efficiency in processing commands and ensure accurate stepper motor control, the program workflow is divided into three distinct layers, as illustrated by figure \ref{fig:code_diag}.
-The commonly used two-component architecture -- where one component handles communication/command parsing and the other manages execution was deemed unsuitable for this use case.
-Such approach would complicate integration of programming interface and require just-in-time processing of commands, which could lead to performance issues.
+To maximize efficiency in processing commands and ensure accurate stepper motor control, the program workflow is divided into three distinct layers, as illustrated by figure~\ref{fig:code_diag}.
+The commonly used two-component architecture—where one component handles communication and command parsing, and the other manages execution—was deemed unsuitable for this use case.
+Such an approach would complicate the integration of a programming interface and require just-in-time processing of commands, which could lead to performance issues.
 
 In the chosen architecture, the degree of abstraction decreases with each successive layer, simplifying processing at each step.
-This design allows the final layer to operate with maximum efficiency, where transition from one command to next is next to instantaneous.
+This design allows the final layer to operate with maximum efficiency, where the transition from one command to the next is nearly instantaneous.
 
-It is necessary to note that the platform doesn't store any permanent configuration, including microstepping settings
-This approach was taken as platform doesn't offer any easy way to show current setting and is expected to be only operated from computer application.
-Thus instead of needing to keep track of what settings are on PC, what are stored on the platform simpler approach was taken.
+It is necessary to note that the platform does not store any permanent configuration, including microstepping settings.
+This approach was taken because the platform does not offer any easy way to display the current settings and is expected to be operated only from a computer application.
+Thus, instead of needing to keep track of which settings are on the PC and which are stored on the platform, a simpler approach was taken.
 
 \begin{figure}[h!]
   \centering
@@ -680,50 +682,49 @@ Thus instead of needing to keep track of what settings are on PC, what are store
 \subsection{Communication Layer}
 
 The communication layer processes incoming data over the serial line.
-Whose efficient handling is facilitated with the aid of RTOS queues.
-Upon receiving command, string is parsed and either pushed to a queue to be executed or added to a programm declaration, in case user is currently writing a program.
-Some special commands are executed immediately, like those enabling emergency shut off.
-For complete overview of supported commands consult Appendix A.
+Its efficient handling is facilitated with the aid of RTOS queues.
+Upon receiving a command, the string is parsed and either pushed to a queue to be executed later or added to a program declaration, in case the user is currently writing a program.
+Some special commands, such as those for emergency shut-off, are executed immediately.
+For a complete overview of supported commands consult Appendix~A.
 
-Immediately after the parsing, a response is send to the user confirming whether the command was parsed correctly or not.
-However, as the communication layer does not a can not check command within context of all previous commands, it is possible that command will be parsed correctly but its execution will fail in the application layer.
+Immediately after parsing, a response is sent to the user confirming whether the command was parsed correctly or not.
+However, as the communication layer does not and cannot check the command within the context of all previous commands, it is possible that a command will be parsed correctly but its execution will fail in the application layer.
 
 \subsection{Application layer}
 
-The application layer performs two primary functions: tracking current device position and scheduling commands to be sent to stepper motors.
-Aside from current position the program also keeps track of the end position of the last scheduled command.
-Thanks to this the application layer is able to make all necessary calculations to facilitate absolute positioning or enforce movement limits.
+The application layer performs two primary functions: tracking the current device position and preparing commands to be sent to the stepper motors.
+Aside from the current position, the program also keeps track of the end position of the last scheduled command.
+Thanks to this, the application layer is able to make all necessary calculations to facilitate absolute positioning or enforce movement limits.
 
-Key departure from standard G-code interpreters, like \cite{duet}, is how the platform handles single-axis move commands.
-When a move command targets only one axis, the other axis remains free to read a next command and begin its execution.
+A key departure from standard G-code interpreters, such as \cite{duet}, is how the platform handles single-axis move commands.
+When a move command targets only one axis, the other axis remains free to read the next command and begin its execution.
 If this behavior is undesirable, the user must issue commands for both axes simultaneously.
 In relative positioning mode, a zero value results in no motion; in absolute positioning mode, the command must specify the current position to prevent movement.
 
-This behavior is a necessary side effect of the spindle regime, which typically cannot be toggled on or off dynamically.
+This behavior is a necessary side effect of the spindle regime, which typically can only be toggled on or off dynamically \cite{duet}.
 Another consequence of spindle mode is the requirement for separate positioning modes for each axis.
-Continuous rotation prevents calculating a move’s end position, making it impossible to make calculation for absolute positioning commands -- thus necessitating relative positioning.
-However it would be rather restrictive to force user to relative positioning on second axis, therefore the independent positioning modes.
+Continuous rotation prevents calculating a move’s end position, making it impossible to compute absolute positioning commands, thus necessitating relative positioning.
+However, it would be rather restrictive to force the user to use relative positioning on the second axis; therefore, the positioning modes are independent.
 
-In order to support other possible applications a manual override mode was also implementing.
-This enables the user to manually push a move command directly to stepper queues totally skipping the application layer.
-Primary usecase of this mode is to allow tracking of targets or usee in other application that require real time control over the platform.
-However in this regime no limits are enforced and the platform operates strictly in relative positioning mode.
+To support other possible applications, a manual override mode was also implemented.
+This enables the user to manually push a move command directly to the stepper queues, totally skipping the application layer.
+The primary use case for this mode is to allow tracking of targets or use in other applications that require real-time control over the platform.
+However, user must keep in mind that in this regime, no limits are enforced and the platform operates strictly in relative positioning mode.
 
 \subsection{HAL Layer}
 
 The final layer manages stepper motor control and provides the application layer with essential data for position calculations.
 In its loop, the program waits for the next command in the stepper queue.
 Upon receiving a command, it sets up execution, waits for one or both steppers to complete their movement, and then proceeds to the next command.
-Since limit and absolute positioning and limits calculations are handled in the application layer whole routine remains highly efficient -- layer just moves given number of steps.
+Since limit and absolute positioning calculations are handled in the application layer, the whole routine remains highly efficient -- the layer just moves stepper a given number of steps, or let's it rotate in case of spindle mode.
 
-The main challenge was a generation of precise PWM signals (Used to control stepper motors drivers.) and stopping the signal generation after a specific number of steps.
-As generating PWM signal in software is unpractical dedicated EPS32C6 peripherals needed to be leveraged.
+The main challenge was the generation of precise PWM signals (used to control stepper motor drivers) and stopping the signal generation after a specific number of steps.
+As generating a PWM signal in software is impractical, dedicated ESP32C6 peripherals needed to be leveraged.
 There are two main options for this task: Remote Controlled Transceiver (RMT) and Motor Control Pulse Width Modulation (MCPWM) combined with Pulse Counter (PCNT).
-While RMT allows smooth PWM frequency adjustments, it has several drawbacks.
-Such as the fact that generating a specific number of pulses is supported only on newer ESP32 models \cite{gitRMT}, synchronization is restricted to its proprietary API and there is no straightforward way to track progress during a move \cite{espRMT}.
+While RMT allows smooth PWM frequency adjustments, it has several drawbacks: for example, generating a specific number of pulses is supported only on newer ESP32 models \cite{gitRMT}, synchronization is restricted to its proprietary API, and there is no straightforward way to track progress during a move \cite{espRMT}.
 
-For these reasons, MCPWM and PCNT were chosen.
-MCPWM handles pulse generation, while PCNT counts steps, enabling easy control over the movement and providing robust API for step count tracking \cite{espPCNT}.
+For these reasons, combination of MCPWM and PCNT was chosen.
+MCPWM handles pulse generation, while PCNT counts steps, enabling easy control over movement and providing a robust API for step count tracking \cite{espPCNT}.
 The only limitation is the PCNT’s 15-bit counter, which caps the maximum steps per move at $\pm$32,767.
 
 
@@ -732,8 +733,8 @@ The only limitation is the PCNT’s 15-bit counter, which caps the maximum steps
 Table \ref{tab:performancepwm} illustrates the stability of PWM generation by the MCPWM module at various speeds.
 Measurements were conducted using a Saleae Logic Pro 16 logic analyzer, with no microstepping enabled.
 
-The results show that frequency deviation is minimal, though the generated speed is consistently marginally faster than the target, and  the error increases slightly with higher speeds.
-Nevertheless, when measuring time of 24,000 steps at 120 RPM, the relative error in time duration (or speed) was only $\epsilon = -0.004\%$, demonstrating excellent accuracy.
+The results show that frequency deviation is minimal, though the generated speed is consistently marginally faster than the target and the error increases slightly at higher speeds.
+Nevertheless, when measuring the time for 24,000 steps at 120~RPM, the relative error in time duration (or speed) was only $\epsilon = -0.004\%$, demonstrating excellent accuracy.
 
 
 \begin{table}[h!]
@@ -760,27 +761,25 @@ Nevertheless, when measuring time of 24,000 steps at 120 RPM, the relative error
   \label{fig:switching}
 \end{figure}
 
-An attempt was made to also measure the delay  between switching commands, displayed in figure \ref{fig:switching}.
+An attempt was made to also measure the delay between switching commands, as displayed in figure~\ref{fig:switching}.
 The results indicate that the delay between commands is imperceptible.
 Similar outcomes were also observed for other command combinations.
 
 This demonstrates the efficiency of the HAL layer in managing stepper motor control and transitioning seamlessly between commands.
-As long as stepper queues are supplied with commands in advance, the platform can operate without noticeable interruptions.
-
-
+As long as the stepper queues are supplied with commands in advance, the platform can operate without noticeable interruptions.
 
 \chapter{Control Application}
 
-As previously stated control application for the whole system is written in MATLAB.
-There are two main distinct parts - one is managing the platform and the other is processing radar data.
-Alongside these there are some shared components, such as preferences menu.
+As previously stated, the control application for the whole system is written in MATLAB.
+There are two main parts to it: one is managing the platform and the other for processing radar data.
+Alongside these, there are some shared components, such as the preferences menu.
 
 \section{Main Window}
 
-Upon starting the application user is presented with a main window (Figure \ref{fig:main_window}).
-This window is primarily used to display radar data and control basic functionality of the application.
-On the sidebar user can enable serial connections to the radar and the platform, pause processing, save current visualization to jpg and stop the platform in case of an emergency.
-Lastly topbar is used to access preferences and platform control interface.
+Upon starting the application, the user is presented with the main window (Figure~\ref{fig:main_window}).
+This window is primarily used to display radar data and control the basic functionality of the application.
+On the sidebar, the user can enable serial connections to the radar and the platform, pause processing, save the current visualization to JPG, and stop the platform in case of an emergency.
+Lastly, the top bar allows access preferences and the platform control interface.
 
 \begin{figure}[h!]
   \centering
@@ -791,19 +790,20 @@ Lastly topbar is used to access preferences and platform control interface.
 
 \subsection{Application Configuration}
 
-As this thesis concerns itself with rather generic implementation of surveillance radar system the application is designed to be as flexible as possible.
-For this purpose GUI menu was designed to enable configuration of all important elements - configuring the platform, radar, data processing and data visualization.
-However it is necessary to point out that given extensive configuration options user is expected to have some knowledge about the subject to achieve satisfactory results.
-Firstly -- configuration options aren't checked against each other to verify if they aren't mutually exclusive.
-For example for speed calculation ramp averaging must be turned off, but as things stand application will allow user to continue even with it on.
-Secondly -- configuration of components such a CFAR or DBSCAN strongly depended on bandwidth, samples, FFT point count and other parameters.
-CFAR guard parameter of 3 might be too small on 5~GHz bandwidth with width of single range bin of 50~mm, but if with $BW=500$~MHz it could be way too large.
-To aid with choosing correct parameters the application provides some basic information like dimensions of the bins; however it is up to the user to make the final decision.
+As this thesis concerns itself with a rather generic implementation of a surveillance radar system, the application is designed to be as flexible as possible.
+For this purpose, a GUI menu was designed to enable configuration of all important elements -- configuring the platform, radar, data processing, and data visualization.
+However, it is necessary to point out that, given the extensive configuration options, the user is expected to have some knowledge about the subject to achieve satisfactory results.
+Firstly, configuration options are not checked against each other to verify if they are mutually exclusive.
+For example, for speed calculation, ramp averaging must be turned off, but as things stand, the application will allow the user to continue even with it enabled.
+Secondly, configuration of components such as CFAR or DBSCAN strongly depends on bandwidth, number of samples, FFT point count, and other parameters.
+A CFAR guard parameter of 3 might be too small on a 5~GHz bandwidth with a single range bin width of 50~mm, but with $BW=500$~MHz it could be way too large.
+To aid in choosing correct parameters, the application provides some basic information, like the dimensions of the bins.
+Still, it is up to the user to make the final decision.
 
-Figure \ref{fig:preferences} shows the preferences menu, as one can see there are four main sections.
-First configures serial port connections to the radar and the platform.
-Second section handles configuration of the platform, followed by a section designated for radar configuration.
-Last section configures how the data are processed and via which method they are visualized.
+Figure~\ref{fig:preferences} shows the preferences menu; as one can see, there are four main sections.
+The first configures serial port connections to the radar and the platform.
+The second section handles configuration of the platform, followed by a section designated for radar configuration.
+The last section configures how the data are processed and via which method they are visualized.
 
 \begin{figure}[h!]
   \centering
@@ -812,25 +812,25 @@ Last section configures how the data are processed and via which method they are
   \label{fig:preferences}
 \end{figure}
 
-User's preferences are stored in a INI file format in directory whose path depends on used operating system -- \texttt{\%APPDATA\%/Local/fmcw/fmcw.conf} on Windows and \texttt{\$HOME/.config/fmcw/fmcw.conf} for unix based systems.
-As INI format is easily human readable it is possible to edit the file directly.
+User preferences are stored in an INI file in a directory whose path depends on the operating system used—\texttt{\%APPDATA\%/Local/fmcw/fmcw.conf} on Windows and \texttt{\$HOME/.config/fmcw/fmcw.conf} for Unix-based systems.
+As INI format is easily human-readable, it is possible to edit the file directly.
 
 
 \section{Platform Control Interface}
 
-It is necessary to emphasizes that the platform control is entirely independent of the radar operation.
-User loads up program to the platform, starts its execution.
-From then application is only processing current position reports comming from the platform.
-There is no feedback from the radar to the platform based on processed data, although as the platform enables direct access to the stepper queues it would be possible to implement such a feature.
-Nor does processing take into account from which movements is a platform's current program comprised.
+It is necessary to emphasize that the platform control is entirely independent of radar operation.
+The user loads a program onto the platform and starts its execution.
+From then on, the application only processes current position reports coming from the platform.
+There is no feedback from the radar to the platform based on processed data, although, as the platform enables direct access to the stepper queues, it would be possible to implement such a feature.
+Nor does processing take into account which movements comprise the platform's current program.
 
-In preferences menu user can configure static offsets to the platform with the \texttt{Pitch offset} and \texttt{Yaw offset} options.
-This is useful in case zero position of the platform is not aligned with what user want's to be zero in data.
-Aside form offset step count configuration is also available here with \texttt{Step count pitch} and \texttt{Step count yaw}.
-Step count takes into accoun both microstepping and physical down gearing ratio.
-It is important to note that as the platform doesn't store step count in non volatile memory this setting is essential to maintain propper operation of the platform.
-The step count command is sent to the platform each time it is connected or config is changed.
-Lastly \texttt{Platform debug} toggle enables full debug output to be visible in platform control window.
+In the preferences menu, the user can configure static offsets to the platform with the \texttt{Pitch offset} and \texttt{Yaw offset} options.
+This is useful in case the zero position of the platform is not aligned with what the user wants to be zero in the data.
+Aside from offset, step count configuration is also available here with \texttt{Step count pitch} and \texttt{Step count yaw}.
+Step count takes into account both microstepping and the physical down-gearing ratio.
+It is important to note that, as the platform doesn't store the step count in non-volatile memory, this setting is essential to maintain proper operation of the platform.
+The step count command is sent to the platform each time it is connected or the configuration is changed.
+Lastly, the \texttt{Platform debug} toggle enables full debug output to be visible in the platform control window.
 
 \begin{figure}[h!]
   \centering
@@ -839,50 +839,49 @@ Lastly \texttt{Platform debug} toggle enables full debug output to be visible in
   \label{fig:platformControl}
 \end{figure}
 
-Managing platform programs is done via a separate window (Figure \ref{fig:platformControl}).
-This interface enables user to load, edit and send programs to the platform.
-Left sidebar allows user to load stored programs by clicking on their name.
-Middle text boxes are used to edit programs header (top part) and program body (middle part) with bottom text field being used to display platforms debug output.
-On the right side are then buttons that handle basic operations over program -- load, save, store to file, upload and start.
+Managing platform programs is done via a separate window (Figure~\ref{fig:platformControl}).
+This interface enables the user to load, edit, and send programs to the platform.
+The left sidebar allows the user to load stored programs by clicking on their name.
+The middle text boxes are used to edit the program header (top part) and program body (middle part), with the bottom text field being used to display the platform's debug output.
+On the right side are buttons that handle basic operations on the program: load, save, store to file, upload, and start.
 
-Commands are written one per line, their complete syntax is described in Appendix A.
-Control commands used to denote start of program, end of header and so on are automatically sent to the device when rest of the program is uploaded.
-To validate whether program was parsed correctly user can consult the text window at the bottom of the screen which forwards platforms debug output to the user.
-In case user clicks the store button the program is stored in same INI file as preferences.
+Commands are written one per line; their complete syntax is described in Appendix~A.
+Control commands used to denote the start of a program, end of header, and so on are automatically sent to the device when the rest of the program is uploaded.
+To validate whether the program was parsed correctly, the user can check the text window at the bottom of the screen, which forwards the platform's debug output.
+If the user clicks the store button, the program is stored in the same INI file as the preferences.
 
 
 Backend side of the platform control is rather straightforward.
-After connection is established MATLAB serial interface calls a callback each time terminator sequence is found in received data.
-Received message is then parsed with debug output being forwarded to the user and positions logged with timestamp in a circular buffer.
-Radar data processing part can then request a list of positions for given time interval.
+After a connection is established, the MATLAB serial interface calls a callback each time a terminator sequence is found in received data.
+The received message is then parsed, with debug output being forwarded to the user and positions logged with a timestamp in a circular buffer.
+The radar data processing part can then request a list of positions for a given time interval.
 
-Platform control can also emit an event when platform finds itself close to a predetermined position.
-This location is specified in option \texttt{Reset yaw} with tolerance zone fixed at two degress on either side.
-In order to prevent multiple triggering of the event the platform will only emit it once per 1~s.
-This event allows reset of stored data after cycle is completed when \texttt{Cube decay} option is set to reset.
+Platform control can also emit an event when the platform finds itself close to a predetermined position.
+This location is specified in the \texttt{Reset yaw} option, with a tolerance zone fixed at two degrees on either side.
+In order to prevent multiple triggering of the event, the code will only emit it once per 1~s.
+This event allows for a reset of stored data after a cycle is completed.
+That is when the \texttt{Cube decay} option is set to reset, if not no reaction takes place.
 
 \section{Radar configuration}
 
-Given that the radar's output is displayed in the main window there isn't any specialized interface dedicated just to the radar.
-Still in preferences menu there are some paramters that can be configured.
+Given that the radar's output is displayed in the main window, there isn't any specialized interface dedicated just to the radar.
+Still, in the preferences menu, there are some parameters that can be configured.
 
-\texttt{Radar frequency} toggle chooses between 24~GHz and 122~GHz header.
-However this only affect configuration sent to the radar, it doesn't reflash the firmware what is also necessary to do.
-After base frequency \texttt{Radar bandwidth} can also be configred, both positive and negative values are accepted however manual verification is required to verify that the radar is working as expected.
-While manufacturer states a 3~GHz limit on the 24~GHz header and 5~GHz on the 122~GHz header \cite{sidarPRO}, in practice, especially with the 24~GHz header, achievable bandwidth was usually much lower and its limit rather inconsistent.
+The \texttt{Radar frequency} toggle chooses between the 24~GHz and 122~GHz headers.
+However, this only affects the configuration sent to the radar; it does not reflash the firmware, which is also necessary.
+After the base frequency, \texttt{Radar bandwidth} can also be configured; both positive and negative values are accepted, however manual verification is required to ensure that the radar is working as expected.
+While the manufacturer states a 3~GHz limit on the 24~GHz header and 5~GHz on the 122~GHz header \cite{sidarPRO}, in practice—especially with the 24~GHz header—achievable bandwidth was usually much lower and its limit was rather inconsistent.
 
-User can also configure number of samples per chirp via \texttt{Chirp samples} and ADC rate with \texttt{ADC ClkDiv}.
-These two paramters determine time of a single ramp which is calcualted with equation (\ref{eq:sampling}).
-Together with gain, ramp time plays a crutial role in maintaining good signal-to-noise ratio.
+The user can also configure the number of samples per chirp via \texttt{Chirp samples} and the ADC rate with \texttt{ADC ClkDiv}.
+These two parameters determine the time of a single ramp, which is calculated with equation~(\ref{eq:sampling}).
+Together with gain, ramp time plays a crucial role in maintaining a good signal-to-noise ratio.
 
-Drop down menu \texttt{Ramp coherent avg} allows user to pick how many ramps will be averaged together.
-However use of this feature is generally not recommended unless surrounding environment is too cluttered (such as in a lab).
-Each ramps adds some 2~ms overhead to the radar's operation and makes speed calculation impossible.
+The drop-down menu \texttt{Ramp coherent avg} allows the user to pick how many ramps will be averaged together.
+However, use of this feature is generally not recommended unless the surrounding environment is too cluttered.
+Each ramp adds about 2~ms overhead to the radar's operation and makes speed calculation impossible.
 
-
-Last paramters is \texttt{Trigger period} which dictates how often will the application send a trigger command to the radar.
-As previously stated the radar is at best capable of around 50~Hz update rate or 20~ms per chirp.
-
+The last parameter is \texttt{Trigger period}, which dictates how often the application will send a trigger command to the radar.
+As previously stated, the radar is at best capable of a chirp roughly every 20~ms.
 
 \chapter{Radar Data Processing}
 
