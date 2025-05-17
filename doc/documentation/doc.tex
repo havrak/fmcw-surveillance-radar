@@ -37,7 +37,7 @@
 
 \chapter{FMCW Radar Fundamentals}
 
-While classical Continuous Wave (CW) radars broadcast a signal only on a single frequency, Frequency-Modulated Continuous Wave (FMCW) radars make a linear sweep across a given bandwidth.
+Classical CW (Continuous Wave) radars broadcast a signal only on a single frequency, while FMCW (Frequency-Modulated Continuous Wave) radars make a linear sweep across a given bandwidth.
 This approach enables accurate range estimation at low power consumption and still allows speed measurements using the Doppler shift.
 However, velocity calculations in FMCW radars are more complex compared to those in single-frequency CW radars.
 
@@ -422,7 +422,7 @@ The core block of 24~GHz header is a SISO TRX-024-007 transceiver, which integra
 It is primarily designed to operate in the ISM band (24.0--24.25 GHz), but also supports an additional ultra-wideband mode with a frequency range from 23 GHz to 26 GHz \cite{sidarTRX24}.
 On the \sidar there is no distinction made between  those two modes and the user is free to set any bandwidth they want \cite{sidarPRO}.
 The transmitter output power ranges from 2.5 dBm to 6 dBm, depending on the configuration \cite{sidarTRX24}.
-A maximal range of 400 m is advertised \cite{sidarMANOld}, though in practice only ranges of around 250~m were achieved, with target being a multistory building.
+A maximal range of 400 m is advertised \cite{sidarMANOld}, though in practice only ranges of around 300~m were achieved, with target being a multistory building.
 
 As shown in figure \ref{fig:sidar}, the chip is connected to two microstrip patch antennas.
 The patches are arranged in a relatively standard configuration, forming a 6 $\times$ 4 array with spacing approximately equal to half the wavelength at 24 GHz.
@@ -857,10 +857,9 @@ The received message is then parsed, with debug output being forwarded to the us
 The radar data processing part can then request a list of positions for a given time interval.
 
 Platform control can also emit an event when the platform finds itself close to a predetermined position.
-This location is specified in the \texttt{Reset yaw} option, with a tolerance zone fixed at two degrees on either side.
-In order to prevent multiple triggering of the event, the code will only emit it once per 1~s.
-This event allows for a reset of stored data after a cycle is completed.
-That is when the \texttt{Cube decay} option is set to reset, if not no reaction takes place.
+This angle is specified in the \texttt{Reset yaw} option, with a tolerance zone fixed at two degrees on either side.
+In order to prevent multiple triggering of the event, the program will only emit it once per 1~s.
+When the \texttt{Cube decay} option is set to 'reset', if this event is used to clear stored data after a cycle is completed,
 
 \section{Radar configuration}
 
@@ -885,60 +884,59 @@ As previously stated, the radar is at best capable of a chirp roughly every 20~m
 
 \chapter{Radar Data Processing}
 
-Firstly it is necessary to outline what inputs and outputs of the whole processing pipeline are.
-Data to the application comes from two sources - serial connections to the radar and to the platform.
-These two streams are then paired together based on timestamps logged when data is received.
-Processing then does user chosen calculations -- parts such as CFAR calculation, speed calculation and so on can be turned on or off.
-After that output data are stored in a radar cube, common method to manage radar's data that enables easy integration of more complex algorithms in the future \cite{richards2022}.
+Firstly, it is necessary to outline the inputs and outputs of the entire processing pipeline.
+Data are arrive to the application from two sources: serial connections to the radar and to the platform.
+These two data streams are then paired together based on timestamps logged when the data are received.
+Program then performs user-selected calculations -- components such as CFAR calculation, speed calculation, and so on can be enabled or disabled as needed.
+After processing finishes, the output data are stored in a radar cube, a common method for managing radar data that enables easy integration of more complex algorithms in the future \cite{richards2022}.
 
-Given that both CFAR and raw data (That is individual range-Doppler maps.) calculation might enabled at the same time application has two radar cubes.
-One is a 4D structure with dimensions of fast time $\times$ slow time $\times$ yaw $\times$ pitch, used to store complete range-Doppler map for each spatial degree.
-In this thesis this structure is only used for visualizing of raw data for given fixed pitch angle or showing range-Doppler map for given yaw and pitch.
+Given that both CFAR and raw data (that is, individual range-Doppler maps) calculations might be enabled at the same time, the application maintains two radar cubes.
+One is a 4D structure with dimensions of fast time $\times$ slow time $\times$ yaw $\times$ pitch, used to store the complete range-Doppler map for each spatial degree.
+In this thesis, this structure is only used for visualizing raw data for a given fixed pitch angle or for showing the range-Doppler map for a given yaw and pitch.
 Any 3D visualization style of the raw data would be too cluttered and hard to interpret.
-Second cube is a 3D structure with dimensions of range $\times$ yaw $\times$ pitch, this one is used to store CFAR output.
+The second cube is a 3D structure with dimensions of range $\times$ yaw $\times$ pitch; this one is used to store CFAR output.
 
-In each case yaw resolution is fixed 1 degree thus the cube is 360° wide.
-Given quality of radar mounting bracket, 1.8° resolution of stepper and tighthness of radiation pattern 1° degree was deemed sufficient.
-As for pitch same resolution was kept with angles ranging form -20° to +80° being covered.
-Lower bound is limited by the radar's mounting bracket and upper bound is more or less arbitrary, slightly motivated by trying to perevent radar from seeing behind itself.
+In each case, the yaw resolution is fixed at 1 degree, thus the cube is 360° wide.
+Given the quality of the radar mounting bracket, the 1.8° resolution of the stepper, and the tightness of the radiation pattern, a 1° resolution was deemed sufficient.
+As for pitch, the same resolution was kept, with angles ranging from -20° to +80° being covered.
+The lower bound is limited by the radar's mounting bracket, and the upper bound is more or less arbitrary, slightly motivated by trying to prevent the radar from seeing behind itself.
 
-Main complicating factor in the processing was a need to keep the main thread responsive.
-Most time critical thing main thread is responsible for is timely readout of data from serial ports.
-If data can't be read right after its arrival assigned timestamps will be wrong and therefore data will be attributed to wrong position.
-In addition GUI starts to be quite unresponsive if resources of the main thread are stretched too thin.
+The main complicating factor in the processing was the need to keep the main thread responsive.
+The most time-critical responsibility of the main thread is the timely readout of data from the serial ports.
+If data cannot be read immediately upon arrival, the assigned timestamps will be incorrect and, therefore, the data will be attributed to a wrong position.
+In addition, the GUI becomes quite unresponsive if the main thread's resources are stretched too thin.
 
-To solve this problem processing heavily leverages MATLAB's Parallel Computing Toolbox, offloading as much as possible to different cores.
-Thorough whole processing pipeline there are mechanism of buffering data into larger batches and if needed discarding some in case software is unable to keep up.
-Unfortunately as MATLAB's parallelization capabilities with threads are rather limited  -- external language interface don't work, neither do certain file/memory mapping functions \cite{matlabParallel}.
-Thus the parallelization needed to be done with processes.
-This restrict the application to machines with at least 16~GB of RAM as each process (of which there are three) requires around 2~GB of RAM.
+To solve this problem, processing heavily leverages MATLAB's Parallel Computing Toolbox, offloading as much as possible to different cores.
+Throughout the entire processing pipeline, there are mechanisms for buffering data into larger batches, and if needed, discarding some in case the software is unable to keep up.
+Unfortunately, as MATLAB's parallelization capabilities with threads are rather limited -- external language interfaces do not work, nor do certain file or memory mapping functions \cite{matlabParallel} -- the parallelization needed to be done with processes.
+This restricts the application to machines with at least 16~GB of RAM, as each process (of which there are three) requires around 2~GB of RAM.
 
-Procesisng pipeline can be divided into multiple distinct steps as follow:
+The processing pipeline can be divided into several distinct steps as follows:
 \setlist[enumerate]{nosep, topsep=3pt, partopsep=3pt}
 \begin{enumerate}
-  \item Data acquisition: Data are read, simple FFT is calculated and sectrums are buffered into a circular buffer.
-  \item Data processing: Spectrums are retrived from the circular buffer, paired with positions and processed.
-  \item Cube update: Processed data are buffered into a ping-pong buffer. In case buffer is full the cube update routine is launched.
-  \item Visualization: After cubes are updated data are visualized.
+  \item Data acquisition: Data are read, a simple FFT is calculated, and spectra are buffered into a circular buffer.
+  \item Data processing: Spectra are retrieved from the circular buffer, paired with positions, and processed.
+  \item Cube update: Processed data are buffered into a ping-pong buffer. If the buffer is full, the cube update routine is launched.
+  \item Visualization: After cubes are updated, data are visualized.
 \end{enumerate}
 
 \section{Data Acquisition}
 
-Basic workflow of this step is showned on figure \ref{fig:radar_flow}.
-Action starts as soon as MATLAB detects line terminator within incoming radar data stream.
-After whole frame from the radar is read, data are timestamped and I and Q channels buffered.
-Observer \texttt{dataProcessor.m} is then notified and left to retrieves the data when main thread is free.
+The basic workflow of this step is shown in figure~\ref{fig:radar_flow}.
+The process starts as soon as MATLAB detects a line terminator within the incoming radar data stream.
+After the entire frame from the radar is read, the data are timestamped and the I and Q channels are buffered.
+The observer \texttt{dataProcessor.m} is then notified and left to retrieve the data when the main thread is free.
 
-After retrieval inphase and quadrature channels are merged to form an complex singal which is multiplied by a Hann window to prevent spectral leakage.
-Basic 1D FFT is then calculated with number of points set by \texttt{Range NFFT} paramter in preferences.
-In case fft order is larger than the number of samples zero padding is added.
-Resulting spectrum is again buffered, as spectrums will be subjected to futher processing they are kept in original complex form.
-Following this step program has in memory multiple FFT spectrums -- these can be leveraged to enable range-Doppler map computation.
+After retrieval, the in-phase and quadrature channels are merged to form a complex signal, which is multiplied by a Hann window to prevent spectral leakage.
+A basic 1D FFT is then calculated, with the number of points set by the \texttt{Range NFFT} parameter in the preferences.
+If the FFT order is larger than the number of samples, zero padding is added.
+The resulting spectrum is again buffered in its complex form.
+Following this step, the program has in memory multiple FFT spectra -- these can be leveraged to enable range-Doppler map computation.
 
-After spectrum is stored program verifies if the platform has moved.
-This check enables to save processing resources by not computing R-D map that would be immediately rewritten.
-After movement code than takes all spectrums (Except the last one when the platform has changed position.) and launches another processing step in a separate thread.
-In case user wishes for procesisng to always take place (e.g. they are verifying radar settings when platform is static) this position check can be skipped by toggeling \texttt{Require pos change}.
+After the spectrum is stored, the program verifies if the platform has moved.
+This check helps save processing resources by avoiding computation of an R-D map that would be immediately overwritten.
+After movement is detected, the code then takes all spectra (Except the last one when the platform has changed position.) and launches another processing step in a separate thread.
+If the user wishes processing to always take place (e.g., when verifying radar settings while the platform is static), this check can be skipped by toggling \texttt{Require pos change}.
 
 \begin{figure}[h!]
   \centering
@@ -992,8 +990,8 @@ In case user wishes for procesisng to always take place (e.g. they are verifying
 
 \section{Data Processing}
 
-This parallel process takes calculated FFT spectrums and their accompanying positions and processes them into single range-Doppler map and array with CFAR output.
-Basic outline of the processing flow is shown in figure \ref{fig:feature_flow}.
+A parallel process takes calculated FFT spectra and their accompanying positions and processes them into a single range-Doppler map and an array with CFAR output.
+A basic outline of this step is shown in figure~\ref{fig:feature_flow}.
 
 \begin{figure}[h!]
   \centering
@@ -1033,36 +1031,36 @@ Basic outline of the processing flow is shown in figure \ref{fig:feature_flow}.
   \label{fig:feature_flow}
 \end{figure}
 
-In the first step last spectrum is converted to values proportional to the radar cross section of the target.
-Starting with equation (\ref{eq:radar_eq}) we can see that the target's RCS is proportional to the received power divided by fourth power of the distance to the target.
-Range can be calculated from manufacturer's supplied equation (\ref{eq:rangeBin}) and power is proportional to the square of values reported from the radar.
-Given that constants of the radar equation changed based on configuration calibration would be required in ordet to get real RCS values.
-However this calibration is not supported and thus onwards when refering to RCS we will be refering to the values proportional to the RCS and not real RCS of the object.
+In the first step, the last spectrum is converted to values proportional to the radar cross section (RCS) of the target.
+Starting with equation~(\ref{eq:radar_eq}), we can see that the target's RCS is proportional to the received power divided by the fourth power of the distance to the target.
+Range can be calculated from the manufacturer-supplied equation~(\ref{eq:rangeBin}), and power is proportional to the square of values reported from the radar.
+Given that the constants of the radar equation change based on configuration, calibration would be required in order to obtain real RCS values.
+However, this calibration is not supported, and thus onward, when referring to RCS we refer to values proportional to the RCS, not the actual RCS of the object.
 
-After RCS conversion if \texttt{Calc CFAR} is enabled CFAR algorithm will be executed on the latest chirp in the batch.
-In this application simple 1D CA-CFAR from MATLAB's Phased Array System Toolbox is used which parametrized with two variables -- number of guard bins (Those are excluded from the average and are right next to bin we are testing.) and number of training bins (Those are used to calculate the average.) \cite{matlab_cfar}.
-Both these paramters are configurable from preferences menu with \texttt{CFAR training} and \texttt{CFAR guard}.
+After RCS conversion, if \texttt{Calc CFAR} is enabled, the CFAR algorithm will be executed on the latest chirp in the batch.
+In this application, a simple 1D CA-CFAR from MATLAB's Phased Array System Toolbox is used, which is parameterized by two variables: the number of guard bins (those are excluded from the average and are right next to the bin being tested) and the number of training bins (those used to calculate the average) \cite{matlab_cfar}.
+Both these parameters are configurable from the preferences menu with \texttt{CFAR training} and \texttt{CFAR guard}.
 
-If raw data calculation is enabled (Using \texttt{Calc raw cube} toggle.) the program takes one of two paths depending on whether speed calculation is toggled on or off with \texttt{Calc speed}.
-In case speed calculation is disabled the program just returns half of the original spectrum converted to RCS.
+If raw data calculation is enabled (using the \texttt{Calc raw cube} toggle), the program takes one of two paths depending on whether speed calculation is toggled on or off with \texttt{Calc speed}.
+If speed calculation is disabled, the program simply returns half of the original spectrum converted to RCS.
 
-When speed calculation is enabled program firstly cuts of samples that are too far away from the position of the latest chirp.
-After that timing of chirps are analyzed to determin whether NUFFT need's to be used.
-Decision which transformation to use is based solely on the ratio of maximal deviation of the chirp intervals to the median of the chirp intervals -- if this ratio is over 20~\% NUFFT is used.
-For more accurate measurement more complex method should have been used but as the radar timing data are not very precise not to mention radar can track only very slow moving objects, this method was deemed sufficient.
-For simmilar resasons no correction for the platform's movement is applied.
-Output range-Doppler map is then shifted in order to get 2D array with \texttt{Range NFFT} $\times$ \texttt{Speed NFFT} number of elements with speed going from $-\frac{\text{Speed NFFT}}{2}\cdot w $ to  $\left(\frac{\text{Speed NFFT}}{2}-1\right)\cdot w $, where $w$ is speed bin widht calcualted with (\ref{eq:Doppler3}).
+When speed calculation is enabled, the program first cuts off samples that are too far away from the position of the latest chirp in the batch.
+After that, the timing of chirps is analyzed to determine whether NUFFT needs to be used.
+The decision about which transformation to use is based solely on the ratio of the maximal deviation of the chirp intervals to the median of the chirp intervals; if this ratio is over 20\%, NUFFT is used.
+For more accurate measurement, a more complex method should be used, but as the radar timing data are not very precise -- not to mention the radar can track only very slow-moving objects -- this method was deemed sufficient.
+For similar reasons, no correction for the platform's movement is applied.
+The output range-Doppler map is then shifted in order to create a 2D array with \texttt{Range NFFT} $\times$ \texttt{Speed NFFT} elements, with speed ranging from $-\frac{\text{Speed NFFT}}{2}\cdot w $ to  $\left(\frac{\text{Speed NFFT}}{2}-1\right)\cdot w $, where $w$ is the speed bin width calculated with (\ref{eq:Doppler3}).
 
 
 \section{Cube Update}
 
-Last step of processing pipeline handles updates of radar cubes (Figure \ref{fig:cube_flow}).
-Range-Doppler maps and CFAR data are firstly buffered in a ping-pong buffer -- where one is being used to update the cube while the other is being filled with new data.
-Upon the buffer is filled they switch roles and cube update routine is launched.
+The last step of the processing pipeline handles updates of the radar cubes (Figure~\ref{fig:cube_flow}).
+Range-Doppler maps and CFAR data are first buffered in a ping-pong buffer -- where one buffer is used to update the cube while the other one is being filled with new data.
+Once the buffer is filled, they switch roles and the cube update routine is launched.
 
-As matlab processes do not share same memory space by default, in order not to have redundant copies of cube matlab's memory mapping is used.
-Using function \texttt{memmapfile} the cube is mapped to a file on the disk which can be shared between two processes \cite{matlab_memory}.
-This approach might lead to some performance degradation if the cube is too large and cannot be held in RAM but in testing it was found that for cubes of size 512MB (roughly cube for range-Doppler map of 256 $\times$ 16 ) the program was still able to keep up with the radar.
+As MATLAB processes do not share the same memory space by default, to avoid redundant copies of the cube, MATLAB's memory mapping is used.
+Using the \texttt{memmapfile} function, the cube is mapped to a file on a disk which can be shared between two processes \cite{matlab_memory}.
+This approach might lead to some performance degradation if the cube is too large and cannot be held in RAM, but testing showed that for cubes of size 512~MB (roughly a cube for a range-Doppler map of 256 $\times$ 16), the program was still able to keep up with the radar.
 
 
 \begin{figure}[h!]
@@ -1116,67 +1114,67 @@ This approach might lead to some performance degradation if the cube is too larg
   \label{fig:cube_flow}
 \end{figure}
 
-Update routine for cubes containing CFAR or raw data, are quite simmilar, in the case if spread pattern is disabled.
-New data are just added to the cube to their respective positions where they replace old ones.
-In case cube is set to decay (\texttt{Cube decay} option is set to decay.) whole cube is multiplied by a decay factor that is derived from platforms movement speed.
-The slower the platform moves the slower the data decay.
-Using this option leads to an output more visually resembling radar  traditional analogue radar systems where most recent data were brighter than the older ones.
-However user needs to keep in mind that color changes doesn't mean a change in RCS at that position.
-In addition this operation is rather computationally expensive and is the primary reason updates to the cube must be buffered.
+The update routine for cubes storing CFAR and raw data is quite similar in the case the spread pattern is disabled.
+New data are simply added to the cube at their respective positions, replacing the old data.
+If the cube is set to decay (The \texttt{Cube decay} option is set to 'decay'.), the entire cube is multiplied by a decay factor derived from the platform’s movement speed.
+The slower the platform moves, the slower the data decay.
+Using this option leads to an output that more visually resembles traditional analogue radar systems, where the most recent data are brighter than the older ones.
+However, the user needs to keep in mind that color changes do not mean a change in RCS at that position.
+In addition, this operation is rather computationally expensive and is the primary reason updates to the cube need to be buffered.
 
-Even on smaller cubes of around 256~MB this operations takes in worse case some 50~ms to complete on a laptop i7-10210U CPU.
-If change of value would be undesirable behaviour decay can be turned off in the settings in favour of hard reset of the cube based on trigger on specified yaw position.
-Rest of the processing is then fast enough to keep up with the data stream without any buffering.
+Even on smaller cubes of around 256~MB, this operation takes in the worst case about 50~ms to complete on a laptop with an i7-10210U CPU.
+If this behaviour would be undesirable, decay can be turned off in the settings in favor of a hard reset of the cube based on a trigger at a specified yaw angle.
+The rest of the processing is then fast enough to keep up with the data stream without any buffering.
 
-Enabling spread pattern leads to degradation of quality of the data in exchange for better visualization quality -- especially in range-azimuth visualization style.
-Instead of adding new data just to one position in the cube the range-Doppler map is spread over a larger area with aid of a 2D matrix, made up of a 2D Gaussian function.
-As the data in series are usually close to each other in terms of position update process can be made more efficiently.
-Instead of directly adding these contributions to the full cube much smaller cube is created.
-That cubes covers only the area that will be updated with the new data and is later added to the full cube in one go.
-This enables significant speedup as smaller memory size enables better cacheing.
-Still in case of a more performant radar system this method would be unncessary not to mention has very little basis in radar data processing theory.
+Enabling the spread pattern leads to degradation of the quality of the data in exchange for better visualization quality -- especially in range-azimuth visualization style.
+Instead of adding new data to just one position in the cube, the range-Doppler map is spread over a larger area with the aid of a 2D matrix made up of a 2D Gaussian function.
+As the data in series are usually close to each other in terms of position, the update process can be made more efficient.
+Instead of directly adding these contributions to the full cube, a much smaller cube is created.
+That cube covers only the area that will be updated with the new data and is later added to the full cube in one go.
+This enables significant speedup, as the smaller memory size enables better caching.
+Still, in the case of a more performant radar system, this method would be unnecessary, not to mention it has very little basis in radar data processing theory.
 
-Due to lacking performance of MATLAB on author's machine some parts of the cube update routine were implemented in C++ with the aid of MATLAB's MEX interface.
-This enabled the use of AVX2 x86 instruction set extension to speed up floating point operations.
-Chiefly decaying of the cube exhibited roughly two fold performance increase thanks to SIMD instructions.
+Due to the limited performance of MATLAB on the author's machine, some parts of the cube update routine were implemented in C++ with the aid of MATLAB's MEX interface.
+This enabled the use of the AVX2 x86 instruction set extension to speed up floating point operations.
+Chiefly, decaying of the cube exhibited roughly a twofold performance increase thanks to SIMD instructions.
 
 
 \section{Visualization}
 
-After cube update finishes program returns to the main thread and the data are visualized.
-Only way user can see the data is via visualization.
-Text output or other methods are not available.
-However the application offers a number of different visualization styles to suit the user's requirements.
+After the cube update finishes, the program returns to the main thread and the data are visualized.
+The only way the user can see the data is via visualization.
+Text output or access via API is not available.
+However, the application offers a number of different visualization styles to suit the user's requirements.
 
 \begin{enumerate}
 	\item Range-Azimuth: Polar plot with range on the radius and azimuth on the angle.
-	\item Range-Doppler: Classical xy plot with range on x axis and Doppler on y axis, if speed is not calculated the y axis is replaced with RCS value.
-	\item Target-3D: CFAR data are displayed in 3D cartesian space
+	\item Range-Doppler: Classical xy plot with range on the x-axis and Doppler on the y-axis; if speed is not calculated, the y-axis is replaced with the RCS value.
+	\item Target-3D: CFAR data are displayed in 3D Cartesian space.
 \end{enumerate}
 
 \subsection{Range-Azimuth}
 
-This visualization style is used to display the data in polar plot for fixed pitch angle that is chosen by an text box.
-The demonstration of Range-Azimuth map can be seen on figure \ref{fig:main_window}, which captures testing with 122~GHz header with rather large bandwidth of 3~GHz giving only some 5 meters of range.
-On the picture only raw data are displayed however this visualization style is able to also display CFAR data or overlay both of them.
+This visualization style is used to display the data in a polar plot for a fixed pitch angle, which is chosen by a text box at tbe bottom of the screen.
+A demonstration of a Range-Azimuth map can be seen in figure~\ref{fig:main_window}, which captures testing with the 122~GHz header and a rather large bandwidth of 3~GHz, providing only about 5 meters of range.
+In the picture, only raw data are displayed; however, this visualization style is also able to display CFAR data or overlay both.
 
-Instead of calculating projection into horizontal plane the data are displayed in a conical projection.
-That is, no additional calculations are made and the cone we get by fixing the pitch angle is simply stretched to a circle.
-To aid with orientation in a plot simple line markers are added to provide range and angle reference points.
+Instead of calculating a projection into the horizontal plane, the data are displayed in a conical projection.
+That is, no additional calculations are made and the cone obtained by fixing the pitch angle is simply stretched to a circle.
+To aid with orientation in the plot, simple line markers are added to provide range and angle reference points.
 
-This visualization style might be especially usefull when paired with 24~GHz header.
-Due to it's rather wide radiation pattern the radar is able to detect objects in quite a large area.
-This can be even more extended if the spread pattern is enabled where more pitch angles will influcence the data.
-Thus for a realization of classical surveillance radar this method of visualization might be most versatile.
+This visualization style might be especially useful when paired with the 24~GHz header.
+Due to its rather wide radiation pattern, the radar is able to detect objects in quite a large area.
+This can be extended even further if the spread pattern is enabled, where more pitch angles will influence the data.
+Thus, for a realization of a classical surveillance radar, this method of visualization might be the most versatile.
 
 \subsection{Range-Doppler}
 
 Picking this visualization style from the preferences menu will display the data in a classical x-y plot for a fixed yaw and pitch angle.
-Just as with Range-Azimuth map both angles are configurable via the textboxes at the bottom of the screen.
-In cases when speed calculation is disabled the y axis is replaced with RCS value.
+Just as with the Range-Azimuth map, both angles are configurable via text boxes at the bottom of the screen.
+In cases when speed calculation is disabled, the y-axis is replaced with the RCS value.
 
-Main purpose of this visualization style is to provide verification method for the radar data processing and setting.
-As the devkit doesn't report much of a useful errors and its technical documentation is sometimes incorrect (e.g. in allowed bandwidth values) it is useful to have a way to verify that the radar is working correctly.
+The main purpose of this visualization style is to provide a method for verifying radar data processing and settings.
+As the devkit does not report many useful errors and its technical documentation is sometimes incorrect (e.g., in allowed bandwidth values), it is useful to have a way to verify that the radar is working as expected.
 
 \begin{figure}[h!]
   \centering
@@ -1195,10 +1193,9 @@ As the devkit doesn't report much of a useful errors and its technical documenta
   \label{fig:rd_rr_map}
 \end{figure}
 
-On figure \ref{fig:rd_rr_map} we can see two different visualization styles both displaying the same static scene.
-As previously stated given rather poor sampling rate speed calculation is not very useful and thus no complex testing has been done of it.
+In figure~\ref{fig:rd_rr_map} we can see two different visualization styles, both displaying the same static scene.
+As previously stated, given the rather poor sampling rate, speed calculation is not very precise and thus no complex testing has been conducted for it.
 
-\newpage
 \subsection{Target-3D}
 
 \begin{figure}[h!]
@@ -1208,25 +1205,25 @@ As previously stated given rather poor sampling rate speed calculation is not ve
 	\label{fig:vis3d}
 \end{figure}
 
-This visualization style is used to display CFAR data in 3D cartesian space (Figure \ref{fig:vis3d}).
-Visualization method is rather simple with just positions being recalculated from the range, azimuth and pitch angles to x, y and z coordinates using trigonometric functions.
-In case decay is enabled then small threshold is used to remove points whose values was sufficiently regraded.
-To aid with orientation within the plot curret heading of the platform is displayed as a red line.
+This visualization style is used to display CFAR data in 3D Cartesian space (Figure~\ref{fig:vis3d}).
+The visualization method is rather simple, with just positions being recalculated from the range, azimuth, and pitch angles to x, y, and z coordinates using trigonometric functions.
+If decay is enabled, then a small threshold is used to remove points whose values have sufficiently degraded.
+To aid with orientation within the plot, the current heading of the platform is displayed as a red line.
 
-If environment is too cluttered and CFAR generates too many points the user can enable basic clustering with MATLAB's built in DBSCAN function \cite{matlab_dbscan}.
-Gerneral idea of DBSCAN is that for a given point in the dataset distances to other points are calculated and compared with user defined threshold $\varepsilon$, in case sufficient number $N$ of points is found within the threshold the point is marked as part of an cluster \cite{Kellner2012}.
-In MATLAB's in algorithm distance threshold and minimal number of points are both configurable variables with other input being just the points list \cite{matlab_dbscan}.
-As original data are in polar coordinates system problem arises with calculating distances given that in such system distance between two points of given fixed yaw and pitch varies widely with range.
-Not to mention with increasing distance the density of data points decreases.
-Aside from that we also have significantly more points closer to the radar as space is much more densely scanned there compared to the far end of the range.
+If the environment is too cluttered and CFAR generates too many points, the user can enable basic clustering with MATLAB's built-in DBSCAN function \cite{matlab_dbscan}.
+The general idea of DBSCAN is that, for a given point in the dataset, distances to other points are calculated and compared with a user-defined threshold $\varepsilon$.
+If a sufficient number $N$ of points is found within the threshold, the point is marked as part of a cluster \cite{Kellner2012}.
+In MATLAB's implementation, the distance threshold and minimum number of points are both configurable variables, with the other input being just the list of points \cite{matlab_dbscan}.
+As the original data are in a polar coordinate system, a problem arises with calculating distances given that, in such a system, the distance between two points of given fixed yaw and pitch varies widely with range.
+Not to mention, with increasing distance, the density of data points decreases.
 
-These problems can be overcome using many different methods like using adaptive thresholds in relation to radius \cite{Kellner2012} or relying on more clever axis systems then just polar or cartesian \cite{Sun2024}.
-However as in this thesis as DBSCAN is more of an illustration of possible postprocessing no such complex methods were implemented.
+These problems can be overcome using many different methods, such as using adaptive thresholds in relation to radius \cite{Kellner2012} or relying on more clever axis systems than just polar or Cartesian \cite{Sun2024}.
+However, as in this thesis DBSCAN is more of an illustration of possible postprocessing, no such complex methods were implemented.
 Both $\varepsilon$ and $N$ parameters are left to the user to configure with \texttt{DBSCAN epsilon} and \texttt{DBSCAN min count}.
-As for the distance metric points are at firstly converted to cartesian coordinates then distance is calculated using standard euclidean formula.
-This distance is then divided by averaging radiuses of points.
-Still it needs to be said that, while dividing by the mean of distances is sometimes used when working with spherical data \cite{Fisher1993}, author is not aware of any literature that would suggest use in DBSCAN.
-Especially on longer distance this methods will lead to significant errors.
+As for the distance metric, points are first converted to Cartesian coordinates, then distance is calculated using the standard Euclidean formula.
+This distance is then divided by the average radii of the points.
+It needs to be said that, while dividing by the mean of distances is sometimes used when working with spherical data \cite{Fisher1993}, the author is not aware of any literature that would suggest its use in DBSCAN.
+Especially at longer distances, this method will lead to significant errors.
 
 \newpage
 \pagestyle{plain}

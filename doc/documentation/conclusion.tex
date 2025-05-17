@@ -2,51 +2,47 @@
 \chapter*{Conclusion}
 \addcontentsline{toc}{chapter}{Conclusion}
 
-Goal of this thesis was to realize a surveillance radar system based on FMCW technology.
-This technology should enable accurate distance measurements of targets with a relatively low power consumption.
-Instead of more conventional MIMO systems a simpler solution was proposed with a single RX and TX antenna that relies on mechanical steering of the radar beam.
+The goal of this thesis was to develop a surveillance radar system based on FMCW technology.
+This approach enables accurate distance measurements of targets with relatively low power consumption.
+Rather than adopting a more conventional MIMO system, a simpler solution was chosen: a single RX and TX antenna, with mechanical beam steering provided by a custom rotary platform.
 
-Using off-the-shelf components and 3D printed parts a custom rotary platform was designed and constructed.
-All be it minor issues in regards to the belt tension on pitch axes in enables controlling of the radar position in both yaw and pitch.
-Normally with 1.8° degree of accuracy that can be extended with the use of microstepping.
-Quality of life features such a automatic homing system or limits to the rotation were also implemented.
-Whole system is controlled by an ESP32C6 microcontroller which interprets G-code like commands and drives the stepper motors.
-Due to its similarities to other G-code base systems it should be readily adaptable to other systems.
-In addition the platform was designed to support capabilities that aren't strictly necessary for the purpose of this thesis.
-During tests platform was able to execute commands accurately and without noticeable delays.
+Using off-the-shelf components and 3D-printed parts, a two-axis rotary platform was designed and constructed.
+Despite minor issues with belt tension on the pitch axis, the platform reliably controls the radar’s position in both yaw and pitch, with a standard accuracy of 1.8°, further improvable via microstepping.
+Additional features such as automatic homing and rotation limits were implemented for improved usability.
+Thanks to its similarity to other G-code-based systems, the platform is readily adaptable to other applications.
+Moreover, the platform was designed with capabilities beyond the requirements of this thesis, and during testing it executed commands accurately and without noticeable delay.
 
-Capabilities of \sidar evaluation board were analyzed and were found to be rather lacking for application in a surveillance radar.
-It's low and inconsistent reporting rate of 50~Hz limits the maximum detectable speed to tens of mm per second.
-This effectively eliminates any possibility of tracking moving targets which is a common use case of surveillance radars and severely limited possible scope of this thesis.
-Whole system is only suitable for essentially static scenes with binary detection if target is or is not present.
-However in these cases the radar is still able to provide a good resolution across wide variety of ranges given the ability to switch between 24~GHz and 122~GHz headers.
+The capabilities of the \sidar evaluation board were analyzed and found to be rather limited for use in surveillance radar.
+Its low and inconsistent reporting rate (50~Hz) restricts the maximum detectable speed well below one meter per second.
+This limitation effectively prevents the tracking of moving targets -- a common use case for surveillance radars -- and thus significantly reduced the scope of this thesis.
+The system is therefore mainly suitable for static scenes, providing binary detection of target presence.
+Nevertheless, within this limitation, the radar still provides good resolution across a variety of ranges, thanks to the ability to switch between the 24GHz and 122~GHz headers.
+Both close range application with high resolution or long range (up to some 300~meters) are possible.
 
-Control application for the surveillance radar was developed in MATLAB.
-It integrates both the rotary platform management and radar data processing into one combined package.
-The data processing pipeline is relatively standard relying on common techniques such as FFT, CFAR, DBSCAN and stores data in standard radar cubes.
-Heavy parallelization was employed to ensure that the processing is done in a timely manner.
-This enables application to maintain speed even if costly operations, entailing millions of floating point operations, such as a decaying of the whole cube are performed.
+A MATLAB-based control application was developed to integrate both rotary platform management and radar data processing in a single package.
+ The data processing pipeline follows standard approaches, employing techniques such as FFT, CFAR, and DBSCAN, and stores results in radar cubes..
+Extensive parallelization was used to ensure timely processing, even for computationally intensive tasks like decaying the entire cube.
+This enables application to maintain speed, even if costly operations, entailing millions of floating point operations, such as a decaying of the whole cube, are performed.
 
-Given rather generic design requirements there is a large degree of customization possible to the processing pipeline.
-From simple things such as the number of FFT points, step count per rotation to more complex ones such as configuring CFAR parameters can all be tailored to a specific application.
-One major downside of this approach is that the user is required to have a good understanding of the underlying algorithms and principles.
+Due to the generic design requirements, the processing pipeline is highly customizable.
+Settings such as the number of FFT points, step count per rotation, and CFAR parameters can all be tailored for specific applications.
+However, this flexibility requires users to have a solid understanding of the underlying algorithms and principles.
 
-Only visual outputs were implemented in this thesis with both 3D and 2D visualizations supported.
-Classical 2D Range-Azimuth map is probably the most useful and given the radar's radiation pattern provides information about sizable part of the environment.
+Only visual output was implemented for this thesis, with both 2D and 3D visualization options available.
+The classical 2D Range-Azimuth map is likely the most useful, providing information about a significant portion of the environment, given the radar’s radiation pattern.
 In case of 3D visualization only CFAR data are visualized in exchange for a more detailed view of the environment by providing pitch information.
-Were radar to be deployed in a more cluttered environment DBSCAN algorithm can be employed to filter out unwanted noise.
-However it's implementation in the thesis is rather illustrative and not optimized for performance or accuracy.
+If deployed in a cluttered environment, the DBSCAN algorithm can be used to filter out unwanted noise, but in this thesis, its implementation is mainly illustrative and not thoroughly optimized or correctly configured.
 
-In addition the whole processing pipeline is written in a way that, if radar module was exchanged for a faster one, capabilities could be extended while keeping most of the codebase similar.
-More complex operations such as 2D FFT or cube updates are executed in parallel processes and are triggered by platform movement, not for each radar update.
-Therefore increase in the number of chirps wouldn't have a significant impact on the performance.
+Importantly, the processing pipeline was designed such that, if the radar module were replaced with a faster unit, the system’s capabilities could be extended without significant changes to the codebase.
+More complex operations, such as 2D FFT or cube updates, are executed in parallel and are triggered by platform movement rather than each radar update.
+Therefore, increasing the number of chirps would not significantly impact performance.
 
-Still in case where number of FFT points either in speed or range would be significantly larger that what has been tested (Cubes to size of around 500~MB were validated.) different approach to cube update would be required.
-First possibility would be leverages GPU acceleration to handle operations in the cube update.
-Or second in case of solely CPU the cube would need to be split into smaller chunks where only few ones would be loaded into RAM at one time -- depending on the current position of the platform and direction of travel.
-However decay as it is implemented now would be close impossible to realize.
+However, if the number of FFT points (for speed or range) were to increase substantially, beyond what was tested (up to about 500~MB cubes), a different cube update strategy would be needed.
+ One possibility would be to leverage GPU acceleration for cube operations.
+Alternatively, with only a CPU, the cube could be split into smaller chunks, loading only the relevant portions into RAM according to the platform’s position and direction.
+However, the decay operation would be nearly impossible to realize quickly in case of large cubes without GPU acceleration.
 
-In conclusion basic surveillance radar system was successfully designed and implemented.
-It has ability to detect targets in a wide area with basic resolution of 1 degree in yaw/pitch and from centimeters to decimeters in range.
-In addition extensive customization of the processing pipeline allow user to fine tune the system to their needs.
-However due to limitations of the radar module it is not suitable for any kind of applications requiring tracking of moving targets.
+In conclusion, a basic surveillance radar system was successfully designed and implemented.
+It is capable of detecting targets over a wide area, with a basic resolution of 1 degree in yaw and pitch, and range accuracy from centimeters to decimeters.
+The processing pipeline offers extensive customization, allowing users to fine-tune the system to their needs.
+However, due to the limitations of the radar module, the system is not suitable for applications requiring the tracking of moving targets.

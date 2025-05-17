@@ -41,12 +41,12 @@ classdef app < handle
 					};
 				fprintf("App | starting paraller pool\n");
 
-				% If MATLAB's paralelizaiton toolkit wasn't broken mess this could have
-				% been declared as Threads insted of processes. But it is and memmafile's
+				% If MATLAB's parallelization toolkit wasn't broken mess this could have
+				% been declared as Threads instead of processes. But it is and memmafile's
 				% don't work in threads memory sharing doesn't work with threads and
 				% calling external scripts even if they are in path doesn't work with
 				% threads. So I need to wait ages and 
-				% parpool('Processes', 3, 'AttachedFiles', filesToAttach);
+				parpool('Processes', 3, 'AttachedFiles', filesToAttach);
 			end
 
 			time = tic; % establish common time base, call to get unix timestamp si rather lengthy

@@ -4,7 +4,8 @@
 
 \setlist[itemize]{nosep, topsep=3pt, partopsep=3pt, leftmargin=*}
 \setlist[description]{nosep, topsep=1pt, partopsep=1pt, leftmargin=*}
-Following sections acts as glossary of all G-code commands used in the platform control. Mode indepth description of the commands can be found in the source code.
+
+Following sections act as a glossary of all G-code commands used in the platform control. More in-depth descriptions of the commands can be found in the source code documentation.
 
 \subsection*{Constants}
 
@@ -29,22 +30,22 @@ Following sections acts as glossary of all G-code commands used in the platform 
       \item Relative (\texttt{G91}): Limited to $\pm$32767 steps per command, or respective angle counterpart
       \item in absolute positioning devices moves in the shortest path to the target
     \end{itemize}
-  \item \textbf{Spindle}: continous rotation mode
+  \item \textbf{Spindle}: Continuous rotation mode
   \item \textbf{Limits}: Limits on rotation can be imposed on both axes
     \begin{itemize}
-      \item limits are applied only to one rotation -- it is not possible to restrict to e.g. two full rotations in one direction a nd one in the other
+      \item Limits are applied only to one rotation—it is not possible to restrict to, e.g., two full rotations in one direction and one in the other
       \item \texttt{low < high}: Valid range [low, high]
       \item \texttt{low > high}: Valid range [low, 360°] $\cup$ [0, high]
       \item Out-of-range targets snap to nearest valid position
     \end{itemize}
-  \item \textbf{Programming}: G-code program can be upload to the device and executed
-  \item \textbf{Synchronization}: If command is issued to both axes they will wait for each other, of not other axis will be free to execute next command
+  \item \textbf{Programming}: G-code program can be uploaded to the device and executed
+  \item \textbf{Synchronization}: If a command is issued to both axes, they will wait for each other; otherwise, the other axis will be free to execute the next command
 \end{itemize}
 \newpage
 
 \subsection*{Motion Control Commands}
 
-Axes are denoted as \texttt{Y} for yaw and \texttt{P} for pitch. The \texttt{S} parameter is used for speed for both axes, while \texttt{SY} and \texttt{SP} are used for speed of yaw and pitch respectively. In case of spindle \texttt{Y} or \texttt{P} are not followed by step count/angle but instead rotation direction.
+Axes are denoted as \texttt{Y} for yaw and \texttt{P} for pitch. The \texttt{S} parameter is used for speed for both axes, while \texttt{SY} and \texttt{SP} are used for the speed of yaw and pitch respectively. In the case of spindle, \texttt{Y} or \texttt{P} are not followed by step count/angle but instead by rotation direction.
 
 \begin{description}
   \item[\texttt{M80}] Enable high-voltage power (enables drivers)
@@ -54,8 +55,8 @@ Axes are denoted as \texttt{Y} for yaw and \texttt{P} for pitch. The \texttt{S} 
   \item[\texttt{G21}] Set units to steps
   \item[\texttt{G90 [Y/P]}] Set absolute positioning Mode
     \begin{itemize}
-      \item  absolute positioning is not available in spindle mode, if you issue a M03 command to stepper in absolute positioning mode, it will be automatically switched to relative positioning and throw an error
-      \item if no argument is provided both axis are switched to relative positioning
+      \item Absolute positioning is not available in spindle mode; if you issue an M03 command to a stepper in absolute positioning mode, it will be automatically switched to relative positioning and throw an error
+      \item If no argument is provided, both axes are switched to relative positioning
     \end{itemize}
   \item[\texttt{G91 [Y/P]}] Set relative positioning Mode
   \item[\texttt{G28 [Y/P]}] Auto-home specified axis(es)
@@ -74,14 +75,14 @@ These commands bypass certain sections and safety checks of the firmware. Use wi
 \begin{description}
   \item[\texttt{G3 Y/P<steps> [SY/SP<rpm>]}] Bypass scheduler and adds movement directly to the queue
 		\begin{itemize}
-			\item limits are not and cannot be checked
-			\item absolute positioning is not available
-			\item all values are interpreted as steps regardless of current unit setting
+			\item Limits are not and cannot be checked
+			\item Absolute positioning is not available
+			\item All values are interpreted as steps regardless of current unit setting
 			\item \textit{Warning}: Use \texttt{M82} before \texttt{G3} to maintain position integrity
 		\end{itemize}
   \item[\texttt{W3 T<ms>}] Application-layer delay
 		\begin{itemize}
-			\item useful to wait for end of homing process
+			\item Useful to wait for end of homing process
 		\end{itemize}
 \end{description}
 
