@@ -1,5 +1,5 @@
 classdef platformControl < handle
-	% platformControl:  Manages rotary platform communication, data acquisition, and configuration
+	% PLATFORMCONTROL  Manages rotary platform communication, data acquisition, and configuration
 	%
 	% Handles serial communication with a rotary platform,  processes incoming
 	% data streams, and dynamically updates configurations via a preferences
@@ -62,7 +62,7 @@ classdef platformControl < handle
 	methods(Access=private)
 
 		function mockData(obj)
-			% mockData: simulates rotation in yaw axes
+			% MOCKDATA simulates rotation in yaw axes
 			%
 			% used solely for debug
 
@@ -84,7 +84,7 @@ classdef platformControl < handle
 
 		end
 		function constructGUI(obj)
-			% constructGUI: initializes all GUI elements
+			% CONSTRUCTGUI initializes all GUI elements
 
 			figSize = [800, 600];
 			screenSize = get(groot, 'ScreenSize');
@@ -186,7 +186,7 @@ classdef platformControl < handle
 		end
 
 		function resizeUI(obj)
-			% resizeUI: Dynamically adjusts GUI layout on window resize
+			% RESIZEUI Dynamically adjusts GUI layout on window resize
 			%
 			% called by callback from the figure
 
@@ -222,7 +222,7 @@ classdef platformControl < handle
 		end
 
 		function loadProgram(obj)
-			% loadProgram: Loads selected program into editor windows
+			% LOADPROGRAM Loads selected program into editor windows
 
 			fprintf('PlatformControl | loadProgram\n');
 			selected = obj.hListboxSidebar.Value; % Get selected index
@@ -247,7 +247,7 @@ classdef platformControl < handle
 		end
 
 		function callbackQuickCommand(obj)
-			% callbackQuickCommand: sends command from text field to the platform
+			% CALLBACKQUICKCOMMAND sends command from text field to the platform
 
 			value = append(get(obj.hEditCommand, 'String'));
 			set(obj.hEditCommand, 'String', '');
@@ -257,7 +257,7 @@ classdef platformControl < handle
 
 
 		function processIncommingData(obj, src)
-			% processIncommingData: reads next line on serial and parses the data
+			% PROCESSINCOMMINGDATA reads next line on serial and parses the data
 			%
 			% stores current position to buffer, log is displayed in text window
 
@@ -303,7 +303,7 @@ classdef platformControl < handle
 		end
 
 		function newProgram(obj)
-			% newProgram: creates new program
+			% NEWPROGRAM creates new program
 			%
 			% after calling text box window is generated to entry program name
 
@@ -318,7 +318,7 @@ classdef platformControl < handle
 		end
 
 		function deleteProgram(obj)
-			% deleteProgram: deletes currently picked program
+			% DELETEPROGRAM deletes currently picked program
 
 			obj.programs = rmfield(obj.programs, obj.currentProgramName);
 			progs = fieldnames(obj.programs);
@@ -334,14 +334,14 @@ classdef platformControl < handle
 		end
 
 		function storePrograms(obj)
-			% storePrograms: store program in permanent configuration file
+			% STOREPROGRAMS store program in permanent configuration file
 
 			obj.hPreferences.setPrograms(obj.programs);
 			obj.hPreferences.storeConfig();
 		end
 
 		function saveProgram(obj)
-			% saveProgram: saves content of editor window to internal structure
+			% SAVEPROGRAM saves content of editor window to internal structure
 
 			valueHeader = get(obj.hEditProgramHeader, 'String');
 			trimmedHeader = (strtrim(string(valueHeader)));
@@ -357,7 +357,7 @@ classdef platformControl < handle
 		end
 
 		function startProgram(obj)
-			% startProgram: starts picked program on the platform
+			% STARTPROGRAM starts picked program on the platform
 
 			flush(obj.hSerial);
 			writeline(obj.hSerial, "M82"); % stop current move
@@ -366,7 +366,7 @@ classdef platformControl < handle
 		end
 
 		function uploadProgram(obj)
-			% uploadProgram: upload program to the platform
+			% UPLOADPROGRAM upload program to the platform
 			%
 			% P90 and P92 commands are automatically added, user is not expected
 			% to enter them in program declarations
@@ -392,7 +392,7 @@ classdef platformControl < handle
 		end
 
 		function onNewConfigAvailable(obj)
-			% onNewConfigAvailable: Updates configuration from preferences
+			% ONNEWCONFIGAVAILABLE Updates configuration from preferences
 			%
 			% Function is called by preference's newConfigEvent event
 			% Yaw trigger is configured, step count is sent to the platform
@@ -417,7 +417,7 @@ classdef platformControl < handle
 	methods(Access=public)
 
 		function obj = platformControl(hPreferences, startTime)
-			% platformControl: Initializes platform control with preferences and timing reference
+			% PLATFORMCONTROL Initializes platform control with preferences and timing reference
 			%
 			% Inputs:
 			%   hPreferences ... Handle to preferences object
@@ -439,7 +439,7 @@ classdef platformControl < handle
 		end
 
 		function endProcesses(obj)
-			% endProcesses: Safely stops serial communication and releases resources
+			% ENDPROCESSES Safely stops serial communication and releases resources
 			if ~isempty(obj.hSerial)
 				configureCallback(obj.hSerial, "off");
 				delete(obj.hSerial)
@@ -452,7 +452,7 @@ classdef platformControl < handle
 		end
 
 		function status = setupSerial(obj)
-			% setupSerial: Establishes serial connection to the platform
+			% SETUPSERIAL Establishes serial connection to the platform
 			%
 			% Output:
 			%   status ... true if connection succeeded
@@ -467,7 +467,7 @@ classdef platformControl < handle
 			% obj.mockDataTimer.UserData = 0;
 			% obj.mockDataTimer.TimerFcn = @(~,~) obj.mockData();
 			% start(obj.mockDataTimer);
-			% 
+			%
 			% status = true;
 			% return;
 
@@ -501,14 +501,14 @@ classdef platformControl < handle
 
 
 		function stopPlatform(obj)
-			% stopPlatform: Emergency stop command for platform
+			% STOPPLATFORM Emergency stop command for platform
 			command = "M82"; % clears queues, issues stop requests, shuts down power
 			writeline(obj.hSerial, command);
 		end
 
 		function [yaw, pitch] = getLastPosition(obj)
-			% getLastPosition: return last position of the platform
-			% 
+			% GETLASTPOSITION return last position of the platform
+			%
 			% Outputs:
 			%   yaw ... yaw angle  (0-360°)
 			%   pitch ... Pitch angle (-90°-90°)
@@ -518,7 +518,7 @@ classdef platformControl < handle
 		end
 
 		function [timestamps, yaw, pitch] = getPositionsInInterval(obj, timeMin, timeMax)
-			% getPositionsInInterval: Returns position data within specified time range
+			% GETPOSITIONSININTERVAL Returns position data within specified time range
 			%
 			% Inputs:
 			%   timeMin ... Start timestamp
@@ -526,7 +526,7 @@ classdef platformControl < handle
 			%
 			% Outputs:
 			%   timestamps ... Vector of timestamps
-			%   yaw        ... Corresponding yaw angles vector 
+			%   yaw        ... Corresponding yaw angles vector
 			%   pitch      ... Corresponding pitch angles vector
 			[~, idxMin] = min(abs(obj.positionTimes - timeMin));
 			[~, idxMax] = min(abs(obj.positionTimes - timeMax));
@@ -545,7 +545,7 @@ classdef platformControl < handle
 		end
 
 		function [yaw, pitch] = getPositionAtTime(obj, time)
-			% getPositionAtTime: Returns platform position closest to specified timestamp
+			% GETPOSITIONATTIME Returns platform position closest to specified timestamp
 			%
 			% Input:
 			%   time ... Target timestamp
@@ -562,7 +562,7 @@ classdef platformControl < handle
 		end
 
 		function showGUI(obj)
-			% showGUI: displays generated GUI that is hidden
+			% SHOWGUI displays generated GUI that is hidden
 			if isempty(obj.hFig) | ~isvalid(obj.hFig)
 				constructGUI(obj);
 			end

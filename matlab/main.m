@@ -1,6 +1,5 @@
-clc; 
+clc;
 clear;
 
-
-clear app.getInstance 
+clear app.getInstance
 app = app.getInstance();

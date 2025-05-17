@@ -1,10 +1,10 @@
 classdef dataProcessor < handle
-	% dataProcessor: Coordinates radar data processing, visualization, and batch management
+	% DATAPROCESSOR Coordinates radar data processing, visualization, and batch management
 	%
 	% Integrates radar hardware, platform control, and preferences to process FFT batches,
 	% manage 3D/2D visualizations, and handle asynchronous updates via parallel processing.
 
-	properties
+	properties(Access = private)
 		hRadar radar;              % Radar hardware interface object
 		hPlatform platformControl; % Platform position/control interface
 		hPreferences preferences;  % User configuration/preferences object
@@ -48,7 +48,7 @@ classdef dataProcessor < handle
 	methods(Static, Access=public)
 
 		function D = polarEuclidDistance(X, Y)
-			% polarEuclidDistance: calculate euclidean distance of two points specified
+			% POLAREUCLIDDISTANCE calculate euclidean distance of two points specified
 			% by their polar coordinates
 			%
 			% Inputs:
@@ -81,9 +81,10 @@ classdef dataProcessor < handle
 
 			D=D./correctiveCoeff; % scale linearly with distance
 		end
+
 		function [yaw, pitch, cfar, rangeDoppler, speed] = ...
 				processBatch(batchRangeFFTs, batchTimes, posTimes, posYaw, posPitch, processingParameters)
-			% processBatch: Processes FFT batch into CFAR detections and Range-Doppler maps
+			% PROCESSBATCH Processes FFT batch into CFAR detections and Range-Doppler maps
 			%
 			% Inputs:
 			%   batchRangeFFTs ... Batch of range FFTs [rangeBins x chirps]
@@ -207,7 +208,7 @@ classdef dataProcessor < handle
 
 	methods(Access=private)
 		function mergeResults(obj, yaw, pitch, cfar, rangeDoppler, speed)
-			% mergeResults: Adds processed data to radarDataCube and triggers batch processing
+			% MERGERESULTS Adds processed data to radarDataCube and triggers batch processing
 			%
 			% by default output from processBatch is only buffered in radarDataCube, if
 			% the cube is full new parallel process will be started that will process
@@ -230,7 +231,7 @@ classdef dataProcessor < handle
 		end
 
 		function onCubeUpdateFinished(obj)
-			% onCubeUpdateFinished: Updates visualizations after data cube refresh
+			% ONCUBEUPDATEFINISHED Updates visualizations after data cube refresh
 			%
 			% Range-Azimuth -
 			%
@@ -351,7 +352,7 @@ classdef dataProcessor < handle
 		end
 
 		function onPlatformTriggerYawHit(obj)
-			% onPlatformTriggerYawHit: Resets data cubes on platform position trigger
+			% ONPLATFORMTRIGGERYAWHIT Resets data cubes on platform position trigger
 			%
 			% Function is called by platformControl's positionTriggerHit event
 			if obj.decayType == 0
@@ -360,12 +361,10 @@ classdef dataProcessor < handle
 		end
 
 		function onNewConfigAvailable(obj)
-			% onNewConfigAvailable: Reinitializes system with new preferences
+			% ONNEWCONFIGAVAILABLE Reinitializes system with new preferences
 			%
 			% Function is called by preference's newConfigEvent event
 			% Updates processing parameters, visualization mode, and data cubes
-
-			% TODO Deinitilize variables
 
 			[spreadPatternEnabled, spreadPatternYaw, spreadPatternPitch] = obj.hPreferences.getProcessingSpreadPatternParamters();
 
@@ -425,7 +424,7 @@ classdef dataProcessor < handle
 		end
 
 		function onNewDataAvailable(obj)
-			% onNewDataAvailable: Setups processing of new radar data
+			% ONNEWDATAAVAILABLE Setups processing of new radar data
 			%
 			% Function is called by radars's newDataAvailable event
 			% Depending on current configuration if processing is active and platform
@@ -503,7 +502,7 @@ classdef dataProcessor < handle
 		end
 
 		function deinitializeDisplay(obj)
-			% deinitializeDisplay: Clears current visualization components
+			% DEINITIALIZEDISPLAY Clears current visualization components
 
 			if ~isempty(obj.hAxes)
 				delete(obj.hAxes);
@@ -552,12 +551,10 @@ classdef dataProcessor < handle
 		end
 
 		function initializeARDisplay(obj)
-			% initializeARDisplay: Creates Range-Azimuth polar surface plot
+			% INITIALIZEARDISPLAY Creates Range-Azimuth polar surface plot
 
 			obj.hAxes = axes('Parent', obj.hPanel, ...
 				'Units', 'pixels');
-
-
 
 			yawBins = 360;
 
@@ -631,7 +628,7 @@ classdef dataProcessor < handle
 		end
 
 		function initialize3DDisplay(obj)
-			% initialize3DDisplay: Creates 3D scatter plot for target visualization
+			% INITIALIZE3DDISPLAY Creates 3D scatter plot for target visualization
 
 			maxRange = obj.processingParameters.rangeNFFT/2* obj.processingParameters.rangeBinWidth;
 
@@ -686,7 +683,7 @@ classdef dataProcessor < handle
 		end
 
 		function initializeRDDisplay(obj)
-			% initializeRDDisplay: Creates Range-Doppler heatmap visualization
+			% INITIALIZERDDISPLAY Creates Range-Doppler heatmap visualization
 			%
 			% In case speed processing is off only range-RCS plot is displayed
 
@@ -753,6 +750,8 @@ classdef dataProcessor < handle
 
 
 		function updatePitchIndex(obj, src)
+			% UPDATEPITCHINDEX Updates pitch index based on user input
+
 			inputPitch = str2double(get(src, 'String'));
 			if isnan(inputPitch)
 				warndlg('Pitch must be a number');
@@ -762,6 +761,8 @@ classdef dataProcessor < handle
 		end
 
 		function updateYawIndex(obj, src)
+			% UPDATEYAWINDEX Updates yaw index based on user input
+
 			inputYaw = str2double(get(src, 'String'));
 			if isnan(inputYaw)
 				warndlg('Yaw must be a number');
@@ -773,7 +774,7 @@ classdef dataProcessor < handle
 
 	methods(Access=public)
 		function obj = dataProcessor(radarObj, platformObj, preferencesObj, panelObj)
-			% dataProcessor: Initializes radar data processor
+			% DATAPROCESSOR Initializes radar data processor
 			%
 			% Parallel pooled is also launched from here
 			%
@@ -802,9 +803,10 @@ classdef dataProcessor < handle
 		end
 
 		function saveScene(obj)
-			% saveScene: saves current scene to file
+			% SAVESCENE saves current scene to file
 			%
 			% File is created in project directory, filename contains a timestamp
+
 			if strcmp(obj.currentVisualizationStyle,'Range-Azimuth')
 				type = "RA";
 			elseif strcmp(obj.currentVisualizationStyle, 'Target-3D')
@@ -825,9 +827,10 @@ classdef dataProcessor < handle
 		end
 
 		function resizeUI(obj)
-			% resizeUI: Adjusts UI component positions on panel resize
+			% RESIZEUI Adjusts UI component positions on panel resize
 			%
 			% called from app.m which manages uifigure all dataProcessor's elements are  in
+
 			if isempty(obj.hPanel) || ~isvalid(obj.hPanel)
 				return;
 			end
@@ -856,15 +859,14 @@ classdef dataProcessor < handle
 
 
 		function status = toggleProcessing(obj)
-			% toggleProcessing: Enables/disables data processing
+			% TOGGLEPROCESSING Enables/disables data processing
 			%
 			% Output:
 			%   status ... Current processing state (true=active)
+
 			obj.processingActive = ~obj.processingActive;
 			status = obj.processingActive;
 		end
-
-
 	end
 end
 

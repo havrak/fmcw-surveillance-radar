@@ -1,5 +1,5 @@
 classdef preferences < handle
-	% preferences: Manages permanent config of the application
+	% PREFERENCES Manages permanent config of the application
 	%
 	% provides gui tool to configure application parameters, these are also
 	% stored in persistent configuration file conf.fmcw
@@ -53,7 +53,6 @@ classdef preferences < handle
 		hSwitchProSpreadPattern;     % Enable use of spread pattern
 		hEditProResetYaw;            % Yaw position that will trigger cube zeroing callback
 		hSwitchProDBScanEnable;      % Enable DBScan
-		% hEditProDBSCANRange;         % Normalization threshold in range for DBSCAN
 		hEditProDBSCANEpsilon;         % Normalization threshold in angle for DBSCAN
 		hEditProDBSCANMinDetections;     % Minimal number of detections to form a cluster
 
@@ -80,7 +79,7 @@ classdef preferences < handle
 	methods(Access = public)
 
 		function obj = preferences()
-			% preferences: Constructor for preferences class
+			% PREFERENCES Constructor for preferences class
 			%
 			% Initializes the configuration structure with default values for radar, platform, and processing parameters.
 			% Sets up the configuration file path based on the operating system (Unix or Windows).
@@ -148,7 +147,7 @@ classdef preferences < handle
 		end
 
 		function showGUI(obj)
-			% showGUI: Displays the preferences GUI.
+			% SHOWGUI Displays the preferences GUI.
 			% If the GUI is not initialized or closed, constructs it first.
 
 			if isempty(obj.hFig) | ~isvalid(obj.hFig)
@@ -158,7 +157,7 @@ classdef preferences < handle
 		end
 
 		function [programs] = getPrograms(obj)
-			% getPrograms: return loaded programs from permanent configuration
+			% GETPROGRAMS return loaded programs from permanent configuration
 			%
 			% Output:
 			% programs ... struct will all programs
@@ -166,7 +165,7 @@ classdef preferences < handle
 		end
 
 		function setPrograms(obj, programs)
-			% setPrograms: Updates the programs stored in the configuration
+			% SETPROGRAMS Updates the programs stored in the configuration
 			%
 			% Input:
 			%   programs ... Struct containing program configurations to save
@@ -174,7 +173,7 @@ classdef preferences < handle
 		end
 
 		function visualization =  getProcessingVisualization(obj)
-			% getProcessingVisualization: Returns the current visualization mode
+			% GETPROCESSINGVISUALIZATION Returns the current visualization mode
 			%
 			% Output:
 			%   visualization ... String specifying the visualization type (e.g., 'Range-Azimuth')
@@ -182,7 +181,7 @@ classdef preferences < handle
 		end
 
 		function processingParameters = getProcessingParamters(obj)
-			% getProcessingParamters: Returns processing parameters as a struct
+			% GETPROCESSINGPARAMTERS Returns processing parameters as a struct
 			%
 			% Output:
 			%   processingParameters ... Struct with fields for speed/range NFFT, CFAR settings,
@@ -204,7 +203,7 @@ classdef preferences < handle
 		end
 
 		function [port, baudrate] = getConnectionPlatform(obj)
-			% getConnectionPlatform: Returns platform serial connection parameters
+			% GETCONNECTIONPLATFORM Returns platform serial connection parameters
 			%
 			% Output:
 			%   port ... String specifying the platform's serial port (e.g., 'COM3')
@@ -214,7 +213,7 @@ classdef preferences < handle
 		end
 
 		function [port, baudrate] = getConnectionRadar(obj)
-			% getConnectionRadar: Returns radar serial connection parameters
+			% GETCONNECTIONRADAR Returns radar serial connection parameters
 			%
 			% Output:
 			%   port ... String specifying the radar's serial port (e.g., 'COM4')
@@ -224,7 +223,7 @@ classdef preferences < handle
 		end
 
 		function [debug] = getPlatformDebug(obj)
-			% getPlatformDebug: Checks if platform debug mode is enabled.
+			% GETPLATFORMDEBUG Checks if platform debug mode is enabled.
 			%
 			% If enabled debug will be displayed in log
 			%
@@ -235,7 +234,7 @@ classdef preferences < handle
 
 
 		function header = getRadarFrontend(obj)
-			% getRadarFrontend: Returns the radar's frequency header
+			% GETRADARFRONTEND Returns the radar's frequency header
 			%
 			% Output:
 			%   header ... String specifying the radar frequency ('24' or '122')
@@ -243,7 +242,7 @@ classdef preferences < handle
 		end
 
 		function [spreadPatternEnabled, spreadPatternYaw, spreadPatternPitch] = getProcessingSpreadPatternParamters(obj)
-			% getProcessingSpreadPatternParamters: Returns spread pattern settings
+			% GETPROCESSINGSPREADPATTERNPARAMTERS Returns spread pattern settings
 			%
 			% Output:
 			%   spreadPatternEnabled ... 1 (enabled) or 0 (disabled)
@@ -255,7 +254,7 @@ classdef preferences < handle
 		end
 
 		function period = getRadarTriggerPeriod(obj)
-			% getRadarTriggerPeriod: Returns the radar trigger period
+			% GETRADARTRIGGERPERIOD Returns the radar trigger period
 			%
 			% Output:
 			%   period ... Numeric trigger period in milliseconds
@@ -263,7 +262,7 @@ classdef preferences < handle
 		end
 
 		function bandwith = getRadarBandwidth(obj)
-			% getRadarBandwidth: Returns the radar bandwidth
+			% GETRADARBANDWIDTH Returns the radar bandwidth
 			%
 			% Output:
 			%   bandwidth ... Numeric bandwidth in MHz
@@ -271,7 +270,7 @@ classdef preferences < handle
 		end
 
 		function [samplesReg, samplesBin, adcBin, rampsBin ] = getRadarBasebandParameters(obj)
-			% getRadarBasebandParameters: Returns radar sampling parameters in binary format
+			% GETRADARBASEBANDPARAMETERS Returns radar sampling parameters in binary format
 			%
 			% Output:
 			%   samplesReg ... Numeric number of FFT samples
@@ -285,7 +284,7 @@ classdef preferences < handle
 		end
 
 		function [gain] = getRadarSystemParamters(obj)
-			% getRadarSystemParamters: Returns radar gain in binary format
+			% GETRADARSYSTEMPARAMTERS Returns radar gain in binary format
 			%
 			% Output:
 			%   gain ... Binary string (e.g., '10' for 43 dB)
@@ -293,7 +292,7 @@ classdef preferences < handle
 		end
 
 		function [decayType] = getDecayType(obj)
-			% getDecayType: Returns decay type for radar data processing
+			% GETDECAYTYPE Returns decay type for radar data processing
 			%
 			% Output:
 			%   decayType ... 1 (speed-based decay) or 0 (yaw-triggered decay)
@@ -301,7 +300,7 @@ classdef preferences < handle
 		end
 
 		function [triggerYaw] = getTriggerYaw(obj)
-			% getTriggerYaw: Returns the yaw angle triggering platform events
+			% GETTRIGGERYAW Returns the yaw angle triggering platform events
 			%
 			% Only used in case decayType is zero (that is yaw based trigger is
 			% used)
@@ -312,7 +311,7 @@ classdef preferences < handle
 		end
 
 		function batchSize = getProcessingBatchSize(obj)
-			% getProcessingBatchSize: Returns batch size for radar data processing
+			% GETPROCESSINGBATCHSIZE Returns batch size for radar data processing
 			%
 			% Output:
 			%   batchSize ... Numeric batch size
@@ -320,7 +319,7 @@ classdef preferences < handle
 		end
 
 		function [offsetYaw, offsetPitch, stepCountYaw, stepCountPitch] = getPlatformParamters(obj)
-			% getPlatformParamters: Returns platform parameters
+			% GETPLATFORMPARAMTERS Returns platform parameters
 			%
 			% offset enabled to compensate for platform zero not being aligned with user desired zero
 			% step counts will be sent to the platform to maintain correct
@@ -340,7 +339,7 @@ classdef preferences < handle
 
 
 		function time = getRampTime(obj)
-			% getRampTime: Calculates the radar chirp ramp time
+			% GETRAMPTIME Calculates the radar chirp ramp time
 			%
 			% Output:
 			%   time ... Numeric ramp time in milliseconds
@@ -350,7 +349,7 @@ classdef preferences < handle
 		end
 
 		function maxSpeed = getMaxSpeed(obj)
-			% getMaxSpeed: Computes the maximal detectable speed.
+			% GETMAXSPEED Computes the maximal detectable speed.
 			%
 			% Output:
 			%   maxSpeed ... Numeric speed in meters per second
@@ -358,7 +357,7 @@ classdef preferences < handle
 		end
 
 		function binWidth = getRangeBinWidth(obj)
-			% getRangeBinWidth: Computes the range resolution bin width
+			% GETRANGEBINWIDTH Computes the range resolution bin width
 			%
 			% Output:
 			%   binWidth ... Numeric bin width in meters
@@ -368,7 +367,7 @@ classdef preferences < handle
 
 
 		function binWidth = getSpeedBinWidth(obj)
-			% getSpeedBinWidth: Computes the speed resolution bin width
+			% GETSPEEDBINWIDTH Computes the speed resolution bin width
 			%
 			% Output:
 			%   binWidth ... Numeric bin width in meters per second
@@ -378,7 +377,7 @@ classdef preferences < handle
 
 
 		function storeConfig(obj)
-			% storeConfig: Saves the current configuration to the INI file (fmcw.conf)
+			% STORECONFIG Saves the current configuration to the INI file (fmcw.conf)
 			%
 			% Uses struct2ini to convert the internal configStruct to the file.
 
@@ -386,7 +385,7 @@ classdef preferences < handle
 		end
 
 		function loadConfig(obj)
-			% loadConfig: Loads configuration from fmcw.conf into configStruct.
+			% LOADCONFIG Loads configuration from fmcw.conf into configStruct.
 			%
 			% Validates ports, baudrates, and other parameters. Handles missing sections or invalid entries.
 
@@ -451,7 +450,7 @@ classdef preferences < handle
 	methods (Access = private)
 
 		function constructGUI(obj)
-			% constructGUI: Initializes all GUI elements (dropdowns, buttons, switches)
+			% CONSTRUCTGUI Initializes all GUI elements (dropdowns, buttons, switches)
 			%
 			% Positions elements for serial, platform, radar, and processing configurations
 			% Calls configToGUI to sync UI with configStruct
@@ -817,17 +816,6 @@ classdef preferences < handle
 				'String',"", ...
 				'HorizontalAlignment', 'left');
 
-			% uilabel(obj.hFig, ...
-			% 	'Position', [20, figSize(2)-processingOffset-260, 170, 25], ...
-			% 	'Text', 'DBScan range [m]:');
-			%
-			% obj.hEditProDBSCANRange  = uicontrol('Style', 'edit', ...
-			% 	'Parent',obj.hFig,  ...
-			% 	'Position', [150, figSize(2)-processingOffset-260, 140, 25], ...
-			% 	'Max',1, ...
-			% 	'String',"", ...
-			% 	'HorizontalAlignment', 'left');
-
 
 			uilabel(obj.hFig, ...
 				'Position', [20, figSize(2)-processingOffset-290, 170, 25], ...
@@ -911,7 +899,7 @@ classdef preferences < handle
 
 
 		function configToGUI(obj)
-			% configToGUI: Updates GUI elements to reflect current configStruct values
+			% CONFIGTOGUI Updates GUI elements to reflect current configStruct values
 			%
 			% Sets dropdowns, switches, and text fields based on stored configurations
 
@@ -1048,7 +1036,6 @@ classdef preferences < handle
 
 			set(obj.hEditProDBSCANMinDetections, 'String', obj.configStruct.processing.dbscanMinDetections);
 			set(obj.hEditProDBSCANEpsilon, 'String', obj.configStruct.processing.dbscanEpsilon);
-			% set(obj.hEditProDBSCANRange, 'String', obj.configStruct.processing.dbscanRange);
 			set(obj.hEditProCFARGuard, 'String', obj.configStruct.processing.cfarGuard);
 			set(obj.hEditProBatchSize, 'String', obj.configStruct.processing.batchSize);
 			set(obj.hEditProCFARGuard, 'String', obj.configStruct.processing.cfarGuard);
@@ -1060,7 +1047,7 @@ classdef preferences < handle
 		end
 
 		function refreshSerial(obj)
-			% refreshSerial: Refreshes the list of available serial ports in the GUI dropdowns
+			% REFRESHSERIAL Refreshes the list of available serial ports in the GUI dropdowns
 
 			list=cat(2, 'none', serialportlist);
 			set(obj.hDropPlatformPort, 'Items', list);
@@ -1068,7 +1055,7 @@ classdef preferences < handle
 		end
 
 		function  processConfig(obj)
-			% processConfig: Validates and saves GUI input to configStruct
+			% PROCESSCONFIG Validates and saves GUI input to configStruct
 			%
 			% Checks for valid numerical inputs, updates radar/processing parameters, and triggers newConfigEvent
 			% Displays warnings for invalid inputs and saves the configuration to file
@@ -1260,14 +1247,6 @@ classdef preferences < handle
 			else
 				obj.configStruct.processing.dbscanEpsilon=floor(tmp);
 			end
-
-			% tmp = str2double(get(obj.hEditProDBSCANRange, 'String'));
-			%
-			% if (isnan(tmp) || tmp < 0)
-			% 	warndlg('DBSCAN rangle threshold must be a positive number');
-			% else
-			% 	obj.configStruct.processing.dbscanRange=tmp;
-			% end
 
 			tmp = str2double(get(obj.hEditProDBSCANMinDetections, 'String'));
 

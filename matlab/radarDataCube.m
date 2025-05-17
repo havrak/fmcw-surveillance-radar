@@ -1,27 +1,11 @@
 classdef radarDataCube < handle
-	% radarDataCube: Manages 4D radar data cube  for raw and CFAR-processed data
+	% RADARDATACUBE Manages 4D radar data cube  for raw and CFAR-processed data
 	%
 	% Stores radar data in a 4D matrix (Yaw x Pitch x Fast Time x Slow Time),
 	% handles batch processing, and applies spreading/decay patterns.
 	% Similarly CFAR data is stored in 3D matrix (Range x Yaw x Pitch).
 
-	properties(Access=public)
-		yawBinMin=0;           % Minimum yaw angle (degrees)
-		yawBinMax=359;         % Maximum yaw angle (degrees)
-		yawBins;               % Yaw angle bins with 1 deg resolution
-		pitchBinMin=-20;       % Minimum pitch angle (degrees)
-		pitchBinMax=60;        % Maximum pitch angle (degrees)
-		pitchBins;             % Pitch angle bins with 1 deg resolution
-
-		rawCube = [];          % 4D raw data matrix [Yaw x Pitch x (Fast Time x Slow Time)]
-		rawCubeMap = [];            % Memory map for rawCube data
-		rawCubeSize = [];           % Dimensions of rawCube [Range x Doppler x Yaw x Pitch]
-		rawCubePoolHandle =[];
-
-		cfarCube = [];         % 4D CFAR data matrix [Yaw x Pitch x (Fast Time x Slow Time)]
-		cfarCubeMap = [];           % Memory map for cfarCube data
-		cfarCubeSize = [];          % Dimensions of cfarCube [Range x Yaw x Pitch]
-		cfarCubePoolHandle = [];
+	properties(Access=private)
 		spreadPattern;         % Weighting matrix for data spreading [Yaw x Pitch]
 		bufferA = struct(...   % Active buffer for batch data
 			'timestamp', [], 'yawIdx', [], 'pitchIdx', [], 'rangeDoppler', [], 'cfar', [], 'decay', []);
@@ -43,6 +27,24 @@ classdef radarDataCube < handle
 		relativeTimestamp;           % relative timestamp to measure against
 	end
 
+	properties(Access=public)
+		yawBinMin=0;           % Minimum yaw angle (degrees)
+		yawBinMax=359;         % Maximum yaw angle (degrees)
+		yawBins;               % Yaw angle bins with 1 deg resolution
+		pitchBinMin=-20;       % Minimum pitch angle (degrees)
+		pitchBinMax=60;        % Maximum pitch angle (degrees)
+		pitchBins;             % Pitch angle bins with 1 deg resolution
+
+		rawCube = [];          % 4D raw data matrix [Yaw x Pitch x (Fast Time x Slow Time)]
+		rawCubeMap = [];       % Memory map for rawCube data
+		rawCubeSize = [];      % Dimensions of rawCube [Range x Doppler x Yaw x Pitch]
+
+		cfarCube = [];         % 4D CFAR data matrix [Yaw x Pitch x (Fast Time x Slow Time)]
+		cfarCubeMap = [];      % Memory map for cfarCube data
+		cfarCubeSize = [];     % Dimensions of cfarCube [Range x Yaw x Pitch]
+
+	end
+
 	events
 		updateFinished          % called after processBatch function finishes
 	end
@@ -50,10 +52,8 @@ classdef radarDataCube < handle
 	methods(Static)
 
 		function mask = createSectorMask(diffYaw, diffPitch, patternSize, speed)
-			% createSectorMask: Generates a mask that will keep data in area we are
+			% CREATESECTORMASK Generates a mask that will keep data in area we are
 			% moving from and use just new in the area we are moving to
-			%
-			% NOT USED ANYWHERE
 			%
 			% Inputs:
 			%   diffYaw ... Yaw angle difference from previous batch
@@ -63,6 +63,7 @@ classdef radarDataCube < handle
 			%
 			% Output:
 			%   mask ... Sector mask matrix [patternSize x patternSize]
+
 			if speed == 0
 				mask = zeros(patternSize);
 				return;
@@ -97,8 +98,7 @@ classdef radarDataCube < handle
 		end
 
 		function allocateRadarCubeFile(sizeArray, fileName)
-			% allocateRadarCubeFile: Ensure binary file exists with sufficient space for radar data
-			% allocateRadarCubeFile(sizeArray, fileName)
+			% ALLOCATERADARCUBEFILE Ensure binary file exists with sufficient space for radar data
 			%
 			% Creates a binary file with space for 1.2×proud(sizeArray) elements
 			%
@@ -106,7 +106,6 @@ classdef radarDataCube < handle
 			%   sizeArray  - Base dimensions of the data cube [numRangeBins, numDopplerBins, ...]
 			%   fileName   - Path to the output binary file
 			%
-
 
 			expandedSize = sizeArray;
 			expandedSize(1) = floor(sizeArray(1) * 1.2);
@@ -130,13 +129,8 @@ classdef radarDataCube < handle
 			end
 		end
 
-		%function testFunction()
-		%	% testFunction: placeholder function to execute in parfev
-		%	disp("Test");
-		%end
-
 		function [lastYawIdx, lastPitchIdx] = processBatch(buffer, spreadPattern, rawCubeSize, yawBins, pitchBins, processRaw, processCFAR, decay)
-			% processBatch: Applies batch updates to raw/CFAR cubes with spreading/decay
+			% PROCESSBATCH Applies batch updates to raw/CFAR cubes with spreading/decay
 			%
 			% in case spread pattern is enabled range-doppler map will be spread over a
 			% larger area, otherwise just single angle is updated. This is the only
@@ -172,7 +166,6 @@ classdef radarDataCube < handle
 			lastPitchIdx = buffer.pitchIdx(sortedIndices(end));
 
 			%% Updating cube for raw data
-			% fid = fopen("out.txt", "a+");
 			if(processRaw && isempty(spreadPattern))
 
 				rawCube = memmapfile('rawCube.dat', ...
@@ -287,8 +280,6 @@ classdef radarDataCube < handle
 
 				end
 
-
-
 				% --- 4. Decay rawCube ---
 				if(decay)
 					batchDecay = single(prod([buffer.decay]));
@@ -332,15 +323,11 @@ classdef radarDataCube < handle
 
 	methods(Access=private)
 		function afterBatchProcessing(obj, lastYawIdx, lastPitchIdx)
-			% afterBatchProcessing: Post-batch processing callback
+			% AFTERBATCHPROCESSING Post-batch processing callback
 			%
 			% In case zero was called while thread was processing cubes will be zeroed
 			% form here
 
-
-			%fprintf("CUBE SUM FINAL %d\n", sum(obj.rawCubeMap.Data.rawCube(:)));
-
-			%fprintf("CUBE SUM FINAL %d\n", sum(obj.rawCube(:)));
 			obj.lastYaw = obj.yawBins(lastYawIdx);
 			obj.lastPitch = obj.pitchBins(lastPitchIdx);
 			obj.isProcessing = false;
@@ -354,7 +341,7 @@ classdef radarDataCube < handle
 		end
 
 		function generateSpreadPattern(obj, spreadPatternYaw, spreadPatternPitch)
-			% generateSpreadPattern: generate pattern used to sprtead range-doppelr map
+			% GENERATESPREADPATTERN generate pattern used to sprtead range-doppelr map
 			% over a larger area
 			%
 			% output pattern is (2*spreadPatternYaw+1) x (2*spreadPatternPitch+1)
@@ -362,6 +349,7 @@ classdef radarDataCube < handle
 			% Inputs:
 			%   spreadPatternYaw .... Yaw pattern half-width
 			%   spreadPatternPitch ... Pitch pattern half-width
+
 			dimensionsYaw = -spreadPatternYaw:spreadPatternYaw;
 			dimensionsPitch = -spreadPatternPitch:spreadPatternPitch;
 			yawSigma = 3*spreadPatternYaw / (sqrt(8*log(2)));
@@ -377,7 +365,7 @@ classdef radarDataCube < handle
 
 
 		function obj = radarDataCube(numRangeBins, numDopplerBins, batchSize,  spreadPatternYaw, spreadPatternPitch, keepRaw, keepCFAR, decay)
-			% radarDataCube: Initializes radar data cube and associated buffers
+			% RADARDATACUBE Initializes radar data cube and associated buffers
 			%
 			% Inputs:
 			%   numRangeBins ... Number of range bins
@@ -388,6 +376,7 @@ classdef radarDataCube < handle
 			%   keepRaw ... Flag to retain raw data
 			%   keepCFAR ... Flag to retain CFAR data
 			%   decay ... Enable/disable data decay
+
 			obj.yawBins = obj.yawBinMin:obj.yawBinMax;     % 1° resolution
 			obj.pitchBins = obj.pitchBinMin:obj.pitchBinMax;          % 1° resolution
 			obj.batchSize = batchSize;
@@ -411,8 +400,6 @@ classdef radarDataCube < handle
 			%% Initialize radar cube for raw data
 
 			if obj.keepRaw
-
-
 				radarDataCube.allocateRadarCubeFile(obj.rawCubeSize, 'rawCube.dat');
 				fprintf("radarDataCube | radarDataCube | Initializing rawCube with yaw %f, pitch %f, range %d, doppler %f\n", length(obj.yawBins), length(obj.pitchBins), numRangeBins, numDopplerBins)
 
@@ -424,11 +411,8 @@ classdef radarDataCube < handle
 					'Format', {'single', obj.rawCubeSize, 'rawCube'}, ...
 					'Writable', true, ...
 					'Repeat', 1);
-				obj.rawCubePoolHandle = parallel.pool.Constant(obj.rawCubeMap);
 				zeroCube(obj.rawCubeMap.Data.rawCube);
 				obj.rawCube = obj.rawCubeMap.Data.rawCube;
-			else
-				obj.rawCubePoolHandle.Value = [];
 			end
 
 			%% Initialize radar cube for cfar
@@ -446,17 +430,13 @@ classdef radarDataCube < handle
 					'Repeat', 1);
 
 
-				obj.cfarCubePoolHandle = parallel.pool.Constant(obj.cfarCubeMap);
-
 				zeroCube(obj.cfarCubeMap.Data.cfarCube);
 				obj.cfarCube = obj.cfarCubeMap.Data.cfarCube;
-			else
-				obj.cfarCubePoolHandle.Value = [];
 			end
 		end
 
 		function addData(obj, yaw, pitch, cfar, rangeDoppler, speed)
-			% addData: Adds radar detection to the active buffer
+			% ADDDATA Adds radar detection to the active buffer
 			%
 			% Inputs:
 			%   yaw ... Yaw angle of detection (degrees)
@@ -464,6 +444,7 @@ classdef radarDataCube < handle
 			%   cfar ... CFAR detection vector
 			%   rangeDoppler ... Range-Doppler matrix
 			%   speed .... Motion speed for decay calculation (optional)
+
 			if nargin < 6
 				speed = 0.01;
 			end
@@ -496,7 +477,7 @@ classdef radarDataCube < handle
 		end
 
 		function [yaw, pitch] = getLastPosition(obj)
-			% getLastPosition: return position of the last update
+			% GETLASTPOSITION return position of the last update
 			%
 			% Outputs:
 			%   yaw ... yaw angle  (0-360°)
@@ -506,15 +487,16 @@ classdef radarDataCube < handle
 			pitch = obj.lastPitch;
 		end
 		function status = isBatchFull(obj)
-			% isBatchFull: Checks if the active buffer is ready for processing
+			% ISBATCHFULL Checks if the active buffer is ready for processing
 			%
 			% Output:
 			%   status ... True if buffer is full or overflowed
+
 			status = obj.overflow;
 		end
 
 		function startBatchProcessing(obj)
-			% startBatchProcessing: Initiates asynchronous batch processing
+			% STARTBATCHPROCESSING Initiates asynchronous batch processing
 			%
 			% internal buffers switch their place - one used for buffering will now be
 			% processed while new data will be coming into second buffer
@@ -533,7 +515,6 @@ classdef radarDataCube < handle
 			obj.bufferA = obj.bufferB; % Reset active buffer
 			obj.bufferB = processingBuffer; % Assign to processing buffer
 			obj.bufferActiveWriteIdx = 1;
-
 
 
 			if obj.parallelPool.NumWorkers > obj.parallelPool.Busy
@@ -576,9 +557,10 @@ classdef radarDataCube < handle
 		end
 
 		function zeroCubes(obj)
-			% zeroCubes: Resets rawCube and cfarCube to zero
+			% ZEROCUBES Resets rawCube and cfarCube to zero
 			%
 			% If processing is ongoing, queues zeroing after completion
+
 			if (obj.isProcessing)
 				obj.requestToZero = true;
 				return;

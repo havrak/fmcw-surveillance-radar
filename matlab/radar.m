@@ -1,30 +1,28 @@
 classdef radar < handle
-	% radar: Manages radar hardware communication, data acquisition, and configuration
+	% RADAR Manages radar hardware communication, data acquisition, and configuration
 	%
 	% Handles serial communication with a radar device,  processes incoming
 	% data streams, and dynamically updates configurations via a preferences
 	% object. Supports real-time data buffering and event-driven processing.
 	%
-
-	properties(Access = public)
-
+	properties(Access = private)
 		hPreferences preferences;  % Handle to preferences object for configuration management
 		hSerial = [];              % Serial port object for radar communication
 		processData = true;        % Flag to enable/disable data processing
-
 		chunkLengths = [];         % Stores lengths of incoming data chunks for buffer management
 		rawBuffer = [];            % Temporary storage for raw serial data before processing
 		samples = 256;             % Number of samples per radar chirp
 		startTime uint64;          % Base timestamp (uint64) for calculating relative timestamps
-		triggerTimer;
-
-		bufferI;                   % Circular buffer for I
-		bufferQ;                   % Circular buffer for Q
-		bufferTime = [];           % Circular buffer for timestamps
+		triggerTimer;              % Timer for triggering radar data acquisition
 		bufferSize = 100;          % Max buffer size
 		writeIdx = 1;              % Index for next write
 	end
 
+	properties(Access = public)
+		bufferI;                   % Circular buffer for I
+		bufferQ;                   % Circular buffer for Q
+		bufferTime = [];           % Circular buffer for timestamps
+	end
 
 	events
 		newDataAvailable           % even triggered when chirp is received and buffered
@@ -32,7 +30,7 @@ classdef radar < handle
 
 	methods(Static, Access=private)
 		function hexCode = bin2hex(bin)
-			% bin2hex: Takes binary code in string and converts it to hex
+			% BIN2HEX Takes binary code in string and converts it to hex
 			%
 			% Inputs:
 			%    bin ... String with binary code
@@ -51,7 +49,7 @@ classdef radar < handle
 	methods (Access=private)
 
 		function processIncomingData(obj, src)
-			% processIncomingData: Processes raw serial data into I/Q components and timestamps
+			% PROCESSINCOMINGDATA Processes raw serial data into I/Q components and timestamps
 			% Triggers newDataAvailable event when a full chirp is received
 			%
 			% Inputs:
@@ -98,7 +96,7 @@ classdef radar < handle
 
 
 		function sysConfig = generateSystemConfig(obj)
-			% generateSystemConfig: Generates system configuration command (hex) for the radar
+			% GENERATESYSTEMCONFIG Generates system configuration command (hex) for the radar
 			%
 			% Base forms of function was provided by CTU FEL courtesy of Ing. Viktor Adler, Ph.D.
 			%
@@ -142,7 +140,7 @@ classdef radar < handle
 		end
 
 		function basebandCommand = generateBasebandCommand(obj)
-			% generateBasebandCommand: Generates baseband configuration command for the radar
+			% GENERATEBASEBANDCOMMAND Generates baseband configuration command for the radar
 			%
 			% Base forms of function was provided by CTU FEL courtesy of Ing. Viktor Adler, Ph.D.
 			%
@@ -159,7 +157,7 @@ classdef radar < handle
 			AVERAGEn='00';        % n FFTs averaged range 0-3
 			FFTsize='000';        % 000-32,64,128...,111-2048
 			DOWNsample='000';     % downsampling factor 000-0,1,2,4,8..111-64
-		
+
 			[~, samplesBin, adcBin, rampsBin] = obj.hPreferences.getRadarBasebandParameters();
 			baseband=append(WIN,FIR,DC,CFAR,CFARthreshold,CFARsize,CFARgrd,AVERAGEn,FFTsize,DOWNsample,rampsBin,samplesBin,adcBin);
 			basebandHEX=radar.bin2hex(baseband);
@@ -168,7 +166,7 @@ classdef radar < handle
 		end
 
 		function frontendCommand = generateFrontendCommand(obj)
-			% generateFrontendCommand: Generates frontend frequency configuration command
+			% GENERATEFRONTENDCOMMAND Generates frontend frequency configuration command
 			%
 			% Output:
 			%   frontendCommand ... Hex command string
@@ -187,7 +185,7 @@ classdef radar < handle
 		end
 
 		function pllCommand = generatePLLCommand(obj)
-			% generatePLLCommand: Generates PLL configuration command based on bandwidth
+			% GENERATEPLLCOMMAND Generates PLL configuration command based on bandwidth
 			%
 			% Output:
 			%   pllCommand ... Hex command string
@@ -213,7 +211,7 @@ classdef radar < handle
 	methods (Access = public)
 
 		function obj = radar(hPreferences, startTime)
-			% radar: Initializes radar object with preferences and timing reference
+			% RADAR Initializes radar object with preferences and timing reference
 			%
 			% Inputs:
 			%   hPreferences ... Handle to preferences object
@@ -234,7 +232,7 @@ classdef radar < handle
 		end
 
 		function endProcesses(obj)
-			% endProcesses: Safely stops serial communication and timers
+			% ENDPROCESSES Safely stops serial communication and timers
 			%
 			% Releases hardware resources and halts data acquisition
 
@@ -246,7 +244,7 @@ classdef radar < handle
 		end
 
 		function onNewConfigAvailable(obj)
-			% onNewConfigAvailable: Updates radar configuration dynamically when preferences change
+			% ONNEWCONFIGAVAILABLE Updates radar configuration dynamically when preferences change
 			%
 			% Function is called by preference's newConfigEvent event
 			% Re configures radar via serial commands and trigger timer
@@ -265,7 +263,7 @@ classdef radar < handle
 		end
 
 		function status = setupSerial(obj)
-			% setupSerial: Establishes serial connection to the radar hardware
+			% SETUPSERIAL Establishes serial connection to the radar hardware
 			%
 			% Output:
 			%   status ... true if connection succeeded, false otherwise
