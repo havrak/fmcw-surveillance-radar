@@ -62,11 +62,11 @@ classdef platformControl < handle
 	methods(Access=private)
 
 		function mockData(obj)
-			% MOCKDATA simulates rotation in yaw axes
+			% MOCKDATA simulates rotation in yaw axis
 			%
 			% used solely for debug
 
-			RMP = 1;
+			RMP = 4;
 			addition = RMP*6*obj.mockDataPeriod; % deg/s* mockDataPeriod
 			obj.mockDataYaw = mod(obj.mockDataYaw+addition, 360);
 			obj.positionTimes(obj.currentIdx) = toc(obj.startTime);

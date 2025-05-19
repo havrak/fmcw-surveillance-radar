@@ -13,7 +13,7 @@
 \addbibresource{bibliography.bib}
 \usepackage{pdfpages}
 
-\newcommand{\sidar}{SiRad Easy\textsuperscript{\copyright} }
+\newcommand{\sirad}{SiRad Easy\textsuperscript{\copyright} }
 \newcommand{\boldred}[1]{\textbf{\textcolor{red}{#1}}}
 \newcommand{\boldblue}[1]{\textbf{\textcolor{blue}{#1}}}
 % \newcommand{\red}[1]{\textcolor{red}{#1}}
@@ -79,7 +79,7 @@ The radar is broadcasting with a periodically repeated frequency sweep from $f_\
 Aside from a sawtooth, other modulations are also frequently used, such as linear triangular modulation or segmented linear frequency modulation.
 These offer some advantages, but the nature of the beat signal, which forms a sine wave with sawtooth modulation, is more complex.
 This is especially true in the case of triangle modulations when multiple targets are present \cite{jankiraman2018}.
-\sidar kit, used in this thesis, technically uses a segmented linear frequency modulation due to its limited computational power \cite{sidarPRO}, but the mathematical principles are similar to those for sawtooth.
+\sirad kit, used in this thesis, technically uses a segmented linear frequency modulation due to its limited computational power \cite{siradPRO}, but the mathematical principles are similar to those for sawtooth.
 
 \begin{figure}[h!]
   \centering
@@ -311,35 +311,35 @@ This algorithm works best in homogeneous environments, where the noise level is 
 In cases where this cannot be assumed, for example, CFAR with the greatest of the neighborhood (CAGO-CFAR) can be used.
 This algorithm works by taking the maximum value of the neighborhood and comparing it to the bin under test instead of the mean \cite{rohling1983}.
 
-\chapter{\sidar}
+\chapter{\sirad}
 
-Indie Semiconductor's \sidar is a FMCW radar system development kit designed primarily for automotive applications.
+Indie Semiconductor's \sirad is a FMCW radar system development kit designed primarily for automotive applications.
 Out of the box, it offers two headers a 24~GHz and a 122~GHz both based on ICs from Indie Semiconductor (TRX-024-007 and TRA-120-001, respectively).
 Both are strictly SISO transceivers with two antennas: one for receiving and another for transmitting.
 So azimuth estimation is not possible out of the box.
 
 \begin{figure}[h!]
   \centering
-  \includegraphics[width=0.6\textwidth]{../img/sidar.png}
+  \includegraphics[width=0.6\textwidth]{../img/sirad.png}
 
-  \caption[\sidar  24~GHz configuration \cite{sidarMANOld}]{\sidar  24~GHz configuration \cite{sidarMANOld}}
-  \label{fig:sidar}
+  \caption[\sirad  24~GHz configuration \cite{siradMANOld}]{\sirad  24~GHz configuration \cite{siradMANOld}}
+  \label{fig:sirad}
 \end{figure}
 
 Direct communication with the radar header is not possible, or at least, the communication interface is undocumented.
 Instead, there is always an intermediary in the form of an STM32 Nucleo series microcontroller.
 To this microcontroller, the user connects either directly with UART over USB or with WiFi, enabled by an on-board ESP32.
-Both are relatively low-bandwidth communication methods, with the serial maxing out at a baud rate of 1,000,000 \cite{sidarMAN}.
+Both are relatively low-bandwidth communication methods, with the serial maxing out at a baud rate of 1,000,000 \cite{siradMAN}.
 
 \begin{figure}[h!]
   \centering
-  \includegraphics[width=0.7\textwidth]{../img/sidar_flow.png}
-  \caption[Flow of Radar Measurement on \sidar \cite{sidarPRO}]{Flow of Radar Measurement on \sidar \cite{sidarPRO}}
-  \label{fig:sidarFlow}
+  \includegraphics[width=0.7\textwidth]{../img/sirad_flow.png}
+  \caption[Flow of Radar Measurement on \sirad \cite{siradPRO}]{Flow of Radar Measurement on \sirad \cite{siradPRO}}
+  \label{fig:siradFlow}
 \end{figure}
 
 The devkit is designed for easy integration into existing projects; however, this unfortunately poses limitations for this thesis.
-In normal operation, the radar system functions as a black box (processing schema shown in \ref{fig:sidarFlow}), implementing its own filtering, FFT, and CFAR algorithms while only reporting a target list to the user.
+In normal operation, the radar system functions as a black box (processing schema shown in \ref{fig:siradFlow}), implementing its own filtering, FFT, and CFAR algorithms while only reporting a target list to the user.
 
 This entire sequence started either by internal trigger or with external input (Be it via a GPIO pin or UART.).
 Once the trigger is received, the device carries out a user-configured number of chirps.
@@ -348,12 +348,12 @@ Each with length determined by the number of sampling steps and the ADC sampling
   t_\mathrm{ramp} = \frac{t_\mathrm{ADC} \cdot  (N_\mathrm{samples} + 85)}{36\,\, \mathrm{MHz}} \,\, \mu\mathrm{s}.
   \label{eq:sampling}
 \end{equation}
-The manufacturer recommends keeping $r_\mathrm{ramp}$ around 1~ms for a good SNR \cite{sidarPRO}.
+The manufacturer recommends keeping $r_\mathrm{ramp}$ around 1~ms for a good SNR \cite{siradPRO}.
 
 SiRad is designed to leverage coherent averaging to improve SNR of the output.
 This is achieved by broadcasting multiple ramps in series and averaging the results.
 While this technique was found to aid in measurement in a cluttered environments averaging effectively destroys the information about the Doppler shift.
-Additionally, due to the devkit's limited computational resources instead of a sawtooth waveform the radar broadcasts a segmented one with significant delays in between \cite{sidarPRO}.
+Additionally, due to the devkit's limited computational resources instead of a sawtooth waveform the radar broadcasts a segmented one with significant delays in between \cite{siradPRO}.
 
 The devkit is clearly focused primarily on range measurement with little to no regard payed for speed calculation.
 Not only are chirps spaced with large delays (at minimum some 20~ms) but the radar doesn't even maintain constant intervals between chirps.
@@ -372,7 +372,7 @@ However no such information is provided by the radar.
 Thus each chip is timestamped with it's time of arrival which is assumed to be the time of chirp broadcast.
 Using this timing information speed spectrum can still be estimated using non-uniform DFT.
 
-According to the radar's manual \cite{sidarPRO}, the following equation was used to calculate the width of a single range bin:
+According to the radar's manual \cite{siradPRO}, the following equation was used to calculate the width of a single range bin:
 \begin{equation}
   \Delta R = \frac{c_0 (N+85)}{2\cdot BW\cdot NFFT},
   \label{eq:rangeBin}
@@ -385,7 +385,7 @@ However, as the minimal period of chirps is rather high, not to mention the rada
 Were we to use 24~GHz header with 25~ms trigger we get maximal speed of 0.124~m/s and on low 8 NFFT steps and the resolution is only $0.031$~ms$^{-1}$.
 
 This lack of performance severely limits the radar's usability with regard to surveillance applications.
-Most surveillance radars are designed to monitor dynamic environments, where targets are moving, usually at much higher speeds than the \sidar can measure.
+Most surveillance radars are designed to monitor dynamic environments, where targets are moving, usually at much higher speeds than the \sirad can measure.
 This radar is completely unsuitable for such applications and is mainly applicable to static environments.
 For example, in a parking lot, an operator can detect if a car is parked in a given spot or not.
 However, besides such binary information about the presence of a target and its distance, not much more can be said.
@@ -419,18 +419,18 @@ Thus, making their configuration static wouldn't be a good idea.
 \section{24~GHz Header}
 
 The core block of 24~GHz header is a SISO TRX-024-007 transceiver, which integrates low noise amplifier, frequency mixer, filters and VCO into a single package.
-It is primarily designed to operate in the ISM band (24.0--24.25 GHz), but also supports an additional ultra-wideband mode with a frequency range from 23 GHz to 26 GHz \cite{sidarTRX24}.
-On the \sidar there is no distinction made between  those two modes and the user is free to set any bandwidth they want \cite{sidarPRO}.
-The transmitter output power ranges from 2.5 dBm to 6 dBm, depending on the configuration \cite{sidarTRX24}.
-A maximal range of 400 m is advertised \cite{sidarMANOld}, though in practice only ranges of around 300~m were achieved, with target being a multistory building.
+It is primarily designed to operate in the ISM band (24.0--24.25 GHz), but also supports an additional ultra-wideband mode with a frequency range from 23 GHz to 26 GHz \cite{siradTRX24}.
+On the \sirad there is no distinction made between  those two modes and the user is free to set any bandwidth they want \cite{siradPRO}.
+The transmitter output power ranges from 2.5 dBm to 6 dBm, depending on the configuration \cite{siradTRX24}.
+A maximal range of 400 m is advertised \cite{siradMANOld}, though in practice only ranges of around 300~m were achieved, with target being a multistory building.
 
-As shown in figure \ref{fig:sidar}, the chip is connected to two microstrip patch antennas.
+As shown in figure \ref{fig:sirad}, the chip is connected to two microstrip patch antennas.
 The patches are arranged in a relatively standard configuration, forming a 6 $\times$ 4 array with spacing approximately equal to half the wavelength at 24 GHz.
 
 Since the manufacturer did not provide any information about the radiation pattern of the array, a simulation was conducted using the CST simulation suite.
 Additionally, the manufacturer did not disclose the substrate parameters for the radar board specifically.
 Fortunately, the TRX-024-007 datasheet includes a board stack-up for the chip's evaluation board.
-It was assumed that the same stack-up would be used: 18 \textmu m copper for the traces and ground plane, with a 250~\textmu m thick Rogers RO4350B substrate \cite{sidarTRX24}.
+It was assumed that the same stack-up would be used: 18 \textmu m copper for the traces and ground plane, with a 250~\textmu m thick Rogers RO4350B substrate \cite{siradTRX24}.
 
 \begin{figure}[ht!]
   \centering
@@ -492,23 +492,23 @@ Still, usually, solutions such as low/high beam switching are preferred instead 
 
 \begin{figure}[h!]
   \centering
-  \includegraphics[width=0.85\textwidth]{../img/sidar122rad.jpg}
-	\caption[Radiation pattern of 122~GHz header comparison \cite{sidarTRX122col}]{Radiation pattern of 122~GHz header comparison \cite{sidarTRX122col}}
-  \label{fig:sidar122rad}
+  \includegraphics[width=0.85\textwidth]{../img/sirad122rad.jpg}
+	\caption[Radiation pattern of 122~GHz header comparison \cite{siradTRX122col}]{Radiation pattern of 122~GHz header comparison \cite{siradTRX122col}}
+  \label{fig:sirad122rad}
 \end{figure}
 
 The 122~GHz header is based on the TRX-120-001 transceiver, which, in addition to the essential components required for RF transmission and reception, also incorporates two on-chip antennas.
-It's designed to operate in the 122-123~GHz band, with an output power ranging from -7~dBm to 1~dBm \cite{sidarTRX122}.
-The chip is advertised as capable of detecting large targets at distances of up to 40~m \cite{sidarMANOld}.
+It's designed to operate in the 122-123~GHz band, with an output power ranging from -7~dBm to 1~dBm \cite{siradTRX122}.
+The chip is advertised as capable of detecting large targets at distances of up to 40~m \cite{siradMANOld}.
 
-Out of the box performance of the system is quite bad (Figure \ref{fig:sidar122rad}) with the width of the main lobe being roughly $\pm40\text{°}$ in both E-plane and H-plane \cite{sidarTRX122}.
-However, this can be significantly improved using the supplied collimator lens, reducing the main lobe width to $\pm4\text{°}$ \cite{sidarTRX122col} (Figure \ref{fig:sidar122rad}).
+Out of the box performance of the system is quite bad (Figure \ref{fig:sirad122rad}) with the width of the main lobe being roughly $\pm40\text{°}$ in both E-plane and H-plane \cite{siradTRX122}.
+However, this can be significantly improved using the supplied collimator lens, reducing the main lobe width to $\pm4\text{°}$ \cite{siradTRX122col} (Figure \ref{fig:sirad122rad}).
 
 
 
 \chapter{Rotary Platform}
 
-The following chapter outlines the design process and operational principles of a rotary platform specifically developed for the \sidar radar system.
+The following chapter outlines the design process and operational principles of a rotary platform specifically developed for the \sirad radar system.
 
 
 \section{Platform Construction}
@@ -554,15 +554,15 @@ The final assembly (Figure~\ref{fig:side_by_side}) measures approximately 36~cm 
 
 \begin{figure}[h!]
   \centering
-  \begin{subfigure}[b]{0.45\textwidth}
+  \begin{subfigure}[b]{0.55\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../img/whole_assembly_2.png}
+    \includegraphics[width=0.85\textwidth]{../img/whole_assembly_2.png}
     \caption{3D render}
   \end{subfigure}
   \hspace{0.05\textwidth} % Adjust spacing
-  \begin{subfigure}[b]{0.45\textwidth}
+  \begin{subfigure}[b]{0.35\textwidth}
     \centering
-    \includegraphics[width=0.75\textwidth]{../img/assembly_photo.jpg}
+    \includegraphics[width=\textwidth]{../img/assembly_photo.jpg}
     \caption{Photo}
   \end{subfigure}
   \caption{Form of the final assembly}
@@ -576,12 +576,14 @@ The electronic side of the platform is relatively simple.
 Only two problems needed to be tackled: driving the stepper motors and implementing a homing mechanism.
 
 Given the low load on the stepper motors and the platform's inability to accumulate significant momentum, a basic stepper driver without feedback control was deemed sufficient.
-For this purpose, the A4988 stepper driver was chosen due to its low cost, up to 1:16 microstepping capabilities, and basic current control \cite{a4988}.
-A minor drawback is the lack of any feedback from the driver to the microcontroller, including stall detection.
-To simplify the design, A4988 development kits were used and soldered onto a prototyping board, eliminating the need for a custom PCB.
-In addition, if the need arises, the A4988 development kits can be replaced by ones with a different IC, such as the TCM2209, as manufacturers keep the same pinout and dimensions on these.
-This might be necessary in applications where platform loudness would be a serious problem, as the A4988 produces a rather noisy driving signal.
-More modern drivers exhibit up to 20~dB lower noise levels \cite{a4988_sound}.
+A4988 stepper driver was chosen due to its low cost, up to 1:16 microstepping capabilities, and basic current control.
+A minor drawback of it is the lack of any feedback from the driver to the microcontroller, including stall detection \cite{a4988}.
+
+Since the number of components is quite low and there aren't any special requirements for the circuit, just a simple prototyping board  (Figure~\ref{fig:circuit}) was used instead of designing a custom PCB.
+This decision also makes it easier to replace the driver in case of failure.
+Or even enables an upgrade path via more modern chips, such as the TMC2208 or TMC2209 as their devkits are pin-compatible with the A4988 \cite{a4988_sound}.
+This might be necessary in use cases where platform volume level would be a serious problem.
+The A4988 produces a rather noisy driving signal and more modern drivers exhibit up to 20~dB lower noise levels \cite{a4988_sound}.
 
 For homing implementation, two potential solutions were considered: Hall effect sensors and optical gates.
 Hall effect sensors offer the advantage of angle sensing, allowing correction for positional drift during operation; however, they require precise alignment.
@@ -592,6 +594,13 @@ Thus, for simplicity and ease of integration, optical gates were selected.
 The system is controlled by an ESP32 microcontroller.
 The ESP32-C6 version was chosen due to the author's extensive experience with this particular model.
 Still, since the system does not require specialized peripherals or high processing power, most other microcontrollers could have been used instead.
+
+\begin{figure}[h!]
+	\centering
+\includegraphics[width=0.7\textwidth]{../img/circuit.jpg}
+	\caption[Driving circuit of the platform]{Driving circuit of the platform}
+	\label{fig:circuit}
+\end{figure}
 
 \section{Platform Software}
 
@@ -869,7 +878,7 @@ Still, in the preferences menu, there are some parameters that can be configured
 The \texttt{Radar frequency} toggle chooses between the 24~GHz and 122~GHz headers.
 However, this only affects the configuration sent to the radar; it does not reflash the firmware, which is also necessary.
 After the base frequency, \texttt{Radar bandwidth} can also be configured; both positive and negative values are accepted, however manual verification is required to ensure that the radar is working as expected.
-While the manufacturer states a 3~GHz limit on the 24~GHz header and 5~GHz on the 122~GHz header \cite{sidarPRO}, in practice—especially with the 24~GHz header—achievable bandwidth was usually much lower and its limit was rather inconsistent.
+While the manufacturer states a 3~GHz limit on the 24~GHz header and 5~GHz on the 122~GHz header \cite{siradPRO}, in practice—especially with the 24~GHz header—achievable bandwidth was usually much lower and its limit was rather inconsistent.
 
 The user can also configure the number of samples per chirp via \texttt{Chirp samples} and the ADC rate with \texttt{ADC ClkDiv}.
 These two parameters determine the time of a single ramp, which is calculated with equation~(\ref{eq:sampling}).

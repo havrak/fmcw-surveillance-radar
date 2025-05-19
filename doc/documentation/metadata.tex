@@ -8,6 +8,7 @@
 %	"rig" for rigorosum
 % "sem" for semestral
 \def\ThesisType{bc}
+\newcommand{\sidar}{SiRad Easy\textsuperscript{\copyright} }
 
 
 \def\ThesisTitle{Surveillance FMCW Radar}
@@ -35,11 +36,19 @@
 \def\StudyProgramme{Elektronika a komunikace}
 
 \def\Dedication{%
-	TODO
+	I would like to express my gratitude to my supervisor, Ing. Viktor Adler, Ph.D., for his guidance and support throughout the process of writing this thesis.
+	Their expertise greatly contributed with me understading this field and had a significant impact on the final outcome of my work.
 }
 
 \def\Abstract{%
-	TODO
+	This thesis concerns itself with realization of general purpose surveillance radar based on SiRad Easy FMCW module, allowing range measurements of targets with low power consumption.
+  To achieve this, the capabilities of the module are first analyzed to identify its limitations.
+	Subsequently, a custom two-axis rotary platform is designed and constructed to provide mechanical beam steering, facilitating 3D scanning.
+	The platform is driven by an ESP32C6 microcontroller and employs G-code-like commands as its API.
+	Finally, MATLAB is used to integrate the platform with the radar module and to process the collected data.
+	Although the radar's performance limitations prevent tracking of moving targets, the system is capable of monitoring a wide variety of environments.
+	Be it close-range applications requiring high resolution or long-range monitoring of targets up to 300 meters.
+	For this purpose, the processing pipeline is designed to be versatile, allowing for a wide range of configurations.
 }
 
 % 3 to 5 keywords (recommended) separated by \sep
@@ -71,10 +80,18 @@
 \def\StudyProgrammeCS{Elektronika a komunikace}
 
 \def\ThesisKeywordsCS{%
-	FMCW, Přehledový rdar, ESP32, MATLAB, Číselné zpracování signálů, 3D tisk, G-code
+	FMCW, Přehledový radar, ESP32, MATLAB, Číselné zpracování signálů, 3D tisk, G-code
 }
 
 \def\AbstractCS{%
-	TODO
+Tato bakalářská práce se zabývá realizací univerzálního přehledového radaru založeného na  FMCW modulu.
+Jedná se o technologii, která umožňuje měření vzdálenosti cílů s nízkou spotřebou energie.
+Pro dosažení tohoto cíle byli nejprve analyzovány schopnosti modulu.
+Následně byla navržena a sestavena dvouosá rotační platforma, která umožňuje mechanické natáčení paprsku.
+Platforma je řízena ESP32C6 mikrokontrolérem a ovládána příkazy podobné G-kódu.
+Pro integraci platformy s radarovým modulem a zpracování nasbíraných dat byl použit MATLAB.
+Přestože radaru neumožňuje sledování pohyblivých cílů, systém je schopen monitorovat širokou škálu prostředí.
+Ať už se jedná o aplikace na krátkou vzdálenost vyžadující vysoké rozlišení, nebo monitoring prostředí až do vzdálenosti 300 metrů.
+Pro tento účel je proces zpracování dat navržen tak, aby byl co nejvíce konfigurovatelný.
 }
 
