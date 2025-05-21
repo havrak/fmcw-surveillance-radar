@@ -533,11 +533,12 @@ In case the user requires more granular control over the position, it can be fac
 
 Similarly, high-speed movement was unnecessary for this application.
 As was already outlined, the radar is capable at best of some 50~Hz update rate.
-With such an update frequency, even at a low 8~RPM, we travel a degree in under 21~ms -- any faster and we would not get at least one update for each degree.
-At these RPMs, standard 40~mm NEMA17 stepper motors are powerful enough to turn the rather stiff slip ring.
+To put things into perspective at low 8~RPM a degree of angle is traversed in 21~ms, thus any faster speed would lead to having less then one sample per degree.
+At these speeds, standard 40~mm NEMA17 stepper motors were found to be sufficient.
+However if faster rotation would be needed a stronger motor would be required as due to slipring stiffness the motor is already working at its limits.
 
 The rest of the design is relatively simple.
-Slipring is mounted to a 3D printed base that elavates it slightly above ground.
+Slipring is mounted to a 3D printed base that elevates it slightly above ground.
 Stepper motor is then mounted directly under the slip ring, with a shaft connecting it to the rotating base.
 The connection is secured using long M4 set screws that pass through the base, through the slip ring, and hold the shaft in place.
 A 3D-printed housing serves only as a centering guide and is not under any load from the shaft connection.
@@ -577,8 +578,8 @@ The final assembly (Figure~\ref{fig:side_by_side}) measures approximately 36~cm 
 The electronic side of the platform is relatively simple.
 Only two problems needed to be tackled: driving the stepper motors and implementing a homing mechanism.
 
-Given the low load on the stepper motors and the platform's inability to accumulate significant momentum, a basic stepper driver without feedback control was deemed sufficient.
-A4988 stepper driver was chosen due to its low cost, up to 1:16 microstepping capabilities, and basic current control.
+Given the platform cannot generate any significant momentum that could potentially lead to skipping steps a basic stepper driver without feedback control was deemed sufficient.
+In the project A4988 stepper driver was chosen due to its low cost, up to 1:16 microstepping capabilities, and basic current control.
 A minor drawback of it is the lack of any feedback from the driver to the microcontroller, including stall detection \cite{a4988}.
 
 Since the number of components is quite low and there aren't any special requirements for the circuit, just a simple prototyping board  (Figure~\ref{fig:circuit}) was used instead of designing a custom PCB.

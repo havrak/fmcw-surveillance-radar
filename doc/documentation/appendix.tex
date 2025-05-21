@@ -74,16 +74,16 @@ These commands bypass certain sections and safety checks of the firmware. Use wi
 
 \begin{description}
   \item[\texttt{G3 Y/P<steps> [SY/SP<rpm>]}] Bypass scheduler and adds movement directly to the queue
-		\begin{itemize}
-			\item Limits are not and cannot be checked
-			\item Absolute positioning is not available
-			\item All values are interpreted as steps regardless of current unit setting
-			\item \textit{Warning}: Use \texttt{M82} before \texttt{G3} to maintain position integrity
-		\end{itemize}
+    \begin{itemize}
+      \item Limits are not and cannot be checked
+      \item Absolute positioning is not available
+      \item All values are interpreted as steps regardless of current unit setting
+      \item \textit{Warning}: Use \texttt{M82} before \texttt{G3} to maintain position integrity
+    \end{itemize}
   \item[\texttt{W3 T<ms>}] Application-layer delay
-		\begin{itemize}
-			\item Useful to wait for end of homing process
-		\end{itemize}
+    \begin{itemize}
+      \item Useful to wait for end of homing process
+    \end{itemize}
 \end{description}
 
 \subsection*{Programming Commands}
@@ -123,17 +123,81 @@ These commands bypass certain sections and safety checks of the firmware. Use wi
 \end{tabular}
 
 
-\subsection*{Example Program}
+\subsection*{Example Programs}
+
+Keep in mind that when using the interface from the application commands \texttt{P90}, \texttt{P91}, \texttt{P92} should not be entered. The program will be automatically finalized when user starts upload to the platform.
+
+\vspace{0.3cm}
+\noindent
+\textbf{Example 1:} Continuos rotation in yaw, up and down in pitch
+
 \begin{tabular}{lll}
   \hline
-  \texttt{Command}       & Mode   & Purpose                   \\
+  \texttt{Command}     & Mode   & Purpose                      \\
   \hline
-  \texttt{P90 prog}      & Header & Initialize program ID=1   \\
-  \texttt{G91}           & Header & Set relative positioning  \\
-  \texttt{P29}           & Header & Enable infinite looping   \\
-  \texttt{M03 SY6 Y+}    & Body   & Start Yaw spindle (6 RPM) \\
-  \texttt{G0 SP30 P100}  & Body   & Pitch movement            \\
-  \texttt{G0 SP30 P-100} & Body   & Return pitch              \\
-  \texttt{P92}           & Body   & Finalize program          \\
+  \texttt{P90 rotTilt} & Header & Initialize program rotTilt   \\
+  \texttt{G91}         & Header & Set relative positioning     \\
+  \texttt{G21}         & Header & Set units to steps           \\
+  \texttt{G28}         & Header & Start auto home routine      \\
+  \texttt{G0 P-50 S6}  & Header & Move pitch 50° degrees       \\
+  \texttt{W3 T5000}    & Header & Wait five second              \\
+  \texttt{P92}         & Header & Set current position as home \\
+  \texttt{P29}         & Header & Enable infinite looping      \\
+  \texttt{M03 SY6 Y+}  & Header & Start Yaw spindle (6 RPM)    \\
+  \texttt{P92}         & Header & Finalize header declaration  \\
+  \texttt{G0 S5 P40}   & Body   & Pitch movement               \\
+  \texttt{G0 S5 P-40}  & Body   & Return pitch                 \\
+  \texttt{P92}         & Body   & Finalize program             \\
   \hline
 \end{tabular}
+
+
+\vspace{0.3cm}
+\noindent
+\textbf{Example 2:} Continuos rotation in yaw, static in pitch
+
+
+\begin{tabular}{lll}
+  \hline
+  \texttt{Command}    & Mode   & Purpose                      \\
+  \hline
+  \texttt{P90 rot}    & Header & Initialize program rot       \\
+  \texttt{G91}        & Header & Set relative positioning     \\
+  \texttt{G21}        & Header & Set units to steps           \\
+  \texttt{G28}        & Header & Start auto home routine      \\
+  \texttt{G0 P-50 S6} & Header & Move pitch 50° degrees       \\
+  \texttt{W3 T5000}   & Header & Wait five second              \\
+  \texttt{P92}        & Header & Set current position as home \\
+  \texttt{P29}        & Header & Enable infinite looping      \\
+  \texttt{M03 SY6 Y+} & Header & Start Yaw spindle (6 RPM)    \\
+  \texttt{P92}        & Header & Finalize header declaration  \\
+  \texttt{P92}        & Body   & Finalize program             \\
+  \hline
+\end{tabular}
+
+
+\vspace{0.3cm}
+\noindent
+\textbf{Example 3:} Half rotation in yaw, static in pitch
+
+
+\begin{tabular}{lll}
+  \hline
+  \texttt{Command}     & Mode   & Purpose                                        \\
+  \hline
+  \texttt{P90 rot}     & Header & Initialize program rot                         \\
+  \texttt{G91}         & Header & Set relative positioning                       \\
+  \texttt{G21}         & Header & Set units to steps                             \\
+  \texttt{G28}         & Header & Start auto home routine                        \\
+  \texttt{G0 P-50 S6}  & Header & Move pitch 50° degrees                         \\
+  \texttt{W3 T5000}    & Header & Wait five second                                \\
+  \texttt{P92}         & Header & Set current position as home                   \\
+  \texttt{G0 Y-50 S6}  & Header & Shift 50 steps so that movement is around zero \\
+  \texttt{P29}         & Header & Enable infinite looping                        \\
+  \texttt{P92}         & Header & Finalize header declaration                    \\
+  \texttt{G0 Y100 S6}  & Header & Move clockwise                                 \\
+  \texttt{G0 Y-100 S6} & Header & Move counterclockwise                          \\
+  \texttt{P92}         & Body   & Finalize program                               \\
+  \hline
+\end{tabular}
+
