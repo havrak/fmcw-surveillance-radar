@@ -107,10 +107,15 @@ while true
 	nData = numel(data);
 	DataI = double(data(1:2:nData));
 	DataQ = double(data(2:2:nData));
+
+	if(length(DataI) > length(DataQ))
+		DataI(1) = [];
+		disp(DataI);
+	end
 	DataIQ = DataI+1j*DataQ;
 	% 
 
-	fftIQ = abs(fft(DataIQ));
+	fftIQ = abs(fftshift(fft(DataIQ)));
 
 	% time(index) =  (posixtime(datetime('now'))-dataTimestamp) * 1000;
 	%dataTimestamp = posixtime(datetime('now'));

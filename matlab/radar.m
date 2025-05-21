@@ -76,6 +76,7 @@ classdef radar < handle
 					data = typecast(tmp, 'int16');
 
 					obj.bufferI(:, obj.writeIdx) = data(1:2:end);
+					disp(obj.bufferI(:, obj.writeIdx));
 					obj.bufferQ(:, obj.writeIdx) = data(2:2:end);
 					obj.bufferTime(obj.writeIdx) = toc(obj.startTime);
 

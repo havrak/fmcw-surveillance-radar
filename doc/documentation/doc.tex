@@ -394,10 +394,12 @@ However, besides such binary information about the presence of a target and its 
 
 For the purpose of this project, the devkit was configured to output raw data from the 12-bit ADC in the form of in-phase and quadrature components of the signal.
 This allows for more complex processing than if the spectrum was calculated on the radar itself.
-For these reasons, the default windowing and signal filtering were also disabled.
-The device was also set up to be triggered by a command sent over the serial line.
+However it must be said that regardless of the output format the reported values are don't use the full 12-bit range, highest values reported were around $\pm 60$.
 
-Another parameter to consider in relation to surveillance applications was AGC.
+Given the unreliability of the radar's internal internal trigger the device was set up to be triggered externally.
+In order to not complicate the system too much, trigger over serial line was used.
+
+Another parameter to consider in relation to surveillance application was AGC.
 Using it adds two additional ramps that are used solely to set the gain value, leading to some 3 ms delay.
 However, a bigger problem is the fact that the radar doesn't report the gain value.
 Using AGC could then lead to situations where the weighting of the data is not constant across rotation.
@@ -443,7 +445,7 @@ After measuring the dimensions of the array using an optical microscope, the ent
 Figure \ref{fig:boundaries} shows the applied boundary conditions: the antenna was placed in open space, and a  $H_\mathrm{norm}=0$ condition was set along the symmetry plane to speed up the simulation.
 
 After performing a standard time-domain simulation with an excitation signal ranging from 0 to 26GHz, the antenna array exhibited a minimum reflection coefficient $s_{11} \doteq -26.4 \mathrm{~dB}$ at 23.478~GHz with second minimum at 24.518~GHz (Figure \ref{fig:s11}).
-The lack of a minimum at 24 GHz may be attributed to difficulties in measuring trace widths and distances (the etching quality of the copper traces was suboptimal) and the neglecting interactions of different PCB board layers.
+The lack of minimum at 24~GHz is likely due neglecting imperfection in the manufacturing process where roughness of the copper traces manifests as a change in the effective dielectric constant of the substrate.
 
 At both frequencies with minimal reflection, a far-field radiation pattern was calculated.
 For clarity, only the 24.518~GHz pattern is shown in figure \ref{fig:farfield3d}.
@@ -582,7 +584,7 @@ A minor drawback of it is the lack of any feedback from the driver to the microc
 Since the number of components is quite low and there aren't any special requirements for the circuit, just a simple prototyping board  (Figure~\ref{fig:circuit}) was used instead of designing a custom PCB.
 This decision also makes it easier to replace the driver in case of failure.
 Or even enables an upgrade path via more modern chips, such as the TMC2208 or TMC2209 as their devkits are pin-compatible with the A4988 \cite{a4988_sound}.
-This might be necessary in use cases where platform volume level would be a serious problem.
+This might be necessary in use cases where the platform's volume level would be a serious problem.
 The A4988 produces a rather noisy driving signal and more modern drivers exhibit up to 20~dB lower noise levels \cite{a4988_sound}.
 
 For homing implementation, two potential solutions were considered: Hall effect sensors and optical gates.

@@ -245,7 +245,6 @@ void StepperControl::commandSchedulerTask(void* arg)
 		stepperOpParYaw.position += steppers.getStepsTraveledOfPrevCommand(stepperHalYaw);
 		stepperOpParPitch.position += steppers.getStepsTraveledOfPrevCommand(stepperHalPitch);
 
-
 		// tmp++;
 		// if(tmp == 20){
 		// 	tmp =0;
@@ -255,8 +254,7 @@ void StepperControl::commandSchedulerTask(void* arg)
 		// 	ESP_LOGI(TAG, "!P %lld, %f, %f\n", esp_timer_get_time()/1000, STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParYaw.position + travelledH, stepperHalYaw->stepCount), stepperHalYaw->stepCount), STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParPitch.position + travelledT, stepperHalYaw->stepCount), stepperHalYaw->stepCount));
 		// }
 
-
-		printf("!P %lld, %f, %f\n", esp_timer_get_time()/1000, STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParYaw.position + steppers.getStepsTraveledOfCurrentCommand(stepperHalYaw), stepperHalYaw->stepCount), stepperHalYaw->stepCount), STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParPitch.position + steppers.getStepsTraveledOfCurrentCommand(stepperHalPitch), stepperHalPitch->stepCount), stepperHalPitch->stepCount));
+		printf("!P %lld, %f, %f\n", esp_timer_get_time() / 1000, STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParYaw.position + steppers.getStepsTraveledOfCurrentCommand(stepperHalYaw), stepperHalYaw->stepCount), stepperHalYaw->stepCount), STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParPitch.position + steppers.getStepsTraveledOfCurrentCommand(stepperHalPitch), stepperHalPitch->stepCount), stepperHalPitch->stepCount));
 		// if queues are filled we will wait
 
 		if (steppers.getQueueLength(stepperHalYaw) == CONFIG_STEPPER_HAL_QUEUE_SIZE || steppers.getQueueLength(stepperHalPitch) == CONFIG_STEPPER_HAL_QUEUE_SIZE) {
@@ -300,7 +298,7 @@ void StepperControl::commandSchedulerTask(void* arg)
 #ifdef CONFIG_APP_DEBUG
 				// ESP_LOGI(TAG, "commandSchedulerTask | CMD SOURCE: programm main (repeat)");
 #endif
-				if(activeProgram->main->size() == 0){
+				if (activeProgram->main->size() == 0) {
 					vTaskDelay(20 / portTICK_PERIOD_MS);
 					continue;
 				}
@@ -411,8 +409,8 @@ void StepperControl::commandSchedulerTask(void* arg)
 				stepperControl.homePitch();
 			}
 			programmingMode.store(mode);
-		 break;
-														}
+			break;
+		}
 		case GCodeCommand::G0:
 			if (command->movementYaw != nullptr) {
 				if (command->movementYaw->val.steps == 0)
@@ -597,13 +595,13 @@ void StepperControl::commandSchedulerTask(void* arg)
 
 ParsingGCodeResult StepperControl::parseGCode(const char* gcode, const uint16_t length)
 {
-// #ifdef CONFIG_COMM_DEBUG
-// 	char* gcodeCopy = (char*)malloc(length + 1);
-// 	strncpy(gcodeCopy, gcode, length);
-// 	gcodeCopy[length] = '\0';
-// 	ESP_LOGI(TAG, "Received command: %s", gcodeCopy);
-// 	free(gcodeCopy);
-// #endif /* CONFIG_COMM_DEBUG */
+	// #ifdef CONFIG_COMM_DEBUG
+	// 	char* gcodeCopy = (char*)malloc(length + 1);
+	// 	strncpy(gcodeCopy, gcode, length);
+	// 	gcodeCopy[length] = '\0';
+	// 	ESP_LOGI(TAG, "Received command: %s", gcodeCopy);
+	// 	free(gcodeCopy);
+	// #endif /* CONFIG_COMM_DEBUG */
 
 	ParsingGCodeResult res = parseGCodeNonScheduledCommands(gcode, length);
 	if (res != ParsingGCodeResult::RESERVED)
@@ -748,7 +746,7 @@ ParsingGCodeResult StepperControl::parseGCodeNonScheduledCommands(const char* gc
 		if ((movementYaw != nullptr && movementYaw->rpm == NAN && movementYaw->val.steps != 0) || (movementPitch != nullptr && movementPitch->rpm == NAN && movementPitch->val.steps != 0))
 			return ParsingGCodeResult::INVALID_ARGUMENT;
 
-		if(movementYaw == nullptr && movementPitch == nullptr)
+		if (movementYaw == nullptr && movementPitch == nullptr)
 			return ParsingGCodeResult::INVALID_ARGUMENT;
 
 		if (movementYaw != nullptr && movementPitch != nullptr) {
@@ -790,7 +788,7 @@ ParsingGCodeResult StepperControl::parseGCodeNonScheduledCommands(const char* gc
 			return ParsingGCodeResult::INVALID_ARGUMENT;
 
 #ifdef CONFIG_COMM_DEBUG
-		fprintf(stderr, "parseGCode| M92 | Y: %d, P: %d\n", stepperHalYaw->stepCount, stepperHalPitch->stepCount);
+		ESP_LOGI(TAG, "parseGCode| M92 | Y: %d, P: %d", stepperHalYaw->stepCount, stepperHalPitch->stepCount);
 #endif /* CONFIG_COMM_DEBUG */
 		return ParsingGCodeResult::SUCCESS;
 	} else if (strncmp(gcode, "P0", 2) == 0) { // stop programm execution
@@ -928,7 +926,7 @@ ParsingGCodeResult StepperControl::parseGCodeGCommands(const char* gcode, const 
 		if ((command->movementYaw != nullptr && command->movementYaw->rpm == NAN && command->movementYaw->val.steps != 0) || (command->movementPitch != nullptr && command->movementPitch->rpm == NAN && command->movementPitch->val.steps != 0))
 			return ParsingGCodeResult::INVALID_ARGUMENT;
 
-		if(command->movementYaw == nullptr && command->movementPitch == nullptr)
+		if (command->movementYaw == nullptr && command->movementPitch == nullptr)
 			return ParsingGCodeResult::INVALID_ARGUMENT;
 
 #ifdef CONFIG_COMM_DEBUG
@@ -1253,9 +1251,21 @@ ParsingGCodeResult StepperControl::parseGCodePCommands(const char* gcode, const 
 		ESP_LOGI(TAG, "parseGCode| P90");
 #endif /* CONFIG_COMM_DEBUG */
 		command->type = GCodeCommand::COMMAND_TO_REMOVE;
-		if (programmingMode != ProgrammingMode::NO_PROGRAMM || activeProgram != nullptr){
-			ESP_LOGE(TAG, "parseGCode| P90 | programmingMode: %d, activeProgram: %p", programmingMode.load(), activeProgram);
-			return ParsingGCodeResult::CODE_FAILURE; // TODO: make sure this never arises
+		ESP_LOGI(TAG, "parseGCode| P90 | programmingMode");
+		if (programmingMode != ProgrammingMode::NO_PROGRAMM || activeProgram != nullptr) {
+			activeProgram->reset();
+			activeProgram = nullptr;
+			programmingMode.store(ProgrammingMode::NO_PROGRAMM);
+			xSemaphoreTake(noProgrammQueueLock, (TickType_t)1000);
+			while (!noProgrammQueue.empty()) {
+				gcode_command_t* c = noProgrammQueue.front();
+				noProgrammQueue.pop();
+				delete c;
+			}
+			noProgrammQueue = {};
+			xSemaphoreGive(noProgrammQueueLock);
+			steppers.stopNowStepper(stepperHalYaw);
+			steppers.stopNowStepper(stepperHalPitch);
 		}
 
 		char name[PROG_NAME_MAX_LENGTH] = {};
@@ -1381,6 +1391,7 @@ void StepperControl::homeYaw()
 	// stop the steppers
 	xEventGroupClearBits(homingEventGroup, BIT0);
 	steppers.stopNowStepper(stepperHalYaw);
+	vTaskDelay(500);
 	// attach interrupts
 	attachInterrupt(CONFIG_STEPPER_Y_PIN_ENDSTOP, StepperControl::endstopHandler, CHANGE);
 
@@ -1425,13 +1436,16 @@ void StepperControl::homePitch()
 	ESP_LOGI(TAG, "Home | Homing pitch");
 #endif /* CONFIG_APP_DEBUG */
 	// stop the steppers
-	xEventGroupClearBits(homingEventGroup, BIT0);
 	steppers.stopNowStepper(stepperHalPitch);
+	xEventGroupClearBits(homingEventGroup, BIT0);
+	vTaskDelay(500);
 	// attach interrupts
+
+	ESP_LOGI(TAG, "Home | Attaching interrupt");
 
 	attachInterrupt(CONFIG_STEPPER_P_PIN_ENDSTOP, StepperControl::endstopHandler, CHANGE);
 
-	steppers.spindleStepper(stepperHalPitch, 6, Direction::FORWARD);
+	steppers.spindleStepper(stepperHalPitch, 10, Direction::FORWARD);
 
 	EventBits_t result = xEventGroupWaitBits(
 			homingEventGroup,
@@ -1447,7 +1461,7 @@ void StepperControl::homePitch()
 	steppers.stepStepper(stepperHalPitch, -30, 20);
 	vTaskDelay(1000);
 	xEventGroupClearBits(homingEventGroup, BIT0);
-	steppers.spindleStepper(stepperHalPitch, 3, Direction::FORWARD);
+	steppers.spindleStepper(stepperHalPitch, 6, Direction::FORWARD);
 	result = xEventGroupWaitBits(
 			homingEventGroup,
 			BIT0,

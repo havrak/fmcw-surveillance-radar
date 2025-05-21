@@ -380,6 +380,7 @@ bool StepperHal::stopNowStepper(stepper_hal_struct_t* stepperHal)
 		int pulseCount = 0;
 		pcnt_unit_get_count(stepperHal->pcntUnit, &pulseCount);
 		pcnt_unit_remove_watch_point(stepperHal->pcntUnit, stepperHal->stepperCommand->val.steps);
+		ESP_LOGI(TAG, "stopNowStepper | %s ", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "Y" : "P");
 		stepperHal->stepperCommand->val.steps = pulseCount;
 	}
 	pcnt_unit_clear_count(stepperHal->pcntUnit);

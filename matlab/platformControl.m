@@ -375,16 +375,24 @@ classdef platformControl < handle
 			writeline(obj.hSerial, "P90 "+obj.currentProgramName);
 			valueHeader = get(obj.hEditProgramHeader, 'String');
 			trimmedHeader = (strtrim(string(valueHeader)));
-			for i=1:(numel(trimmedHeader)-1)
+			disp(trimmedHeader);
+			for i=1:(numel(trimmedHeader))
+				if isempty(trimmedHeader(i))
+					continue;
+				end
 				writeline(obj.hSerial, trimmedHeader(i));
-				pause(0.02); % incoming buffer on ESP32 is not infinite so we introduce a small delay
+				pause(0.04); % incoming buffer on ESP32 is not infinite so we introduce a small delay
 			end
 			writeline(obj.hSerial, "P91");
 			valueMain = get(obj.hEditProgramMain, 'String');
 			trimmedMain = (strtrim(string(valueMain)));
-			for i=1:(numel(trimmedMain)-1)
+			disp(trimmedMain);
+			for i=1:(numel(trimmedMain))
+				if isempty(trimmedMain(i))
+					continue;
+				end
 				writeline(obj.hSerial, trimmedMain(i));
-				pause(0.02); % incoming buffer on ESP32 is not infinite so we introduce a small delay
+				pause(0.04); % incoming buffer on ESP32 is not infinite so we introduce a small delay
 			end
 
 			writeline(obj.hSerial, "P92");
@@ -396,7 +404,8 @@ classdef platformControl < handle
 			%
 			% Function is called by preference's newConfigEvent event
 			% Yaw trigger is configured, step count is sent to the platform
-			[obj.angleOffsetYaw, obj.angleOffsetPitch, localStepCountYaw, localStepCountPitch] = obj.hPreferences.getPlatformParamters();
+			[obj.angleOffsetYaw, obj.angleOffsetPitch, obj.stepCountYaw , obj.stepCountPitch] = obj.hPreferences.getPlatformParamters();
+
 			if obj.hPreferences.getDecayType() == 0
 				obj.angleTriggerYaw = mod(obj.hPreferences.getTriggerYaw()-obj.angleTriggerYawTorelance, 360);
 			else
@@ -404,9 +413,7 @@ classdef platformControl < handle
 			end
 
 			if ~isempty(obj.hSerial) && ((localStepCountYaw ~= obj.stepCountYaw) || (localStepCountPitch ~= obj.stepCountPitch))
-				obj.stepCountPitch = localStepCountPitch;
-				obj.stepCountYaw = localStepCountYaw;
-				command = "M92 Y"+obj.stepCountYaw + " P"+obk.stepCountPitch;
+				command = "M92 Y"+obj.stepCountYaw + " P"+obj.stepCountPitch;
 				flush(obj.hSerial);
 				writeline(obj.hSerial, command);
 			end
