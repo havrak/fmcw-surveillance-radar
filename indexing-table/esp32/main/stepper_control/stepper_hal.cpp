@@ -200,6 +200,7 @@ void StepperHal::stepperTask(void* arg)
 			// if previous command was spindle, we are running a command that will change stepper movement we need to immediately set spindle regime end time
 			if (stepperHal->stepperCommandPrev->type == CommandType::SPINDLE && stepperHal->stepperCommand->type < CommandType::SKIP && !stepperHal->stepperCommandPrev->complete) {
 				stepperHal->stepperCommandPrev->val.finishTime = esp_timer_get_time();
+				stepperHal->stepperCommandPrev->synchronized = false;
 				stepperHal->stepperCommandPrev->complete = true;
 			}
 
@@ -290,8 +291,8 @@ void StepperHal::stepperTask(void* arg)
 					pdTRUE,
 					portMAX_DELAY);
 
-			if (stepperHal->stepperCommand->type != CommandType::SPINDLE)
-				stepperHal->stepperCommand->complete = true;
+			stepperHal->stepperCommand->complete = stepperHal->stepperCommand->type != CommandType::SPINDLE;
+
 
 #ifdef CONFIG_HAL_DEBUG
 			ESP_LOGI(TAG, "stepperTask | %s completed", stepperSign);
@@ -300,7 +301,7 @@ void StepperHal::stepperTask(void* arg)
 			if (stepperHal->stepperCommand->type < CommandType::STOP) { // SKIP, WAIT, STOP commands don't affect position so we can simply drop them
 				// ESP_LOGI(TAG, "stepperTask | %s completed, steps: %ld", stepperSign, stepperHal->stepperCommand->val.steps);
 				memcpy(stepperHal->stepperCommandPrev, stepperHal->stepperCommand, sizeof(stepper_hal_command_t));
-				stepperHal->stepperCommandPrev->synchronized = false;
+				stepperHal->stepperCommandPrev->synchronized = stepperHal->stepperCommand->type == CommandType::SPINDLE;
 			}
 		}
 	}
@@ -413,7 +414,7 @@ int64_t StepperHal::getStepsTraveledOfPrevCommand(stepper_hal_struct_t* stepperH
 {
 	if (stepperHal->stepperCommandPrev->synchronized)
 		return 0;
-	ESP_LOGI(TAG, "getStepsTraveledOfPrevCommand | %s", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "Y" : "P");
+	// ESP_LOGI(TAG, "getStepsTraveledOfPrevCommand | %s", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "Y" : "P");
 	if (stepperHal->stepperCommandPrev->type == CommandType::STEPPER) {
 		stepperHal->stepperCommandPrev->synchronized = true;
 		return stepperHal->stepperCommandPrev->direction ? -stepperHal->stepperCommandPrev->val.steps : stepperHal->stepperCommandPrev->val.steps;
