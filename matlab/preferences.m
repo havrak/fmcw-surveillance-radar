@@ -47,7 +47,9 @@ classdef preferences < handle
 		hSwitchProCalcRaw;           % Enable calculation of range doppler cube with raw data
 		hSwitchProCalcCFAR;          % Enable calculation of CFAR and use of respective cube
 		hSwitchProDecayType;         % Choose what decay type is used (speed based x yaw trigger)
+
 		hEditProBatchSize;           % Number of updates buffered before cube is updated
+		hEditProMaxValue;           % Number of updates buffered before cube is updated
 		hEditProSpreadPatternPitch;  % Spread pattern pitch parameter
 		hEditProSpreadPatternYaw;    % Spread pattern yaw parameter
 		hSwitchProSpreadPattern;     % Enable use of spread pattern
@@ -122,7 +124,7 @@ classdef preferences < handle
 
 			obj.configStruct.processing.dbscanMinDetections = 0;
 			obj.configStruct.processing.dbscanEnable = 1;
-			% obj.configStruct.processing.dbscanRange = 0.05;
+			obj.configStruct.processing.maxValue = 50000;
 			obj.configStruct.processing.dbscanEpsilon = 2;
 
 			obj.configStruct.programs=[];
@@ -196,6 +198,7 @@ classdef preferences < handle
 			processingParameters.calcCFAR  = obj.configStruct.processing.calcCFAR;
 			processingParameters.calcRaw  = obj.configStruct.processing.calcRaw;
 			processingParameters.requirePosChange = obj.configStruct.processing.requirePosChange;
+			processingParameters.maxValue = obj.configStruct.processing.maxValue;
 			processingParameters.dbscanEnable	= obj.configStruct.processing.dbscanEnable;
 			% processingParameters.dbscanRange	= obj.configStruct.processing.dbscanRange;
 			processingParameters.dbscanEpsilon = obj.configStruct.processing.dbscanEpsilon;
@@ -870,6 +873,18 @@ classdef preferences < handle
 				'Orientation', 'horizontal');
 
 
+			uilabel(obj.hFig, ...
+				'Position', [20, figSize(2)-processingOffset-350, 170, 25], ...
+				'Text', 'Max display value:');
+
+			obj.hEditProMaxValue = uicontrol('Style', 'edit', ...
+				'Parent',obj.hFig,  ...
+				'Position', [150, figSize(2)-processingOffset-350, 140, 25], ...
+				'Max',1, ...
+				'String',"", ...
+				'HorizontalAlignment', 'left');
+			
+
 			%% Buttons
 			function reloadConfig(obj)
 				obj.loadConfig();
@@ -1035,6 +1050,8 @@ classdef preferences < handle
 			set(obj.hTextProBinWidthRange, 'String', bin);
 
 			set(obj.hEditProDBSCANMinDetections, 'String', obj.configStruct.processing.dbscanMinDetections);
+
+			set(obj.hEditProMaxValue, 'String', obj.configStruct.processing.maxValue);
 			set(obj.hEditProDBSCANEpsilon, 'String', obj.configStruct.processing.dbscanEpsilon);
 			set(obj.hEditProCFARGuard, 'String', obj.configStruct.processing.cfarGuard);
 			set(obj.hEditProBatchSize, 'String', obj.configStruct.processing.batchSize);
@@ -1249,11 +1266,17 @@ classdef preferences < handle
 			end
 
 			tmp = str2double(get(obj.hEditProDBSCANMinDetections, 'String'));
-
 			if (isnan(tmp) || tmp < 0)
 				warndlg('DBSCAN minimal number of detections cannot be a negative number');
 			else
 				obj.configStruct.processing.dbscanMinDetections=floor(tmp);
+			end
+
+			tmp = str2double(get(obj.hEditProMaxValue, 'String'));
+			if (isnan(tmp) || tmp < 0)
+				warndlg('Maximal value of items in visualization must be a postive number');
+			else
+				obj.configStruct.processing.maxValue=floor(tmp);
 			end
 
 			bin = obj.getSpeedBinWidth();

@@ -377,7 +377,7 @@ classdef platformControl < handle
 			trimmedHeader = (strtrim(string(valueHeader)));
 			disp(trimmedHeader);
 			for i=1:(numel(trimmedHeader))
-				if isempty(trimmedHeader(i))
+				if ~isstring(trimmedHeader(i))  || trimmedHeader(i) == ""
 					continue;
 				end
 				writeline(obj.hSerial, trimmedHeader(i));
@@ -388,7 +388,7 @@ classdef platformControl < handle
 			trimmedMain = (strtrim(string(valueMain)));
 			disp(trimmedMain);
 			for i=1:(numel(trimmedMain))
-				if isempty(trimmedMain(i))
+				if ~isstring(trimmedMain(i)) || trimmedMain(i) == ""
 					continue;
 				end
 				writeline(obj.hSerial, trimmedMain(i));
@@ -412,7 +412,7 @@ classdef platformControl < handle
 				obj.angleTriggerYaw = -1;
 			end
 
-			if ~isempty(obj.hSerial) && ((localStepCountYaw ~= obj.stepCountYaw) || (localStepCountPitch ~= obj.stepCountPitch))
+			if ~isempty(obj.hSerial)
 				command = "M92 Y"+obj.stepCountYaw + " P"+obj.stepCountPitch;
 				flush(obj.hSerial);
 				writeline(obj.hSerial, command);
@@ -474,7 +474,7 @@ classdef platformControl < handle
 			% obj.mockDataTimer.UserData = 0;
 			% obj.mockDataTimer.TimerFcn = @(~,~) obj.mockData();
 			% start(obj.mockDataTimer);
-			%
+			% 
 			% status = true;
 			% return;
 

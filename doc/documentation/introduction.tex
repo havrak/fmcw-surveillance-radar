@@ -4,20 +4,21 @@
 
 The following thesis si focused on realization of a generic surveillance radar system based on FMCW (Frequency-Modulated Continuous Wave) technology.
 Conventional FMCW-based surveillance radars often employ multiple receiving antennas or are implemented as MIMO (Multiple-Input Multiple-Output) systems.
-In MIMO configurations, electronic beam steering is possible, enabling a larger field of view and the detection of targets in both elevation and azimuth.
-Simpler systems, which use only multiple receiving antennas, typically allow for azimuth estimation through phase difference analysis \cite{sandeep2018}.
-However, all these systems generally require significant processing power and are not capable of providing comprehensive 3D spatial information due to their limited field of view.
+In MIMO configurations the radar beam is electronically steered using positive interference to scan the environment both in azimuth and elevation.
+Simpler systems, which use only multiple receiving antennas, typically enabled detection only in azimuth by analyzing the phase difference between signals received by each antenna \cite{sandeep2018}.
+However, all these systems generally require significant processing power, are costly and are not capable of providing comprehensive 3D spatial information, due to their limited field of view.
 
 To address these limitations, this thesis implements a simpler approach: a radar system with just a single RX and TX antenna, where the beam is steered mechanically using a rotary platform.
-Initially, the capabilities of the \sirad evaluation board are assessed, followed by the development of a custom two-axis rotary platform.
+Initially, the capabilities of the \sirad evaluation board are assessed.
+According to these a custom two-axis rotary platform is designed.
 Both components are then integrated into a unified system, controlled and managed via a MATLAB desktop application.
 This involves both hardware -- namely the rotary platform -- and software -- control of the platform and processing of radar data.
-Similar systems have been previously developed -- both those using a single axis of rotation~\cite{nowok2017, vivet2013} or complex commercial solutions enabling surveillance of whole 3D space~\cite{blighter}.
+Similar systems have been previously developed -- both those using a single axis of rotation~\cite{nowok2017, vivet2013} or complex commercial solutions enabling surveillance of a whole 3D space~\cite{blighter}.
 
 FMCW radar operates by transmitting a continuous signal whose frequency is modulated over time.
 By mixing the transmitted and received signal, harmonic components are produced, with frequencies proportional to the distance of a target \cite{graham2005}.
 Applying a Fourier transform to the mixed signal enables the determination of object distances within a scene.
-Compared to pulsed radar, FMCW can provide accurate distance measurements with relatively low power consumption \cite{jankiraman2018}.
+Compared to a pulsed radar, FMCW can provide accurate distance measurements with relatively low power consumption \cite{jankiraman2018}.
 Velocity estimation is also possible by exploiting the Doppler effect.
 However it's nature is more complex than in pulsed systems.
 
@@ -26,16 +27,16 @@ This thesis focuses on the \sirad radar system -- a low-cost evaluation board de
 This versatility allows for a wide range of applications.
 High bandwidth 122~GHz header is suitable for short range use cases.
 While the 24~GHz header is more appropriate for long range applications, with a maximum advertised range of 400~meters \cite{siradMANOld}.
-However, due to its relatively low sampling rate and the use of a modest microcontroller, the \sirad is not particularly well-suited for speed measurement: the maximum measurable velocities are well below one meter per second, and even then, measurement accuracy is limited.
+However, due to its relatively low sampling rate and use of a modest microcontroller, the \sirad is not particularly well-suited for speed measurement: the maximum measurable velocities are well below one meter per second, and even then, measurement accuracy is limited.
 
 To complement the radar, a custom two axis rotary platform was designed and constructed for this thesis.
-While commercial solutions exist \cite{standa, carl}, they are often prohibitively expensive and include unnecessary features.
+While commercial solutions exists \cite{standa, carl}, they are often prohibitively expensive and include unnecessary features.
 Therefore, a more affordable platform was built from off-the-shelf and 3D-printed components.
 Controlled by an ESP32C6 microcontroller, that interprets G-code-like commands.
 
 Data from both the radar and the platform are processed and visualized within MATLAB.
 The processing pipeline follows standard approaches, utilizing techniques such as FFT (Fast Fourier Transform) and CFAR (Constant False Alarm Rate) \cite{richards2022}.
-To enabled greater flexibility the pipeline is designed to be quite customizable, allowing user to adjust parameters or disable certain steps.
+To enable greater flexibility the pipeline is designed to be quite customizable, allowing user to adjust parameters or disable certain steps.
 Processed data are then stored in radar cubes -- a common structure in radar applications \cite{richards2022}; which facilitates the implementation of more advanced post-processing algorithms.
 For visualization, the system supports both 2D and 3D representations.
 

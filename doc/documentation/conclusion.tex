@@ -17,7 +17,7 @@ Its low and inconsistent reporting rate (50~Hz) restricts the maximum detectable
 This limitation effectively prevents the tracking of moving targets -- a common use case for surveillance radars -- and thus significantly reduced the scope of this thesis.
 The system is therefore mainly suitable for static scenes, providing binary information about target presence.
 Nevertheless, within this limitation, the radar still provides good resolution across a variety of ranges, thanks to the ability to switch between 24~GHz and 122~GHz headers.
-Both close range application with high resolution or long range (up to some 300~meters) are possible.
+Both close range applications with high resolution or long range (up to some 300~meters) are possible.
 
 A MATLAB-based control application was developed to integrate both rotary platform management and radar data processing in a single package.
 The data processing pipeline follows a standard approach, employing techniques such as FFT, CFAR, and DBSCAN, and storage of data in radar cubes.
@@ -31,7 +31,7 @@ However, this flexibility requires from the user a solid understanding of underl
 Only visual output for the data was implemented, with both 2D and 3D visualization options available.
 The classical 2D Range-Azimuth map is likely the most useful, providing information about a significant portion of the environment, given the radar’s radiation pattern.
 2D visualization can be enabled both for raw and CFAR data, 3D visualization is however only available for CFAR data.
-If picked, each CFAR detection is displayed in cartesian space with the radar at the origin.
+If picked, each CFAR detection is displayed in a Cartesian coordinate system with the radar at the origin.
 In cases where just CFAR output would be too cluttered the DBSCAN algorithm can be used to filter out even more unwanted noise in the 3D space.
 However in this thesis, its implementation is mainly illustrative and not thoroughly optimized or correctly configured.
 
@@ -47,4 +47,4 @@ However, the decay operation would be nearly impossible to realize quickly in ca
 In conclusion, a basic surveillance radar system was successfully designed and implemented.
 It is capable of detecting targets over a wide area, with a basic resolution of 1 degree in yaw and pitch, and range accuracy from centimeters to decimeters.
 The processing pipeline offers extensive customization, allowing users to fine-tune the system to their needs.
-However, due to limitations of the radar module, the system is not suitable for applications requiring the tracking of moving targets.
+However, due to limitations of the radar module, the system is not suitable for applications requiring tracking of moving targets.

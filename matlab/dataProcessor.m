@@ -72,7 +72,7 @@ classdef dataProcessor < handle
 			Yy = Yrange .* cosd(Ypitch) .* sind(Yyaw);
 			Yz = Yrange .* sind(Ypitch);
 
-			correctiveCoeff = (Xrange+Yrange)/2;
+			correctiveCoeff = (Xrange+Yrange)/30;
 			D = sqrt(...
 				(Xx - Yx.').^2 + ...
 				(Xy - Yy.').^2 + ...
@@ -252,17 +252,19 @@ classdef dataProcessor < handle
 				end
 
 				if obj.processingParameters.calcRaw && obj.processingParameters.calcCFAR
-					fprintf("dataProcessor | updateFinished | Range-Azimuth | RAW + CFAR\n");
 					data = sum(obj.hDataCube.rawCube, 2);
 					toDraw = squeeze(data(:, 1, :, obj.pitchIndex));
 					cfarData = squeeze(obj.hDataCube.cfarCube(:, :, obj.pitchIndex));
-					cfarData(cfarData > obj.cfarDrawThreshold) = max(toDraw); % give cfar data distinct value
+					cfarData(cfarData > obj.cfarDrawThreshold) = max(toDraw(:)); % give cfar data distinct value
 					toDraw = toDraw+cfarData;
+					fprintf("dataProcessor | updateFinished | Range-Azimuth | RAW + CFAR\n, max=%d\n", max(toDraw(:)));
+					toDraw(toDraw > obj.processingParameters.maxValue) = obj.processingParameters.maxValue;
 
 				elseif obj.processingParameters.calcRaw
-					fprintf("dataProcessor | updateFinished | Range-Azimuth | RAW\n");
 					data = sum(obj.hDataCube.rawCube, 2);
 					toDraw = squeeze(data(:, 1, :, obj.pitchIndex));
+					fprintf("dataProcessor | updateFinished | Range-Azimuth | RAW, max=%d\n", max(toDraw(:)));
+					toDraw(toDraw > obj.processingParameters.maxValue) = obj.processingParameters.maxValue;
 				elseif obj.processingParameters.calcCFAR
 					fprintf("dataProcessor | updateFinished | Range-Azimuth | CFAR\n");
 					toDraw = squeeze(obj.hDataCube.cfarCube(:, :, obj.pitchIndex));
@@ -332,7 +334,7 @@ classdef dataProcessor < handle
 				end
 			elseif strcmp(obj.currentVisualizationStyle, 'Range-Doppler')
 				if obj.processingParameters.calcSpeed == 1
-					fprintf(dataProcessor | updateFinished | "Updating Range-Doppler Map\n");
+					fprintf("dataProcessor | updateFinished | Updating Range-Doppler Map\n");
 					data = squeeze(obj.hDataCube.rawCube(:, :, obj.yawIndex, obj.pitchIndex));
 
 					set(obj.hImage, 'CData', data');
@@ -343,12 +345,9 @@ classdef dataProcessor < handle
 				end
 			end
 
-
-
-
 			drawnow limitrate;
 
-			java.lang.System.gc();
+			% java.lang.System.gc();
 		end
 
 		function onPlatformTriggerYawHit(obj)

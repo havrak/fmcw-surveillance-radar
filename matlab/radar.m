@@ -14,6 +14,7 @@ classdef radar < handle
 		samples = 256;             % Number of samples per radar chirp
 		startTime uint64;          % Base timestamp (uint64) for calculating relative timestamps
 		triggerTimer;              % Timer for triggering radar data acquisition
+		triggerTimerPeriod;
 		bufferSize = 100;          % Max buffer size
 		writeIdx = 1;              % Index for next write
 	end
@@ -76,9 +77,9 @@ classdef radar < handle
 					data = typecast(tmp, 'int16');
 
 					obj.bufferI(:, obj.writeIdx) = data(1:2:end);
-					disp(obj.bufferI(:, obj.writeIdx));
+					% disp(obj.bufferI(:, obj.writeIdx));
 					obj.bufferQ(:, obj.writeIdx) = data(2:2:end);
-					obj.bufferTime(obj.writeIdx) = toc(obj.startTime);
+					obj.bufferTime(obj.writeIdx) = toc(obj.startTime)-obj.triggerTimerPeriod;
 
 					obj.writeIdx = mod(obj.writeIdx, obj.bufferSize) + 1;
 					notify(obj, 'newDataAvailable');
@@ -226,6 +227,8 @@ classdef radar < handle
 			obj.startTime = startTime;
 
 			[obj.samples, ~, ~, ~] = obj.hPreferences.getRadarBasebandParameters();
+
+				obj.triggerTimerPeriod = obj.hPreferences.getRadarTriggerPeriod()/1000;
 			obj.bufferI=zeros(obj.samples, obj.bufferSize);
 			obj.bufferQ=zeros(obj.samples, obj.bufferSize);
 

@@ -69,10 +69,9 @@ Risk of interference with other devices is increased and such system demand bulk
 Consequently, pulsed radar is predominantly used in applications where fine range resolution is not essential, such as long-range target detection.
 
 One key advantage of pulsed radar is its relatively simple data processing.
-In contrast, FMCW radar data processing is more complex due to the interdependence of distance and velocity measurements.
-Both distance and velocity of a target cause frequency changes in the received signal.
+In contrast, FMCW radar data processing is more complex due to the interdependence of distance and velocity measurements as both manifest themselves as frequency shift.
 
-\section{Basic principles of ideal FMCW radar}
+\section{Basic Principles of Ideal FMCW Radar}
 
 Let us picture an ideal FMCW radar system placed in a scene with a single large target that reflects all incoming signals.
 The radar is broadcasting with a periodically repeated frequency sweep from $f_\mathrm{c}$ to $f_\mathrm{c}+BW$ creating a sawtooth waveform.
@@ -266,7 +265,7 @@ according to \cite{fmcwSpeed}.
 But given the nature of FFT, this speed applies to the negative side of the spectrum -- that is, for targets moving away from the radar.
 In the case where the target is moving towards the radar, the speed limit is smaller by a single speed bin width
 
-\section{Radar equation}
+\section{Radar Equation}
 
 Fundamental to all radar systems is the so-called radar equation.
 This formula establishes a relation between the transmitted/received power, the Radar Cross Section (RCS) of the target, and other system parameters to the maximal range of the radar.
@@ -394,7 +393,7 @@ However, besides such binary information about the presence of a target and its 
 
 For the purpose of this project, the devkit was configured to output raw data from the 12-bit ADC in the form of in-phase and quadrature components of the signal.
 This allows for more complex processing than if the spectrum was calculated on the radar itself.
-However it must be said that regardless of the output format the reported values are don't use the full 12-bit range, highest values reported were around $\pm 60$.
+However it must be said that regardless of the output format the reported values do not use the full 12-bit range, highest values reported were around $\pm 60$.
 
 Given the unreliability of the radar's internal internal trigger the device was set up to be triggered externally.
 In order to not complicate the system too much, trigger over serial line was used.
@@ -535,7 +534,8 @@ Similarly, high-speed movement was unnecessary for this application.
 As was already outlined, the radar is capable at best of some 50~Hz update rate.
 To put things into perspective at low 8~RPM a degree of angle is traversed in 21~ms, thus any faster speed would lead to having less then one sample per degree.
 At these speeds, standard 40~mm NEMA17 stepper motors were found to be sufficient.
-However if faster rotation would be needed a stronger motor would be required as due to the slip ring's stiffness the motor is already working at its limits.
+However if faster rotation or higher levels of microstepping would be needed a stronger motor would be required.
+Due to the slip ring's stiffness the motor is already working close to its limits.
 
 Rest of the design is relatively simple.
 The slip ring is mounted to a 3D printed base that elevates it slightly above ground.
@@ -613,13 +613,15 @@ As Arduino integration on ESP32 is rather poorly written and is primarily design
 The code needs to handle three main tasks - process incoming commands, control the stepper motors and report their position.
 
 Given its adoption as an industry standard for controlling similar machines, G-code over serial was a natural choice for the platform's communication format.
-Beyond the basic functionality typically offered by basic G-code interpreters, the platform needed to support additional features to reduce the user's manual control burden.
-These include things such as defining movement limits, absolute/relative positioning modes, spindle mode or automatic homing.
-Lastly, the platform had to support a programming interface that would allow an application to send an entire choreography of movements to the platform at once, after which it only needs to monitor its status.
+Beyond the basic functionality of moving steppers a given number of steps, the platform needed to support additional features to reduce the user's manual control burden.
+These include things such as defining movement limits, absolute/relative positioning modes, spindle mode (That is continuos rotation for a infinite number of steps.) or automatic homing.
+Lastly, in order to offload platform management from the PC the platform needed to support a programming interface.
+User should be able to send an entire choreography of movements to the platform at once, after which the platform should execute it without any further input from the user.
+Only providing feedback about the current position.
 
 To maximize efficiency in processing commands and ensure accurate stepper motor control, the program workflow was divided into three distinct layers, as illustrated by figure~\ref{fig:code_diag}.
 The commonly used two-component architecture -- where one component handles communication and command parsing, and the other manages execution -- was deemed unsuitable for this use case.
-Such an approach would complicate the integration of a programming interface and require just-in-time processing of commands, which could lead to performance issues.
+Such an approach would complicate integration of a programming interface and require just-in-time processing of commands, which could lead to performance issues.
 
 In the chosen architecture, the degree of abstraction decreases with each successive layer, simplifying processing at each step.
 This design allows the final layer to operate with maximum efficiency, where the transition from one command to the next is nearly instantaneous.
@@ -748,7 +750,7 @@ Table \ref{tab:performancepwm} illustrates the stability of PWM generation by th
 Measurements were conducted using a Saleae Logic Pro 16 logic analyzer, with no microstepping enabled.
 
 The results show that frequency deviation is minimal, though the generated speed is consistently marginally faster than the target and the error increases slightly at higher speeds.
-Nevertheless, when measuring the time for 24,000 steps at 120~RPM, the relative error in time duration (or speed) was only $\epsilon = -0.004\%$, demonstrating excellent accuracy.
+Nevertheless, when measuring the time for 24,000 steps at 120~RPM, the relative error in time duration (or speed) was only $\varepsilon = -0.004\%$, demonstrating excellent accuracy.
 
 
 \begin{table}[h!]
@@ -859,7 +861,7 @@ The left sidebar allows the user to load stored programs by clicking on their na
 The middle text boxes are used to edit the program header (top part) and program body (middle part), with the bottom text field being used to display the platform's debug output.
 On the right side are buttons that handle basic operations on the program: load, save, store to file, upload, and start.
 
-Commands are written one per line; their complete syntax is described in Appendix~A.
+Commands are written one per line.
 Control commands used to denote the start of a program, end of header, and so on are automatically sent to the device when the rest of the program is uploaded.
 To validate whether the program was parsed correctly, the user can check the text window at the bottom of the screen, which forwards the platform's debug output.
 If the user clicks the store button, the program is stored in the same INI file as the preferences.
@@ -875,7 +877,7 @@ This angle is specified in the \texttt{Reset yaw} option, with a tolerance zone 
 In order to prevent multiple triggering of the event, the program will only emit it once per 1~s.
 When the \texttt{Cube decay} option is set to 'reset', if this event is used to clear stored data after a cycle is completed,
 
-\section{Radar configuration}
+\section{Radar Configuration}
 
 Given that the radar's output is displayed in the main window, there isn't any specialized interface dedicated just to the radar.
 Still, in the preferences menu, there are some parameters that can be configured.
@@ -950,7 +952,7 @@ Following this step, the program has in memory multiple FFT spectra -- these can
 After the spectrum is stored, the program verifies if the platform has moved.
 This check helps save processing resources by avoiding computation of an R-D map that would be immediately overwritten.
 After movement is detected, the code then takes all spectra (Except the last one when the platform has changed position.) and launches another processing step in a separate thread.
-If the user wishes processing to always take place (e.g., when verifying radar settings while the platform is static), this check can be skipped by toggling \texttt{Require pos change}.
+If the user wishes for processing to always take place (e.g., when verifying radar settings while the platform is static) this check can be skipped by toggling \texttt{Require pos change}.
 
 \begin{figure}[h!]
   \centering
@@ -1163,7 +1165,7 @@ However, the application offers a number of different visualization styles to su
 \begin{enumerate}
 	\item Range-Azimuth: Polar plot with range on the radius and azimuth on the angle.
 	\item Range-Doppler: Classical xy plot with range on the x-axis and Doppler on the y-axis; if speed is not calculated, the y-axis is replaced with the RCS value.
-	\item Target-3D: CFAR data are displayed in 3D Cartesian space.
+	\item Target-3D: CFAR data are displayed in 3D Cartesian system.
 \end{enumerate}
 
 \subsection{Range-Azimuth}
@@ -1175,8 +1177,8 @@ In the picture, only raw data are displayed; however, this visualization style i
 Instead of calculating a projection into the horizontal plane, the data are displayed in a conical projection.
 That is, no additional calculations are made and the cone obtained by fixing the pitch angle is simply stretched to a circle.
 To aid with orientation in the plot, simple line markers are added to provide range and angle reference points.
-Also to prevent one larger reflection to drown out smaller ones before the visualization the data are capped at \texttt{Max display value}.
-To set optimal value for this paramter user must check the application debug output  where maximal values of the scene are printed.
+Also, to prevent one larger reflection to drown out smaller ones, before the visualization the data are capped at \texttt{Max display value}.
+To set optimal value for this parameter user must check the application debug output  where maximal values of the scene are printed.
 
 This visualization style might be especially useful when paired with the 24~GHz header.
 Due to its rather wide radiation pattern, the radar is able to detect objects in quite a large area.
@@ -1220,7 +1222,7 @@ As the devkit does not report many useful errors and its technical documentation
 	\label{fig:vis3d}
 \end{figure}
 
-This visualization style is used to display CFAR data in 3D Cartesian space (Figure~\ref{fig:vis3d}).
+This visualization style is used to display CFAR data in a 3D Cartesian coordinate system (Figure~\ref{fig:vis3d}).
 The visualization method is rather simple, with just positions being recalculated from the range, azimuth, and pitch angles to x, y, and z coordinates using trigonometric functions.
 If decay is enabled, then a small threshold is used to remove points whose values have sufficiently degraded.
 To aid with orientation within the plot, the current heading of the platform is displayed as a red line.
@@ -1238,7 +1240,7 @@ Both $\varepsilon$ and $N$ parameters are left to the user to configure with \te
 As for the distance metric, points are first converted to Cartesian coordinates, then distance is calculated using the standard Euclidean formula.
 This distance is then divided by the average radii of the points.
 It needs to be said that, while dividing by the mean of distances is sometimes used when working with spherical data \cite{Fisher1993}, the author is not aware of any literature that would suggest its use in DBSCAN.
-Especially at longer distances, this method will lead to significant errors.
+Especially at longer distances, this method will lead to significant error.
 
 \newpage
 \pagestyle{plain}

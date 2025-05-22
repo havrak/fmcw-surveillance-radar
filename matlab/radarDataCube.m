@@ -336,7 +336,7 @@ classdef radarDataCube < handle
 				obj.zeroCubes();
 			end
 
-			fprintf("radarDataCube | updateFinished\n");
+			% fprintf("radarDataCube | updateFinished\n");
 			notify(obj, 'updateFinished');
 		end
 
@@ -453,7 +453,7 @@ classdef radarDataCube < handle
 			[~, yawIdx] = min(abs(obj.yawBins - yaw));
 			[~, pitchIdx] = min(abs(obj.pitchBins - pitch));
 			decayCoef = exp(-speed/500);
-			% fprintf("radarDataCube | addData | adding to rawCube %d: yaw %f, pitch %f, decay %f\n", obj.bufferActiveWriteIdx, yaw, pitch, decayCoef);
+			% fprintf("radarDataCube | addData | adding to max %d: yaw %f, pitch %f, decay %f\n", max(rangeDoppler(:)), yaw, pitch, decayCoef);
 
 			obj.bufferA.timestamp(obj.bufferActiveWriteIdx) = toc(obj.relativeTimestamp);
 			obj.bufferA.decay(obj.bufferActiveWriteIdx) = decayCoef;
