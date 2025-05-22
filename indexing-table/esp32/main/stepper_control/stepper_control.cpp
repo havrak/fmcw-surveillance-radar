@@ -415,13 +415,17 @@ void StepperControl::commandSchedulerTask(void* arg)
 			if (command->movementYaw != nullptr) {
 				if (command->movementYaw->val.steps == 0)
 					steppers.skipStepper(stepperHalYaw, SYNCHRONIZED);
+				ESP_LOGI(TAG, "commandSchedulerTask | G0 | Y degrees %d", command->movementYaw->val.steps);
 				command->movementYaw->val.steps = unit == Unit::DEGREES ? ANGLE_TO_STEPS(command->movementYaw->val.steps, stepperHalYaw->stepCount) : command->movementYaw->val.steps;
+				ESP_LOGI(TAG, "commandSchedulerTask | G0 | Y steps %d", command->movementYaw->val.steps);
 				if (stepperOpParYaw.positioningMode == PositioningMode::ABSOLUTE) {
 #ifdef CONFIG_APP_DEBUG
 					ESP_LOGI(TAG, "commandSchedulerTask | G0 | Y absolute");
 #endif
+					ESP_LOGI(TAG, "commandSchedulerTask | G0 | Y absolute last scheduled %ld, move to %d", stepperOpParYaw.positionLastScheduled, command->movementYaw->val.steps);
 					command->movementYaw->val.steps = NORMALIZE_ANGLE(command->movementYaw->val.steps, stepperHalYaw->stepCount);
 					stepperOpParYaw.positionLastScheduled = moveStepperAbsolute(stepperHalYaw, command->movementYaw, &stepperOpParYaw, SYNCHRONIZED);
+					ESP_LOGI(TAG, "commandSchedulerTask | G0 | Y absolute last scheduled %ld", stepperOpParYaw.positionLastScheduled);
 				} else {
 #ifdef CONFIG_APP_DEBUG
 					ESP_LOGI(TAG, "commandSchedulerTask | G0 | Y relative");

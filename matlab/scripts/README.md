@@ -1,6 +1,8 @@
 # Mex scripts
 Collection of CPP scripts that are compiled with MATLAB supplied mex tools in order to enable their use withing MATLAB code.
 
+Belong to scripts subdirectory of the matlab code
+
 
 ## Personal notes to polish later
 * OpenMP compilation:

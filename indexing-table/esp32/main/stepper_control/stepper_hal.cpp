@@ -20,13 +20,13 @@ bool StepperHal::pcntOnReach(pcnt_unit_handle_t unit, const pcnt_watch_event_dat
 		ESP_ERROR_CHECK(pcnt_unit_remove_watch_point(stepperHalYaw->pcntUnit, stepperHalYaw->stepperCommand->val.steps));
 		xEventGroupSetBits(StepperHal::stepperEventGroup, STEPPER_COMPLETE_BIT_H);
 		mcpwm_timer_start_stop(stepperHalYaw->timer, MCPWM_TIMER_START_STOP_FULL); // won't stop until we tell it to
-																																						 // pcnt_unit_stop(stepperHalYaw->pcntUnit);
+																																							 // pcnt_unit_stop(stepperHalYaw->pcntUnit);
 
 	} else if (unit == stepperHalPitch->pcntUnit) {
 		ESP_ERROR_CHECK(pcnt_unit_remove_watch_point(stepperHalPitch->pcntUnit, stepperHalPitch->stepperCommand->val.steps));
 		xEventGroupSetBits(StepperHal::stepperEventGroup, STEPPER_COMPLETE_BIT_T);
 		mcpwm_timer_start_stop(stepperHalPitch->timer, MCPWM_TIMER_START_STOP_FULL); // won't stop until we tell it to
-																																						 // pcnt_unit_stop(stepperHalPitch->pcntUnit);
+																																								 // pcnt_unit_stop(stepperHalPitch->pcntUnit);
 	}
 	return true;
 }
@@ -60,8 +60,8 @@ void StepperHal::initTimers()
 {
 	stepperHalYaw->helperTimer = xTimerCreate(
 			"StepperTimerH",
-			1,									// Dummy period (overridden later)
-			pdFALSE,						// One-shot
+			1,										// Dummy period (overridden later)
+			pdFALSE,							// One-shot
 			(void*)stepperHalYaw, // Pass self as timer ID
 			[](TimerHandle_t xTimer) {
 				// Set THIS stepper's bit when timer expires
@@ -70,8 +70,8 @@ void StepperHal::initTimers()
 
 	stepperHalPitch->helperTimer = xTimerCreate(
 			"StepperTimerT",
-			1,									// Dummy period (overridden later)
-			pdFALSE,						// One-shot
+			1,											// Dummy period (overridden later)
+			pdFALSE,								// One-shot
 			(void*)stepperHalPitch, // Pass self as timer ID
 			[](TimerHandle_t xTimer) {
 				// Set THIS stepper's bit when timer expires
@@ -166,7 +166,7 @@ void StepperHal::initPCNT()
 	channelConfig.edge_gpio_num = (gpio_num_t)CONFIG_STEPPER_P_PIN_SENSE;
 	ESP_ERROR_CHECK(pcnt_new_channel(stepperHalPitch->pcntUnit, &channelConfig, &stepperHalPitch->pcntChan));
 
-	ESP_ERROR_CHECK(pcnt_channel_set_edge_action(stepperHalYaw->pcntChan, PCNT_CHANNEL_EDGE_ACTION_INCREASE, PCNT_CHANNEL_EDGE_ACTION_HOLD)); // increase on rising edge, hold on falling
+	ESP_ERROR_CHECK(pcnt_channel_set_edge_action(stepperHalYaw->pcntChan, PCNT_CHANNEL_EDGE_ACTION_INCREASE, PCNT_CHANNEL_EDGE_ACTION_HOLD));		// increase on rising edge, hold on falling
 	ESP_ERROR_CHECK(pcnt_channel_set_edge_action(stepperHalPitch->pcntChan, PCNT_CHANNEL_EDGE_ACTION_INCREASE, PCNT_CHANNEL_EDGE_ACTION_HOLD)); // increase on rising edge, hold on falling
 
 	pcnt_event_callbacks_t cbs = {
@@ -198,11 +198,10 @@ void StepperHal::stepperTask(void* arg)
 	while (1) {
 		if (xQueueReceive(stepperHal->commandQueue, stepperHal->stepperCommand, portMAX_DELAY)) {
 			// if previous command was spindle, we are running a command that will change stepper movement we need to immediately set spindle regime end time
-			if (stepperHal->stepperCommandPrev->type == CommandType::SPINDLE && stepperHal->stepperCommand->type < CommandType::SKIP){
+			if (stepperHal->stepperCommandPrev->type == CommandType::SPINDLE && stepperHal->stepperCommand->type < CommandType::SKIP && !stepperHal->stepperCommandPrev->complete) {
 				stepperHal->stepperCommandPrev->val.finishTime = esp_timer_get_time();
 				stepperHal->stepperCommandPrev->complete = true;
 			}
-
 
 			// Convert to timer ticks (as we are toggling on timer event we need to double the RPM)
 			// ESP is slightly faster than we would like need to set period slightly higher
@@ -210,7 +209,6 @@ void StepperHal::stepperTask(void* arg)
 
 			gpio_set_level(stepperHal->stepperDirectionPin, !stepperHal->stepperCommand->direction); // NOTE I have wired both steppers in reverse, so I just flip it here
 			EventBits_t t = xEventGroupGetBits(StepperHal::stepperEventGroup);
-
 
 #ifdef CONFIG_HAL_DEBUG
 			// with synchronized commands neither of these if's should trigger
@@ -292,16 +290,18 @@ void StepperHal::stepperTask(void* arg)
 					pdTRUE,
 					portMAX_DELAY);
 
-			if(stepperHal->stepperCommand->type != CommandType::SPINDLE)
+			if (stepperHal->stepperCommand->type != CommandType::SPINDLE)
 				stepperHal->stepperCommand->complete = true;
 
 #ifdef CONFIG_HAL_DEBUG
 			ESP_LOGI(TAG, "stepperTask | %s completed", stepperSign);
 #endif
 
-			if (stepperHal->stepperCommand->type < CommandType::STOP) // SKIP, WAIT, STOP commands don't affect position so we can simply drop them
+			if (stepperHal->stepperCommand->type < CommandType::STOP) { // SKIP, WAIT, STOP commands don't affect position so we can simply drop them
+				// ESP_LOGI(TAG, "stepperTask | %s completed, steps: %ld", stepperSign, stepperHal->stepperCommand->val.steps);
 				memcpy(stepperHal->stepperCommandPrev, stepperHal->stepperCommand, sizeof(stepper_hal_command_t));
-			stepperHal->stepperCommandPrev->synchronized = false;
+				stepperHal->stepperCommandPrev->synchronized = false;
+			}
 		}
 	}
 }
@@ -382,6 +382,9 @@ bool StepperHal::stopNowStepper(stepper_hal_struct_t* stepperHal)
 		pcnt_unit_remove_watch_point(stepperHal->pcntUnit, stepperHal->stepperCommand->val.steps);
 		ESP_LOGI(TAG, "stopNowStepper | %s ", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "Y" : "P");
 		stepperHal->stepperCommand->val.steps = pulseCount;
+	} else if (stepperHal->stepperCommandPrev->type == CommandType::SPINDLE && !stepperHal->stepperCommandPrev->complete) {
+		stepperHal->stepperCommandPrev->val.finishTime = esp_timer_get_time();
+		stepperHal->stepperCommandPrev->complete = true;
 	}
 	pcnt_unit_clear_count(stepperHal->pcntUnit);
 	return toRet;
@@ -389,7 +392,7 @@ bool StepperHal::stopNowStepper(stepper_hal_struct_t* stepperHal)
 
 int64_t StepperHal::getStepsTraveledOfCurrentCommand(stepper_hal_struct_t* stepperHal)
 {
-	if(stepperHal->stepperCommand->complete)
+	if (stepperHal->stepperCommand->complete)
 		return 0;
 
 	if (stepperHal->stepperCommand->type == CommandType::STEPPER) {
@@ -410,6 +413,7 @@ int64_t StepperHal::getStepsTraveledOfPrevCommand(stepper_hal_struct_t* stepperH
 {
 	if (stepperHal->stepperCommandPrev->synchronized)
 		return 0;
+	ESP_LOGI(TAG, "getStepsTraveledOfPrevCommand | %s", stepperHal->stepperCompleteBit == STEPPER_COMPLETE_BIT_H ? "Y" : "P");
 	if (stepperHal->stepperCommandPrev->type == CommandType::STEPPER) {
 		stepperHal->stepperCommandPrev->synchronized = true;
 		return stepperHal->stepperCommandPrev->direction ? -stepperHal->stepperCommandPrev->val.steps : stepperHal->stepperCommandPrev->val.steps;
