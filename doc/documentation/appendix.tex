@@ -139,8 +139,8 @@ Keep in mind that when using the interface from the application commands \texttt
   \texttt{G91}         & Header & Set relative positioning     \\
   \texttt{G21}         & Header & Set units to steps           \\
   \texttt{G28}         & Header & Start auto home routine      \\
-  \texttt{G0 P-50 S6}  & Header & Move pitch 50° degrees       \\
-  \texttt{W3 T5000}    & Header & Wait five second              \\
+  \texttt{G0 P-50 S6}  & Header & Move pitch 50steps           \\
+  \texttt{W3 T5000}    & Header & Wait five second             \\
   \texttt{P92}         & Header & Set current position as home \\
   \texttt{P29}         & Header & Enable infinite looping      \\
   \texttt{M03 SY6 Y+}  & Header & Start Yaw spindle (6 RPM)    \\
@@ -165,12 +165,12 @@ Keep in mind that when using the interface from the application commands \texttt
   \texttt{G91}        & Header & Set relative positioning     \\
   \texttt{G21}        & Header & Set units to steps           \\
   \texttt{G28}        & Header & Start auto home routine      \\
-  \texttt{G0 P-50 S6} & Header & Move pitch 50° degrees       \\
-  \texttt{W3 T5000}   & Header & Wait five second              \\
-  \texttt{P92}        & Header & Set current position as home \\
+  \texttt{G0 P-50 S6} & Header & Move pitch 50steps           \\
+  \texttt{W3 T5000}   & Header & Wait five second             \\
+  \texttt{G92}        & Header & Set current position as home \\
   \texttt{P29}        & Header & Enable infinite looping      \\
   \texttt{M03 SY6 Y+} & Header & Start Yaw spindle (6 RPM)    \\
-  \texttt{P92}        & Header & Finalize header declaration  \\
+  \texttt{P91}        & Header & Finalize header declaration  \\
   \texttt{P92}        & Body   & Finalize program             \\
   \hline
 \end{tabular}
@@ -185,19 +185,70 @@ Keep in mind that when using the interface from the application commands \texttt
   \hline
   \texttt{Command}     & Mode   & Purpose                                        \\
   \hline
-  \texttt{P90 rot}     & Header & Initialize program rot                         \\
+  \texttt{P90 halfrot} & Header & Initialize program halfrot                     \\
   \texttt{G91}         & Header & Set relative positioning                       \\
   \texttt{G21}         & Header & Set units to steps                             \\
   \texttt{G28}         & Header & Start auto home routine                        \\
-  \texttt{G0 P-50 S6}  & Header & Move pitch 50° degrees                         \\
-  \texttt{W3 T5000}    & Header & Wait five second                                \\
-  \texttt{P92}         & Header & Set current position as home                   \\
+  \texttt{G0 P-50 S6}  & Header & Move pitch 50steps                             \\
+  \texttt{W3 T5000}    & Header & Wait five second                               \\
+  \texttt{G92}         & Header & Set current position as home                   \\
   \texttt{G0 Y-50 S6}  & Header & Shift 50 steps so that movement is around zero \\
   \texttt{P29}         & Header & Enable infinite looping                        \\
-  \texttt{P92}         & Header & Finalize header declaration                    \\
-  \texttt{G0 Y100 S6}  & Header & Move clockwise                                 \\
-  \texttt{G0 Y-100 S6} & Header & Move counterclockwise                          \\
+  \texttt{P91}         & Header & Finalize header declaration                    \\
+  \texttt{G0 Y100 S6}  & Body & Move clockwise                                 \\
+  \texttt{G0 Y-100 S6} & Body & Move counterclockwise                          \\
   \texttt{P92}         & Body   & Finalize program                               \\
   \hline
 \end{tabular}
 
+\vspace{0.3cm}
+\noindent
+\textbf{Example 4:} Partial rotation in yaw, static in pitch, absolute mode
+
+
+\begin{tabular}{lll}
+  \hline
+  \texttt{Command}    & Mode   & Purpose                       \\
+  \hline
+  \texttt{P90 parrot} & Header & Initialize program parrot     \\
+  \texttt{G91}        & Header & Set relative positioning      \\
+  \texttt{G20}        & Header & Set units to degrees          \\
+  \texttt{G28}        & Header & Start auto home routine       \\
+  \texttt{G0 P-30 S6} & Header & Move pitch 30 degrees         \\
+  \texttt{W3 T5000}   & Header & Wait five second              \\
+  \texttt{G92}        & Header & Set current position as home  \\
+  \texttt{G90}        & Header & Set absolute positioning mode \\
+  \texttt{G0 Y80 S6}  & Header & Move to 80 degrees            \\
+  \texttt{P29}        & Header & Enable infinite looping       \\
+  \texttt{P91}        & Header & Finalize header declaration   \\
+  \texttt{G0 Y280 S6} & Body & Move to 280 degrees           \\
+  \texttt{G0 Y80 S6}  & Body & Move to 80 degrees            \\
+  \texttt{P92}        & Body   & Finalize program              \\
+  \hline
+\end{tabular}
+
+\vspace{0.3cm}
+\noindent
+\textbf{Example 5:} Squares
+
+
+\begin{tabular}{lll}
+  \hline
+  \texttt{Command}        & Mode   & Purpose                      \\
+  \hline
+  \texttt{P90 square}     & Header & Initialize program square    \\
+  \texttt{G91}            & Header & Set relative positioning     \\
+  \texttt{G20}            & Header & Set units to degrees         \\
+  \texttt{G28}            & Header & Start auto home routine      \\
+  \texttt{G0 P-30 S6}     & Header & Move pitch 30 degrees        \\
+  \texttt{W3 T5000}       & Header & Wait five second             \\
+  \texttt{G92}            & Header & Set current position as home \\
+  \texttt{P29}            & Header & Enable infinite looping      \\
+  \texttt{P91}            & Header & Finalize header declaration  \\
+  \texttt{G0 Y20 P0 S6}   & Body & Move yaw, fix pitch          \\
+  \texttt{G0 Y0 P20 S10}  & Body & Move pitch, fix yaw          \\
+  \texttt{G0 Y20 P0 S6}   & Body & Move yaw, fix pitch          \\
+  \texttt{G0 Y0 P-20 S10} & Body & Move pitch, fix yaw          \\
+  \texttt{P92}            & Body   & Finalize program             \\
+  \hline
+\end{tabular}

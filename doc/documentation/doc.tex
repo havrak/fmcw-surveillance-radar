@@ -37,7 +37,7 @@
 
 \chapter{FMCW Radar Fundamentals}
 
-Classical CW (Continuous Wave) radars broadcast a signal only on a single frequency, while FMCW (Frequency-Modulated Continuous Wave) radars make a linear sweep across a given bandwidth.
+Classical CW (Continuous Wave) radars broadcast a signal only on a single frequency, while FMCW radars make a linear sweep across a given bandwidth.
 This approach enables accurate range estimation at low power consumption and still allows speed measurements using the Doppler shift.
 However, velocity calculations in FMCW radars are more complex compared to those in single-frequency CW radars.
 
@@ -62,7 +62,7 @@ where $f_\mathrm{dop}$ is the Doppler frequency, $c_o$ is the speed of light and
 
 While this approach is conceptually straightforward, it has several limitations, particularly in applications requiring high precision at close range.
 Achieving fine resolution in distance measurement necessitates very short pulses.
-However, to maintain sufficient signal-to-noise ratio (SNR), the transmitted pulse power per pulse must remain high, regardless of its width \cite{jankiraman2018}.
+However, to maintain sufficient SNR (signal-to-noise ratio), the transmitted pulse power per pulse must remain high, regardless of its width \cite{jankiraman2018}.
 
 Maintaining high average transmission power poses legal and technical challenges.
 Risk of interference with other devices is increased and such system demand bulky, high-power circuitry -- often with high voltages and even vacuum tubes.
@@ -79,7 +79,7 @@ The radar is broadcasting with a periodically repeated frequency sweep from $f_\
 Aside from a sawtooth, other modulations are also frequently used, such as linear triangular modulation or segmented linear frequency modulation.
 These offer some advantages, but the nature of the beat signal, which forms a sine wave with sawtooth modulation, is more complex.
 This is especially true in the case of triangle modulations when multiple targets are present \cite{jankiraman2018}.
-\sirad kit, used in this thesis, technically uses a segmented linear frequency modulation due to its limited computational power \cite{siradPRO}, but the mathematical principles are similar to those for sawtooth.
+\sirad kit, used in this thesis, technically uses a segmented linear frequency modulation due to its limited computational power \cite{siradPRO}, but its mathematical principles are similar to those for sawtooth.
 
 \begin{figure}[h!]
   \centering
@@ -301,7 +301,7 @@ This approach is not only cheaper but also allows for the gathering of informati
 
 
 CFAR is a simple algorithm that enables basic target detection in noisy radar data.
-For each range bin, its neighborhood is analyzed, and the average power level is calculated.
+For each range bin, its neighborhood's power level is calculated.
 This neighborhood is separated by a number of guard cells from the cell under test, which do not partake in the calculation.
 If the bin under test is greater than the scaled average power level of the neighborhood, we can assume that there is a target present \cite{jankiraman2018}.
 
@@ -374,7 +374,7 @@ Using this timing information speed spectrum can still be estimated using non-un
 
 According to the radar's manual \cite{siradPRO}, the following equation was used to calculate the width of a single range bin:
 \begin{equation}
-  \Delta R = \frac{c_0 (N+85)}{2\cdot BW\cdot NFFT},
+	\Delta R = \frac{c_0 (N_\mathrm{samples}+85)}{2\cdot BW\cdot NFFT},
   \label{eq:rangeBin}
 \end{equation}
 where the variable $N$ denotes the number of samples and $NFFT$ the number of DFT points used to calculate the spectrum.
@@ -449,7 +449,7 @@ The lack of minimum at 24~GHz is likely due neglecting imperfection in the manuf
 
 At both frequencies with minimal reflection, a far-field radiation pattern was calculated.
 For clarity, only the 24.518~GHz pattern is shown in figure \ref{fig:farfield3d}.
-The main lobe width was measured at approximately 16 degrees (Figure \ref{fig:farfield180}) along the 180-degree norm (for orientation refer to the red cone on the PCB visualization), with a peak gain of 18.6~dBi and side-lobe suppression of -13~dB.
+The main lobe width was measured at approximately 16 degrees (Figure \ref{fig:farfield180}) along the 180-degree norm, with a peak gain of 18.6~dBi and side-lobe suppression of -13~dB.
 For the 90-degree norm, the main lobe width (Figure \ref{fig:farfield90}) was 30 degrees, with side-lobe suppression of -10~dB.
 
 It's clear that, especially in the 90-degree norm, the beam isn't that narrow.
@@ -535,10 +535,10 @@ Similarly, high-speed movement was unnecessary for this application.
 As was already outlined, the radar is capable at best of some 50~Hz update rate.
 To put things into perspective at low 8~RPM a degree of angle is traversed in 21~ms, thus any faster speed would lead to having less then one sample per degree.
 At these speeds, standard 40~mm NEMA17 stepper motors were found to be sufficient.
-However if faster rotation would be needed a stronger motor would be required as due to slipring stiffness the motor is already working at its limits.
+However if faster rotation would be needed a stronger motor would be required as due to the slip ring's stiffness the motor is already working at its limits.
 
-The rest of the design is relatively simple.
-Slipring is mounted to a 3D printed base that elevates it slightly above ground.
+Rest of the design is relatively simple.
+The slip ring is mounted to a 3D printed base that elevates it slightly above ground.
 Stepper motor is then mounted directly under the slip ring, with a shaft connecting it to the rotating base.
 The connection is secured using long M4 set screws that pass through the base, through the slip ring, and hold the shaft in place.
 A 3D-printed housing serves only as a centering guide and is not under any load from the shaft connection.
@@ -580,10 +580,10 @@ Only two problems needed to be tackled: driving the stepper motors and implement
 
 Given the platform cannot generate any significant momentum that could potentially lead to skipping steps a basic stepper driver without feedback control was deemed sufficient.
 In the project A4988 stepper driver was chosen due to its low cost, up to 1:16 microstepping capabilities, and basic current control.
-A minor drawback of it is the lack of any feedback from the driver to the microcontroller, including stall detection \cite{a4988}.
+A minor drawback of it is the lack of any feedback from a driver to the microcontroller, including stall detection \cite{a4988}.
 
 Since the number of components is quite low and there aren't any special requirements for the circuit, just a simple prototyping board  (Figure~\ref{fig:circuit}) was used instead of designing a custom PCB.
-This decision also makes it easier to replace the driver in case of failure.
+This decision also makes it easier to replace a driver in case of failure.
 Or even enables an upgrade path via more modern chips, such as the TMC2208 or TMC2209 as their devkits are pin-compatible with the A4988 \cite{a4988_sound}.
 This might be necessary in use cases where the platform's volume level would be a serious problem.
 The A4988 produces a rather noisy driving signal and more modern drivers exhibit up to 20~dB lower noise levels \cite{a4988_sound}.
@@ -607,16 +607,18 @@ Still, since the system does not require specialized peripherals or high process
 
 \section{Platform Software}
 
-Given its widespread adoption as an industry standard for controlling similar machines, G-code over serial is a natural choice for the platform's communication format.
-Beyond the basic functionality typically offered by basic G-code interpreters, the platform should support additional features to reduce the user's manual control burden.
-These include common features such as defining movement limits, absolute/relative positioning modes, spindle mode and automatic homing.
-Lastly, the platform should support a programming interface that allows an application to send an entire choreography of movements to the platform at once, after which it only needs to monitor its status.
+As already stated the platform is controlled by an ESP32 microcontroller.
+There are two main frameworks available for programming the ESP32: Arduino and ESP-IDF.
+As Arduino integration on ESP32 is rather poorly written and is primarily designed for much simpler projects, that do not leverage ESP32's capabilities, the ESP-IDF framework was chosen.
+The code needs to handle three main tasks - process incoming commands, control the stepper motors and report their position.
 
-For uplink communication, the platform must provide real-time information about its current position.
-This data then enables the user to make necessary mathematical corrections and properly interpret the radar's gathered data.
+Given its adoption as an industry standard for controlling similar machines, G-code over serial was a natural choice for the platform's communication format.
+Beyond the basic functionality typically offered by basic G-code interpreters, the platform needed to support additional features to reduce the user's manual control burden.
+These include things such as defining movement limits, absolute/relative positioning modes, spindle mode or automatic homing.
+Lastly, the platform had to support a programming interface that would allow an application to send an entire choreography of movements to the platform at once, after which it only needs to monitor its status.
 
-To maximize efficiency in processing commands and ensure accurate stepper motor control, the program workflow is divided into three distinct layers, as illustrated by figure~\ref{fig:code_diag}.
-The commonly used two-component architecture—where one component handles communication and command parsing, and the other manages execution—was deemed unsuitable for this use case.
+To maximize efficiency in processing commands and ensure accurate stepper motor control, the program workflow was divided into three distinct layers, as illustrated by figure~\ref{fig:code_diag}.
+The commonly used two-component architecture -- where one component handles communication and command parsing, and the other manages execution -- was deemed unsuitable for this use case.
 Such an approach would complicate the integration of a programming interface and require just-in-time processing of commands, which could lead to performance issues.
 
 In the chosen architecture, the degree of abstraction decreases with each successive layer, simplifying processing at each step.
@@ -713,9 +715,9 @@ When a move command targets only one axis, the other axis remains free to read t
 If this behavior is undesirable, the user must issue commands for both axes simultaneously.
 In relative positioning mode, a zero value results in no motion; in absolute positioning mode, the command must specify the current position to prevent movement.
 
-This behavior is a necessary side effect of the spindle regime, which typically can only be toggled on or off dynamically \cite{duet}.
+This behavior is a necessary side effect of the spindle regime, which typically can only be toggled on/off and cannot act as a stepper \cite{duet}.
 Another consequence of spindle mode is the requirement for separate positioning modes for each axis.
-Continuous rotation prevents calculating a move’s end position, making it impossible to compute absolute positioning commands, thus necessitating relative positioning.
+Continuous rotation prevents calculating a move’s end position, making it impossible to compute commands in absolute positioning, thus necessitating relative positioning.
 However, it would be rather restrictive to force the user to use relative positioning on the second axis; therefore, the positioning modes are independent.
 
 To support other possible applications, a manual override mode was also implemented.
@@ -830,10 +832,10 @@ As INI format is easily human-readable, it is possible to edit the file directly
 
 \section{Platform Control Interface}
 
-It is necessary to emphasize that the platform control is entirely independent of radar operation.
+It is necessary to emphasize that the platform control is entirely independent of the radar.
 The user loads a program onto the platform and starts its execution.
 From then on, the application only processes current position reports coming from the platform.
-There is no feedback from the radar to the platform based on processed data, although, as the platform enables direct access to the stepper queues, it would be possible to implement such a feature.
+There is no feedback from the radar to the platform based on processed data, although, as the platform enables direct access to the stepper queues, it would be possible to implement such feature.
 Nor does processing take into account which movements comprise the platform's current program.
 
 In the preferences menu, the user can configure static offsets to the platform with the \texttt{Pitch offset} and \texttt{Yaw offset} options.
@@ -1058,7 +1060,7 @@ If speed calculation is disabled, the program simply returns half of the origina
 
 When speed calculation is enabled, the program first cuts off samples that are too far away from the position of the latest chirp in the batch.
 After that, the timing of chirps is analyzed to determine whether NUFFT needs to be used.
-The decision about which transformation to use is based solely on the ratio of the maximal deviation of the chirp intervals to the median of the chirp intervals; if this ratio is over 20\%, NUFFT is used.
+The decision about which transformation to use is based solely on the ratio of the maximal deviation of the chirp intervals to the median of the chirp intervals; if this ratio is over 20~\%, NUFFT is used.
 For more accurate measurement, a more complex method should be used, but as the radar timing data are not very precise -- not to mention the radar can track only very slow-moving objects -- this method was deemed sufficient.
 For similar reasons, no correction for the platform's movement is applied.
 The output range-Doppler map is then shifted in order to create a 2D array with \texttt{Range NFFT} $\times$ \texttt{Speed NFFT} elements, with speed ranging from $-\frac{\text{Speed NFFT}}{2}\cdot w $ to  $\left(\frac{\text{Speed NFFT}}{2}-1\right)\cdot w $, where $w$ is the speed bin width calculated with (\ref{eq:Doppler3}).
@@ -1134,16 +1136,16 @@ Using this option leads to an output that more visually resembles traditional an
 However, the user needs to keep in mind that color changes do not mean a change in RCS at that position.
 In addition, this operation is rather computationally expensive and is the primary reason updates to the cube need to be buffered.
 
-Even on smaller cubes of around 256~MB, this operation takes in the worst case about 50~ms to complete on a laptop with an i7-10210U CPU.
-If this behaviour would be undesirable, decay can be turned off in the settings in favor of a hard reset of the cube based on a trigger at a specified yaw angle.
+Even on larger cubes of around 256~MB, this operation takes in the worst case about 40~ms to complete on a laptop with an i7-10210U CPU.
+Still if the decay would be undesirable, it can be turned off in the settings in favor of a hard reset of the cube based on a trigger at a specified yaw angle.
 The rest of the processing is then fast enough to keep up with the data stream without any buffering.
 
-Enabling the spread pattern leads to degradation of the quality of the data in exchange for better visualization quality -- especially in range-azimuth visualization style.
+Enabling the spread pattern leads to degradation of the quality of the data in exchange for better visualization quality -- especially in Range-Azimuth visualization style.
 Instead of adding new data to just one position in the cube, the range-Doppler map is spread over a larger area with the aid of a 2D matrix made up of a 2D Gaussian function.
 As the data in series are usually close to each other in terms of position, the update process can be made more efficient.
 Instead of directly adding these contributions to the full cube, a much smaller cube is created.
 That cube covers only the area that will be updated with the new data and is later added to the full cube in one go.
-This enables significant speedup, as the smaller memory size enables better caching.
+This leads to significant speedup, as the smaller memory size enables better caching.
 Still, in the case of a more performant radar system, this method would be unnecessary, not to mention it has very little basis in radar data processing theory.
 
 Due to the limited performance of MATLAB on the author's machine, some parts of the cube update routine were implemented in C++ with the aid of MATLAB's MEX interface.
@@ -1173,6 +1175,8 @@ In the picture, only raw data are displayed; however, this visualization style i
 Instead of calculating a projection into the horizontal plane, the data are displayed in a conical projection.
 That is, no additional calculations are made and the cone obtained by fixing the pitch angle is simply stretched to a circle.
 To aid with orientation in the plot, simple line markers are added to provide range and angle reference points.
+Also to prevent one larger reflection to drown out smaller ones before the visualization the data are capped at \texttt{Max display value}.
+To set optimal value for this paramter user must check the application debug output  where maximal values of the scene are printed.
 
 This visualization style might be especially useful when paired with the 24~GHz header.
 Due to its rather wide radiation pattern, the radar is able to detect objects in quite a large area.
@@ -1184,19 +1188,20 @@ Thus, for a realization of a classical surveillance radar, this method of visual
 Picking this visualization style from the preferences menu will display the data in a classical x-y plot for a fixed yaw and pitch angle.
 Just as with the Range-Azimuth map, both angles are configurable via text boxes at the bottom of the screen.
 In cases when speed calculation is disabled, the y-axis is replaced with the RCS value.
+On figure~\ref{fig:rd_rr_map} we can see both of these cases, calculated for the same static scene.
 
 The main purpose of this visualization style is to provide a method for verifying radar data processing and settings.
 As the devkit does not report many useful errors and its technical documentation is sometimes incorrect (e.g., in allowed bandwidth values), it is useful to have a way to verify that the radar is working as expected.
 
 \begin{figure}[h!]
   \centering
-  \begin{subfigure}[b]{0.45\textwidth}
+  \begin{subfigure}[b]{0.46\textwidth}
     \centering
     \includegraphics[width=\textwidth]{../img/vis_range_dop.jpg}
     \caption{Range-Doppler map}
   \end{subfigure}
-  \hspace{0.05\textwidth}
-  \begin{subfigure}[b]{0.45\textwidth}
+  \hspace{0.02\textwidth}
+  \begin{subfigure}[b]{0.46\textwidth}
     \centering
     \includegraphics[width=\textwidth]{../img/vis_range_rcs.jpg}
     \caption{Range-RCS }
@@ -1205,8 +1210,6 @@ As the devkit does not report many useful errors and its technical documentation
   \label{fig:rd_rr_map}
 \end{figure}
 
-In figure~\ref{fig:rd_rr_map} we can see two different visualization styles, both displaying the same static scene.
-As previously stated, given the rather poor sampling rate, speed calculation is not very precise and thus no complex testing has been conducted for it.
 
 \subsection{Target-3D}
 
