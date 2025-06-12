@@ -111,7 +111,7 @@
       \draw[dashed] (2.5, -0.05) -- (2.5, 4.7);
 
       % Labels for fc and BW
-      \node[left] at (0, 1) {$f_c$};
+      \node[left] at (0, 0.7) {$f_c$};
       \draw[<->] (-0.5, 1) -- (-0.5, 4.5) node[midway,left] {$BW$};
 
       % Triangular wave for Tx
@@ -176,10 +176,10 @@
 
   \begin{itemize}
     \item Slow sample rate (at best around 20~ms) $\Rightarrow$
-			\begin{itemize}
-				\item Maximal detectable speed bellow 1~ms/s
-				\item Rotation speed limited to low RPM
-			\end{itemize}
+      \begin{itemize}
+        \item Maximal detectable speed bellow 1~ms/s
+        \item Rotation speed limited to low RPM
+      \end{itemize}
     \item 122~GHz header
       \begin{itemize}
         \item Tight radar beam $\pm 4$° in both directions
@@ -240,26 +240,26 @@
 \end{frame}
 
 \begin{frame}[fragile]
-	\frametitle{Platform Program Example}
-\begin{tabular}{lll}
-  \hline
-  \texttt{Command}     & Mode   & Purpose                      \\
-  \hline
-  \texttt{P90 rotTilt} & Header & Initialize program rotTilt   \\
-  \texttt{G91}         & Header & Set relative positioning     \\
-  \texttt{G21}         & Header & Set units to steps           \\
-  \texttt{G28}         & Header & Start auto home routine      \\
-  \texttt{G0 P-50 S6}  & Header & Move pitch 50 steps           \\
-  \texttt{W3 T5000}    & Header & Wait five second             \\
-  \texttt{P92}         & Header & Set current position as home \\
-  \texttt{P29}         & Header & Enable infinite looping      \\
-  \texttt{M03 SY6 Y+}  & Header & Start Yaw spindle (6 RPM)    \\
-  \texttt{P92}         & Header & Finalize header declaration  \\
-  \texttt{G0 S5 P40}   & Body   & Pitch movement               \\
-  \texttt{G0 S5 P-40}  & Body   & Return pitch                 \\
-  \texttt{P92}         & Body   & Finalize program             \\
-  \hline
-\end{tabular}
+  \frametitle{Platform Program Example}
+  \begin{tabular}{lll}
+    \hline
+    \texttt{Command}     & Mode   & Purpose                      \\
+    \hline
+    \texttt{P90 rotTilt} & Header & Initialize program rotTilt   \\
+    \texttt{G91}         & Header & Set relative positioning     \\
+    \texttt{G21}         & Header & Set units to steps           \\
+    \texttt{G28}         & Header & Start auto home routine      \\
+    \texttt{G0 P-50 S6}  & Header & Move pitch 50 steps          \\
+    \texttt{W3 T5000}    & Header & Wait five second             \\
+    \texttt{P92}         & Header & Set current position as home \\
+    \texttt{P29}         & Header & Enable infinite looping      \\
+    \texttt{M03 SY6 Y+}  & Header & Start Yaw spindle (6 RPM)    \\
+    \texttt{P92}         & Header & Finalize header declaration  \\
+    \texttt{G0 S5 P40}   & Body   & Pitch movement               \\
+    \texttt{G0 S5 P-40}  & Body   & Return pitch                 \\
+    \texttt{P92}         & Body   & Finalize program             \\
+    \hline
+  \end{tabular}
 \end{frame}
 
 
@@ -306,8 +306,8 @@
 \begin{frame}[fragile]
   \frametitle{Visualization}
   \begin{itemize}
-		\item Data are only provided in graphic way to the user
-		\item Simple storage method allows for easy integration of other visualizations
+    \item Data are only provided in graphic way to the user
+    \item Simple storage method allows for easy integration of other visualizations
     \item Three visualization styles
       \begin{itemize}
         \item Range-RCS or Range-Doppler
@@ -319,26 +319,26 @@
 
 
 \begin{frame}[fragile]
-	\frametitle{Visualization -- Range-RCS/Doppler}
-	\begin{figure}[!htb]
-		\begin{minipage}{0.48\textwidth}
-			\centering
+  \frametitle{Visualization -- Range-RCS/Doppler}
+  \begin{figure}[!htb]
+    \begin{minipage}{0.48\textwidth}
+      \centering
       \includegraphics[width=\textwidth]{../img/vis_range_dop.jpg}
-			\caption{Range-Doppler}
-		\end{minipage}\hfill
-		\begin{minipage}{0.48\textwidth}
-			\centering
+      \caption{Range-Doppler}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+      \centering
       \includegraphics[width=\textwidth]{../img/vis_range_rcs.jpg}
-			\caption{Ranger-RCS}
-		\end{minipage}
-	\end{figure}
+      \caption{Ranger-RCS}
+    \end{minipage}
+  \end{figure}
 \end{frame}
 
 \begin{frame}[fragile]
   \frametitle{Visualization -- 3D}
-	\begin{center}
-  \includegraphics[width=0.9\textwidth]{../img/vis_3d.jpg}
-	\end{center}
+  \begin{center}
+    \includegraphics[width=0.9\textwidth]{../img/vis_3d.jpg}
+  \end{center}
 \end{frame}
 
 
@@ -346,11 +346,21 @@
   \frametitle{Conclusion}
   \section{Conclusion}
   \begin{itemize}
-    \item SiRad Easy is sufficient for monitoring static scenes
-		\item Speed estimation is limited -- tracking application isn't a possibility
-		\item Rotary platform is adequate for radar capabilities, it offers special capabilities beyond standard G-Code interpreters
-		\item However there are problems with underpowered azimuth motor and low belt tension
-		\item Processing application is performant (except final visualization)
+    \item SiRad Easy
+      \begin{itemize}
+        \item Sufficient for monitoring static scenes
+        \item Speed estimation is limited -- tracking application isn't a possibility
+      \end{itemize}
+    \item Rotary platform
+      \begin{itemize}
+        \item Matches design requirements, offers unique capabilities not found in other G-Code interpreters
+        \item Underpowered azimuth motor and low belt tension
+      \end{itemize}
+		\item Processing
+			\begin{itemize}
+				\item Large degree of configuration
+				\item Pipeline performant, except final visualization under Linux
+			\end{itemize}
   \end{itemize}
 \end{frame}
 
@@ -361,13 +371,13 @@
 
   \begin{itemize}
     \item Large number of parameters: header, bandwidth, gain, target, CFAR setting -- requires fine tuning
-		\item Proper Hardware in the Loop testing is difficult even for system with fixed working parameters
-		\item Author couldn't establish correct, reproducible, validation methodology to give measured data any validity
-		\item No proper complex testing in controlled environment was done
+    \item Proper Hardware in the Loop testing is difficult even for system with fixed working parameters
+    \item Author couldn't establish correct, reproducible, validation methodology to give measured data any validity
+    \item No proper complex testing in controlled environment was done
     \item When static the radar capabilities generally match advertised
-			\begin{itemize}
-    \item 122~GHz header -- Tight beam $\Rightarrow$ very sensitive to target orientation
-			\end{itemize}
+      \begin{itemize}
+        \item 122~GHz header -- Tight beam $\Rightarrow$ very sensitive to target orientation
+      \end{itemize}
   \end{itemize}
 \end{frame}
 

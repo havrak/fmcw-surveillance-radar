@@ -656,7 +656,7 @@ Thus, instead of needing to keep track of which settings are on the PC and which
     \draw [arrow] (parse_success.east) -- ++(1, 0) |- (send_response.east) node[midway, left, yshift=+0.25cm] {No};
     \draw [arrow] (parse_success.south) -- ++(0, -0.5) -| (store_command.north) node[midway, right, yshift=+0.05cm] {Yes};
     \draw [arrow] (store_command) -- (send_response);
-    \draw [arrow] (send_response.west) -- ++(-0.5, 0) |- (wait_serial.west);
+    \draw [arrow] (send_response.west) -- ++(-0.8, 0) |- (wait_serial.west);
 
     % Application Layer
     \node (app_start) [startstop, below of=app_layer, yshift=-0.3cm] {Start};
