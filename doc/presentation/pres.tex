@@ -83,13 +83,13 @@
   \section{FMCW radar}
 
   \begin{itemize}
-    \item Detection of target in 3D space
+    \item Detection of target in 2D/3D space
     \item 2 basic approaches
       \begin{itemize}
         \item MIMO systems - electronic beamsteering, complex processing, preferred for demanding applications
         \item Mechanical scanning - simpler, easier processing, cheaper, mechanical components
       \end{itemize}
-    \item Generally based on pulsed radars -- ideal for long range applications, require high broadcast power for good accuracy
+    \item Generally based on pulsed radars -- ideal for long range applications, require high broadcast power for good resolution
   \end{itemize}
 \end{frame}
 
@@ -146,9 +146,9 @@
   \end{figure}
   \begin{itemize}
     \item Broadcasts frequency modulated signal
+    \item Low power consumption with great ranger resolution
     \item Range of target: $R = \frac{c_0 f_\mathrm{b} T_\mathrm{ch}}{2BW}$, $\Delta R = \frac{c_0 N_\mathrm{samples}}{2BW \cdot NFFT}$
     \item Speed of target: causes phase shift across many chirps
-    \item Low power consumption with great ranger resolution
   \end{itemize}
 \end{frame}
 
@@ -175,8 +175,11 @@
   \frametitle{SiRad Easy}
 
   \begin{itemize}
-    \item Slow sample rate (at best around 20~ms) $\Rightarrow$ maximal detectable speeds bellow 1~ms/s
-    \item Rotation speed limited to low RPM
+    \item Slow sample rate (at best around 20~ms) $\Rightarrow$
+			\begin{itemize}
+				\item Maximal detectable speed bellow 1~ms/s
+				\item Rotation speed limited to low RPM
+			\end{itemize}
     \item 122~GHz header
       \begin{itemize}
         \item Tight radar beam $\pm 4$° in both directions
@@ -201,7 +204,7 @@
       \begin{itemize}
         \item Radiation characteristics simulated in CST studio
         \item 16 degrees in azimuth, 30 degrees in elevation
-        \item Longer range applications
+        \item Long range applications
       \end{itemize}
   \end{itemize}
 \end{frame}
@@ -214,10 +217,10 @@
     \begin{minipage}{0.48\textwidth}
       \begin{itemize}
         \item Two axis of movement
-        \item Continuos rotation with aid of slipring
+        \item Continuos rotation with aid of a slipring
         \item Powered by ESP32C6 microcontroller
-        \item Controlled with G-Code
-        \item Supports: automatic homing, relative/absolute positioning, preprogramming movement sequence
+        \item G-Code-like API
+        \item Supports: automatic homing, relative/absolute positioning, spindle, preprogramming movement sequence
       \end{itemize}
     \end{minipage}\hfill
     \begin{minipage}{0.48\textwidth}
@@ -347,7 +350,7 @@
 		\item Speed estimation is limited -- tracking application isn't a possibility
 		\item Rotary platform is adequate for radar capabilities, it offers special capabilities beyond standard G-Code interpreters
 		\item However there are problems with underpowered azimuth motor and low belt tension
-		\item Processing application is performant (except final visualization) and
+		\item Processing application is performant (except final visualization)
   \end{itemize}
 \end{frame}
 
