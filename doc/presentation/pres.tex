@@ -46,7 +46,7 @@
 \hypersetup{breaklinks=true}
 
 
-\title{FMCW surveillance radar}
+\title{FMCW Surveillance Radar}
 % \subtitle{----}
 \author{Havránek Kryštof}
 \date{June 2025}
@@ -90,10 +90,6 @@
         \item Mechanical scanning - simpler, easier processing, cheaper, mechanical components
       \end{itemize}
     \item Generally based on pulsed radars
-			\begin{itemize}
-				\item Distance from RTT, speed from Doppler
-				\item Require high broadcast power for high resolution
-			\end{itemize}
   \end{itemize}
 \end{frame}
 
@@ -151,7 +147,7 @@
   \begin{itemize}
     \item Broadcasts frequency modulated signal
     \item Low power consumption with great ranger resolution
-    \item Range of target: $R = \frac{c_0 f_\mathrm{b} T_\mathrm{ch}}{2BW}$, $\Delta R = \frac{c_0 N_\mathrm{samples}}{2BW \cdot NFFT}$
+    \item Range of target: proportional to beat frequency
     \item Speed of target: causes phase shift across many chirps
   \end{itemize}
 \end{frame}
@@ -182,13 +178,13 @@
     \item Slow update rate (at best around 20~ms)
       \begin{itemize}
         \item Maximal detectable speed bellow 1~ms/s
-        \item Rotation speed limited to low RPM
+				\item Rotation speed limited to low RPM
       \end{itemize}
     \item 122~GHz header
       \begin{itemize}
         \item Tight radar beam $\pm 4$° in both directions
-        \item Maximal advertised ranged of 40~m, measured one closed to 30~m
-        \item Ideal for close range, high resolution applications
+        \item Measured maximal range of 30~m
+				\item Ideal for close range, high resolution (5~cm) applications
       \end{itemize}
   \end{itemize}
 \end{frame}
@@ -208,7 +204,7 @@
       \begin{itemize}
         \item Radiation characteristics simulated in CST studio
         \item 16 degrees in azimuth, 30 degrees in elevation
-        \item Long range applications
+				\item Long range applications (300~m)
       \end{itemize}
   \end{itemize}
 \end{frame}
@@ -221,7 +217,6 @@
     \begin{minipage}{0.48\textwidth}
       \begin{itemize}
         \item Two axis of movement
-        \item Continuos rotation with aid of a slipring
         \item Powered by ESP32C6 microcontroller
         \item G-Code-like API
         \item Supports: automatic homing, relative/absolute positioning, spindle, preprogramming movement sequence
@@ -325,7 +320,6 @@
   \frametitle{Visualization}
   \begin{itemize}
     \item Data are only provided in graphic way to the user
-    \item Simple storage method allows for easy integration of other visualization methods
     \item Three visualization styles
       \begin{itemize}
         \item Range-RCS or Range-Doppler
@@ -353,6 +347,13 @@
 \end{frame}
 
 \begin{frame}[fragile]
+  \frametitle{Visualizatio: Range-Azimuth}
+  \begin{center}
+    \includegraphics[width=0.9\textwidth]{../img/vis_range_azimuth.jpg}
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]
   \frametitle{Visualizatio: 3D}
   \begin{center}
     \includegraphics[width=0.9\textwidth]{../img/vis_3d.jpg}
@@ -376,7 +377,7 @@
       \end{itemize}
 		\item Desktop application
 			\begin{itemize}
-				\item Large degree of configuration
+				\item Great degree of configuration
 				\item Pipeline performant, except final visualization under Linux
 			\end{itemize}
   \end{itemize}
