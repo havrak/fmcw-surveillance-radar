@@ -72,15 +72,15 @@
     \item Surveillance FMCW radar
     \item SiRad Easy
     \item Rotary Platform
-    \item Processing
+    \item Desktop Application
     \item Conclusion
   \end{enumerate}
 \end{frame}
 
 
 \begin{frame}[fragile]
-  \frametitle{Surveillance radar}
-  \section{FMCW radar}
+  \frametitle{Surveillance Radar}
+  \section{FMCW Radar}
 
   \begin{itemize}
     \item Detection of target in 2D/3D space
@@ -89,13 +89,17 @@
         \item MIMO systems - electronic beamsteering, complex processing, preferred for demanding applications
         \item Mechanical scanning - simpler, easier processing, cheaper, mechanical components
       \end{itemize}
-    \item Generally based on pulsed radars -- ideal for long range applications, require high broadcast power for good resolution
+    \item Generally based on pulsed radars
+			\begin{itemize}
+				\item Distance from RTT, speed from Doppler
+				\item Require high broadcast power for high resolution
+			\end{itemize}
   \end{itemize}
 \end{frame}
 
 
 \begin{frame}[fragile]
-  \frametitle{FMCW radar}
+  \frametitle{FMCW Radar}
 
   \begin{figure}[h!]
     \centering
@@ -175,7 +179,7 @@
   \frametitle{SiRad Easy}
 
   \begin{itemize}
-    \item Slow sample rate (at best around 20~ms)
+    \item Slow update rate (at best around 20~ms)
       \begin{itemize}
         \item Maximal detectable speed bellow 1~ms/s
         \item Rotation speed limited to low RPM
@@ -266,8 +270,8 @@
 
 
 \begin{frame}[fragile]
-  \frametitle{Data Processing}
-  \section{Data Processing}
+  \frametitle{Desktop Application}
+  \section{Desktop Application}
 
   \begin{figure}[h!]
     \centering
@@ -278,26 +282,40 @@
   \begin{itemize}
     \item Control app written in MATLAB
     \item Integrates radar and platform data
-    \item Processing pipeline features extensive configurability
+    \item Offers wide degree of customization
   \end{itemize}
 \end{frame}
 
 \begin{frame}[fragile]
-  \frametitle{Data aquisition}
+  \frametitle{Preferences: Radar}
+  \begin{center}
+    \includegraphics[width=0.9\textwidth]{../img/preferences_crop1.jpg}
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Preferences: Processing}
+  \begin{center}
+    \includegraphics[width=0.9\textwidth]{../img/preferences_crop2.jpg}
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Data Aquisition}
   \begin{center}
     \includegraphics[width=0.8\textwidth]{../img/dataflow_1.jpg}
   \end{center}
 \end{frame}
 
 \begin{frame}[fragile]
-  \frametitle{Data processing}
+  \frametitle{Data Processing}
   \begin{center}
     \includegraphics[width=0.8\textwidth]{../img/dataflow_2.jpg}
   \end{center}
 \end{frame}
 
 \begin{frame}[fragile]
-  \frametitle{Data storing}
+  \frametitle{Data Storing}
   \begin{center}
     \includegraphics[width=0.7\textwidth]{../img/dataflow_3.jpg}
   \end{center}
@@ -307,7 +325,7 @@
   \frametitle{Visualization}
   \begin{itemize}
     \item Data are only provided in graphic way to the user
-    \item Simple storage method allows for easy integration of other visualizations
+    \item Simple storage method allows for easy integration of other visualization methods
     \item Three visualization styles
       \begin{itemize}
         \item Range-RCS or Range-Doppler
@@ -319,7 +337,7 @@
 
 
 \begin{frame}[fragile]
-  \frametitle{Visualization -- Range-RCS/Doppler}
+  \frametitle{Visualization: Range-RCS/Doppler}
   \begin{figure}[!htb]
     \begin{minipage}{0.48\textwidth}
       \centering
@@ -335,7 +353,7 @@
 \end{frame}
 
 \begin{frame}[fragile]
-  \frametitle{Visualization -- 3D}
+  \frametitle{Visualizatio: 3D}
   \begin{center}
     \includegraphics[width=0.9\textwidth]{../img/vis_3d.jpg}
   \end{center}
@@ -353,10 +371,10 @@
       \end{itemize}
     \item Rotary platform
       \begin{itemize}
-        \item Matches design requirements, offers unique capabilities not found in other G-Code interpreters
+        \item Matches design requirements
         \item Underpowered azimuth motor and low belt tension
       \end{itemize}
-		\item Processing
+		\item Desktop application
 			\begin{itemize}
 				\item Large degree of configuration
 				\item Pipeline performant, except final visualization under Linux
@@ -371,7 +389,7 @@
 
   \begin{itemize}
     \item Large number of parameters: header, bandwidth, gain, target, CFAR setting -- requires fine tuning
-    \item Proper Hardware in the Loop testing is complex
+		\item Rotary movement + inconsistent radar timing complicate reproducibility
     \item Author couldn't establish correct, reproducible, validation methodology to give measured data any validity
     \item No testing in controlled environment was done
     \item When static the radar capabilities generally match advertised
@@ -384,3 +402,27 @@
 
 
 \end{document}
+
+
+% Software běžící na mikrokontroléru je relativně přímočarý.
+%
+
+
+% Kvůli relativně obecnému zadání má aplikaci celou řadu nastavitelných paramterů
+%
+% Zpracování dat začíná vyčtením dat z radaru
+%
+%
+% Po tomto krotku má program dva objekty - pole cílů z CFAR a range-Doppler mapu
+%
+%
+% je li vyrovávací pamět plná, spustí se update radarové kostky v paralelním vlákně.
+% Radar cube je základní datová struktura, která uchovává informace o prostoru v n dimenzionálnách polích.
+%
+% Takové kostky jsou v paměti dvě - jedna pro surová data, druhá pro CFAR výstup.
+% Proces je paralelizován jelikož systém podporuje postupné stárnutí dat, což vyžaduje stovky tisíc floating point operací u větších kostek
+%
+%
+% Shrnuto.
+%
+%
