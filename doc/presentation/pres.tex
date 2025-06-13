@@ -1,4 +1,4 @@
-\documentclass[aspectratio=43]{beamer}
+\documentclass[aspectratio=169]{beamer}
 	\usepackage{tikz}
 	\usepackage{tikz-cd}
 
@@ -31,16 +31,16 @@
 \captionsetup{labelformat=empty}
 
 \beamertemplatenavigationsymbolsempty
-\defbeamertemplate*{title page}{customized}[1][]
-{
-	\usebeamerfont{title}\inserttitle\par
-	% \usebeamerfont{subtitle}\usebeamercolor[fg]{subtitle}\insertsubtitle\par
-	\bigskip
-	\usebeamerfont{author}\insertauthor\par
-	\usebeamerfont{institute}\insertinstitute\par
-	\usebeamerfont{date}\insertdate\par
-	\usebeamercolor[fg]{titlegraphic}\inserttitlegraphic
-}
+% \defbeamertemplate*{title page}{customized}[1][]
+% {
+% 	\usebeamerfont{title}\inserttitle\par
+% 	% \usebeamerfont{subtitle}\usebeamercolor[fg]{subtitle}\insertsubtitle\par
+% 	\bigskip
+% 	\usebeamerfont{author}\insertauthor\par
+% 	\usebeamerfont{institute}\insertinstitute\par
+% 	\usebeamerfont{date}\insertdate\par
+% 	\usebeamercolor[fg]{titlegraphic}\inserttitlegraphic
+% }
 
 \hypersetup{unicode}
 \hypersetup{breaklinks=true}
@@ -83,11 +83,11 @@
   \section{FMCW Radar}
 
   \begin{itemize}
-    \item Detection of target in 2D/3D space
+    \item Detection of target in plane or 3D space
     \item 2 basic approaches
       \begin{itemize}
-        \item MIMO systems - electronic beamsteering, complex processing, preferred for demanding applications
-        \item Mechanical scanning - simpler, easier processing, cheaper, mechanical components
+        \item Electronic beamsteering: MIMO systems, complex processing, preferred for demanding applications
+				\item Mechanically steered beam: simpler, easier processing, cheaper, less reliable
       \end{itemize}
     \item Generally based on pulsed radars
   \end{itemize}
@@ -96,117 +96,125 @@
 
 \begin{frame}[fragile]
   \frametitle{FMCW Radar}
+  \begin{figure}[!htb]
+    \begin{minipage}{0.48\textwidth}
+      \begin{itemize}
+        \item Broadcasts frequency modulated signal
+        \item Low power consumption with great ranger resolution
+        \item Range of target: proportional to beat frequency
+        \item Speed of target: causes phase shift across many chirps
+      \end{itemize}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+      \centering
+      \begin{tikzpicture}[>=latex, scale=0.6]
 
-  \begin{figure}[h!]
-    \centering
-    \begin{tikzpicture}[>=latex, scale=0.6]
+        % Axes
+        \draw[->] (0, 0) -- (8, 0) node[below] {$t$};
+        \draw[->] (0, 0) -- (0, 5) node[left] {$f$};
 
-      % Axes
-      \draw[->] (0, 0) -- (8, 0) node[below] {$t$};
-      \draw[->] (0, 0) -- (0, 5) node[left] {$f$};
+        % Horizontal lines for BW
+        \draw[dashed] (0, 4.5) -- (7.5, 4.5);
+        \draw[dashed] (0, 1) -- (7.5, 1);
+        \draw[dashed] (2.5, -0.05) -- (2.5, 4.7);
 
-      % Horizontal lines for BW
-      \draw[dashed] (0, 4.5) -- (7.5, 4.5);
-      \draw[dashed] (0, 1) -- (7.5, 1);
-      \draw[dashed] (2.5, -0.05) -- (2.5, 4.7);
+        % Labels for fc and BW
+        \node[left] at (0, 0.7) {$f_c$};
+        \draw[<->] (-0.5, 1) -- (-0.5, 4.5) node[midway,left] {$BW$};
 
-      % Labels for fc and BW
-      \node[left] at (0, 0.7) {$f_c$};
-      \draw[<->] (-0.5, 1) -- (-0.5, 4.5) node[midway,left] {$BW$};
+        % Triangular wave for Tx
+        \draw[thick,blue] (0, 1) -- (2.5, 4.5);
+        \draw[thick,blue]	(2.5, 1) -- (5, 4.5);
+        \draw[thick, dashed, blue] (5, 1) -- (6, 2.4);
 
-      % Triangular wave for Tx
-      \draw[thick,blue] (0, 1) -- (2.5, 4.5);
-      \draw[thick,blue]	(2.5, 1) -- (5, 4.5);
-      \draw[thick, dashed, blue] (5, 1) -- (6, 2.4);
+        % Triangular wave for Rx (offset version)
+        \draw[thick,red] (0.5, 1) -- (3, 4.5);
+        \draw[thick,red] (3, 1) -- (5.5, 4.5);
+        \draw[thick, dashed, red] (5.4, 1) -- (6.4, 2.4);
 
-      % Triangular wave for Rx (offset version)
-      \draw[thick,red] (0.5, 1) -- (3, 4.5);
-      \draw[thick,red] (3, 1) -- (5.5, 4.5);
-      \draw[thick, dashed, red] (5.4, 1) -- (6.4, 2.4);
+        % Label for Tch
+        \draw[-] (2.5, -0.05) -- (2.5, 0.05) node[below] {$T_{\text{ch}}$};
 
-      % Label for Tch
-      \draw[-] (2.5, -0.05) -- (2.5, 0.05) node[below] {$T_{\text{ch}}$};
+        % Labels for Tx and Rx
+        \node[blue] at (4.2, 4.1) {\small Tx};
+        \node[red] at (5.3, 3.7) {\small Rx};
 
-      % Labels for Tx and Rx
-      \node[blue] at (4.2, 4.1) {\small Tx};
-      \node[red] at (5.3, 3.7) {\small Rx};
+        % Sweep slope and fb
+        \draw[<->] (1, 1) arc[start angle=0, end angle=55, radius=1];
+        \node at (1.5, 1.3) {\small $k_{\text{sw}}$};
+        \draw[<->] (1.5, 2.37) -- (1.5, 3.12) node[above, left] {$f_b$};
 
-      % Sweep slope and fb
-      \draw[<->] (1, 1) arc[start angle=0, end angle=55, radius=1];
-      \node at (1.5, 1.3) {\small $k_{\text{sw}}$};
-      \draw[<->] (1.5, 2.37) -- (1.5, 3.12) node[above, left] {$f_b$};
+        % Small time delay (tau)
+        \draw[<->] (2.5, 0.7) -- (3, 0.7) node[midway,below] {$\tau$};
 
-      % Small time delay (tau)
-      \draw[<->] (2.5, 0.7) -- (3, 0.7) node[midway,below] {$\tau$};
+      \end{tikzpicture}
 
-    \end{tikzpicture}
-
-    \caption{Ideal relation of frequency on time for received and sent signal}
-    \label{fig:fmcw_ideal}
+      \caption{FMCW TX and RX Signal}
+    \end{minipage}
   \end{figure}
-  \begin{itemize}
-    \item Broadcasts frequency modulated signal
-    \item Low power consumption with great ranger resolution
-    \item Range of target: proportional to beat frequency
-    \item Speed of target: causes phase shift across many chirps
-  \end{itemize}
 \end{frame}
 
 \begin{frame}[fragile]
   \frametitle{SiRad Easy}
   \section{SiRad Easy}
+  \begin{figure}[!htb]
+    \begin{minipage}{0.48\textwidth}
+      \begin{itemize}
+        \item Evaluation kit from Indie Semiconductors
+        \item 24~GHz and 122~GHz transceivers modules
+				\item Provides raw data from ADC converters over serial
+        \item Slow update rate (at best around 20~ms)
+          \begin{itemize}
+            \item Max target speed bellow 1~ms/s
+            \item Rotation speed limited to low RPM
+          \end{itemize}
+      \end{itemize}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+      \centering
+      \includegraphics[width=0.9\textwidth]{../img/sirad.png}
 
-  \begin{figure}[h!]
-    \centering
-    \includegraphics[width=0.5\textwidth]{../img/sirad.png}
-
-    \caption{SiRad Easy  24~GHz configuration }
-    \label{fig:sirad}
+      \caption{SiRad Easy 24~GHz Configuration}
+    \end{minipage}
   \end{figure}
-
-  \begin{itemize}
-    \item Evaluation kit from Indie Semiconductors
-    \item Supports 24~GHz and 122~GHz transceivers
-    \item Primarily designed to supply already processed data
-  \end{itemize}
 \end{frame}
 
 \begin{frame}[fragile]
-  \frametitle{SiRad Easy}
-
-  \begin{itemize}
-    \item Slow update rate (at best around 20~ms)
-      \begin{itemize}
-        \item Maximal detectable speed bellow 1~ms/s
-				\item Rotation speed limited to low RPM
-      \end{itemize}
-    \item 122~GHz header
-      \begin{itemize}
-        \item Tight radar beam $\pm 4$° in both directions
-        \item Measured maximal range of 30~m
-				\item Ideal for close range, high resolution (5~cm) applications
-      \end{itemize}
-  \end{itemize}
-\end{frame}
-
-\begin{frame}[fragile]
-  \frametitle{SiRad Easy}
-
-  \begin{figure}[h!]
-    \centering
-    \includegraphics[width=0.43\textwidth]{../img/farfield3d.png}
-    \caption{Radiation pattern of 24~GHz header -- 3D view}
-    \label{fig:farfield3d}
-  \end{figure}
-
-  \begin{itemize}
-    \item 24~GHz header
+  \frametitle{SiRad Easy: 24~GHz module}
+  \begin{figure}[!htb]
+    \begin{minipage}{0.48\textwidth}
       \begin{itemize}
         \item Radiation characteristics simulated in CST studio
         \item 16 degrees in azimuth, 30 degrees in elevation
-				\item Long range applications (300~m)
+        \item Long range applications (300~m)
       \end{itemize}
-  \end{itemize}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+      \centering
+    \includegraphics[width=0.8\textwidth]{../img/farfield3d.png}
+    \caption{Radiation Pattern of 24~GHz Header}
+    \end{minipage}
+  \end{figure}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \frametitle{SiRad Easy: 122~GHz module}
+  \begin{figure}[!htb]
+    \begin{minipage}{0.48\textwidth}
+      \begin{itemize}
+        \item Tight radar beam $\pm 4$° in both directions
+        \item Measured maximal range of 30~m
+        \item Ideal for close range, high resolution (5~cm) applications
+      \end{itemize}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+      \centering
+      \includegraphics[width=0.9\textwidth]{../img/sirad122.png}
+
+      \caption{SiRad Easy 122~GHz Configuration }
+    \end{minipage}
+  \end{figure}
 \end{frame}
 
 
@@ -216,16 +224,17 @@
   \begin{figure}[!htb]
     \begin{minipage}{0.48\textwidth}
       \begin{itemize}
-        \item Two axis of movement
-        \item Powered by ESP32C6 microcontroller
-        \item G-Code-like API
-        \item Supports: automatic homing, relative/absolute positioning, spindle, preprogramming movement sequence
+        \item Two axis of movement, at low RPM
+				\item Continuos rotation in azimuth
+        \item ESP32C6 microcontroller
+        \item G-Code-like API over serial
+        \item Supports: automatic homing, relative/absolute positioning, spindle, preprogramming movement sequences
       \end{itemize}
     \end{minipage}\hfill
     \begin{minipage}{0.48\textwidth}
       \centering
-      \includegraphics[width=.8\linewidth]{../img/assembly_photo.jpg}
-      \caption{Platform}
+      \includegraphics[width=.6\linewidth]{../img/assembly_photo.jpg}
+      \caption{Platform with 122~GHz Module}
     \end{minipage}
   \end{figure}
 \end{frame}
@@ -234,7 +243,7 @@
   \frametitle{Platform Firmware Flow}
 
   \centering
-  \includegraphics[width=0.75\textwidth]{../img/platform_flow.jpg}
+  \includegraphics[width=0.64\textwidth]{../img/platform_flow.jpg}
 
 \end{frame}
 
@@ -263,42 +272,43 @@
 
 
 
-
 \begin{frame}[fragile]
   \frametitle{Desktop Application}
   \section{Desktop Application}
-
-  \begin{figure}[h!]
-    \centering
-    \includegraphics[width=0.7\textwidth]{../img/vis_range_azimuth.jpg}
-    \caption[]{Range-Azimuth visualization}
-  \end{figure}
-
+  \begin{figure}[!htb]
+    \begin{minipage}{0.48\textwidth}
   \begin{itemize}
     \item Control app written in MATLAB
     \item Integrates radar and platform data
     \item Offers wide degree of customization
   \end{itemize}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+      \centering
+    \includegraphics[width=0.9\textwidth]{../img/vis_range_azimuth.jpg}
+    \caption[]{Main App Window}
+    \end{minipage}
+  \end{figure}
 \end{frame}
 
 \begin{frame}[fragile]
   \frametitle{Preferences: Radar}
   \begin{center}
-    \includegraphics[width=0.9\textwidth]{../img/preferences_crop1.jpg}
+    \includegraphics[width=0.9\textwidth]{../img/preferences_crop1.png}
   \end{center}
 \end{frame}
 
 \begin{frame}[fragile]
   \frametitle{Preferences: Processing}
   \begin{center}
-    \includegraphics[width=0.9\textwidth]{../img/preferences_crop2.jpg}
+    \includegraphics[width=0.7\textwidth]{../img/preferences_crop2.png}
   \end{center}
 \end{frame}
 
 \begin{frame}[fragile]
   \frametitle{Data Aquisition}
   \begin{center}
-    \includegraphics[width=0.8\textwidth]{../img/dataflow_1.jpg}
+    \includegraphics[width=0.7\textwidth]{../img/dataflow_1.jpg}
   \end{center}
 \end{frame}
 
@@ -312,18 +322,18 @@
 \begin{frame}[fragile]
   \frametitle{Data Storing}
   \begin{center}
-    \includegraphics[width=0.7\textwidth]{../img/dataflow_3.jpg}
+    \includegraphics[width=0.52\textwidth]{../img/dataflow_3.jpg}
   \end{center}
 \end{frame}
 
 \begin{frame}[fragile]
   \frametitle{Visualization}
   \begin{itemize}
-    \item Data are only provided in graphic way to the user
+    \item Data are only provided in a graphic way to the user
     \item Three visualization styles
       \begin{itemize}
-        \item Range-RCS or Range-Doppler
-        \item Range-Azimuth
+				\item Range-RCS or Range-Doppler (fixed azimuth and elevation)
+				\item Range-Azimuth (fixed elevation)
         \item 3D
       \end{itemize}
   \end{itemize}
@@ -347,16 +357,16 @@
 \end{frame}
 
 \begin{frame}[fragile]
-  \frametitle{Visualizatio: Range-Azimuth}
+  \frametitle{Visualization: Range-Azimuth}
   \begin{center}
-    \includegraphics[width=0.9\textwidth]{../img/vis_range_azimuth.jpg}
+    \includegraphics[width=0.7\textwidth]{../img/vis_range_azimuth.jpg}
   \end{center}
 \end{frame}
 
 \begin{frame}[fragile]
-  \frametitle{Visualizatio: 3D}
+  \frametitle{Visualization: 3D}
   \begin{center}
-    \includegraphics[width=0.9\textwidth]{../img/vis_3d.jpg}
+    \includegraphics[width=0.7\textwidth]{../img/vis_3d.jpg}
   \end{center}
 \end{frame}
 
@@ -367,7 +377,7 @@
   \begin{itemize}
     \item SiRad Easy
       \begin{itemize}
-        \item Sufficient for monitoring static scenes
+				\item Sufficient for monitoring static scenes
         \item Speed estimation is limited -- tracking application isn't a possibility
       \end{itemize}
     \item Rotary platform
@@ -375,11 +385,11 @@
         \item Matches design requirements
         \item Underpowered azimuth motor and low belt tension
       \end{itemize}
-		\item Desktop application
-			\begin{itemize}
-				\item Great degree of configuration
-				\item Pipeline performant, except final visualization under Linux
-			\end{itemize}
+    \item Desktop application
+      \begin{itemize}
+        \item Great degree of configuration
+        \item Pipeline performant, except for final visualization under Linux
+      \end{itemize}
   \end{itemize}
 \end{frame}
 
@@ -390,7 +400,7 @@
 
   \begin{itemize}
     \item Large number of parameters: header, bandwidth, gain, target, CFAR setting -- requires fine tuning
-		\item Rotary movement + inconsistent radar timing complicate reproducibility
+    \item Rotary movement + inconsistent radar timing complicate reproducibility
     \item Author couldn't establish correct, reproducible, validation methodology to give measured data any validity
     \item No testing in controlled environment was done
     \item When static the radar capabilities generally match advertised
@@ -404,6 +414,8 @@
 
 \end{document}
 
+
+% Radarový modul je v práci pouze konfigurován v rámci výrobcem specifikovaných paramterů, veškerý další popisovaný kod je pak již moje práce
 
 % Software běžící na mikrokontroléru je relativně přímočarý.
 %
