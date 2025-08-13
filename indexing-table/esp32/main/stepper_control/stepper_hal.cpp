@@ -371,10 +371,10 @@ bool StepperHal::stopStepper(stepper_hal_struct_t* stepperHal, bool synchronized
 bool StepperHal::stopNowStepper(stepper_hal_struct_t* stepperHal)
 {
 
-	bool toRet = true;
-	// bool toRet = xQueueReset(stepperHal->commandQueue) == pdTRUE;
-	if (stepperHal->stepperCommand->complete) // there is no cleanup needed to be made
+	bool toRet = xQueueReset(stepperHal->commandQueue) == pdTRUE;
+	if (stepperHal->stepperCommand->complete){ // there is no cleanup needed to be made
 		return toRet;
+	}
 	mcpwm_timer_start_stop(stepperHal->timer, MCPWM_TIMER_START_STOP_FULL);
 
 	if (stepperHal->stepperCommand->type == CommandType::STEPPER) {
@@ -382,12 +382,14 @@ bool StepperHal::stopNowStepper(stepper_hal_struct_t* stepperHal)
 		pcnt_unit_get_count(stepperHal->pcntUnit, &pulseCount);
 		pcnt_unit_remove_watch_point(stepperHal->pcntUnit, stepperHal->stepperCommand->val.steps);
 		stepperHal->stepperCommand->val.steps = pulseCount;
+		xEventGroupSetBits(StepperHal::stepperEventGroup, stepperHal->stepperCompleteBit); // this will advance stepperTask, also complete flag will be set there to true, same goes for synchronized
 	} else if (stepperHal->stepperCommandPrev->type == CommandType::SPINDLE && !stepperHal->stepperCommandPrev->complete) {
 		stepperHal->stepperCommandPrev->val.finishTime = esp_timer_get_time();
 		stepperHal->stepperCommandPrev->synchronized = false;
 		stepperHal->stepperCommandPrev->complete = true;
 	}
-	// pcnt_unit_clear_count(stepperHal->pcntUnit);
+
+	pcnt_unit_clear_count(stepperHal->pcntUnit);
 	return toRet;
 }
 
