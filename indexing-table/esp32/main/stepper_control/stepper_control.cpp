@@ -6,7 +6,7 @@
  */
 
 #include "stepper_control.h"
-
+#define MAIN_TASK_SLEEP (200/portTICK_PERIOD_MS)
 StepperControl stepperControl = StepperControl();
 
 StepperControl::StepperControl() { }
@@ -258,7 +258,7 @@ void StepperControl::commandSchedulerTask(void* arg)
 		// if queues are filled we will wait
 
 		if (steppers.getQueueLength(stepperHalYaw) == CONFIG_STEPPER_HAL_QUEUE_SIZE || steppers.getQueueLength(stepperHalPitch) == CONFIG_STEPPER_HAL_QUEUE_SIZE) {
-			vTaskDelay(20 / portTICK_PERIOD_MS);
+			vTaskDelay(MAIN_TASK_SLEEP);
 			continue;
 		}
 
@@ -299,7 +299,7 @@ void StepperControl::commandSchedulerTask(void* arg)
 				// ESP_LOGI(TAG, "commandSchedulerTask | CMD SOURCE: programm main (repeat)");
 #endif
 				if (activeProgram->main->size() == 0) {
-					vTaskDelay(20 / portTICK_PERIOD_MS);
+					vTaskDelay(MAIN_TASK_SLEEP);
 					continue;
 				}
 				command = activeProgram->main->at(0);
@@ -316,7 +316,7 @@ void StepperControl::commandSchedulerTask(void* arg)
 		}
 
 		if (command == nullptr) {
-			vTaskDelay(20 / portTICK_PERIOD_MS); // there are no commands to process, we can wait and will only refresh the position
+			vTaskDelay(MAIN_TASK_SLEEP); // there are no commands to process, we can wait and will only refresh the position
 			continue;
 		}
 

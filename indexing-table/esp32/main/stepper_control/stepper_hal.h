@@ -34,6 +34,7 @@ enum CommandType : uint8_t {
 	STOP = 0x03,									// will stop the stepper
 	SKIP = 0x04,									// will skip the command (used to maintain synchronization between command queues)
 	WAIT = 0x05,									// will wait for a given time
+	NONE = 0xFF,                  // placeholder to handed edge case of an edge case
 };
 
 enum Direction : uint8_t {

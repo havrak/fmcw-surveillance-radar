@@ -89,7 +89,7 @@ classdef preferences < handle
 
 			obj.configStruct.radar.port='none';
 			obj.configStruct.radar.baudrate=obj.availableBaudrates(1);
-			obj.configStruct.radar.header='';
+			obj.configStruct.radar.header=122;
 			obj.configStruct.radar.bandwidth=0;
 			obj.configStruct.radar.samples=128;
 			obj.configStruct.radar.gain =obj.availableSamples(1);

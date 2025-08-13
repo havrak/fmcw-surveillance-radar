@@ -14,8 +14,8 @@ classdef app < handle
 		% OTHER VARS%
 		hPreferences preferences;
 		hPlatformControl platformControl;
-		hDataProcessor dataProcessor;
-		hRadar;
+		% hDataProcessor dataProcessor;
+		% hRadar;
 		hTask;
 
 		hFig;
@@ -31,31 +31,31 @@ classdef app < handle
 			addpath("scripts");
 			obj.constructGUI();
 
-			parallelPool = gcp('nocreate'); % Start parallel pool
+			% parallelPool = gcp('nocreate'); % Start parallel pool
 
-			if isempty(parallelPool)
-				filesToAttach = {
-					'app.m', 'cfarCube.dat', 'dataProcessor.m', 'main.m', ...
-					'platformControl.m', 'preferences.m', 'radar.m', ...
-					'radarBuffer.m', 'radarDataCube.m', 'rawCube.dat', ...
-					'scripts/', ... % Attach entire scripts directory
-					'matlab demo/'  % Attach demo folder if needed
-					};
-				fprintf("App | starting paraller pool\n");
+			% if isempty(parallelPool)
+			%	filesToAttach = {
+			%		'app.m', 'cfarCube.dat', 'dataProcessor.m', 'main.m', ...
+			%		'platformControl.m', 'preferences.m', 'radar.m', ...
+			%		'radarBuffer.m', 'radarDataCube.m', 'rawCube.dat', ...
+			%		'scripts/', ... % Attach entire scripts directory
+			%		'matlab demo/'  % Attach demo folder if needed
+			%		};
+			%	fprintf("App | starting paraller pool\n");
 
 				% If MATLAB's parallelization toolkit wasn't broken mess this could have
 				% been declared as Threads instead of processes. But it is and memmafile's
 				% don't work in threads memory sharing doesn't work with threads and
 				% calling external scripts even if they are in path doesn't work with
 				% threads. So I need to wait ages and
-				parpool('Processes', 3, 'AttachedFiles', filesToAttach);
-			end
+			% 	parpool('Processes', 3, 'AttachedFiles', filesToAttach);
+			% end
 
 			time = tic; % establish common time base, call to get unix timestamp si rather lengthy
 			obj.hPreferences = preferences();
 			obj.hPlatformControl = platformControl(obj.hPreferences, time);
-			obj.hRadar = radar(obj.hPreferences, time);
-			obj.hDataProcessor = dataProcessor(obj.hRadar, obj.hPlatformControl, obj.hPreferences, obj.hPanelView);
+			% obj.hRadar = radar(obj.hPreferences, time);
+			% obj.hDataProcessor = dataProcessor(obj.hRadar, obj.hPlatformControl, obj.hPreferences, obj.hPanelView);
 
 		end
 
@@ -64,7 +64,7 @@ classdef app < handle
 			% SHUTDOWN safely stops all app processes
 
 			fprintf("App | shutdown\n")
-			obj.hRadar.endProcesses();
+			% obj.hRadar.endProcesses();
 			obj.hPlatformControl.endProcesses();
 		end
 
@@ -137,10 +137,10 @@ classdef app < handle
 				'Callback', @(src, event) obj.toggleProcessing(), ...
 				'BackgroundColor', '#66BB6A');
 
-			obj.hBtnSaveScene = uicontrol('Style', 'pushbutton', ...
-				'Parent', obj.hPanelBtn, ...
-				'String', 'Save scene', ...
-				'Callback', @(src, event) obj.hDataProcessor.saveScene());
+			% obj.hBtnSaveScene = uicontrol('Style', 'pushbutton', ...
+			% 	'Parent', obj.hPanelBtn, ...
+			%	'String', 'Save scene', ...
+			%	'Callback', @(src, event) obj.hDataProcessor.saveScene());
 
 			obj.hBtnStopPlatform = uicontrol('Style', 'pushbutton', ...
 				'Parent', obj.hPanelBtn, ...
@@ -169,11 +169,11 @@ classdef app < handle
 		function toggleProcessing(obj)
 			% TOGGLEPROCESSING toggles the processing of the radar data
 
-			if obj.hDataProcessor.toggleProcessing()
-				set(obj.hBtnToggleProcessing, 'BackgroundColor', '#66BB6A');
-			else
-				set(obj.hBtnToggleProcessing, 'BackgroundColor', '#E57373');
-			end
+			% if obj.hDataProcessor.toggleProcessing()
+			%	set(obj.hBtnToggleProcessing, 'BackgroundColor', '#66BB6A');
+			% else
+			% 	set(obj.hBtnToggleProcessing, 'BackgroundColor', '#E57373');
+			% end
 		end
 
 		function setupRadarSerial(obj)
@@ -181,11 +181,11 @@ classdef app < handle
 			%
 			% if successfull it will change bg color of connect button
 
-			if obj.hRadar.setupSerial()
-				set(obj.hBtnConnectRadar, 'BackgroundColor', '#66BB6A');
-			else
-				set(obj.hBtnConnectRadar, 'BackgroundColor', '#E57373');
-			end
+			% if obj.hRadar.setupSerial()
+			% 	set(obj.hBtnConnectRadar, 'BackgroundColor', '#66BB6A');
+			% else
+			% 	set(obj.hBtnConnectRadar, 'BackgroundColor', '#E57373');
+			% end
 
 		end
 
@@ -214,9 +214,9 @@ classdef app < handle
 			obj.hPanelView.Position = [10, 20, width-200, height-30];
 
 			% resize callback gets called right after creating gui so before hDataProcessor is even initialized
-			if ~isempty(obj.hDataProcessor) && isvalid(obj.hDataProcessor)
-				obj.hDataProcessor.resizeUI();
-			end
+			% if ~isempty(obj.hDataProcessor) && isvalid(obj.hDataProcessor)
+			%	obj.hDataProcessor.resizeUI();
+			% end
 		end
 
 	end

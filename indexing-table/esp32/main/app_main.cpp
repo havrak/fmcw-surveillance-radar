@@ -26,13 +26,13 @@ extern "C" void app_main(void)
 	stepperControl.init();
 	vTaskDelay(1000 / portTICK_PERIOD_MS);
 	stepperControl.parseGCode("G92", 3);
+	// stepperControl.parseGCode("M92 Y200 P200", 13);
 
 
 
 
 	// NOTE: DEMO CODE
 	stepperControl.parseGCode("P90 xx_ro", 14);
-	stepperControl.parseGCode("M92 Y800 P400", 13);
 	stepperControl.parseGCode("G91", 3);
 	stepperControl.parseGCode("G21",3);
 	stepperControl.parseGCode("G92",3);
@@ -42,7 +42,6 @@ extern "C" void app_main(void)
 	stepperControl.parseGCode("P92", 3);
 
 	stepperControl.parseGCode("P90 xx_ti", 14);
-	stepperControl.parseGCode("M92 Y800 P400", 13);
 	stepperControl.parseGCode("G91", 3);
 	stepperControl.parseGCode("G21",3);
 	stepperControl.parseGCode("G92",3);
