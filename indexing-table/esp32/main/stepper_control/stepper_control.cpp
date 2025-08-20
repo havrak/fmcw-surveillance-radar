@@ -1421,14 +1421,11 @@ fastHome:
 			pdTRUE,
 			portMAX_DELAY);
 
-	uint8_t trueStop = digitalRead(stepperEndstopPin);
+	uint8_t trueStop = gpio_get_level((gpio_num) stepperEndstopPin);
 	for(int i = 0; i < 200; i++) {
 		if(digitalRead(stepperEndstopPin) != trueStop)
 			goto fastHome; // if the endstop is not stable we should wait until it is stable
 	}
-
-
-
 	if (programmingMode.load() != ProgrammingMode::HOMING) {
 		// if we are not in homing mode anymore, we should stop the homing process
 		steppers.stopStepper(stepperHal);
@@ -1453,10 +1450,10 @@ slowHomed:
 			pdTRUE,
 			portMAX_DELAY);
 
-	trueStop = digitalRead(stepperEndstopPin);
+	trueStop = gpio_get_level((gpio_num) stepperEndstopPin);
 	for(int i = 0; i < 200; i++) {
 		if(digitalRead(stepperEndstopPin) != trueStop)
-			goto slowHomed; // if the endstop is not stable we should wait until it is stable
+			goto slowHomed;
 	}
 
 	steppers.stopStepper(stepperHal);
