@@ -360,13 +360,9 @@ class StepperControl {
 	/**
 	 * @brief starts homing routine for yaw
 	 */
-	void homeYaw();
+	void homeAxis(stepper_hal_struct_t* stepperHal);
 
 
-	/**
-	 * @brief starts homing routine for pitch
-	 */
-	void homePitch();
 
 	public:
 	constexpr static char TAG[] = "StepperControl";

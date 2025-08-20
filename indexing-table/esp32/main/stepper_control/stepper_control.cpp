@@ -6,7 +6,7 @@
  */
 
 #include "stepper_control.h"
-#define MAIN_TASK_SLEEP (200/portTICK_PERIOD_MS)
+#define MAIN_TASK_SLEEP (200 / portTICK_PERIOD_MS)
 StepperControl stepperControl = StepperControl();
 
 StepperControl::StepperControl() { }
@@ -402,12 +402,10 @@ void StepperControl::commandSchedulerTask(void* arg)
 #endif
 			ProgrammingMode mode = programmingMode.load();
 			programmingMode.store(ProgrammingMode::HOMING);
-			if (command->movementYaw != nullptr) {
-				stepperControl.homeYaw();
-			}
-			if (command->movementPitch != nullptr) {
-				stepperControl.homePitch();
-			}
+			if (command->movementYaw != nullptr)
+				stepperControl.homeAxis(stepperHalYaw);
+			if (command->movementPitch != nullptr)
+				stepperControl.homeAxis(stepperHalPitch);
 			programmingMode.store(mode);
 			break;
 		}
@@ -710,6 +708,9 @@ ParsingGCodeResult StepperControl::parseGCodeNonScheduledCommands(const char* gc
 		xSemaphoreGive(noProgrammQueueLock);
 		steppers.stopNowStepper(stepperHalYaw);
 		steppers.stopNowStepper(stepperHalPitch);
+		xEventGroupSetBits(StepperControl::homingEventGroup, BIT0);
+		xEventGroupSetBits(StepperControl::homingEventGroup, BIT0);
+
 		return ParsingGCodeResult::SUCCESS;
 	} else if (strncmp(gcode, "G3", 2) == 0) { // override
 #ifdef CONFIG_COMM_DEBUG
@@ -1381,26 +1382,38 @@ void StepperControl::home()
 {
 	ProgrammingMode mode = programmingMode.load();
 	programmingMode.store(ProgrammingMode::HOMING);
-	homeYaw();
-	homePitch();
+	homeAxis(stepperHalYaw);
+	homeAxis(stepperHalPitch);
 
 	programmingMode.store(mode);
 }
 
-void StepperControl::homeYaw()
+void StepperControl::homeAxis(stepper_hal_struct_t* stepperHal)
 {
+	uint8_t stepperEndstopPin;
+	uint8_t unitMode = 0;
+	if (stepperHal == stepperHalYaw) {
+		stepperEndstopPin = CONFIG_STEPPER_Y_PIN_ENDSTOP;
+	} else if (stepperHal == stepperHalPitch) {
+		stepperEndstopPin = CONFIG_STEPPER_P_PIN_ENDSTOP;
+	} else {
+		ESP_LOGE(TAG, "homeAxis | Invalid stepperHal provided");
+		return;
+	}
+
 #ifdef CONFIG_APP_DEBUG
 	ESP_LOGI(TAG, "Home | Homing yaw");
 #endif /* CONFIG_APP_DEBUG */
 	// stop the steppers
 	xEventGroupClearBits(homingEventGroup, BIT0);
-	steppers.stopNowStepper(stepperHalYaw);
+	steppers.stopNowStepper(stepperHal);
 	vTaskDelay(500);
 	// attach interrupts
-	attachInterrupt(CONFIG_STEPPER_Y_PIN_ENDSTOP, StepperControl::endstopHandler, CHANGE);
+	attachInterrupt(stepperEndstopPin, StepperControl::endstopHandler, CHANGE);
 
-	steppers.spindleStepper(stepperHalYaw, 10, Direction::FORWARD);
+	steppers.spindleStepper(stepperHal, 10, Direction::FORWARD);
 
+fastHome:
 	EventBits_t result = xEventGroupWaitBits(
 			homingEventGroup,
 			BIT0,
@@ -1408,14 +1421,31 @@ void StepperControl::homeYaw()
 			pdTRUE,
 			portMAX_DELAY);
 
+	uint8_t trueStop = digitalRead(stepperEndstopPin);
+	for(int i = 0; i < 200; i++) {
+		if(digitalRead(stepperEndstopPin) != trueStop)
+			goto fastHome; // if the endstop is not stable we should wait until it is stable
+	}
+
+
+
+	if (programmingMode.load() != ProgrammingMode::HOMING) {
+		// if we are not in homing mode anymore, we should stop the homing process
+		steppers.stopStepper(stepperHal);
+		detachInterrupt(stepperEndstopPin);
+		return;
+	}
+
 #ifdef CONFIG_APP_DEBUG
-	ESP_LOGI(TAG, "Home | Yaw stepper fast homed");
+	ESP_LOGI(TAG, "Home |  stepper fast homed");
 #endif /* CONFIG_APP_DEBUG */
 
-	steppers.stepStepper(stepperHalYaw, -20, 6);
-	vTaskDelay(150);
+	steppers.stepStepper(stepperHal, -20*(stepperHal->stepCount/200), 10);
+	vTaskDelay(1000); // NOTE: if this is too short homing will not work if the stepper is already home
 	xEventGroupClearBits(homingEventGroup, BIT0);
-	steppers.spindleStepper(stepperHalYaw, 3, Direction::FORWARD);
+	steppers.spindleStepper(stepperHal, 6, Direction::FORWARD);
+
+slowHomed:
 	result = xEventGroupWaitBits(
 			homingEventGroup,
 			BIT0,
@@ -1423,63 +1453,20 @@ void StepperControl::homeYaw()
 			pdTRUE,
 			portMAX_DELAY);
 
-	steppers.stopStepper(stepperHalYaw);
+	trueStop = digitalRead(stepperEndstopPin);
+	for(int i = 0; i < 200; i++) {
+		if(digitalRead(stepperEndstopPin) != trueStop)
+			goto slowHomed; // if the endstop is not stable we should wait until it is stable
+	}
+
+	steppers.stopStepper(stepperHal);
 
 #ifdef CONFIG_APP_DEBUG
-	ESP_LOGI(TAG, "Home | Yaw stepper slow homed");
+	ESP_LOGI(TAG, "Home |  stepper slow homed");
 #endif /* CONFIG_APP_DEBUG */
 
 	// cleanup
-	steppers.getStepsTraveledOfPrevCommand(stepperHalYaw);
-	detachInterrupt(CONFIG_STEPPER_Y_PIN_ENDSTOP);
+	steppers.getStepsTraveledOfPrevCommand(stepperHal);
+	detachInterrupt(stepperEndstopPin);
 }
 
-void StepperControl::homePitch()
-{
-#ifdef CONFIG_APP_DEBUG
-	ESP_LOGI(TAG, "Home | Homing pitch");
-#endif /* CONFIG_APP_DEBUG */
-	// stop the steppers
-	steppers.stopNowStepper(stepperHalPitch);
-	xEventGroupClearBits(homingEventGroup, BIT0);
-	vTaskDelay(500);
-	// attach interrupts
-
-	ESP_LOGI(TAG, "Home | Attaching interrupt");
-
-	attachInterrupt(CONFIG_STEPPER_P_PIN_ENDSTOP, StepperControl::endstopHandler, CHANGE);
-
-	steppers.spindleStepper(stepperHalPitch, 10, Direction::FORWARD);
-
-	EventBits_t result = xEventGroupWaitBits(
-			homingEventGroup,
-			BIT0,
-			pdTRUE,
-			pdTRUE,
-			portMAX_DELAY);
-
-#ifdef CONFIG_APP_DEBUG
-	ESP_LOGI(TAG, "Home | Pitch stepper fast homed");
-#endif /* CONFIG_APP_DEBUG */
-
-	steppers.stepStepper(stepperHalPitch, -30, 20);
-	vTaskDelay(1000);
-	xEventGroupClearBits(homingEventGroup, BIT0);
-	steppers.spindleStepper(stepperHalPitch, 6, Direction::FORWARD);
-	result = xEventGroupWaitBits(
-			homingEventGroup,
-			BIT0,
-			pdTRUE,
-			pdTRUE,
-			portMAX_DELAY);
-
-	steppers.stopStepper(stepperHalPitch);
-
-#ifdef CONFIG_APP_DEBUG
-	ESP_LOGI(TAG, "Home | Pitch stepper slow homed");
-#endif /* CONFIG_APP_DEBUG */
-
-	// cleanup
-	steppers.getStepsTraveledOfPrevCommand(stepperHalPitch);
-	detachInterrupt(CONFIG_STEPPER_P_PIN_ENDSTOP);
-}
