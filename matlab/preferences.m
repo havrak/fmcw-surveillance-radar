@@ -133,7 +133,8 @@ classdef preferences < handle
 				path=fullfile(getenv("HOME"), ".config", "fmcw" );
 			elseif ispc
 				[~,cmdout] = system('echo %APPDATA%');
-				path=fullfile(cmdout, "Local", "fmcw");
+				path=fullfile(strtrim(cmdout), "fmcw");
+                disp(path);
 			else
 				path="placeholder";
 				fprintf('Storing config is not supported on this platform');
@@ -409,7 +410,12 @@ classdef preferences < handle
 
 
 				if (strcmp(section,'programs') && isfield(struct, 'programs'))
-					items=fieldnames(struct.(section)); % load all variables in section
+                    disp(struct);
+                    if(~isempty(struct.(section)))
+					    items=fieldnames(struct.(section)); % load all variables in section
+                    else
+                        items=[];
+                    end
 				else
 					items=fieldnames(obj.configStruct.(section)); % load section names from configStruct, ignore all non present
 				end
