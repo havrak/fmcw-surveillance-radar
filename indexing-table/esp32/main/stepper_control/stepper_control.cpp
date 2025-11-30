@@ -247,11 +247,11 @@ void StepperControl::commandSchedulerTask(void* arg)
 
 		// tmp++;
 		// if(tmp == 20){
-		// 	tmp =0;
-		// 	int64_t travelledH = steppers.getStepsTraveledOfCurrentCommand(stepperHalYaw);
-		// 	int64_t travelledT = steppers.getStepsTraveledOfCurrentCommand(stepperHalPitch);
-		// 	ESP_LOGI(TAG, "H position %lld, H traveled %lld, T position %lld, T traveled %lld", stepperOpParYaw.position, travelledH, stepperOpParPitch.position, travelledT);
-		// 	ESP_LOGI(TAG, "!P %lld, %f, %f\n", esp_timer_get_time()/1000, STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParYaw.position + travelledH, stepperHalYaw->stepCount), stepperHalYaw->stepCount), STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParPitch.position + travelledT, stepperHalYaw->stepCount), stepperHalYaw->stepCount));
+		//	tmp =0;
+		//	int64_t travelledH = steppers.getStepsTraveledOfCurrentCommand(stepperHalYaw);
+		//	int64_t travelledT = steppers.getStepsTraveledOfCurrentCommand(stepperHalPitch);
+		//	ESP_LOGI(TAG, "H position %lld, H traveled %lld, T position %lld, T traveled %lld", stepperOpParYaw.position, travelledH, stepperOpParPitch.position, travelledT);
+		//	ESP_LOGI(TAG, "!P %lld, %f, %f\n", esp_timer_get_time()/1000, STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParYaw.position + travelledH, stepperHalYaw->stepCount), stepperHalYaw->stepCount), STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParPitch.position + travelledT, stepperHalYaw->stepCount), stepperHalYaw->stepCount));
 		// }
 
 		printf("!P %lld, %f, %f\n", esp_timer_get_time() / 1000, STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParYaw.position + steppers.getStepsTraveledOfCurrentCommand(stepperHalYaw), stepperHalYaw->stepCount), stepperHalYaw->stepCount), STEPS_TO_ANGLE(NORMALIZE_ANGLE(stepperOpParPitch.position + steppers.getStepsTraveledOfCurrentCommand(stepperHalPitch), stepperHalPitch->stepCount), stepperHalPitch->stepCount));
@@ -322,272 +322,272 @@ void StepperControl::commandSchedulerTask(void* arg)
 
 		// reporting will be always is always in absolute position
 		switch (command->type) {
-		case GCodeCommand::G20:
+			case GCodeCommand::G20:
 #ifdef CONFIG_APP_DEBUG
-			ESP_LOGI(TAG, "commandSchedulerTask | G20");
+				ESP_LOGI(TAG, "commandSchedulerTask | G20");
 #endif
-			unit = Unit::DEGREES;
-			break;
-		case GCodeCommand::G21:
+				unit = Unit::DEGREES;
+				break;
+			case GCodeCommand::G21:
 #ifdef CONFIG_APP_DEBUG
-			ESP_LOGI(TAG, "commandSchedulerTask | G21");
+				ESP_LOGI(TAG, "commandSchedulerTask | G21");
 #endif
-			unit = Unit::STEPS;
-			break;
-		case GCodeCommand::G90:
+				unit = Unit::STEPS;
+				break;
+			case GCodeCommand::G90:
 #ifdef CONFIG_APP_DEBUG
-			if (command->movementYaw != nullptr && command->movementPitch != nullptr)
-				ESP_LOGI(TAG, "commandSchedulerTask | G90 | Y, P");
-			else if (command->movementYaw != nullptr)
-				ESP_LOGI(TAG, "commandSchedulerTask | G90 | Y");
-			else if (command->movementPitch != nullptr)
-				ESP_LOGI(TAG, "commandSchedulerTask | G90 | P");
+				if (command->movementYaw != nullptr && command->movementPitch != nullptr)
+					ESP_LOGI(TAG, "commandSchedulerTask | G90 | Y, P");
+				else if (command->movementYaw != nullptr)
+					ESP_LOGI(TAG, "commandSchedulerTask | G90 | Y");
+				else if (command->movementPitch != nullptr)
+					ESP_LOGI(TAG, "commandSchedulerTask | G90 | P");
 #endif
-			if (command->movementYaw != nullptr)
-				stepperOpParYaw.positioningMode = PositioningMode::ABSOLUTE;
-			if (command->movementPitch != nullptr)
-				stepperOpParPitch.positioningMode = PositioningMode::ABSOLUTE;
-			break;
-		case GCodeCommand::G91:
+				if (command->movementYaw != nullptr)
+					stepperOpParYaw.positioningMode = PositioningMode::ABSOLUTE;
+				if (command->movementPitch != nullptr)
+					stepperOpParPitch.positioningMode = PositioningMode::ABSOLUTE;
+				break;
+			case GCodeCommand::G91:
 #ifdef CONFIG_APP_DEBUG
-			if (command->movementYaw != nullptr && command->movementPitch != nullptr)
-				ESP_LOGI(TAG, "commandSchedulerTask | G91 | Y, P");
-			else if (command->movementYaw != nullptr)
-				ESP_LOGI(TAG, "commandSchedulerTask | G91 | Y");
-			else if (command->movementPitch != nullptr)
-				ESP_LOGI(TAG, "commandSchedulerTask | G91 | P");
+				if (command->movementYaw != nullptr && command->movementPitch != nullptr)
+					ESP_LOGI(TAG, "commandSchedulerTask | G91 | Y, P");
+				else if (command->movementYaw != nullptr)
+					ESP_LOGI(TAG, "commandSchedulerTask | G91 | Y");
+				else if (command->movementPitch != nullptr)
+					ESP_LOGI(TAG, "commandSchedulerTask | G91 | P");
 #endif
-			if (command->movementYaw != nullptr)
-				stepperOpParYaw.positioningMode = PositioningMode::RELATIVE;
-			if (command->movementPitch != nullptr)
-				stepperOpParPitch.positioningMode = PositioningMode::RELATIVE;
-			break;
-		case GCodeCommand::G92:
-#ifdef CONFIG_APP_DEBUG
-			if (command->movementYaw != nullptr && command->movementPitch != nullptr)
-				ESP_LOGI(TAG, "commandSchedulerTask | G92 | Y, P");
-			else if (command->movementYaw != nullptr)
-				ESP_LOGI(TAG, "commandSchedulerTask | G92 | Y");
-			else if (command->movementPitch != nullptr)
-				ESP_LOGI(TAG, "commandSchedulerTask | G92 | P");
-#endif
-			if (command->movementYaw != nullptr) {
-				if (steppers.getQueueLength(stepperHalYaw) != 0) {
-					ESP_LOGE(TAG, "commandSchedulerTask | G92 | ERR: cannot reset position while there are commands in queue");
-				} else {
-					steppers.getStepsTraveledOfPrevCommand(stepperHalYaw); // clear previous command steps
-					stepperOpParYaw.position = 0;
-					stepperOpParYaw.positionLastScheduled = 0;
-				}
-			}
-			if (command->movementPitch != nullptr) {
-				if (steppers.getQueueLength(stepperHalPitch) != 0) {
-					ESP_LOGE(TAG, "commandSchedulerTask | G92 | ERR: cannot reset position while there are commands in queue");
-				} else {
-					steppers.getStepsTraveledOfPrevCommand(stepperHalPitch); // clear previous command steps
-					stepperOpParPitch.position = 0;
-					stepperOpParPitch.positionLastScheduled = 0;
-				}
-			}
-
-			break;
-		case GCodeCommand::G28: {
-#ifdef CONFIG_APP_DEBUG
-			if (command->movementYaw != nullptr && command->movementPitch != nullptr)
-				ESP_LOGI(TAG, "commandSchedulerTask | G28 | Y, P");
-			else if (command->movementYaw != nullptr)
-				ESP_LOGI(TAG, "commandSchedulerTask | G28 | Y");
-			else if (command->movementPitch != nullptr)
-				ESP_LOGI(TAG, "commandSchedulerTask | G28 | P");
-#endif
-			ProgrammingMode mode = programmingMode.load();
-			programmingMode.store(ProgrammingMode::HOMING);
-			if (command->movementYaw != nullptr)
-				stepperControl.homeAxis(stepperHalYaw);
-			if (command->movementPitch != nullptr)
-				stepperControl.homeAxis(stepperHalPitch);
-			programmingMode.store(mode);
-			break;
-		}
-		case GCodeCommand::G0:
-			if (command->movementYaw != nullptr) {
-				if (command->movementYaw->val.steps == 0)
-					steppers.skipStepper(stepperHalYaw, SYNCHRONIZED);
-				ESP_LOGI(TAG, "commandSchedulerTask | G0 | Y degrees %d", command->movementYaw->val.steps);
-				command->movementYaw->val.steps = unit == Unit::DEGREES ? ANGLE_TO_STEPS(command->movementYaw->val.steps, stepperHalYaw->stepCount) : command->movementYaw->val.steps;
-				ESP_LOGI(TAG, "commandSchedulerTask | G0 | Y steps %d", command->movementYaw->val.steps);
-				if (stepperOpParYaw.positioningMode == PositioningMode::ABSOLUTE) {
-#ifdef CONFIG_APP_DEBUG
-					ESP_LOGI(TAG, "commandSchedulerTask | G0 | Y absolute");
-#endif
-					ESP_LOGI(TAG, "commandSchedulerTask | G0 | Y absolute last scheduled %ld, move to %d", stepperOpParYaw.positionLastScheduled, command->movementYaw->val.steps);
-					command->movementYaw->val.steps = NORMALIZE_ANGLE(command->movementYaw->val.steps, stepperHalYaw->stepCount);
-					stepperOpParYaw.positionLastScheduled = moveStepperAbsolute(stepperHalYaw, command->movementYaw, &stepperOpParYaw, SYNCHRONIZED);
-					ESP_LOGI(TAG, "commandSchedulerTask | G0 | Y absolute last scheduled %ld", stepperOpParYaw.positionLastScheduled);
-				} else {
-#ifdef CONFIG_APP_DEBUG
-					ESP_LOGI(TAG, "commandSchedulerTask | G0 | Y relative");
-#endif
-					stepperOpParYaw.positionLastScheduled = moveStepperRelative(stepperHalYaw, command->movementYaw, &stepperOpParYaw, SYNCHRONIZED);
-				}
-			}
-			if (command->movementPitch != nullptr) {
-				if (command->movementPitch->val.steps == 0)
-					steppers.skipStepper(stepperHalPitch, SYNCHRONIZED);
-				command->movementPitch->val.steps = unit == Unit::DEGREES ? ANGLE_TO_STEPS(command->movementPitch->val.steps, stepperHalPitch->stepCount) : command->movementPitch->val.steps;
-				if (stepperOpParPitch.positioningMode == PositioningMode::ABSOLUTE) {
-#ifdef CONFIG_APP_DEBUG
-					ESP_LOGI(TAG, "commandSchedulerTask | G0 | P absolute");
-#endif
-					command->movementPitch->val.steps = NORMALIZE_ANGLE(command->movementPitch->val.steps, stepperHalPitch->stepCount);
-					stepperOpParPitch.positionLastScheduled = moveStepperAbsolute(stepperHalPitch, command->movementPitch, &stepperOpParPitch, SYNCHRONIZED);
-				} else {
-#ifdef CONFIG_APP_DEBUG
-					ESP_LOGI(TAG, "commandSchedulerTask | G0 | P relative");
-#endif
-					stepperOpParPitch.positionLastScheduled = moveStepperRelative(stepperHalPitch, command->movementPitch, &stepperOpParPitch, SYNCHRONIZED);
-				}
-			}
-			break;
-		case GCodeCommand::M03:
-#ifdef CONFIG_APP_DEBUG
-			if (command->movementYaw != nullptr && command->movementPitch != nullptr)
-				ESP_LOGI(TAG, "commandSchedulerTask | M03 | Y, P");
-			else if (command->movementYaw != nullptr)
-				ESP_LOGI(TAG, "commandSchedulerTask | M03 | Y");
-			else if (command->movementPitch != nullptr)
-				ESP_LOGI(TAG, "commandSchedulerTask | M03 | P");
-#endif
-			if (command->movementYaw != nullptr) {
-				if (stepperOpParYaw.positioningMode != PositioningMode::RELATIVE) {
-#ifdef CONFIG_APP_DEBUG
-					ESP_LOGE(TAG, "commandSchedulerTask | M03 | Y ERR: command with absolute positioning is not supported, will switch to relative");
-#endif
+				if (command->movementYaw != nullptr)
 					stepperOpParYaw.positioningMode = PositioningMode::RELATIVE;
-				}
-				steppers.spindleStepper(stepperHalYaw, command->movementYaw->rpm, command->movementYaw->val.direction);
-			}
-			if (command->movementPitch != nullptr) {
-				if (stepperOpParPitch.positioningMode != PositioningMode::RELATIVE) {
-#ifdef CONFIG_APP_DEBUG
-					ESP_LOGE(TAG, "commandSchedulerTask | M03 | P ERR: command with absolute positioning is not supported, will switch to relative");
-#endif
+				if (command->movementPitch != nullptr)
 					stepperOpParPitch.positioningMode = PositioningMode::RELATIVE;
-				}
-				steppers.spindleStepper(stepperHalPitch, command->movementPitch->rpm, command->movementPitch->val.direction);
-			}
-			break;
-		case GCodeCommand::M05:
+				break;
+			case GCodeCommand::G92:
 #ifdef CONFIG_APP_DEBUG
-			if (command->movementYaw != nullptr && command->movementPitch != nullptr)
-				ESP_LOGI(TAG, "commandSchedulerTask | M05 | Y, P");
-			else if (command->movementYaw != nullptr)
-				ESP_LOGI(TAG, "commandSchedulerTask | M05 | Y");
-			else if (command->movementPitch != nullptr)
-				ESP_LOGI(TAG, "commandSchedulerTask | M05 | P");
+				if (command->movementYaw != nullptr && command->movementPitch != nullptr)
+					ESP_LOGI(TAG, "commandSchedulerTask | G92 | Y, P");
+				else if (command->movementYaw != nullptr)
+					ESP_LOGI(TAG, "commandSchedulerTask | G92 | Y");
+				else if (command->movementPitch != nullptr)
+					ESP_LOGI(TAG, "commandSchedulerTask | G92 | P");
 #endif
-			if (command->movementYaw != nullptr)
-				steppers.stopStepper(stepperHalYaw, SYNCHRONIZED);
-			if (command->movementPitch != nullptr)
-				steppers.stopStepper(stepperHalPitch, SYNCHRONIZED);
-			break;
-		case GCodeCommand::M201:
-#ifdef CONFIG_APP_DEBUG
-			if (command->movementYaw != nullptr && command->movementPitch != nullptr)
-				ESP_LOGI(TAG, "commandSchedulerTask | M201 | Y: min %ld, max %ld | P: min %ld, max %ld", stepperOpParYaw.stepsMin, stepperOpParYaw.stepsMax, stepperOpParPitch.stepsMin, stepperOpParPitch.stepsMax);
-			else if (command->movementYaw != nullptr)
-				ESP_LOGI(TAG, "commandSchedulerTask | M201 | Y: min %ld, max %ld", stepperOpParYaw.stepsMin, stepperOpParYaw.stepsMax);
-			else if (command->movementPitch != nullptr)
-				ESP_LOGI(TAG, "commandSchedulerTask | M201 | P: min %ld, max %ld", stepperOpParPitch.stepsMin, stepperOpParPitch.stepsMax);
-#endif
-			if (unit == Unit::STEPS) {
 				if (command->movementYaw != nullptr) {
-					stepperOpParYaw.stepsMin = command->movementYaw->val.limits.min <= stepperHalYaw->stepCount ? (uint32_t)command->movementYaw->val.limits.min : stepperHalYaw->stepCount;
-					stepperOpParYaw.stepsMax = command->movementYaw->val.limits.max <= stepperHalYaw->stepCount ? (uint32_t)command->movementYaw->val.limits.max : stepperHalYaw->stepCount;
+					if (steppers.getQueueLength(stepperHalYaw) != 0) {
+						ESP_LOGE(TAG, "commandSchedulerTask | G92 | ERR: cannot reset position while there are commands in queue");
+					} else {
+						steppers.getStepsTraveledOfPrevCommand(stepperHalYaw); // clear previous command steps
+						stepperOpParYaw.position = 0;
+						stepperOpParYaw.positionLastScheduled = 0;
+					}
 				}
 				if (command->movementPitch != nullptr) {
-					stepperOpParPitch.stepsMin = command->movementPitch->val.limits.min <= stepperHalPitch->stepCount ? (uint32_t)command->movementPitch->val.limits.min : stepperHalPitch->stepCount;
-					stepperOpParPitch.stepsMax = command->movementPitch->val.limits.max <= stepperHalPitch->stepCount ? (uint32_t)command->movementPitch->val.limits.max : stepperHalPitch->stepCount;
+					if (steppers.getQueueLength(stepperHalPitch) != 0) {
+						ESP_LOGE(TAG, "commandSchedulerTask | G92 | ERR: cannot reset position while there are commands in queue");
+					} else {
+						steppers.getStepsTraveledOfPrevCommand(stepperHalPitch); // clear previous command steps
+						stepperOpParPitch.position = 0;
+						stepperOpParPitch.positionLastScheduled = 0;
+					}
 				}
-			} else {
-				if (command->movementYaw != nullptr) {
-					stepperOpParYaw.stepsMin = ANGLE_TO_STEPS(command->movementYaw->val.limits.min, stepperHalYaw->stepCount) <= stepperHalYaw->stepCount ? ANGLE_TO_STEPS(command->movementYaw->val.limits.min, stepperHalYaw->stepCount) : stepperHalYaw->stepCount;
-					stepperOpParYaw.stepsMax = ANGLE_TO_STEPS(command->movementYaw->val.limits.max, stepperHalYaw->stepCount) <= stepperHalYaw->stepCount ? ANGLE_TO_STEPS(command->movementYaw->val.limits.max, stepperHalYaw->stepCount) : stepperHalYaw->stepCount;
-				}
-				if (command->movementPitch != nullptr) {
-					stepperOpParPitch.stepsMin = ANGLE_TO_STEPS(command->movementPitch->val.limits.min, stepperHalYaw->stepCount) <= stepperHalPitch->stepCount ? ANGLE_TO_STEPS(command->movementPitch->val.limits.min, stepperHalYaw->stepCount) : stepperHalPitch->stepCount;
-					stepperOpParPitch.stepsMax = ANGLE_TO_STEPS(command->movementPitch->val.limits.max, stepperHalYaw->stepCount) <= stepperHalPitch->stepCount ? ANGLE_TO_STEPS(command->movementPitch->val.limits.max, stepperHalYaw->stepCount) : stepperHalPitch->stepCount;
-				}
-			}
-			break;
 
-		case GCodeCommand::M202:
+				break;
+			case GCodeCommand::G28: {
 #ifdef CONFIG_APP_DEBUG
-			if (command->movementYaw != nullptr && command->movementPitch != nullptr)
-				ESP_LOGI(TAG, "commandSchedulerTask | M202 | Y, P");
-			else if (command->movementYaw != nullptr)
-				ESP_LOGI(TAG, "commandSchedulerTask | M202 | Y");
-			else if (command->movementPitch != nullptr)
-				ESP_LOGI(TAG, "commandSchedulerTask | M202 | P");
+																if (command->movementYaw != nullptr && command->movementPitch != nullptr)
+																	ESP_LOGI(TAG, "commandSchedulerTask | G28 | Y, P");
+																else if (command->movementYaw != nullptr)
+																	ESP_LOGI(TAG, "commandSchedulerTask | G28 | Y");
+																else if (command->movementPitch != nullptr)
+																	ESP_LOGI(TAG, "commandSchedulerTask | G28 | P");
 #endif
-			if (command->movementYaw != nullptr) {
-				stepperOpParYaw.stepsMin = GCODE_ELEMENT_INVALID_INT;
-				stepperOpParYaw.stepsMax = GCODE_ELEMENT_INVALID_INT;
-			}
-			if (command->movementPitch != nullptr) {
-				stepperOpParPitch.stepsMin = GCODE_ELEMENT_INVALID_INT;
-				stepperOpParPitch.stepsMax = GCODE_ELEMENT_INVALID_INT;
-			}
-			break;
-		case GCodeCommand::P21:
+																ProgrammingMode mode = programmingMode.load();
+																programmingMode.store(ProgrammingMode::HOMING);
+																if (command->movementYaw != nullptr)
+																	stepperControl.homeAxis(stepperHalYaw);
+																if (command->movementPitch != nullptr)
+																	stepperControl.homeAxis(stepperHalPitch);
+																programmingMode.store(mode);
+																break;
+															}
+			case GCodeCommand::G0:
+															if (command->movementYaw != nullptr) {
+																if (command->movementYaw->val.steps == 0)
+																	steppers.skipStepper(stepperHalYaw, SYNCHRONIZED);
+																ESP_LOGI(TAG, "commandSchedulerTask | G0 | Y degrees %d", command->movementYaw->val.steps);
+																command->movementYaw->val.steps = unit == Unit::DEGREES ? ANGLE_TO_STEPS(command->movementYaw->val.steps, stepperHalYaw->stepCount) : command->movementYaw->val.steps;
+																ESP_LOGI(TAG, "commandSchedulerTask | G0 | Y steps %d", command->movementYaw->val.steps);
+																if (stepperOpParYaw.positioningMode == PositioningMode::ABSOLUTE) {
 #ifdef CONFIG_APP_DEBUG
-			ESP_LOGI(TAG, "commandSchedulerTask | P21 | %d", activeProgram->forLoopCounter);
+																	ESP_LOGI(TAG, "commandSchedulerTask | G0 | Y absolute");
 #endif
-			activeProgram->forLoopCounter = command->movementYaw->val.iterations;
-			if (activeProgram->indexHeader != activeProgram->header->size())
-				activeProgram->indexForLoop = activeProgram->indexHeader + 1;
-			else
-				activeProgram->indexForLoop = activeProgram->indexMain + 1;
-			break;
-		case GCodeCommand::P22:
+																	ESP_LOGI(TAG, "commandSchedulerTask | G0 | Y absolute last scheduled %ld, move to %d", stepperOpParYaw.positionLastScheduled, command->movementYaw->val.steps);
+																	command->movementYaw->val.steps = NORMALIZE_ANGLE(command->movementYaw->val.steps, stepperHalYaw->stepCount);
+																	stepperOpParYaw.positionLastScheduled = moveStepperAbsolute(stepperHalYaw, command->movementYaw, &stepperOpParYaw, SYNCHRONIZED);
+																	ESP_LOGI(TAG, "commandSchedulerTask | G0 | Y absolute last scheduled %ld", stepperOpParYaw.positionLastScheduled);
+																} else {
 #ifdef CONFIG_APP_DEBUG
-			ESP_LOGI(TAG, "commandSchedulerTask | P22 | %d", activeProgram->forLoopCounter);
+																	ESP_LOGI(TAG, "commandSchedulerTask | G0 | Y relative");
 #endif
-			if (activeProgram->forLoopCounter > 0) {
-				activeProgram->forLoopCounter--;
-				if (activeProgram->indexHeader != activeProgram->header->size())
-					activeProgram->indexHeader = activeProgram->indexForLoop;
-				else
-					activeProgram->indexMain = activeProgram->indexForLoop;
-			}
-			break;
-		case GCodeCommand::W1:
+																	stepperOpParYaw.positionLastScheduled = moveStepperRelative(stepperHalYaw, command->movementYaw, &stepperOpParYaw, SYNCHRONIZED);
+																}
+															}
+															if (command->movementPitch != nullptr) {
+																if (command->movementPitch->val.steps == 0)
+																	steppers.skipStepper(stepperHalPitch, SYNCHRONIZED);
+																command->movementPitch->val.steps = unit == Unit::DEGREES ? ANGLE_TO_STEPS(command->movementPitch->val.steps, stepperHalPitch->stepCount) : command->movementPitch->val.steps;
+																if (stepperOpParPitch.positioningMode == PositioningMode::ABSOLUTE) {
 #ifdef CONFIG_APP_DEBUG
-			if (command->movementYaw != nullptr && command->movementPitch != nullptr)
-				ESP_LOGI(TAG, "commandSchedulerTask | W1 | Y, P");
-			else if (command->movementYaw != nullptr)
-				ESP_LOGI(TAG, "commandSchedulerTask | W1 | Y");
-			else if (command->movementPitch != nullptr)
-				ESP_LOGI(TAG, "commandSchedulerTask | W1 | P");
+																	ESP_LOGI(TAG, "commandSchedulerTask | G0 | P absolute");
 #endif
-			if (command->movementYaw != nullptr) {
-				steppers.waitStepper(stepperHalYaw, command->movementYaw->val.time, SYNCHRONIZED);
-			}
-			if (command->movementPitch != nullptr) {
-				steppers.waitStepper(stepperHalPitch, command->movementPitch->val.time, SYNCHRONIZED);
-			}
-			break;
-		case GCodeCommand::W3:
+																	command->movementPitch->val.steps = NORMALIZE_ANGLE(command->movementPitch->val.steps, stepperHalPitch->stepCount);
+																	stepperOpParPitch.positionLastScheduled = moveStepperAbsolute(stepperHalPitch, command->movementPitch, &stepperOpParPitch, SYNCHRONIZED);
+																} else {
 #ifdef CONFIG_APP_DEBUG
-			if (command->movementPitch != nullptr)
-				ESP_LOGI(TAG, "commandSchedulerTask | W3");
+																	ESP_LOGI(TAG, "commandSchedulerTask | G0 | P relative");
 #endif
-			if (command->movementPitch != nullptr) {
-				vTaskDelay(command->movementPitch->val.time / portTICK_PERIOD_MS);
-			}
-			break;
-		default:
-			break;
+																	stepperOpParPitch.positionLastScheduled = moveStepperRelative(stepperHalPitch, command->movementPitch, &stepperOpParPitch, SYNCHRONIZED);
+																}
+															}
+															break;
+			case GCodeCommand::M03:
+#ifdef CONFIG_APP_DEBUG
+															if (command->movementYaw != nullptr && command->movementPitch != nullptr)
+																ESP_LOGI(TAG, "commandSchedulerTask | M03 | Y, P");
+															else if (command->movementYaw != nullptr)
+																ESP_LOGI(TAG, "commandSchedulerTask | M03 | Y");
+															else if (command->movementPitch != nullptr)
+																ESP_LOGI(TAG, "commandSchedulerTask | M03 | P");
+#endif
+															if (command->movementYaw != nullptr) {
+																if (stepperOpParYaw.positioningMode != PositioningMode::RELATIVE) {
+#ifdef CONFIG_APP_DEBUG
+																	ESP_LOGE(TAG, "commandSchedulerTask | M03 | Y ERR: command with absolute positioning is not supported, will switch to relative");
+#endif
+																	stepperOpParYaw.positioningMode = PositioningMode::RELATIVE;
+																}
+																steppers.spindleStepper(stepperHalYaw, command->movementYaw->rpm, command->movementYaw->val.direction);
+															}
+															if (command->movementPitch != nullptr) {
+																if (stepperOpParPitch.positioningMode != PositioningMode::RELATIVE) {
+#ifdef CONFIG_APP_DEBUG
+																	ESP_LOGE(TAG, "commandSchedulerTask | M03 | P ERR: command with absolute positioning is not supported, will switch to relative");
+#endif
+																	stepperOpParPitch.positioningMode = PositioningMode::RELATIVE;
+																}
+																steppers.spindleStepper(stepperHalPitch, command->movementPitch->rpm, command->movementPitch->val.direction);
+															}
+															break;
+			case GCodeCommand::M05:
+#ifdef CONFIG_APP_DEBUG
+															if (command->movementYaw != nullptr && command->movementPitch != nullptr)
+																ESP_LOGI(TAG, "commandSchedulerTask | M05 | Y, P");
+															else if (command->movementYaw != nullptr)
+																ESP_LOGI(TAG, "commandSchedulerTask | M05 | Y");
+															else if (command->movementPitch != nullptr)
+																ESP_LOGI(TAG, "commandSchedulerTask | M05 | P");
+#endif
+															if (command->movementYaw != nullptr)
+																steppers.stopStepper(stepperHalYaw, SYNCHRONIZED);
+															if (command->movementPitch != nullptr)
+																steppers.stopStepper(stepperHalPitch, SYNCHRONIZED);
+															break;
+			case GCodeCommand::M201:
+#ifdef CONFIG_APP_DEBUG
+															if (command->movementYaw != nullptr && command->movementPitch != nullptr)
+																ESP_LOGI(TAG, "commandSchedulerTask | M201 | Y: min %ld, max %ld | P: min %ld, max %ld", stepperOpParYaw.stepsMin, stepperOpParYaw.stepsMax, stepperOpParPitch.stepsMin, stepperOpParPitch.stepsMax);
+															else if (command->movementYaw != nullptr)
+																ESP_LOGI(TAG, "commandSchedulerTask | M201 | Y: min %ld, max %ld", stepperOpParYaw.stepsMin, stepperOpParYaw.stepsMax);
+															else if (command->movementPitch != nullptr)
+																ESP_LOGI(TAG, "commandSchedulerTask | M201 | P: min %ld, max %ld", stepperOpParPitch.stepsMin, stepperOpParPitch.stepsMax);
+#endif
+															if (unit == Unit::STEPS) {
+																if (command->movementYaw != nullptr) {
+																	stepperOpParYaw.stepsMin = command->movementYaw->val.limits.min <= stepperHalYaw->stepCount ? (uint32_t)command->movementYaw->val.limits.min : stepperHalYaw->stepCount;
+																	stepperOpParYaw.stepsMax = command->movementYaw->val.limits.max <= stepperHalYaw->stepCount ? (uint32_t)command->movementYaw->val.limits.max : stepperHalYaw->stepCount;
+																}
+																if (command->movementPitch != nullptr) {
+																	stepperOpParPitch.stepsMin = command->movementPitch->val.limits.min <= stepperHalPitch->stepCount ? (uint32_t)command->movementPitch->val.limits.min : stepperHalPitch->stepCount;
+																	stepperOpParPitch.stepsMax = command->movementPitch->val.limits.max <= stepperHalPitch->stepCount ? (uint32_t)command->movementPitch->val.limits.max : stepperHalPitch->stepCount;
+																}
+															} else {
+																if (command->movementYaw != nullptr) {
+																	stepperOpParYaw.stepsMin = ANGLE_TO_STEPS(command->movementYaw->val.limits.min, stepperHalYaw->stepCount) <= stepperHalYaw->stepCount ? ANGLE_TO_STEPS(command->movementYaw->val.limits.min, stepperHalYaw->stepCount) : stepperHalYaw->stepCount;
+																	stepperOpParYaw.stepsMax = ANGLE_TO_STEPS(command->movementYaw->val.limits.max, stepperHalYaw->stepCount) <= stepperHalYaw->stepCount ? ANGLE_TO_STEPS(command->movementYaw->val.limits.max, stepperHalYaw->stepCount) : stepperHalYaw->stepCount;
+																}
+																if (command->movementPitch != nullptr) {
+																	stepperOpParPitch.stepsMin = ANGLE_TO_STEPS(command->movementPitch->val.limits.min, stepperHalYaw->stepCount) <= stepperHalPitch->stepCount ? ANGLE_TO_STEPS(command->movementPitch->val.limits.min, stepperHalYaw->stepCount) : stepperHalPitch->stepCount;
+																	stepperOpParPitch.stepsMax = ANGLE_TO_STEPS(command->movementPitch->val.limits.max, stepperHalYaw->stepCount) <= stepperHalPitch->stepCount ? ANGLE_TO_STEPS(command->movementPitch->val.limits.max, stepperHalYaw->stepCount) : stepperHalPitch->stepCount;
+																}
+															}
+															break;
+
+			case GCodeCommand::M202:
+#ifdef CONFIG_APP_DEBUG
+															if (command->movementYaw != nullptr && command->movementPitch != nullptr)
+																ESP_LOGI(TAG, "commandSchedulerTask | M202 | Y, P");
+															else if (command->movementYaw != nullptr)
+																ESP_LOGI(TAG, "commandSchedulerTask | M202 | Y");
+															else if (command->movementPitch != nullptr)
+																ESP_LOGI(TAG, "commandSchedulerTask | M202 | P");
+#endif
+															if (command->movementYaw != nullptr) {
+																stepperOpParYaw.stepsMin = GCODE_ELEMENT_INVALID_INT;
+																stepperOpParYaw.stepsMax = GCODE_ELEMENT_INVALID_INT;
+															}
+															if (command->movementPitch != nullptr) {
+																stepperOpParPitch.stepsMin = GCODE_ELEMENT_INVALID_INT;
+																stepperOpParPitch.stepsMax = GCODE_ELEMENT_INVALID_INT;
+															}
+															break;
+			case GCodeCommand::P21:
+#ifdef CONFIG_APP_DEBUG
+															ESP_LOGI(TAG, "commandSchedulerTask | P21 | %d", activeProgram->forLoopCounter);
+#endif
+															activeProgram->forLoopCounter = command->movementYaw->val.iterations;
+															if (activeProgram->indexHeader != activeProgram->header->size())
+																activeProgram->indexForLoop = activeProgram->indexHeader + 1;
+															else
+																activeProgram->indexForLoop = activeProgram->indexMain + 1;
+															break;
+			case GCodeCommand::P22:
+#ifdef CONFIG_APP_DEBUG
+															ESP_LOGI(TAG, "commandSchedulerTask | P22 | %d", activeProgram->forLoopCounter);
+#endif
+															if (activeProgram->forLoopCounter > 0) {
+																activeProgram->forLoopCounter--;
+																if (activeProgram->indexHeader != activeProgram->header->size())
+																	activeProgram->indexHeader = activeProgram->indexForLoop;
+																else
+																	activeProgram->indexMain = activeProgram->indexForLoop;
+															}
+															break;
+			case GCodeCommand::W1:
+#ifdef CONFIG_APP_DEBUG
+															if (command->movementYaw != nullptr && command->movementPitch != nullptr)
+																ESP_LOGI(TAG, "commandSchedulerTask | W1 | Y, P");
+															else if (command->movementYaw != nullptr)
+																ESP_LOGI(TAG, "commandSchedulerTask | W1 | Y");
+															else if (command->movementPitch != nullptr)
+																ESP_LOGI(TAG, "commandSchedulerTask | W1 | P");
+#endif
+															if (command->movementYaw != nullptr) {
+																steppers.waitStepper(stepperHalYaw, command->movementYaw->val.time, SYNCHRONIZED);
+															}
+															if (command->movementPitch != nullptr) {
+																steppers.waitStepper(stepperHalPitch, command->movementPitch->val.time, SYNCHRONIZED);
+															}
+															break;
+			case GCodeCommand::W3:
+#ifdef CONFIG_APP_DEBUG
+															if (command->movementPitch != nullptr)
+																ESP_LOGI(TAG, "commandSchedulerTask | W3");
+#endif
+															if (command->movementPitch != nullptr) {
+																vTaskDelay(command->movementPitch->val.time / portTICK_PERIOD_MS);
+															}
+															break;
+			default:
+															break;
 		}
 		if (programmingMode == ProgrammingMode::NO_PROGRAMM)
 			delete command;
@@ -598,11 +598,11 @@ void StepperControl::commandSchedulerTask(void* arg)
 ParsingGCodeResult StepperControl::parseGCode(const char* gcode, const uint16_t length)
 {
 	// #ifdef CONFIG_COMM_DEBUG
-	// 	char* gcodeCopy = (char*)malloc(length + 1);
-	// 	strncpy(gcodeCopy, gcode, length);
-	// 	gcodeCopy[length] = '\0';
-	// 	ESP_LOGI(TAG, "Received command: %s", gcodeCopy);
-	// 	free(gcodeCopy);
+	//	char* gcodeCopy = (char*)malloc(length + 1);
+	//	strncpy(gcodeCopy, gcode, length);
+	//	gcodeCopy[length] = '\0';
+	//	ESP_LOGI(TAG, "Received command: %s", gcodeCopy);
+	//	free(gcodeCopy);
 	// #endif /* CONFIG_COMM_DEBUG */
 
 	ParsingGCodeResult res = parseGCodeNonScheduledCommands(gcode, length);
@@ -619,21 +619,21 @@ ParsingGCodeResult StepperControl::parseGCode(const char* gcode, const uint16_t 
 	gcode_command_t* command = new gcode_command_t();
 
 	switch (gcode[0]) {
-	case 'G':
-		res = parseGCodeGCommands(gcode, length, command);
-		break;
-	case 'M':
-		res = parseGCodeMCommands(gcode, length, command);
-		break;
-	case 'W':
-		res = parseGCodeWCommands(gcode, length, command);
-		break;
-	case 'P':
-		res = parseGCodePCommands(gcode, length, command);
-		break;
-	default:
-		res = ParsingGCodeResult::INVALID_COMMAND;
-		break;
+		case 'G':
+			res = parseGCodeGCommands(gcode, length, command);
+			break;
+		case 'M':
+			res = parseGCodeMCommands(gcode, length, command);
+			break;
+		case 'W':
+			res = parseGCodeWCommands(gcode, length, command);
+			break;
+		case 'P':
+			res = parseGCodePCommands(gcode, length, command);
+			break;
+		default:
+			res = ParsingGCodeResult::INVALID_COMMAND;
+			break;
 	}
 
 	if (res == ParsingGCodeResult::SUCCESS) {
@@ -1283,7 +1283,7 @@ ParsingGCodeResult StepperControl::parseGCodePCommands(const char* gcode, const 
 			if (strncmp(it->name, name, PROG_NAME_MAX_LENGTH) == 0)
 				break;
 		if (it != programms.end()) { // programm with the same name exists so we will overwrite it
-			// -> if there is a program with the same name we will overwrite it
+																 // -> if there is a program with the same name we will overwrite it
 			activeProgram = &(*it);
 			activeProgram->clean();
 			commandDestination = activeProgram->header;
@@ -1394,16 +1394,19 @@ void StepperControl::homeAxis(stepper_hal_struct_t* stepperHal)
 	uint8_t unitMode = 0;
 	if (stepperHal == stepperHalYaw) {
 		stepperEndstopPin = CONFIG_STEPPER_Y_PIN_ENDSTOP;
+#ifdef CONFIG_APP_DEBUG
+		ESP_LOGI(TAG, "Home | Homing yaw");
+#endif /* CONFIG_APP_DEBUG */
 	} else if (stepperHal == stepperHalPitch) {
 		stepperEndstopPin = CONFIG_STEPPER_P_PIN_ENDSTOP;
+#ifdef CONFIG_APP_DEBUG
+		ESP_LOGI(TAG, "Home | Homing pitch");
+#endif /* CONFIG_APP_DEBUG */
 	} else {
 		ESP_LOGE(TAG, "homeAxis | Invalid stepperHal provided");
 		return;
 	}
 
-#ifdef CONFIG_APP_DEBUG
-	ESP_LOGI(TAG, "Home | Homing yaw");
-#endif /* CONFIG_APP_DEBUG */
 	// stop the steppers
 	xEventGroupClearBits(homingEventGroup, BIT0);
 	steppers.stopNowStepper(stepperHal);
@@ -1421,7 +1424,7 @@ fastHome:
 			pdTRUE,
 			portMAX_DELAY);
 
-	uint8_t trueStop = gpio_get_level((gpio_num) stepperEndstopPin);
+	uint8_t trueStop = gpio_get_level((gpio_num_t) stepperEndstopPin);
 	for(int i = 0; i < 200; i++) {
 		if(digitalRead(stepperEndstopPin) != trueStop)
 			goto fastHome; // if the endstop is not stable we should wait until it is stable
@@ -1450,7 +1453,7 @@ slowHomed:
 			pdTRUE,
 			portMAX_DELAY);
 
-	trueStop = gpio_get_level((gpio_num) stepperEndstopPin);
+	trueStop = gpio_get_level((gpio_num_t) stepperEndstopPin);
 	for(int i = 0; i < 200; i++) {
 		if(digitalRead(stepperEndstopPin) != trueStop)
 			goto slowHomed;
